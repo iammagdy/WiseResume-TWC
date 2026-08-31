@@ -129,6 +129,24 @@ async function setOrUpdateVariable(functions, functionId, key, value) {
   console.log(`[VAR SET PASS] ${functionId} -> ${key} = ${value}`);
 }
 
+async function restoreConsumerExactState(functions, fnId, prior) {
+  if (prior.exists && prior.value !== null) {
+    await setOrUpdateVariable(functions, fnId, 'BILLING_ACCESS_ENVIRONMENT', prior.value);
+  } else {
+    const currentVars = await fetchFunctionVariables(functions, fnId);
+    const existingCurrent = currentVars.find(v => v.key === 'BILLING_ACCESS_ENVIRONMENT');
+
+    if (existingCurrent) {
+      await functions.deleteVariable(fnId, existingCurrent.$id);
+      const freshVars = await fetchFunctionVariables(functions, fnId);
+      if (freshVars.some(v => v.key === 'BILLING_ACCESS_ENVIRONMENT')) {
+        throw new Error(`[READBACK MISMATCH] Failed to verify deletion of ${fnId} -> BILLING_ACCESS_ENVIRONMENT`);
+      }
+      console.log(`[VAR RESTORE DELETED PASS] ${fnId} -> BILLING_ACCESS_ENVIRONMENT (restored ABSENCE)`);
+    }
+  }
+}
+
 function validateProductionPreconditions(billingCheckoutVars) {
   // 1. SECRET PRESENCE METADATA-ONLY CHECK
   const prodKeyVar = billingCheckoutVars.find(v => v.key === 'BILLING_PRODUCTION_PADDLE_API_KEY');
@@ -172,7 +190,6 @@ async function runProductionPreflightAudit(functions, dependencies = {}) {
   const targets = ['billing-checkout', ...ACCESS_CONSUMER_FUNCTIONS];
   let secretMetadataStatus = 'PASS';
   let catalogStatus = 'MATCH';
-  let approvedOriginStatus = 'UNVERIFIED';
 
   for (const fnId of targets) {
     const vars = dependencies.varsMap?.[fnId] || await fetchFunctionVariables(functions, fnId);
@@ -180,23 +197,35 @@ async function runProductionPreflightAudit(functions, dependencies = {}) {
     const safeAllowlist = SAFE_NON_SECRET_ALLOWLIST[fnId] || new Set();
     const secretAllowlist = SECRET_PRESENCE_KEYS[fnId] || new Set();
 
-    for (const v of vars) {
-      if (secretAllowlist.has(v.key)) {
-        if (v.secret === false) secretMetadataStatus = 'FAIL_NOT_SECRET';
-        const flagInfo = v.secret !== undefined ? `secret_flag=${Boolean(v.secret)}` : 'SECRET_FLAG_UNVERIFIED';
-        auditReport.functions[fnId][v.key] = `[PRESENT (${flagInfo})]`;
-        console.log(`[AUDIT METADATA] ${fnId} -> ${v.key}: PRESENT (${flagInfo})`);
-      } else if (safeAllowlist.has(v.key)) {
-        auditReport.functions[fnId][v.key] = v.value;
-        console.log(`[AUDIT CONFIG] ${fnId} -> ${v.key}: ${v.value}`);
+    for (const key of safeAllowlist) {
+      const found = vars.find(v => v.key === key);
+      if (found) {
+        auditReport.functions[fnId][key] = found.value;
+        console.log(`[AUDIT CONFIG] ${fnId} -> ${key}: ${found.value}`);
+      } else if (ACCESS_CONSUMER_FUNCTIONS.includes(fnId) && key === 'BILLING_ACCESS_ENVIRONMENT') {
+        auditReport.functions[fnId][key] = '[UNCONFIGURED]';
+        console.log(`[AUDIT CONFIG] ${fnId} -> ${key}: [UNCONFIGURED]`);
       }
-      // Unallowlisted variables are STRICTLY IGNORED and NEVER printed or logged
+    }
+
+    for (const key of secretAllowlist) {
+      const found = vars.find(v => v.key === key);
+      if (found) {
+        if (found.secret === false) secretMetadataStatus = 'FAIL_NOT_SECRET';
+        const flagInfo = found.secret !== undefined ? `secret_flag=${Boolean(found.secret)}` : 'SECRET_FLAG_UNVERIFIED';
+        auditReport.functions[fnId][key] = `[PRESENT (${flagInfo})]`;
+        console.log(`[AUDIT METADATA] ${fnId} -> ${key}: PRESENT (${flagInfo})`);
+      } else {
+        auditReport.functions[fnId][key] = '[MISSING]';
+        if (fnId === 'billing-checkout' && key === 'BILLING_PRODUCTION_PADDLE_API_KEY') {
+          secretMetadataStatus = 'MISSING';
+        }
+      }
     }
   }
 
   const bcVars = auditReport.functions['billing-checkout'] || {};
-  const hasProdKey = Boolean(bcVars['BILLING_PRODUCTION_PADDLE_API_KEY']);
-  if (!hasProdKey) secretMetadataStatus = 'MISSING';
+  const hasProdKey = bcVars['BILLING_PRODUCTION_PADDLE_API_KEY'] && bcVars['BILLING_PRODUCTION_PADDLE_API_KEY'].includes('PRESENT');
 
   for (const [catalogKey, expectedValue] of Object.entries(PROD_CATALOG)) {
     if (bcVars[catalogKey] !== expectedValue) {
@@ -205,20 +234,29 @@ async function runProductionPreflightAudit(functions, dependencies = {}) {
   }
 
   const liveOrigin = bcVars['BILLING_CHECKOUT_APPROVED_ORIGIN'] || '';
-  if (APPROVED_PRODUCTION_CHECKOUT_ORIGIN && liveOrigin === APPROVED_PRODUCTION_CHECKOUT_ORIGIN) {
-    approvedOriginStatus = 'VERIFIED';
-  }
+  const approvedOriginStatus = (APPROVED_PRODUCTION_CHECKOUT_ORIGIN && liveOrigin === APPROVED_PRODUCTION_CHECKOUT_ORIGIN)
+    ? 'VERIFIED'
+    : 'UNVERIFIED';
 
   if (secretMetadataStatus !== 'PASS') {
     auditReport.verdict = `P4_PREFLIGHT_BLOCKED_SECRET_${secretMetadataStatus}`;
   } else if (catalogStatus !== 'MATCH') {
     auditReport.verdict = `P4_PREFLIGHT_BLOCKED_CATALOG_${catalogStatus}`;
+  } else if (bcVars['BILLING_CHECKOUT_ENABLED'] !== 'false') {
+    auditReport.verdict = 'P4_PREFLIGHT_BLOCKED_CHECKOUT_ENABLED';
+  } else if (bcVars['BILLING_CHECKOUT_PROVIDER_READY'] !== 'false') {
+    auditReport.verdict = 'P4_PREFLIGHT_BLOCKED_PROVIDER_READY';
+  } else if (bcVars['BILLING_CHECKOUT_ENVIRONMENT'] !== 'sandbox') {
+    auditReport.verdict = 'P4_PREFLIGHT_BLOCKED_ENVIRONMENT_STATE';
   } else {
     auditReport.verdict = 'P4_PREFLIGHT_SAFE_BUT_ORIGIN_UNVERIFIED';
   }
 
   console.log(`[AUDIT SUMMARY] Paddle Prod Key: ${hasProdKey ? 'PRESENT' : 'MISSING'}`);
   console.log(`[AUDIT SUMMARY] Catalog Status: ${catalogStatus}`);
+  console.log(`[AUDIT SUMMARY] Checkout Enabled: ${bcVars['BILLING_CHECKOUT_ENABLED'] || '[UNCONFIGURED]'}`);
+  console.log(`[AUDIT SUMMARY] Provider Ready: ${bcVars['BILLING_CHECKOUT_PROVIDER_READY'] || '[UNCONFIGURED]'}`);
+  console.log(`[AUDIT SUMMARY] Checkout Env: ${bcVars['BILLING_CHECKOUT_ENVIRONMENT'] || '[UNCONFIGURED]'}`);
   console.log(`[AUDIT SUMMARY] Approved Origin Status: ${approvedOriginStatus}`);
   console.log(`[AUDIT SUMMARY] Final Verdict: ${auditReport.verdict}`);
   console.log('--- [READ-ONLY PREFLIGHT AUDIT COMPLETE - ZERO MUTATIONS PERFORMED] ---');
@@ -260,11 +298,6 @@ async function configureBillingRuntime({ mode, confirm }, dependencies = {}) {
     const billingCheckoutVars = dependencies.billingCheckoutVars || await fetchFunctionVariables(functions, 'billing-checkout');
     const approvedOrigin = validateProductionPreconditions(billingCheckoutVars);
 
-    // SAFE MUTATION ORDER FOR SMOKE OPEN
-    // 1. Environment -> production
-    // 2. Provider ready -> true
-    // 3. Approved origin -> (if set)
-    // 4. LAST: Enabled -> true
     let mutationStarted = false;
     try {
       mutationStarted = true;
@@ -273,7 +306,6 @@ async function configureBillingRuntime({ mode, confirm }, dependencies = {}) {
       if (approvedOrigin) {
         await setOrUpdateVariable(functions, 'billing-checkout', 'BILLING_CHECKOUT_APPROVED_ORIGIN', approvedOrigin);
       }
-      // ENABLED IS THE VERY LAST MUTATION
       await setOrUpdateVariable(functions, 'billing-checkout', 'BILLING_CHECKOUT_ENABLED', 'true');
     } catch (err) {
       if (mutationStarted) {
@@ -288,7 +320,6 @@ async function configureBillingRuntime({ mode, confirm }, dependencies = {}) {
     }
 
   } else if (mode === 'production-smoke-lock') {
-    // UNCONDITIONAL SAFETY LOCK (ENABLED=false FIRST)
     await setOrUpdateVariable(functions, 'billing-checkout', 'BILLING_CHECKOUT_ENABLED', 'false');
     await setOrUpdateVariable(functions, 'billing-checkout', 'BILLING_CHECKOUT_PROVIDER_READY', 'false');
     await setOrUpdateVariable(functions, 'billing-checkout', 'BILLING_CHECKOUT_ENVIRONMENT', 'production');
@@ -299,29 +330,39 @@ async function configureBillingRuntime({ mode, confirm }, dependencies = {}) {
     await setOrUpdateVariable(functions, 'billing-checkout', 'BILLING_CHECKOUT_PROVIDER_READY', 'false');
     await setOrUpdateVariable(functions, 'billing-checkout', 'BILLING_CHECKOUT_ENVIRONMENT', 'production');
 
-    // CAPTURE PRIOR VALUES OF ACCESS CONSUMERS BEFORE MUTATING
-    const priorValues = new Map();
+    // SNAPSHOT EXACT PRIOR STATE FOR ALL THREE CONSUMERS BEFORE ANY MUTATION
+    const priorSnapshots = new Map();
     for (const fnId of ACCESS_CONSUMER_FUNCTIONS) {
       const vars = await fetchFunctionVariables(functions, fnId);
       const existing = vars.find(v => v.key === 'BILLING_ACCESS_ENVIRONMENT');
-      priorValues.set(fnId, existing?.value || 'sandbox');
+      priorSnapshots.set(fnId, {
+        exists: Boolean(existing),
+        variableId: existing ? existing.$id : null,
+        value: existing ? existing.value : null,
+      });
     }
 
-    const changedConsumers = [];
-    try {
-      for (const fnId of ACCESS_CONSUMER_FUNCTIONS) {
+    let transitionError = null;
+    let failedFnId = null;
+
+    for (const fnId of ACCESS_CONSUMER_FUNCTIONS) {
+      try {
         await setOrUpdateVariable(functions, fnId, 'BILLING_ACCESS_ENVIRONMENT', 'production');
-        changedConsumers.push(fnId);
+      } catch (err) {
+        transitionError = err;
+        failedFnId = fnId;
+        break;
       }
-    } catch (err) {
-      const failedFnId = ACCESS_CONSUMER_FUNCTIONS[changedConsumers.length] || 'unknown';
-      console.log(`[ACCESS TRANSITION FAILURE] Failure on ${failedFnId}. Attempting rollback of changed consumers: ${changedConsumers.join(', ')}`);
+    }
+
+    if (transitionError) {
+      console.log(`[ACCESS TRANSITION FAILURE] Failure on ${failedFnId}: ${transitionError.message}. Restoring ALL consumers to exact prior states...`);
       let rollbackSuccess = true;
 
-      for (const fnId of [...changedConsumers].reverse()) {
+      for (const fnId of [...ACCESS_CONSUMER_FUNCTIONS].reverse()) {
         try {
-          const prior = priorValues.get(fnId) || 'sandbox';
-          await setOrUpdateVariable(functions, fnId, 'BILLING_ACCESS_ENVIRONMENT', prior);
+          const prior = priorSnapshots.get(fnId) || { exists: false, variableId: null, value: null };
+          await restoreConsumerExactState(functions, fnId, prior);
         } catch (rbErr) {
           rollbackSuccess = false;
           console.error(`[ROLLBACK FAILURE] Failed to restore ${fnId}: ${rbErr.message}`);
@@ -329,14 +370,13 @@ async function configureBillingRuntime({ mode, confirm }, dependencies = {}) {
       }
 
       if (rollbackSuccess) {
-        throw new Error(`ACCESS_TRANSITION_ROLLED_BACK: Consumer access transition failed on ${failedFnId}, all changed consumers restored to prior values: ${err.message}`);
+        throw new Error(`ACCESS_TRANSITION_ROLLED_BACK: Consumer access transition failed on ${failedFnId}, all consumers restored to exact prior states: ${transitionError.message}`);
       } else {
-        throw new Error(`CRITICAL_PARTIAL_ACCESS_TRANSITION_OWNER_ACTION_REQUIRED: Consumer access transition failed on ${failedFnId} and rollback could not be confirmed: ${err.message}`);
+        throw new Error(`CRITICAL_PARTIAL_ACCESS_TRANSITION_OWNER_ACTION_REQUIRED: Consumer access transition failed on ${failedFnId} and exact state rollback could not be confirmed: ${transitionError.message}`);
       }
     }
 
   } else if (mode === 'emergency-prepayment-sandbox-restore') {
-    // UNCONDITIONAL RESTORE (ENABLED=false FIRST)
     await setOrUpdateVariable(functions, 'billing-checkout', 'BILLING_CHECKOUT_ENABLED', 'false');
     await setOrUpdateVariable(functions, 'billing-checkout', 'BILLING_CHECKOUT_PROVIDER_READY', 'false');
     await setOrUpdateVariable(functions, 'billing-checkout', 'BILLING_CHECKOUT_ENVIRONMENT', 'sandbox');
@@ -376,4 +416,5 @@ module.exports = {
   runProductionPreflightAudit,
   configureBillingRuntime,
   setOrUpdateVariable,
+  restoreConsumerExactState,
 };

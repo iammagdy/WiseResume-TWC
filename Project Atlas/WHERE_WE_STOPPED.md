@@ -1,26 +1,26 @@
 # Project Atlas — Active Operational & Handover State
 
-**Last Verified:** 2026-08-30
-**Status:** `P4_PLAN_BLOCKED_REPOSITORY_AUTOMATION_GAP` — Root cause identified and remediated in PR #251: existing deployment workflow and helper script do not manage non-secret billing runtime gate variables (`BILLING_CHECKOUT_ENABLED`, `BILLING_CHECKOUT_PROVIDER_READY`, `BILLING_CHECKOUT_ENVIRONMENT`, `BILLING_ACCESS_ENVIRONMENT`). Hardened automation workflow (`.github/workflows/configure-billing-runtime.yml`), CLI script (`scripts/configure_billing_runtime.cjs`), read-only audit mode (`production-preflight-audit`), main-branch guard, concurrency serialization (`cancel-in-progress: false`), and unit tests implemented. PR open awaiting merge/verification. Live Appwrite runtime variables unchanged; Production billing remains strictly disabled.
+**Last Verified:** 2026-08-31
+**Status:** `P4_PLAN_BLOCKED_REPOSITORY_AUTOMATION_GAP` — Root cause identified and remediated in PR #251: existing deployment workflow and helper script do not manage non-secret billing runtime gate variables (`BILLING_CHECKOUT_ENABLED`, `BILLING_CHECKOUT_PROVIDER_READY`, `BILLING_CHECKOUT_ENVIRONMENT`, `BILLING_ACCESS_ENVIRONMENT`). Hardened automation workflow (`.github/workflows/configure-billing-runtime.yml`), CLI script (`scripts/configure_billing_runtime.cjs`), read-only audit mode (`production-preflight-audit`), exact prior-state rollback with `deleteVariable` for unconfigured consumers, preflight baseline gate checks, main-branch guard, concurrency serialization (`cancel-in-progress: false`), and unit tests implemented. PR open awaiting merge/verification. Live Appwrite runtime variables unchanged; Production billing remains strictly disabled.
 
 **Location:** `Project Atlas/WHERE_WE_STOPPED.md`
 
 ---
 
-## Phase P4 Production billing runtime gate automation remediation — 2026-08-30
+## Phase P4 Production billing runtime gate automation remediation — 2026-08-31
 
 * **Verdict:** `P4_PLAN_BLOCKED_REPOSITORY_AUTOMATION_GAP` (In-code remediation & live-config safety hardening implemented, PR #251 open awaiting merge and live verification).
 * **Root Cause Identified:** Existing deployment workflow (`deploy-appwrite-hubs.yml`) and deploy helper script (`deploy_hubs.cjs`) sync secret keys and catalog IDs but do NOT expose or manage runtime environment gate variables. Redeploying function source code merely to toggle runtime variables is prohibited.
 * **Remediation & Hardening Implemented:**
-  - Dedicated workflow created: `.github/workflows/configure-billing-runtime.yml` (env-mapped inputs, zero shell interpolation, `cancel-in-progress: false`, fail-closed `refs/heads/main` guard).
-  - Dedicated CLI script created: `scripts/configure_billing_runtime.cjs` (SDK `createVariable(fnId, varId, key, val)`, persisted API readback verification, repository automation marker requirement `WISERESUME_BILLING_RUNTIME_AUTOMATION=1`).
-  - Read-only preflight audit mode added: `production-preflight-audit` (zero mutations, safe metadata logging).
-  - Unit tests added: `tests/scripts/configure_billing_runtime.test.cjs` (14/14 PASS).
+  - Dedicated workflow created: `.github/workflows/configure-billing-runtime.yml` (env-mapped inputs, zero shell interpolation, `cancel-in-progress: false`, fail-closed `refs/heads/main` guard, HEAD vs origin/main freshness check).
+  - Dedicated CLI script created: `scripts/configure_billing_runtime.cjs` (SDK `createVariable`/`deleteVariable` contracts, persisted API readback verification, repository automation marker requirement `WISERESUME_BILLING_RUNTIME_AUTOMATION=1`).
+  - Read-only preflight audit mode added: `production-preflight-audit` (zero mutations, safe allowlisted metadata logging, gate baseline checks `ENABLED=false`, `PROVIDER_READY=false`, `ENVIRONMENT=sandbox`).
+  - Unit tests added: `tests/scripts/configure_billing_runtime.test.cjs` (8/8 PASS).
 * **Supported Modes Matrix:**
-  1. `production-preflight-audit`: Read-only preflight audit (zero mutations).
+  1. `production-preflight-audit`: Read-only preflight audit (zero mutations, baseline checks).
   2. `production-smoke-open`: `billing-checkout` $\rightarrow$ `ENVIRONMENT=production`, `PROVIDER_READY=true`, `ENABLED=true` (requires confirmation string, `ENABLED=true` set LAST, compensating lock on failure).
   3. `production-smoke-lock`: Unconditional kill switch (`ENABLED=false` FIRST, `PROVIDER_READY=false`, `ENVIRONMENT=production`).
-  4. `production-access-enable`: Forces checkout lock FIRST; then `BILLING_ACCESS_ENVIRONMENT=production` set on `ai-gateway`, `coupons`, `admin-devkit-data` (EXCLUDES `revenuecat-webhook`).
+  4. `production-access-enable`: Forces checkout lock FIRST; snapshots exact prior consumer states (preserving unconfigured absence); on failure, restores ALL consumers to prior states via `deleteVariable` or value update (`ACCESS_TRANSITION_ROLLED_BACK`).
   5. `emergency-prepayment-sandbox-restore`: Unconditional restore (`ENABLED=false` FIRST, `PROVIDER_READY=false`, `ENVIRONMENT=sandbox`, consumer access envs $\rightarrow$ `sandbox`).
 * **Fail-Closed Safety:**
   - Precondition check requires live remote `BILLING_PRODUCTION_PADDLE_API_KEY` presence metadata and exact live remote Production catalog IDs on `billing-checkout` (NO `process.env` fallback).
