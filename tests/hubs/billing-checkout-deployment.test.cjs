@@ -44,6 +44,11 @@ test('scripts/deploy_hubs.cjs synchronizes billing secrets only for billing-chec
     /ensureVariable\('billing-checkout',\s*'BILLING_PRODUCTION_PADDLE_API_KEY'/,
     'deploy_hubs.cjs must set BILLING_PRODUCTION_PADDLE_API_KEY on billing-checkout when present',
   );
+  assert.match(
+    script,
+    /ensureNonSecretCatalogVariable\('billing-checkout',\s*key,\s*value\)/,
+    'deploy_hubs.cjs must use ensureNonSecretCatalogVariable for Production catalog IDs',
+  );
   // Verify other hubs do not receive billing secrets
   const nonBillingHubs = [
     'ai-gateway', 'ai-health', 'resume-section-ai', 'job-import', 'revenuecat-webhook',

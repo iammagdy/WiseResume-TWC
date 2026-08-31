@@ -9,6 +9,7 @@ on:
         type: choice
         options:
           - production-preflight-audit
+          - production-catalog-reconcile
           - production-smoke-open
           - production-smoke-lock
           - production-access-enable
