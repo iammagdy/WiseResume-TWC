@@ -1,7 +1,7 @@
 # Project Atlas — Active Operational & Handover State
 
 **Last Verified:** 2026-08-31
-**Status:** `P4_PREFLIGHT_BLOCKED_CATALOG_MISSING` — PR #251 merged into `main` (`958c32a6f7fc5e3640ab406c6fdab609bc17c7e7`). Live read-only preflight workflow run `33366751713` executed cleanly on `main` with zero mutations and returned verdict `P4_PREFLIGHT_BLOCKED_CATALOG_MISSING`. Live facts: `ENABLED=false`, `PROVIDER_READY=true`, `ENVIRONMENT=sandbox`, approved origin `https://wiseresume.app` (`UNVERIFIED`), Production Paddle API key `PRESENT` (`secret=true`), access environments `[UNCONFIGURED]`. Causal root cause classified as `UNVERIFIED_CATALOG_VARIABLE_STATE`. Remediation branch `fix/p4-production-catalog-reconciliation` hardened with dedicated confirmation string (`RECONCILE_PRODUCTION_CATALOG_NON_SECRET`), strict `secret=false` readback proof, false-unchanged update fix, `secret=UNVERIFIED` preflight classification, post-check invariant verification, deploy helper hardening, and unit tests. PR #253 open awaiting owner merge. Production billing remains strictly disabled.
+**Status:** `P4_CATALOG_RECONCILIATION_PARTIAL_BLOCKED` — PR #253 merged into `main` (`5c97cf675f0756404afa565d36d0fdcacc1c881d`). Authorized live `production-catalog-reconcile` run `33372378046` executed on `main` and returned verdict `P4_CATALOG_RECONCILIATION_PARTIAL_BLOCKED`. Appwrite REST API rejected `updateVariable` changing `BILLING_PRODUCTION_PRO_PRICE_ID` (`secret: true`) to `secret: false` with error: *"Secret variables cannot be marked as non-secret. Please re-create the variable if this is your intention."* `BILLING_PRODUCTION_PRO_PRICE_ID`: `SECRET_STATE_CONFIRMED`. Remaining 3 Production catalog secret states: `UNVERIFIED_BY_RUN_33372378046` (execution stopped at first variable). Proven live gate states: `BILLING_CHECKOUT_ENABLED=false`, `BILLING_CHECKOUT_PROVIDER_READY=false` (safely set), `BILLING_CHECKOUT_ENVIRONMENT=sandbox`, `BILLING_CHECKOUT_APPROVED_ORIGIN=https://wiseresume.app` (UNCHANGED, UNVERIFIED). Access consumers: `UNCHANGED_BY_RECONCILIATION` (`[UNCONFIGURED]`). No post-failure preflight audit was executed. Remediation branch `fix/p4-secret-catalog-recreation` (PR #254) hardened with fail-closed gate checks, secret-variable delete+recreate flow, `secret=UNVERIFIED` blocking, ambiguous API error readback handling, idempotency, and unit tests (27 focused test suites / 27 PASSED). PR #254 open awaiting owner merge. Production billing remains strictly disabled.
 
 **Location:** `Project Atlas/WHERE_WE_STOPPED.md`
 
@@ -9,24 +9,29 @@
 
 ## Phase P4 Production catalog reconciliation & preflight hardening — 2026-08-31
 
-* **Verdict:** `P4_PREFLIGHT_BLOCKED_CATALOG_MISSING` (Live audit run `33366751713` complete; remediation PR #253 on branch `fix/p4-production-catalog-reconciliation` open awaiting owner merge).
-* **PR #251 Status:** Merged into `main` at commit `958c32a6f7fc5e3640ab406c6fdab609bc17c7e7`.
-* **Live Preflight Evidence (Run 33366751713):**
+* **Verdict:** `P4_CATALOG_RECONCILIATION_PARTIAL_BLOCKED` (Live run `33372378046` complete; PR #253 merged; remediation PR #254 on branch `fix/p4-secret-catalog-recreation` open awaiting owner merge).
+* **PR #253 Status:** MERGED into `main` at `5c97cf675f0756404afa565d36d0fdcacc1c881d`.
+* **Live Catalog Reconciliation Evidence (Run 33372378046):**
+  - Workflow `Configure Billing Runtime` mode `production-catalog-reconcile` dispatched on `main` at `5c97cf675f0756404afa565d36d0fdcacc1c881d`.
+  - Verdict: `P4_CATALOG_RECONCILIATION_PARTIAL_BLOCKED`.
+  - Empirical Root Cause: Appwrite REST API rejected `updateVariable` changing `BILLING_PRODUCTION_PRO_PRICE_ID` secret metadata from `true` to `false` with error: *"Secret variables cannot be marked as non-secret. Please re-create the variable if this is your intention."*
+  - `BILLING_PRODUCTION_PRO_PRICE_ID`: `SECRET_STATE_CONFIRMED`.
+  - Remaining 3 catalog secret states: `UNVERIFIED_BY_RUN_33372378046` (execution stopped at first variable).
+  - Proven Live Gate States: `BILLING_CHECKOUT_ENABLED=false`, `BILLING_CHECKOUT_PROVIDER_READY=false` (safely set), `BILLING_CHECKOUT_ENVIRONMENT=sandbox`, `BILLING_CHECKOUT_APPROVED_ORIGIN=https://wiseresume.app` (UNCHANGED, UNVERIFIED).
+  - Access Consumers: `UNCHANGED_BY_RECONCILIATION` (`[UNCONFIGURED]`).
+  - Preflight Audit: No preflight audit executed after run `33372378046` failed.
+* **Historical Live Preflight Evidence (Run 33366751713):**
   - Mode: `production-preflight-audit` (Read-only, zero mutations performed).
   - Verdict: `P4_PREFLIGHT_BLOCKED_CATALOG_MISSING`.
-  - `billing-checkout`: `BILLING_CHECKOUT_ENABLED=false`, `BILLING_CHECKOUT_PROVIDER_READY=true`, `BILLING_CHECKOUT_ENVIRONMENT=sandbox`, `BILLING_CHECKOUT_APPROVED_ORIGIN=https://wiseresume.app`.
-  - Production Paddle API Key: `PRESENT` (`secret_flag=true`).
-  - Production Catalog Variables: Keys exist but API-visible values empty. Causal classification: `UNVERIFIED_CATALOG_VARIABLE_STATE`.
-  - Access Consumers: `ai-gateway`, `coupons`, `admin-devkit-data` all `[UNCONFIGURED]` (no drift).
-* **Remediation & Hardening Implemented:**
-  - Added safe `production-catalog-reconcile` mode requiring exact confirmation string `RECONCILE_PRODUCTION_CATALOG_NON_SECRET` (forces `ENABLED=false` check, sets `PROVIDER_READY=false` first, keeps `ENVIRONMENT=sandbox`, writes 4 catalog variables with explicit `secret=false`, fresh readback verification, and final post-check invariants).
-  - Hardened `deploy_hubs.cjs` with `ensureNonSecretCatalogVariable()` enforcing explicit `secret=false` and fresh readback for Production catalog IDs.
-  - Enhanced `runProductionPreflightAudit()` to classify catalog statuses explicitly (`P4_PREFLIGHT_BLOCKED_CATALOG_SECRET`/`SECRET_UNVERIFIED`/`EMPTY`/`MISSING`/`MISMATCH`).
-  - Fixed preflight workflow exit semantics: blocked audit verdicts exit non-zero after printing the safe read-only audit report.
-  - Unit tests added in `tests/scripts/configure_billing_runtime.test.cjs` and `tests/hubs/billing-checkout-deployment.test.cjs` (18 focused test suites / 18 PASSED).
-* **Current Safety State:** Live Appwrite variables unchanged. `BILLING_CHECKOUT_ENABLED=false` preserved. Production billing remains strictly disabled. Zero real checkouts/payments created.
-* **Next action:** Owner merges PR #253 (`fix/p4-production-catalog-reconciliation`). After merge, execute `production-catalog-reconcile` workflow dispatch with exact confirmation, then rerun `production-preflight-audit`.
-* **Next action:** Owner reviews and merges PR #251 (`feat/production-billing-runtime-gates`). After merge, execute `production-preflight-audit` workflow dispatch prior to controlled smoke.
+* **Remediation & Hardening Implemented (Branch `fix/p4-secret-catalog-recreation`, PR #254):**
+  - Hardened `setOrUpdateCatalogNonSecretVariable()` in `scripts/configure_billing_runtime.cjs` and `ensureNonSecretCatalogVariable()` in `scripts/deploy_hubs.cjs` to handle secret catalog variables (`secret === true`) via dedicated fail-closed delete+recreate flow (`deleteVariable` $\rightarrow$ absence readback $\rightarrow$ `createVariable(..., secret=false)` $\rightarrow$ fresh readback verification).
+  - Enforced fail-closed gate verification (`ENABLED=false`, `PROVIDER_READY=false`, `ENVIRONMENT=sandbox`) prior to any destructive recreation.
+  - Rejects `secret === undefined` with `P4_CATALOG_RECREATION_SECRET_METADATA_UNVERIFIED`. Handles ambiguous API errors via fresh readback.
+  - Unit tests added/updated in `tests/scripts/configure_billing_runtime.test.cjs` and `tests/hubs/billing-checkout-deployment.test.cjs` (27 focused test suites / 27 PASSED).
+* **PR #254 Status:** Open on branch `fix/p4-secret-catalog-recreation` awaiting owner merge.
+* **Current Safety State:** Live Appwrite variables unchanged since run `33372378046`. `BILLING_CHECKOUT_ENABLED=false` preserved. Production billing remains strictly disabled. Zero real checkouts/payments created.
+* **Next Action:** Owner merges PR #254 (`fix/p4-secret-catalog-recreation`). After merge, execute `production-catalog-reconcile` workflow dispatch with exact confirmation (`RECONCILE_PRODUCTION_CATALOG_NON_SECRET`), then rerun `production-preflight-audit`.
+
 
 ## Phase P3 RevenueCat Production webhook routing verified — 2026-08-30
 

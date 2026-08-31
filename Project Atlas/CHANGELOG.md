@@ -13,6 +13,16 @@
   - Unit tests added in `tests/scripts/configure_billing_runtime.test.cjs` and `tests/hubs/billing-checkout-deployment.test.cjs` (18 focused test suites / 18 PASSED).
 - **Integrity & Bounds:** Live Appwrite runtime variables unchanged. `BILLING_CHECKOUT_ENABLED=false` preserved. `paymentsEnabled: false` preserved. Production billing remains strictly disabled. Zero real checkouts/payments created.
 
+## 2026-08-31 - Phase P4 Secret Catalog Variable Re-Creation Hardening
+
+- **Live Evidence (Run 33372378046):** Live `production-catalog-reconcile` run `33372378046` on `main` at `5c97cf67` returned `P4_CATALOG_RECONCILIATION_PARTIAL_BLOCKED`. Appwrite REST API rejected updating existing secret variable `BILLING_PRODUCTION_PRO_PRICE_ID` (`secret: true`) to non-secret (`secret: false`) with error *"Secret variables cannot be marked as non-secret. Please re-create the variable if this is your intention."* `BILLING_PRODUCTION_PRO_PRICE_ID`: `SECRET_STATE_CONFIRMED`. The secret metadata state of the remaining 3 Production catalog variables remains `UNVERIFIED_BY_RUN_33372378046` (execution stopped at first variable).
+- **Fail-Closed Live Gates Proven:** `BILLING_CHECKOUT_ENABLED=false`, `BILLING_CHECKOUT_PROVIDER_READY=false` (safely set), `BILLING_CHECKOUT_ENVIRONMENT=sandbox`, `BILLING_CHECKOUT_APPROVED_ORIGIN=https://wiseresume.app` (UNCHANGED). No preflight audit executed after failure.
+- **Hardening & Secret Re-Creation:**
+  - Hardened `setOrUpdateCatalogNonSecretVariable()` in `scripts/configure_billing_runtime.cjs` and `ensureNonSecretCatalogVariable()` in `scripts/deploy_hubs.cjs` to handle secret catalog variables (`secret === true`) via dedicated fail-closed delete+recreate flow (`deleteVariable` $\rightarrow$ absence readback $\rightarrow$ `createVariable(..., secret=false)` $\rightarrow$ fresh readback verification).
+  - Enforced fail-closed gate verification (`ENABLED=false`, `PROVIDER_READY=false`, `ENVIRONMENT=sandbox`) prior to any destructive recreation. Rejects `secret === undefined` with `P4_CATALOG_RECREATION_SECRET_METADATA_UNVERIFIED`.
+  - Unit tests added/updated in `tests/scripts/configure_billing_runtime.test.cjs` and `tests/hubs/billing-checkout-deployment.test.cjs` (27 focused test suites / 27 PASSED).
+- **Integrity & Bounds:** Live Appwrite runtime variables unchanged since run `33372378046`. `BILLING_CHECKOUT_ENABLED=false` preserved. Production billing remains strictly disabled. Zero real checkouts/payments created.
+
 ## 2026-08-31 - Phase P4 Production billing runtime gate automation remediation
 
 - **Verdict:** `P4_PLAN_BLOCKED_REPOSITORY_AUTOMATION_GAP` (In-code remediation & live-config safety hardening implemented, PR #251 open awaiting merge and live verification).
