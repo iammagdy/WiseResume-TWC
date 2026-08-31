@@ -50,6 +50,8 @@ jobs:
 
       - name: Run billing contract tests
         run: >-
+          node --check scripts/configure_billing_runtime.cjs &&
+          node tests/scripts/configure_billing_runtime.test.cjs &&
           node tests/hubs/billing-checkout.test.cjs &&
           node --test tests/hubs/revenuecat-webhook.test.cjs tests/hubs/revenuecat-schema.test.cjs
 

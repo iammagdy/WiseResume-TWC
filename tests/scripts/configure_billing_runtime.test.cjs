@@ -242,6 +242,66 @@ async function testPreflightVerdictContractAndGateBaselines() {
   console.log('[TEST PASS] testPreflightVerdictContractAndGateBaselines');
 }
 
+async function testPreflightAccessEnvironmentDriftBlocking() {
+  // Base valid checkout setup
+  const baseCheckout = validBillingCheckoutVars();
+
+  // Test A: ai-gateway = production -> P4_PREFLIGHT_BLOCKED_ACCESS_ENVIRONMENT_STATE
+  const mapA = {
+    'billing-checkout': baseCheckout,
+    'ai-gateway': [{ key: 'BILLING_ACCESS_ENVIRONMENT', value: 'production' }],
+    'coupons': [{ key: 'BILLING_ACCESS_ENVIRONMENT', value: 'sandbox' }],
+    'admin-devkit-data': [],
+  };
+  const repA = await runProductionPreflightAudit(null, { varsMap: mapA });
+  assert.equal(repA.verdict, 'P4_PREFLIGHT_BLOCKED_ACCESS_ENVIRONMENT_STATE');
+
+  // Test B: coupons = production -> P4_PREFLIGHT_BLOCKED_ACCESS_ENVIRONMENT_STATE
+  const mapB = {
+    'billing-checkout': baseCheckout,
+    'ai-gateway': [{ key: 'BILLING_ACCESS_ENVIRONMENT', value: 'sandbox' }],
+    'coupons': [{ key: 'BILLING_ACCESS_ENVIRONMENT', value: 'production' }],
+    'admin-devkit-data': [],
+  };
+  const repB = await runProductionPreflightAudit(null, { varsMap: mapB });
+  assert.equal(repB.verdict, 'P4_PREFLIGHT_BLOCKED_ACCESS_ENVIRONMENT_STATE');
+
+  // Test C: admin-devkit-data unexpected value -> P4_PREFLIGHT_BLOCKED_ACCESS_ENVIRONMENT_STATE
+  const mapC = {
+    'billing-checkout': baseCheckout,
+    'ai-gateway': [{ key: 'BILLING_ACCESS_ENVIRONMENT', value: 'sandbox' }],
+    'coupons': [],
+    'admin-devkit-data': [{ key: 'BILLING_ACCESS_ENVIRONMENT', value: 'invalid_drift_val' }],
+  };
+  const repC = await runProductionPreflightAudit(null, { varsMap: mapC });
+  assert.equal(repC.verdict, 'P4_PREFLIGHT_BLOCKED_ACCESS_ENVIRONMENT_STATE');
+
+  // Test D: all three UNCONFIGURED -> allowed baseline (P4_PREFLIGHT_SAFE_BUT_ORIGIN_UNVERIFIED)
+  const mapD = {
+    'billing-checkout': baseCheckout,
+    'ai-gateway': [],
+    'coupons': [],
+    'admin-devkit-data': [],
+  };
+  const repD = await runProductionPreflightAudit(null, { varsMap: mapD });
+  assert.equal(repD.verdict, 'P4_PREFLIGHT_SAFE_BUT_ORIGIN_UNVERIFIED');
+  assert.equal(repD.functions['ai-gateway']['BILLING_ACCESS_ENVIRONMENT'], '[UNCONFIGURED]');
+  assert.equal(repD.functions['coupons']['BILLING_ACCESS_ENVIRONMENT'], '[UNCONFIGURED]');
+  assert.equal(repD.functions['admin-devkit-data']['BILLING_ACCESS_ENVIRONMENT'], '[UNCONFIGURED]');
+
+  // Test E: mix of UNCONFIGURED + sandbox -> allowed baseline (P4_PREFLIGHT_SAFE_BUT_ORIGIN_UNVERIFIED)
+  const mapE = {
+    'billing-checkout': baseCheckout,
+    'ai-gateway': [{ key: 'BILLING_ACCESS_ENVIRONMENT', value: 'sandbox' }],
+    'coupons': [],
+    'admin-devkit-data': [{ key: 'BILLING_ACCESS_ENVIRONMENT', value: 'sandbox' }],
+  };
+  const repE = await runProductionPreflightAudit(null, { varsMap: mapE });
+  assert.equal(repE.verdict, 'P4_PREFLIGHT_SAFE_BUT_ORIGIN_UNVERIFIED');
+
+  console.log('[TEST PASS] testPreflightAccessEnvironmentDriftBlocking');
+}
+
 async function testWorkflowFileMainFreshnessAndSafetyGuards() {
   const workflowPath = path.join(process.cwd(), '.github/workflows/configure-billing-runtime.yml');
   const content = fs.readFileSync(workflowPath, 'utf8');
@@ -265,8 +325,9 @@ async function runAllTests() {
   await testFailingConsumerIncludedInRollbackOnReadbackMismatch();
   await testRollbackDeletionFailureGivesCriticalStatus();
   await testPreflightVerdictContractAndGateBaselines();
+  await testPreflightAccessEnvironmentDriftBlocking();
   await testWorkflowFileMainFreshnessAndSafetyGuards();
-  console.log('\n[ALL EXACT STATE ROLLBACK & PREFLIGHT SAFETY TESTS PASSED SUCCESSFULLY]');
+  console.log('\n[ALL 9 EXACT STATE ROLLBACK & ACCESS DRIFT SAFETY TESTS PASSED SUCCESSFULLY]');
 }
 
 runAllTests().catch(err => {

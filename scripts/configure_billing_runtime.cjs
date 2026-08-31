@@ -190,6 +190,7 @@ async function runProductionPreflightAudit(functions, dependencies = {}) {
   const targets = ['billing-checkout', ...ACCESS_CONSUMER_FUNCTIONS];
   let secretMetadataStatus = 'PASS';
   let catalogStatus = 'MATCH';
+  let accessDriftFnId = null;
 
   for (const fnId of targets) {
     const vars = dependencies.varsMap?.[fnId] || await fetchFunctionVariables(functions, fnId);
@@ -202,6 +203,12 @@ async function runProductionPreflightAudit(functions, dependencies = {}) {
       if (found) {
         auditReport.functions[fnId][key] = found.value;
         console.log(`[AUDIT CONFIG] ${fnId} -> ${key}: ${found.value}`);
+        if (ACCESS_CONSUMER_FUNCTIONS.includes(fnId) && key === 'BILLING_ACCESS_ENVIRONMENT') {
+          if (found.value !== 'sandbox' && found.value !== '[UNCONFIGURED]') {
+            accessDriftFnId = fnId;
+            console.log(`[AUDIT ALERT] Unsafe access environment drift detected on ${fnId}: ${found.value}`);
+          }
+        }
       } else if (ACCESS_CONSUMER_FUNCTIONS.includes(fnId) && key === 'BILLING_ACCESS_ENVIRONMENT') {
         auditReport.functions[fnId][key] = '[UNCONFIGURED]';
         console.log(`[AUDIT CONFIG] ${fnId} -> ${key}: [UNCONFIGURED]`);
@@ -248,6 +255,8 @@ async function runProductionPreflightAudit(functions, dependencies = {}) {
     auditReport.verdict = 'P4_PREFLIGHT_BLOCKED_PROVIDER_READY';
   } else if (bcVars['BILLING_CHECKOUT_ENVIRONMENT'] !== 'sandbox') {
     auditReport.verdict = 'P4_PREFLIGHT_BLOCKED_ENVIRONMENT_STATE';
+  } else if (accessDriftFnId !== null) {
+    auditReport.verdict = 'P4_PREFLIGHT_BLOCKED_ACCESS_ENVIRONMENT_STATE';
   } else {
     auditReport.verdict = 'P4_PREFLIGHT_SAFE_BUT_ORIGIN_UNVERIFIED';
   }
@@ -257,6 +266,7 @@ async function runProductionPreflightAudit(functions, dependencies = {}) {
   console.log(`[AUDIT SUMMARY] Checkout Enabled: ${bcVars['BILLING_CHECKOUT_ENABLED'] || '[UNCONFIGURED]'}`);
   console.log(`[AUDIT SUMMARY] Provider Ready: ${bcVars['BILLING_CHECKOUT_PROVIDER_READY'] || '[UNCONFIGURED]'}`);
   console.log(`[AUDIT SUMMARY] Checkout Env: ${bcVars['BILLING_CHECKOUT_ENVIRONMENT'] || '[UNCONFIGURED]'}`);
+  console.log(`[AUDIT SUMMARY] Access Drift: ${accessDriftFnId ? `UNSAFE DRIFT ON ${accessDriftFnId}` : 'NONE (ALL SANDBOX OR UNCONFIGURED)'}`);
   console.log(`[AUDIT SUMMARY] Approved Origin Status: ${approvedOriginStatus}`);
   console.log(`[AUDIT SUMMARY] Final Verdict: ${auditReport.verdict}`);
   console.log('--- [READ-ONLY PREFLIGHT AUDIT COMPLETE - ZERO MUTATIONS PERFORMED] ---');
