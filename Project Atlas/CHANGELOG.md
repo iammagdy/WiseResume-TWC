@@ -1,12 +1,16 @@
 # WiseResume Atlas Master Changelog
 
-## 2026-08-31 - Phase P4 Production catalog baseline verified & Paddle legal compliance rollout
+## 2026-08-31 - Phase P4 Paddle domain review readiness & legal accuracy hardening
 
-- **Verdict:** `P4_CATALOG_BASELINE_VERIFIED` (Live catalog reconciliation run `33376804507` PASSED; read-only preflight audit run `33376897666` PASSED; Paddle domain legal compliance pages implemented and accuracy-hardened).
-- **PR #255 Merged:** Merged into `main` at commit `bb6b7def3a60c193b11428d9c50249d4ae7d133f`.
-- **Live Catalog Reconciliation Evidence (Run 33376804507):** Mode `production-catalog-reconcile` executed on `main` at `d51cc0b98fe594eb2b2662a88a17589ea86ce719`. Returned `P4_CATALOG_RECONCILIATION_SUCCESS`. All four Production catalog variables in Appwrite `billing-checkout` deleted from secret state and recreated as non-secret (`secret_flag=false`).
-- **Live Read-Only Preflight Audit Evidence (Run 33376897666):** Mode `production-preflight-audit` executed on `main`. Returned `P4_PREFLIGHT_SAFE_BUT_ORIGIN_UNVERIFIED`. All 4 catalog variables verified MATCH and non-secret. `ENABLED=false`, `PROVIDER_READY=false`, `ENVIRONMENT=sandbox`, approved origin `https://wiseresume.app`. All access consumers (`ai-gateway`, `coupons`, `admin-devkit-data`) `[UNCONFIGURED]`.
-- **Paddle Domain Compliance Pages & Legal Accuracy Hardened:** Added `/terms`, `/privacy`, `/refund-policy` (and Arabic equivalents), persistent footer links in `Footer.tsx`, Paddle Merchant of Record terms, exact dates (August 31, 2026), provider-verified entitlement wording, Paddle communication cancellation options, conditional statutory withdrawal terms, actual production processors (Appwrite, Paddle, Vercel, Sentry, Cloudflare Turnstile, server-side AI), and neutral support labels.
+- **Verdict:** `PADDLE_DOMAIN_REVIEW_SITE_READY` (PR #256 merged into `main` at commit `1ee534aeb0fce2844f5d03e2ba1ca755f056491b`; Vercel Production deployment `8Fo4XQe7PLPvQM39xggzPeXUKTYB` succeeded; Playwright Chromium live production QA passed 17/17 tests).
+- **PR #255 Merged:** Commit `bb6b7def3a60c193b11428d9c50249d4ae7d133f`.
+- **PR #256 Merged:** Commit `1ee534aeb0fce2844f5d03e2ba1ca755f056491b` (Legal accuracy hardening for Paddle domain review).
+- **Vercel Production Deployment:** Deployment ID `8Fo4XQe7PLPvQM39xggzPeXUKTYB` on merge SHA `1ee534aeb0fce2844f5d03e2ba1ca755f056491b` completed with status `SUCCESS` (`Deployment has completed`). Alias: `https://wiseresume.app`.
+- **Real Production Browser QA Evidence (Playwright Chromium):** Tested all 8 required public routes (`/`, `/pricing`, `/terms`, `/privacy`, `/refund-policy`, `/ar/terms`, `/ar/privacy`, `/ar/refund-policy`) on desktop 1280x800, mobile ~390x844, English LTR, Arabic RTL (`dir="rtl"`), light mode, dark mode, persistent legal footer links, direct public access, and contact dialog modal trigger (`[role="dialog"]`). Passed 17/17 tests with zero horizontal scroll overflow.
+- **Paddle Reviewer Matrix Verification:** All 10 requirements (Product description, Pricing, Features, Terms, Privacy, Refund, Footer links, Brand, HTTPS, Logged-out access) PASSED on live production site.
+- **GitHub Check Evidence for PR #256:** PR Validation PASSED (Job `99468908403`), Security Validation correctly UNVERIFIED as a standalone check context, TestSprite pre-check status `fail` / `No tests detected`.
+- **Paddle Website Approval Status:** `SUBMITTED / AWAITING REVIEW` (Pending manual Paddle domain review).
+- **Billing Safety State:** `BILLING_CHECKOUT_ENABLED=false` preserved. Production Paddle Default payment link is NOT configured yet. Zero checkouts/payments created. Preserved catalog baseline `P4_CATALOG_RECONCILIATION_SUCCESS` (run `33376804507`) and preflight audit `P4_PREFLIGHT_SAFE_BUT_ORIGIN_UNVERIFIED` (run `33376897666`).
 
 ## 2026-08-31 - Phase P4 Production catalog reconciliation & preflight hardening
 
