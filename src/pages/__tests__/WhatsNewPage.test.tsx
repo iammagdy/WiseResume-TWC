@@ -97,4 +97,24 @@ describe('WhatsNewPage', () => {
     expect(screen.getByRole('link', { name: /شروط الخدمة/i })).toHaveAttribute('href', '/ar/terms');
     expect(screen.getByRole('link', { name: /سياسة الاسترداد/i })).toHaveAttribute('href', '/ar/refund-policy');
   });
+
+  it('filters releases when category and month selector are both active', () => {
+    render(
+      <MemoryRouter initialEntries={['/whats-new']}>
+        <LocaleProvider>
+          <WhatsNewPage />
+        </LocaleProvider>
+      </MemoryRouter>
+    );
+
+    // Select month button for August 2026
+    const augButton = screen.getByRole('button', { name: /August 2026/i });
+    fireEvent.click(augButton);
+
+    // Select category button for Security & Legal
+    const securityButton = screen.getByRole('button', { name: /Security & Legal/i });
+    fireEvent.click(securityButton);
+
+    expect(screen.getByText(/Updated Legal Policies & Compliance Transparency/i)).toBeInTheDocument();
+  });
 });

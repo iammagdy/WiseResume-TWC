@@ -67,9 +67,23 @@ export function getLocalizedPublicPath(pathname: string, locale: SupportedLocale
   return basePath;
 }
 
+export function isPublicLocalizedRoute(pathname: string | null | undefined): boolean {
+  if (!pathname) return false;
+  const cleanPath = pathname.split('?')[0].split('#')[0];
+  const basePath = cleanPath === '/ar' ? '/' : cleanPath.startsWith('/ar/') ? cleanPath.slice(3) : cleanPath;
+  return PUBLIC_LOCALIZED_EXACT_PATHS.has(basePath)
+    || PUBLIC_LOCALIZED_PREFIXES.some((prefix) => basePath.startsWith(prefix));
+}
+
 export function resolveLocale(input: LocaleResolutionInput = {}): SupportedLocale {
-  const routeLocale = localeFromPublicPath(input.pathname);
-  if (routeLocale) return routeLocale;
+  const pathname = input.pathname ? input.pathname.split('?')[0].split('#')[0] : undefined;
+  const isAr = pathname === '/ar' || (pathname !== undefined && pathname.startsWith('/ar/'));
+
+  if (pathname && isPublicLocalizedRoute(pathname)) {
+    return isAr ? 'ar' : 'en';
+  }
+
+  if (isAr) return 'ar';
 
   const preferenceCandidates = [input.userPreference, input.persistedPreference];
   for (const candidate of preferenceCandidates) {

@@ -89,6 +89,23 @@ export function LocaleProvider({
   }, []);
 
   useLayoutEffect(() => {
+    if (initialLocale) return;
+    function handleSync() {
+      if (typeof window === 'undefined') return;
+      const targetLocale = resolveLocale({
+        pathname: window.location.pathname,
+        persistedPreference: readPersistedLocale(),
+        browserLanguages: typeof navigator !== 'undefined' ? navigator.languages : [],
+      });
+      setLocaleState((prev) => (prev !== targetLocale ? targetLocale : prev));
+    }
+
+    handleSync();
+    window.addEventListener('popstate', handleSync);
+    return () => window.removeEventListener('popstate', handleSync);
+  }, [initialLocale]);
+
+  useLayoutEffect(() => {
     const root = document.documentElement;
     root.lang = locale;
     root.dir = direction;

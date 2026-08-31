@@ -8,7 +8,7 @@ import { LanguageSwitcher } from '@/i18n/LanguageSwitcher';
 import {
   whatsNewReleases,
   CATEGORY_FILTERS,
-  MONTH_GROUPS,
+  getAvailableMonthGroups,
   type ReleaseCategory,
 } from '@/data/whatsNewData';
 import {
@@ -35,6 +35,10 @@ export default function WhatsNewPage() {
   const [showOlder, setShowOlder] = useState<boolean>(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
+  const monthGroups = useMemo(() => {
+    return getAvailableMonthGroups(whatsNewReleases);
+  }, []);
+
   // Separate featured update from the main list
   const featuredRelease = useMemo(() => {
     return whatsNewReleases.find((r) => r.featured);
@@ -52,15 +56,11 @@ export default function WhatsNewPage() {
         return false;
       }
       // Month filter
-      if (selectedMonth !== 'all') {
-        if (selectedMonth === 'older') {
-          if (release.year >= 2026 && release.monthYear !== 'older') return false;
-        } else if (release.monthYear !== selectedMonth) {
-          return false;
-        }
+      if (selectedMonth !== 'all' && release.monthKey !== selectedMonth) {
+        return false;
       }
-      // Progressive disclosure: hide 2025 releases unless showOlder is true or user filtered explicitly
-      if (!showOlder && release.year < 2026 && selectedMonth === 'all') {
+      // Progressive disclosure: hide 2025 releases unless showOlder is true or user filtered explicitly by month/category
+      if (!showOlder && release.year < 2026 && selectedMonth === 'all' && activeCategory === 'all') {
         return false;
       }
       return true;
@@ -245,7 +245,7 @@ export default function WhatsNewPage() {
               >
                 {lang === 'ar' ? 'جميع الأشهر' : 'All Months'}
               </button>
-              {MONTH_GROUPS.map((month) => {
+              {monthGroups.map((month) => {
                 const isActive = selectedMonth === month.id;
                 return (
                   <button
