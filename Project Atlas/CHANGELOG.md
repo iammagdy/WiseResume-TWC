@@ -1,5 +1,13 @@
 # WiseResume Atlas Master Changelog
 
+## 2026-08-31 - Phase P4 Production catalog baseline verified & Paddle legal compliance rollout
+
+- **Verdict:** `P4_CATALOG_BASELINE_VERIFIED` (Live catalog reconciliation run `33376804507` PASSED; read-only preflight audit run `33376897666` PASSED; Paddle domain legal compliance pages implemented).
+- **PR #254 Merged:** Merged into `main` at commit `d51cc0b98fe594eb2b2662a88a17589ea86ce719`.
+- **Live Catalog Reconciliation Evidence (Run 33376804507):** Mode `production-catalog-reconcile` executed on `main` at `d51cc0b98fe594eb2b2662a88a17589ea86ce719`. Returned `P4_CATALOG_RECONCILIATION_SUCCESS`. All four Production catalog variables in Appwrite `billing-checkout` deleted from secret state and recreated as non-secret (`secret_flag=false`).
+- **Live Read-Only Preflight Audit Evidence (Run 33376897666):** Mode `production-preflight-audit` executed on `main`. Returned `P4_PREFLIGHT_SAFE_BUT_ORIGIN_UNVERIFIED`. All 4 catalog variables verified MATCH and non-secret. `ENABLED=false`, `PROVIDER_READY=false`, `ENVIRONMENT=sandbox`, approved origin `https://wiseresume.app`. All access consumers (`ai-gateway`, `coupons`, `admin-devkit-data`) `[UNCONFIGURED]`.
+- **Paddle Domain Compliance Pages Added:** Added `/terms`, `/privacy`, `/refund-policy` (and Arabic equivalents `/ar/terms`, `/ar/privacy`, `/ar/refund-policy`), persistent footer links in `Footer.tsx`, and Paddle Merchant of Record disclosures.
+
 ## 2026-08-31 - Phase P4 Production catalog reconciliation & preflight hardening
 
 - **Verdict:** `P4_PREFLIGHT_BLOCKED_CATALOG_MISSING` (Live read-only audit run `33366751713` executed on `main` at `958c32a6f7fc5e3640ab406c6fdab609bc17c7e7` with zero mutations; remediation PR #253 on branch `fix/p4-production-catalog-reconciliation` open awaiting owner merge).

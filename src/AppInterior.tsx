@@ -111,6 +111,7 @@ const AuthVerifyEmailPage = lazyWithRetry(() => import("./pages/AuthVerifyEmailP
 const AuthResetPasswordPage = lazyWithRetry(() => import("./pages/AuthResetPasswordPage"));
 const PrivacyPage = lazyWithRetry(() => import("./pages/PrivacyPage"));
 const TermsPage = lazyWithRetry(() => import("./pages/TermsPage"));
+const RefundPolicyPage = lazyWithRetry(() => import("./pages/RefundPolicyPage"));
 const WiseHireTermsPage = lazyWithRetry(() => import("./pages/wisehire/WiseHireTermsPage"));
 const WiseHirePrivacyPage = lazyWithRetry(() => import("./pages/wisehire/WiseHirePrivacyPage"));
 const PricingPage = lazyWithRetry(() => import("./pages/PricingPage"));
@@ -183,7 +184,7 @@ function useIsPublicRoute() {
     pathname.startsWith('/l/') ||
     pathname.startsWith('/interview/report/') ||
     pathname.startsWith('/auth/callback') ||
-    ['/pricing', '/whats-new', '/waitlist', '/enterprise', '/privacy-policy', '/terms-of-service', '/guides', '/examples'].includes(pathname) ||
+    ['/pricing', '/whats-new', '/waitlist', '/enterprise', '/privacy', '/terms', '/refund-policy', '/refunds', '/privacy-policy', '/terms-of-service', '/guides', '/examples'].includes(pathname) ||
     pathname.startsWith('/guides/')
   );
 }
@@ -367,10 +368,18 @@ function AppRoutes() {
           <Route path="/guides" element={<RouteEB><Suspense fallback={<GuidesExamplesSkeleton />}><GuidesPage /></Suspense></RouteEB>} />
           <Route path="/guides/:slug" element={<RouteEB><Suspense fallback={<DetailSkeleton />}><GuidePage /></Suspense></RouteEB>} />
           <Route path="/examples" element={<RouteEB><Suspense fallback={<GuidesExamplesSkeleton />}><ExamplesPage /></Suspense></RouteEB>} />
+          <Route path="/privacy" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><PrivacyPage /></Suspense></RouteEB>} />
           <Route path="/privacy-policy" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><PrivacyPage /></Suspense></RouteEB>} />
+          <Route path="/terms" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><TermsPage /></Suspense></RouteEB>} />
           <Route path="/terms-of-service" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><TermsPage /></Suspense></RouteEB>} />
+          <Route path="/refund-policy" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><RefundPolicyPage /></Suspense></RouteEB>} />
+          <Route path="/refunds" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><RefundPolicyPage /></Suspense></RouteEB>} />
+          <Route path="/ar/privacy" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><PrivacyPage /></Suspense></RouteEB>} />
           <Route path="/ar/privacy-policy" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><PrivacyPage /></Suspense></RouteEB>} />
+          <Route path="/ar/terms" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><TermsPage /></Suspense></RouteEB>} />
           <Route path="/ar/terms-of-service" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><TermsPage /></Suspense></RouteEB>} />
+          <Route path="/ar/refund-policy" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><RefundPolicyPage /></Suspense></RouteEB>} />
+          <Route path="/ar/refunds" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><RefundPolicyPage /></Suspense></RouteEB>} />
 
           <Route path="/wisehire/signup" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><WiseHireSignupPage /></Suspense></RouteEB>} />
           <Route path="/wisehire/signup-early-access" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><WiseHireEarlyAccessPage /></Suspense></RouteEB>} />
