@@ -5,7 +5,13 @@
 
 **Location:** `Project Atlas/WHERE_WE_STOPPED.md`
 
----
+## WiseResume What's New Page Content Reconciliation & UX Redesign — 2026-08-31
+
+* **Verdict:** `VERIFIED_READY` (What's New page `/whats-new` fully audited, release history reconciled from March 2026 through August 31, 2026, UX redesigned into a modern Product Updates Hub, and unit tests passing 28/28).
+* **Content Reconciliation:** Added missing date ranges (May, June, July, August 2026) including Paddle & Legal accuracy hardening, Ultimate plan tiering, Remote Jobs feed, Public portfolio automated scrape protection, PDF export page break fixes, and AI quota tracking & fallback alerts.
+* **UX Redesign:** Extracted dataset into `src/data/whatsNewData.ts`, updated `src/pages/WhatsNewPage.tsx` with top hero header, featured release card, 7 interactive category filter tabs, 6 month jump selector pills, direct anchor link copying (`#id`), progressive disclosure toggle for 2025 releases, and canonical legal footer links (`/privacy`, `/terms`, `/refund-policy`).
+* **Localization:** Native English LTR and Arabic RTL (`/ar/whats-new`) rendering supported.
+* **Validation:** `cmd /c npx tsc --noEmit` PASS (0 errors); `npx vitest` PASS (28/28 tests passed across `landingRouteContract.test.ts`, `productTrustCopy.test.ts`, and `WhatsNewPage.test.tsx`).
 
 ## Phase P4 Paddle Domain Review Readiness & Legal Accuracy Hardening — 2026-08-31
 

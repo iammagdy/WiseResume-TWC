@@ -1,5 +1,13 @@
 # WiseResume Atlas Master Changelog
 
+## 2026-08-31 - WiseResume What's New Page Content Reconciliation & UX Redesign
+
+- **Verdict:** `VERIFIED_READY` (Full audit and reconciliation of shipped releases from October 2025 through August 31, 2026 completed; UX redesigned into a modern Product Updates Hub with category filtering, month jump navigation, progressive disclosure, and bilingual Arabic RTL / English LTR support; Vitest 28/28 tests passed; TypeScript clean).
+- **Files Modified/Created:** `src/data/whatsNewData.ts` (NEW dataset), `src/pages/WhatsNewPage.tsx` (REDESIGNED component), `src/pages/__tests__/WhatsNewPage.test.tsx` (NEW unit test suite).
+- **Reconciliation Scope:** Added missing date ranges (May, June, July, August 2026) including Paddle & Legal accuracy hardening, Ultimate plan tiering, Remote Jobs feed, Public portfolio automated collection protection, PDF export page break fixes, and AI quota tracking & fallback alerts.
+- **UX Improvements:** Hero section, Featured release card, 7 interactive category filters (`All`, `New Features`, `AI & Tailoring`, `Jobs & Career`, `Resume & Portfolio`, `Security & Legal`, `Improvements & Fixes`), 6 month filter pills (`August 2026`, `July 2026`, `June 2026`, `May 2026`, `April 2026`, `Older Updates`), direct item anchor links (`#id`), progressive disclosure toggle for 2025 updates, and canonical legal footer links (`/privacy`, `/terms`, `/refund-policy`).
+- **Trust Copy & Governance Boundaries:** All copy verified against `productTrustCopy.test.ts` (zero fabricated ATS scores, speed metrics, or unapproved product nicknames).
+
 ## 2026-08-31 - Phase P4 Paddle domain review readiness & legal accuracy hardening
 
 - **Verdict:** `PADDLE_DOMAIN_REVIEW_SITE_READY` (PR #256 merged into `main` at commit `1ee534aeb0fce2844f5d03e2ba1ca755f056491b`; Vercel Production deployment `8Fo4XQe7PLPvQM39xggzPeXUKTYB` succeeded; Playwright Chromium live production QA passed 17/17 tests).
