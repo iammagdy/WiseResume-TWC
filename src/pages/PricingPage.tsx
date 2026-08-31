@@ -7,6 +7,7 @@ import triggerHaptic from '@/lib/haptics';
 import { useState, type ReactNode, type ButtonHTMLAttributes } from 'react';
 import { PLAN_FEATURE_LABELS } from '@/lib/planConfig';
 import { billingState } from '@/lib/billing';
+import { Footer } from '@/components/landing/Footer';
 
 const pricingFeatures = PLAN_FEATURE_LABELS;
 
@@ -137,6 +138,7 @@ export default function PricingPage() {
           </div>
         </section>
       </main>
+      <Footer />
     </div>
   );
 }

@@ -52,7 +52,7 @@ export function localeFromPublicPath(pathname: string | null | undefined): Suppo
 
 const PUBLIC_LOCALIZED_EXACT_PATHS = new Set([
   '/', '/enterprises', '/pricing', '/whats-new', '/waitlist', '/enterprise',
-  '/privacy-policy', '/terms-of-service', '/guides', '/examples', '/auth',
+  '/privacy', '/terms', '/refund-policy', '/refunds', '/privacy-policy', '/terms-of-service', '/guides', '/examples', '/auth',
   '/auth/verify-email', '/auth/reset-password', '/auth/callback',
 ]);
 

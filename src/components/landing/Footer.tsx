@@ -51,9 +51,9 @@ export function Footer({ lpMode, product }: FooterProps) {
           <span>{t('landing.footerSecureNotice', 'Protected by account access controls and encrypted connections')}</span>
         </div>
 
-        <div className="flex items-center gap-1 text-xs">
+        <div className="flex flex-wrap items-center justify-center gap-1 text-xs">
           <Link
-            to={isWiseHire ? '/wisehire/privacy-policy' : '/privacy-policy'}
+            to={isWiseHire ? '/wisehire/privacy-policy' : '/privacy'}
             className="transition-colors"
             style={lpMode
               ? { color: 'var(--lp-text-muted)', padding: '10px 12px', display: 'inline-flex', alignItems: 'center', minHeight: 44, textDecoration: 'underline', textDecorationColor: 'var(--lp-border)', textUnderlineOffset: 3 }
@@ -67,7 +67,7 @@ export function Footer({ lpMode, product }: FooterProps) {
             style={lpMode ? { background: 'var(--lp-border)' } : undefined}
           />
           <Link
-            to={isWiseHire ? '/wisehire/terms-of-service' : '/terms-of-service'}
+            to={isWiseHire ? '/wisehire/terms-of-service' : '/terms'}
             className="transition-colors"
             style={lpMode
               ? { color: 'var(--lp-text-muted)', padding: '10px 12px', display: 'inline-flex', alignItems: 'center', minHeight: 44, textDecoration: 'underline', textDecorationColor: 'var(--lp-border)', textUnderlineOffset: 3 }
@@ -75,6 +75,20 @@ export function Footer({ lpMode, product }: FooterProps) {
             }
           >
             {t('landing.termsOfService', 'Terms of Service')}
+          </Link>
+          <span
+            className="w-px h-3"
+            style={lpMode ? { background: 'var(--lp-border)' } : undefined}
+          />
+          <Link
+            to="/refund-policy"
+            className="transition-colors"
+            style={lpMode
+              ? { color: 'var(--lp-text-muted)', padding: '10px 12px', display: 'inline-flex', alignItems: 'center', minHeight: 44, textDecoration: 'underline', textDecorationColor: 'var(--lp-border)', textUnderlineOffset: 3 }
+              : { padding: '10px 12px', display: 'inline-flex', alignItems: 'center', minHeight: 44 }
+            }
+          >
+            {t('landing.refundPolicy', 'Refund Policy')}
           </Link>
         </div>
 
