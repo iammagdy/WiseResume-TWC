@@ -9,14 +9,11 @@ import {
   whatsNewReleases,
   CATEGORY_FILTERS,
   MONTH_GROUPS,
-  COMING_SOON_ITEMS,
   type ReleaseCategory,
-  type ReleaseUpdate,
 } from '@/data/whatsNewData';
 import {
   Sparkles,
   Rocket,
-  Clock,
   ChevronDown,
   ChevronUp,
   Filter,
@@ -32,7 +29,6 @@ export default function WhatsNewPage() {
   const { locale, direction } = useLocale();
 
   const lang = (locale === 'ar' ? 'ar' : 'en') as 'en' | 'ar';
-  const isRTL = direction === 'rtl';
 
   const [activeCategory, setActiveCategory] = useState<ReleaseCategory>('all');
   const [selectedMonth, setSelectedMonth] = useState<string>('all');
@@ -157,8 +153,8 @@ export default function WhatsNewPage() {
 
           <p className="text-muted-foreground text-base sm:text-lg max-w-xl mx-auto leading-relaxed">
             {lang === 'ar'
-              ? 'استكشف أحدث الميزات، التحسينات، والتحديثات القانونية التي تم إطلاقها في WiseResume.'
-              : 'Explore the latest features, enhancements, performance improvements, and updates shipped to WiseResume.'}
+              ? 'استكشف أحدث الميزات، التحسينات، والتحديثات المعتمدة التي تم إطلاقها في WiseResume.'
+              : 'Explore the latest features, enhancements, and verified product updates shipped to WiseResume.'}
           </p>
         </div>
 
@@ -169,7 +165,7 @@ export default function WhatsNewPage() {
             <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
               <div className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-full bg-primary text-primary-foreground">
                 <Rocket className="w-3.5 h-3.5" />
-                {lang === 'ar' ? 'إصدار رئيسي بارز' : 'Featured Release'}
+                {lang === 'ar' ? 'إصدار بارز' : 'Featured Update'}
               </div>
               <span className="text-xs text-muted-foreground font-medium flex items-center gap-1">
                 <Calendar className="w-3.5 h-3.5" />
@@ -381,43 +377,6 @@ export default function WhatsNewPage() {
             </button>
           </div>
         )}
-
-        {/* Coming Soon Section */}
-        <div className="mt-14 pt-8 border-t border-border">
-          <div className="flex items-center gap-3 mb-6">
-            <Clock className="w-4 h-4 text-muted-foreground" />
-            <h2 className="text-xs sm:text-sm font-bold text-muted-foreground uppercase tracking-wider">
-              {lang === 'ar' ? 'قريباً في WiseResume' : 'Coming Soon'}
-            </h2>
-            <div className="flex-1 h-px bg-border" />
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {COMING_SOON_ITEMS.map((item, idx) => {
-              const Icon = item.icon;
-              return (
-                <div
-                  key={idx}
-                  className="flex items-start gap-3.5 p-4 rounded-xl border border-dashed border-border bg-card/50"
-                >
-                  <div
-                    className={`flex-shrink-0 w-9 h-9 rounded-lg ${item.iconBg} flex items-center justify-center`}
-                  >
-                    <Icon className="w-4 h-4 text-muted-foreground" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold text-foreground mb-0.5">
-                      {item.title[lang]}
-                    </p>
-                    <p className="text-xs text-muted-foreground leading-relaxed">
-                      {item.description[lang]}
-                    </p>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
 
         {/* Bottom Call to Action Card */}
         <div className="mt-14 rounded-2xl border border-border bg-card p-8 text-center shadow-xs">

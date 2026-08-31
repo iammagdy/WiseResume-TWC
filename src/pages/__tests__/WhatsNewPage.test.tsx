@@ -28,8 +28,8 @@ describe('WhatsNewPage', () => {
     );
 
     expect(screen.getAllByText(/What's New in WiseResume/i).length).toBeGreaterThan(0);
-    expect(screen.getByText(/Featured Release/i)).toBeInTheDocument();
-    expect(screen.getByText(/Updated Legal Transparency & Merchant Compliance/i)).toBeInTheDocument();
+    expect(screen.getByText(/Featured Update/i)).toBeInTheDocument();
+    expect(screen.getByText(/Remote Jobs Feed Integrated into Workspace/i)).toBeInTheDocument();
   });
 
   it('filters release items when category tab is clicked', () => {
@@ -41,10 +41,10 @@ describe('WhatsNewPage', () => {
       </MemoryRouter>
     );
 
-    const jobsCategoryButton = screen.getByRole('button', { name: /Jobs & Career/i });
-    fireEvent.click(jobsCategoryButton);
+    const securityCategoryButton = screen.getByRole('button', { name: /Security & Legal/i });
+    fireEvent.click(securityCategoryButton);
 
-    expect(screen.getByText(/Remote Jobs Feed Integrated into Workspace/i)).toBeInTheDocument();
+    expect(screen.getByText(/Updated Legal Policies & Compliance Transparency/i)).toBeInTheDocument();
   });
 
   it('toggles older 2025 updates when progressive disclosure button is clicked', () => {
@@ -56,12 +56,12 @@ describe('WhatsNewPage', () => {
       </MemoryRouter>
     );
 
-    expect(screen.queryByText(/WiseResume Official Release/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/WiseResume Official Launch/i)).not.toBeInTheDocument();
 
     const showOlderBtn = screen.getByRole('button', { name: /Show Older 2025 Updates/i });
     fireEvent.click(showOlderBtn);
 
-    expect(screen.getByText(/WiseResume Official Release/i)).toBeInTheDocument();
+    expect(screen.getByText(/WiseResume Official Launch/i)).toBeInTheDocument();
   });
 
   it('renders canonical footer legal links', () => {
