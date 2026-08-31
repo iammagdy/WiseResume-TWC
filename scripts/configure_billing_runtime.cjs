@@ -63,10 +63,7 @@ function parseArgs(argv = process.argv, env = process.env) {
     }
   }
 
-  if (!confirmCatalogReconcile && confirm === CONFIRMATION_REQUIRED_FOR_CATALOG_RECONCILE) {
-    confirmCatalogReconcile = confirm;
-  }
-
+  // NO CROSS-MODE CONFIRMATION FALLBACK OR LEAKAGE.
   return { mode, confirm, confirmCatalogReconcile };
 }
 
@@ -392,9 +389,8 @@ async function configureBillingRuntime({ mode, confirm, confirmCatalogReconcile 
   }
 
   if (mode === 'production-catalog-reconcile') {
-    // 1. EXACT CONFIRMATION STRING REQUIREMENT
-    const reconcileConfirm = confirmCatalogReconcile || confirm;
-    if (reconcileConfirm !== CONFIRMATION_REQUIRED_FOR_CATALOG_RECONCILE) {
+    // 1. EXACT CONFIRMATION STRING REQUIREMENT (STRICT ISOLATED FIELD ONLY)
+    if (confirmCatalogReconcile !== CONFIRMATION_REQUIRED_FOR_CATALOG_RECONCILE) {
       throw new Error(`Confirmation required for production-catalog-reconcile: pass --confirm-catalog-reconcile=${CONFIRMATION_REQUIRED_FOR_CATALOG_RECONCILE}`);
     }
 

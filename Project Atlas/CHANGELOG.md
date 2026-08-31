@@ -10,7 +10,7 @@
   - Hardened `deploy_hubs.cjs` with `ensureNonSecretCatalogVariable()` enforcing explicit `secret=false` and fresh readback for Production catalog IDs.
   - Enhanced `runProductionPreflightAudit()` to classify safe catalog metadata explicitly (`P4_PREFLIGHT_BLOCKED_CATALOG_SECRET`/`SECRET_UNVERIFIED`/`EMPTY`/`MISSING`/`MISMATCH`).
   - Fixed workflow exit code semantics: blocked preflight audit verdicts exit non-zero after printing the safe read-only audit report.
-  - Unit tests added in `tests/scripts/configure_billing_runtime.test.cjs` and `tests/hubs/billing-checkout-deployment.test.cjs` (All tests PASS).
+  - Unit tests added in `tests/scripts/configure_billing_runtime.test.cjs` and `tests/hubs/billing-checkout-deployment.test.cjs` (18 focused test suites / 18 PASSED).
 - **Integrity & Bounds:** Live Appwrite runtime variables unchanged. `BILLING_CHECKOUT_ENABLED=false` preserved. `paymentsEnabled: false` preserved. Production billing remains strictly disabled. Zero real checkouts/payments created.
 
 ## 2026-08-31 - Phase P4 Production billing runtime gate automation remediation
