@@ -126,3 +126,13 @@ test('broad/target=all deployment remains strictly prohibited', () => {
   assert.throws(() => parseExplicitHubTargets(''), /At least one explicit Appwrite hub target/);
   assert.deepEqual(parseExplicitHubTargets('billing-checkout'), ['billing-checkout']);
 });
+
+test('deploy_hubs.cjs ensureNonSecretCatalogVariable secret path uses delete and create with gate checks', () => {
+  const script = read('scripts/deploy_hubs.cjs');
+  assert.match(script, /deleteVariable\(fnId,\s*existing\.\$id\)/);
+  assert.match(script, /createVariable\(fnId,\s*sdk\.ID\.unique\(\),\s*key,\s*value,\s*false\)/);
+  assert.match(script, /BILLING_CHECKOUT_ENABLED/);
+  assert.match(script, /BILLING_CHECKOUT_PROVIDER_READY/);
+  assert.match(script, /BILLING_CHECKOUT_ENVIRONMENT/);
+});
+

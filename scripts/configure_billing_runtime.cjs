@@ -147,20 +147,81 @@ async function setOrUpdateCatalogNonSecretVariable(functions, functionId, key, v
   const existingVars = await fetchFunctionVariables(functions, functionId);
   const existing = existingVars.find(v => v.key === key);
 
-  if (existing) {
-    if (existing.value === value && existing.secret === false) {
+  if (!existing) {
+    // Behavior A: Variable absent -> create new non-secret variable
+    const variableId = sdk.ID ? sdk.ID.unique() : `var_${Date.now()}`;
+    try {
+      await functions.createVariable(functionId, variableId, key, value, false);
+      console.log(`[CATALOG VAR CREATED] ${functionId} -> ${key} = ${value} (secret=false)`);
+    } catch (createErr) {
+      const freshAfterErr = await fetchFunctionVariables(functions, functionId);
+      const verifiedAfterErr = freshAfterErr.find(v => v.key === key);
+      if (verifiedAfterErr && verifiedAfterErr.value === value && verifiedAfterErr.secret === false) {
+        console.log(`[CATALOG VAR CREATED AMBIGUOUS SUCCESS] ${functionId} -> ${key} = ${value} (secret=false)`);
+      } else {
+        throw new Error(`P4_CATALOG_RECREATION_CREATE_BLOCKED: Failed to create non-secret catalog variable ${key}: ${createErr.message}`);
+      }
+    }
+  } else if (existing.secret === false) {
+    // Behavior B: Variable exists with secret === false -> update value if needed
+    if (existing.value === value) {
       console.log(`[CATALOG VAR UNCHANGED] ${functionId} -> ${key} = ${value} (secret=false)`);
     } else {
       await functions.updateVariable(functionId, existing.$id, key, value, false);
       console.log(`[CATALOG VAR UPDATED] ${functionId} -> ${key} = ${value} (secret=false)`);
     }
+  } else if (existing.secret === true) {
+    // Behavior C: Variable exists with secret === true -> DESTRUCTIVE RE-CREATION REQUIRED
+    console.log(`[CATALOG SECRET RECREATION] ${functionId} -> ${key} is currently secret=true. Verifying fail-closed gates before recreation...`);
+
+    // 1. Re-read and prove fail-closed runtime gates on billing-checkout
+    const bcVars = await fetchFunctionVariables(functions, 'billing-checkout');
+    const enabledVal = bcVars.find(v => v.key === 'BILLING_CHECKOUT_ENABLED')?.value;
+    const readyVal = bcVars.find(v => v.key === 'BILLING_CHECKOUT_PROVIDER_READY')?.value;
+    const envVal = bcVars.find(v => v.key === 'BILLING_CHECKOUT_ENVIRONMENT')?.value;
+
+    if (enabledVal !== 'false' || readyVal !== 'false' || envVal !== 'sandbox') {
+      throw new Error(`P4_CATALOG_RECREATION_GATES_BLOCKED: Cannot recreate secret catalog variable ${key} while runtime gates are unsafe (ENABLED=${enabledVal}, PROVIDER_READY=${readyVal}, ENVIRONMENT=${envVal})`);
+    }
+
+    // 2. Delete ONLY the exact existing catalog variable by its Appwrite variable ID
+    let deleteError = null;
+    try {
+      await functions.deleteVariable(functionId, existing.$id);
+    } catch (delErr) {
+      deleteError = delErr;
+    }
+
+    // 3. Fresh listVariables readback to verify deletion
+    const postDeleteVars = await fetchFunctionVariables(functions, functionId);
+    const postDeleteFound = postDeleteVars.find(v => v.key === key);
+
+    if (postDeleteFound) {
+      throw new Error(`P4_CATALOG_RECREATION_DELETE_BLOCKED: Failed to delete secret catalog variable ${key} (variable ID ${existing.$id}). Old variable still present.${deleteError ? ` Error: ${deleteError.message}` : ''}`);
+    }
+    console.log(`[CATALOG VAR DELETED PASS] Deleted secret catalog variable ${functionId} -> ${key} (old ID: ${existing.$id})`);
+
+    // 4. Create NEW variable with secret=false
+    const newId = sdk.ID ? sdk.ID.unique() : `var_${Date.now()}`;
+    try {
+      await functions.createVariable(functionId, newId, key, value, false);
+      console.log(`[CATALOG VAR RECREATED] Created new non-secret catalog variable ${functionId} -> ${key} = ${value} (new ID: ${newId}, secret=false)`);
+    } catch (createErr) {
+      // 5. Handle ambiguous create error via fresh readback
+      const freshAfterErr = await fetchFunctionVariables(functions, functionId);
+      const verifiedAfterErr = freshAfterErr.find(v => v.key === key);
+      if (verifiedAfterErr && verifiedAfterErr.value === value && verifiedAfterErr.secret === false) {
+        console.log(`[CATALOG VAR RECREATED AMBIGUOUS SUCCESS] ${functionId} -> ${key} = ${value} (secret=false)`);
+      } else {
+        throw new Error(`P4_CATALOG_RECREATION_CREATE_BLOCKED: Failed to create non-secret catalog variable ${key} (new ID ${newId}): ${createErr.message}`);
+      }
+    }
   } else {
-    const variableId = sdk.ID ? sdk.ID.unique() : `var_${Date.now()}`;
-    await functions.createVariable(functionId, variableId, key, value, false);
-    console.log(`[CATALOG VAR CREATED] ${functionId} -> ${key} = ${value} (secret=false)`);
+    // secret === undefined
+    throw new Error(`P4_CATALOG_RECREATION_SECRET_METADATA_UNVERIFIED: ${functionId} -> ${key} secret metadata is unverified/undefined. Destructive re-creation prohibited.`);
   }
 
-  // REAL PERSISTED READBACK VERIFICATION WITH STRICT secret === false
+  // 6. REAL PERSISTED READBACK VERIFICATION WITH STRICT secret === false
   const freshVars = await fetchFunctionVariables(functions, functionId);
   const verified = freshVars.find(v => v.key === key);
 
@@ -178,6 +239,7 @@ async function setOrUpdateCatalogNonSecretVariable(functions, functionId, key, v
 
   console.log(`[CATALOG VAR VERIFIED] ${functionId} -> ${key} = ${value} (secret=false)`);
 }
+
 
 async function restoreConsumerExactState(functions, fnId, prior) {
   if (prior.exists && prior.value !== null) {

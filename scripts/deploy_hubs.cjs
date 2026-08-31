@@ -401,16 +401,45 @@ async function ensureNonSecretCatalogVariable(fnId, key, value) {
     const vars = await functions.listVariables(fnId);
     const existing = (vars.variables || []).find(v => v.key === key);
 
-    if (existing) {
-        if (existing.value === value && existing.secret === false) {
+    if (!existing) {
+        await functions.createVariable(fnId, sdk.ID.unique(), key, value, false);
+        console.log(`  Created ${key} on ${fnId} (secret=false)`);
+    } else if (existing.secret === false) {
+        if (existing.value === value) {
             console.log(`  [CATALOG UNCHANGED] ${key} on ${fnId} (secret=false)`);
             return;
         }
         await functions.updateVariable(fnId, existing.$id, key, value, false);
         console.log(`  Updated ${key} on ${fnId} (secret=false)`);
-    } else {
+    } else if (existing.secret === true) {
+        console.log(`  [CATALOG SECRET RECREATION] ${key} on ${fnId} is currently secret=true. Verifying runtime gates...`);
+        const bcVars = await functions.listVariables('billing-checkout');
+        const bcList = bcVars.variables || [];
+        const enabled = bcList.find(v => v.key === 'BILLING_CHECKOUT_ENABLED')?.value;
+        const ready = bcList.find(v => v.key === 'BILLING_CHECKOUT_PROVIDER_READY')?.value;
+        const env = bcList.find(v => v.key === 'BILLING_CHECKOUT_ENVIRONMENT')?.value;
+
+        if (enabled !== 'false' || ready !== 'false' || env !== 'sandbox') {
+            throw new Error(`[CATALOG DEPLOY RECREATION BLOCKED] Cannot recreate secret catalog variable ${key}: fail-closed runtime gates not satisfied (ENABLED=${enabled}, PROVIDER_READY=${ready}, ENVIRONMENT=${env})`);
+        }
+
+        let deleteError = null;
+        try {
+            await functions.deleteVariable(fnId, existing.$id);
+        } catch (delErr) {
+            deleteError = delErr;
+        }
+
+        const postDel = await functions.listVariables(fnId);
+        const postDelFound = (postDel.variables || []).find(v => v.key === key);
+        if (postDelFound) {
+            throw new Error(`[CATALOG DEPLOY RECREATION BLOCKED] Failed to delete secret catalog variable ${key} on ${fnId}.${deleteError ? ` Error: ${deleteError.message}` : ''}`);
+        }
+
         await functions.createVariable(fnId, sdk.ID.unique(), key, value, false);
-        console.log(`  Created ${key} on ${fnId} (secret=false)`);
+        console.log(`  Recreated ${key} on ${fnId} (secret=false)`);
+    } else {
+        throw new Error(`[CATALOG DEPLOY RECREATION BLOCKED] Cannot recreate catalog variable ${key} on ${fnId}: secret metadata is unverified/undefined.`);
     }
 
     // Fresh persisted readback
