@@ -1,7 +1,7 @@
 # Project Atlas — Active Operational & Handover State
 
 **Last Verified:** 2026-08-31
-**Status:** `P4_CATALOG_BASELINE_VERIFIED` — PR #254 merged into `main` (`d51cc0b98fe594eb2b2662a88a17589ea86ce719`). Authorized live `production-catalog-reconcile` run `33376804507` executed on `main` and returned verdict `P4_CATALOG_RECONCILIATION_SUCCESS` (all four Production catalog IDs recreated as non-secret `secret_flag=false`). Read-only preflight audit run `33376897666` executed on `main` and returned verdict `P4_PREFLIGHT_SAFE_BUT_ORIGIN_UNVERIFIED`. Proven live gate states: `BILLING_CHECKOUT_ENABLED=false`, `BILLING_CHECKOUT_PROVIDER_READY=false`, `BILLING_CHECKOUT_ENVIRONMENT=sandbox`, `BILLING_CHECKOUT_APPROVED_ORIGIN=https://wiseresume.app`. Access consumers: `[UNCONFIGURED]`. Paddle website approval: SUBMITTED / AWAITING REVIEW. Legal compliance pages `/terms`, `/privacy`, `/refund-policy` (and Arabic variants) implemented and deployed to production. Production billing remains strictly disabled.
+**Status:** `P4_CATALOG_BASELINE_VERIFIED` — PR #255 merged into `main` (`bb6b7def3a60c193b11428d9c50249d4ae7d133f`). Authorized live `production-catalog-reconcile` run `33376804507` executed on `main` and returned verdict `P4_CATALOG_RECONCILIATION_SUCCESS` (all four Production catalog IDs recreated as non-secret `secret_flag=false`). Read-only preflight audit run `33376897666` executed on `main` and returned verdict `P4_PREFLIGHT_SAFE_BUT_ORIGIN_UNVERIFIED`. Proven live gate states: `BILLING_CHECKOUT_ENABLED=false`, `BILLING_CHECKOUT_PROVIDER_READY=false`, `BILLING_CHECKOUT_ENVIRONMENT=sandbox`, `BILLING_CHECKOUT_APPROVED_ORIGIN=https://wiseresume.app`. Access consumers: `[UNCONFIGURED]`. Paddle website approval: SUBMITTED / AWAITING REVIEW. Legal compliance pages `/terms`, `/privacy`, `/refund-policy` (and Arabic variants) deployed and hardened with exact dates (August 31, 2026), Paddle Merchant of Record terms, and factual processor/entitlement disclosures. Production billing remains strictly disabled.
 
 **Location:** `Project Atlas/WHERE_WE_STOPPED.md`
 
@@ -9,8 +9,8 @@
 
 ## Phase P4 Production catalog baseline verified & Paddle legal compliance rollout — 2026-08-31
 
-* **Verdict:** `P4_CATALOG_BASELINE_VERIFIED` (Live catalog reconciliation run `33376804507` PASSED; read-only preflight audit run `33376897666` PASSED; legal compliance pages implemented).
-* **PR #254 Status:** MERGED into `main` at `d51cc0b98fe594eb2b2662a88a17589ea86ce719`.
+* **Verdict:** `P4_CATALOG_BASELINE_VERIFIED` (Live catalog reconciliation run `33376804507` PASSED; read-only preflight audit run `33376897666` PASSED; legal compliance pages implemented and accuracy-hardened).
+* **PR #255 Status:** MERGED into `main` at `bb6b7def3a60c193b11428d9c50249d4ae7d133f`.
 * **Live Catalog Reconciliation Evidence (Run 33376804507):**
   - Workflow `Configure Billing Runtime` mode `production-catalog-reconcile` dispatched on `main` at `d51cc0b98fe594eb2b2662a88a17589ea86ce719`.
   - Verdict: `P4_CATALOG_RECONCILIATION_SUCCESS`.
@@ -25,10 +25,10 @@
   - Catalog Status: MATCH (all 4 present and non-secret).
   - Proven Live Gate States: `BILLING_CHECKOUT_ENABLED=false`, `BILLING_CHECKOUT_PROVIDER_READY=false`, `BILLING_CHECKOUT_ENVIRONMENT=sandbox`, `BILLING_CHECKOUT_APPROVED_ORIGIN=https://wiseresume.app`.
   - Access Consumers: `ai-gateway`, `coupons`, `admin-devkit-data` all `[UNCONFIGURED]`.
-* **Paddle Domain Compliance Rollout:**
+* **Paddle Domain Compliance Rollout & Accuracy Hardening:**
   - Added public legal routes `/terms`, `/privacy`, `/refund-policy` (and AR variants `/ar/terms`, `/ar/privacy`, `/ar/refund-policy`).
   - Added persistent legal links in website footer (`Footer.tsx`).
-  - Added Paddle Merchant of Record disclosures and exact plan prices ($5/mo Pro, $10/mo Ultimate).
+  - Hardened legal accuracy: Last Updated set to August 31, 2026; Refund Policy Effective Date set to August 31, 2026; corrected subscription entitlement updates to wait for provider lifecycle events; updated cancellation instructions to reference Paddle purchase communications and support; clarified 14-day statutory withdrawal rights subject to conditions/Paddle terms; documented actual production processors (Appwrite, Paddle, Vercel, Sentry, Cloudflare Turnstile, server-side AI); and removed unverified DPO/formal department titles.
 * **Current Safety State:** `BILLING_CHECKOUT_ENABLED=false` preserved. Production billing remains strictly disabled. Zero real checkouts/payments created.
 
 

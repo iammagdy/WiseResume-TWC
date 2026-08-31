@@ -37,7 +37,7 @@ export default function PricingPage() {
   const faqItems = [
     { q: t('app.aiStudio.pricingPage.faq1Question', 'Can I try WiseResume for free?'), a: t('app.aiStudio.pricingPage.faq1Answer', 'Yes! The Free plan is free forever.') },
     { q: t('app.aiStudio.pricingPage.faq2Question', 'How do I upgrade my plan?'), a: t('app.aiStudio.pricingPage.faq2Answer', 'You can upgrade from your Subscription page inside the app.') },
-    { q: t('app.aiStudio.pricingPage.faq3Question', 'Can I cancel at any time?'), a: t('app.aiStudio.pricingPage.faq3Answer', 'Absolutely. You can cancel your subscription at any time from settings.') },
+    { q: t('app.aiStudio.pricingPage.faq3Question', 'Can I cancel at any time?'), a: t('app.aiStudio.pricingPage.faq3Answer', 'Yes. You can manage or cancel a Paddle-processed subscription using the link in your purchase communications or by contacting support.') },
   ];
 
   const handlePerPlanCTA = (targetPlan: string) => {
