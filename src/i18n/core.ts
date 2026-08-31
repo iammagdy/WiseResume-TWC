@@ -69,7 +69,8 @@ export function getLocalizedPublicPath(pathname: string, locale: SupportedLocale
 
 export function isPublicLocalizedRoute(pathname: string | null | undefined): boolean {
   if (!pathname) return false;
-  const cleanPath = pathname.split('?')[0].split('#')[0];
+  const rawPath = pathname.split('?')[0].split('#')[0];
+  const cleanPath = rawPath.length > 1 && rawPath.endsWith('/') ? rawPath.slice(0, -1) : rawPath;
   const basePath = cleanPath === '/ar' ? '/' : cleanPath.startsWith('/ar/') ? cleanPath.slice(3) : cleanPath;
   return PUBLIC_LOCALIZED_EXACT_PATHS.has(basePath)
     || PUBLIC_LOCALIZED_PREFIXES.some((prefix) => basePath.startsWith(prefix));

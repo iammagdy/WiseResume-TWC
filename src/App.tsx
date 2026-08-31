@@ -225,21 +225,21 @@ function SplashGate() {
 const App = () => {
   return (
     <QueryClientProvider client={queryClient}>
-      <LocaleProvider>
-        <AuthProvider>
-          <LocaleAccountSync />
-          <TooltipProvider>
-            <div style={{ display: 'none' }}>force_rebuild_1782971552</div>
-            <ErrorBoundary>
-              <BrowserRouter
-                future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
-              >
+      <AuthProvider>
+        <TooltipProvider>
+          <ErrorBoundary>
+            <BrowserRouter
+              future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+            >
+              <LocaleProvider>
+                <LocaleAccountSync />
+                <div style={{ display: 'none' }}>force_rebuild_1782971552</div>
                 <SplashGate />
-              </BrowserRouter>
-            </ErrorBoundary>
-          </TooltipProvider>
-        </AuthProvider>
-      </LocaleProvider>
+              </LocaleProvider>
+            </BrowserRouter>
+          </ErrorBoundary>
+        </TooltipProvider>
+      </AuthProvider>
     </QueryClientProvider>
   );
 };

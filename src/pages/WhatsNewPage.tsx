@@ -104,7 +104,7 @@ export default function WhatsNewPage() {
       <header className="sticky top-0 z-50 bg-background/95 backdrop-blur-md border-b border-border shadow-xs">
         <div className="flex items-center justify-between px-4 sm:px-6 h-16 max-w-6xl mx-auto w-full">
           <Link
-            to="/"
+            to={locale === 'ar' ? '/ar' : '/'}
             className="flex items-center gap-2 text-lg font-bold text-primary tracking-tight hover:opacity-85 transition-opacity"
           >
             <Zap className="w-5 h-5 text-primary fill-primary/20" />
@@ -412,7 +412,7 @@ export default function WhatsNewPage() {
       {/* Canonical Footer */}
       <footer className="border-t border-border py-8 text-center text-xs sm:text-sm text-muted-foreground bg-card/30 mt-auto">
         <div className="flex flex-wrap justify-center gap-5 mb-3 font-medium">
-          <Link to="/" className="hover:text-foreground transition-colors">
+          <Link to={locale === 'ar' ? '/ar' : '/'} className="hover:text-foreground transition-colors">
             {lang === 'ar' ? 'الرئيسية' : 'Home'}
           </Link>
           <Link to={locale === 'ar' ? '/ar/pricing' : '/pricing'} className="hover:text-foreground transition-colors">
