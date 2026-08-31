@@ -1,36 +1,42 @@
 # WiseResume Current Production State Snapshot
 
 **Last Verified:** 2026-08-31
-**Status:** `P4_CATALOG_BASELINE_VERIFIED` — PR #255 merged into `main` (`bb6b7def3a60c193b11428d9c50249d4ae7d133f`). Authorized live `production-catalog-reconcile` run `33376804507` executed on `main` and returned verdict `P4_CATALOG_RECONCILIATION_SUCCESS` (all four Production catalog IDs recreated as non-secret `secret_flag=false`). Read-only preflight audit run `33376897666` executed on `main` and returned verdict `P4_PREFLIGHT_SAFE_BUT_ORIGIN_UNVERIFIED`. Proven live gate states: `BILLING_CHECKOUT_ENABLED=false`, `BILLING_CHECKOUT_PROVIDER_READY=false`, `BILLING_CHECKOUT_ENVIRONMENT=sandbox`, `BILLING_CHECKOUT_APPROVED_ORIGIN=https://wiseresume.app`. Access consumers: `[UNCONFIGURED]`. Paddle website approval: SUBMITTED / AWAITING REVIEW. Legal compliance pages `/terms`, `/privacy`, `/refund-policy` (and Arabic variants) deployed and hardened with exact dates (August 31, 2026), Paddle Merchant of Record terms, and factual processor/entitlement disclosures. Production billing remains strictly disabled.
+**Status:** `PADDLE_DOMAIN_REVIEW_SITE_READY` — PR #255 (`bb6b7def3a60c193b11428d9c50249d4ae7d133f`) and PR #256 (`1ee534aeb0fce2844f5d03e2ba1ca755f056491b`) merged into `main`. PR #256 implemented legal accuracy hardening for Paddle domain review. Production Vercel deployment `8Fo4XQe7PLPvQM39xggzPeXUKTYB` succeeded (`Deployment has completed`) on merge SHA `1ee534aeb0fce2844f5d03e2ba1ca755f056491b`. Real production browser QA executed via Playwright Chromium on `https://wiseresume.app` passed 17/17 tests across all 8 required public routes (`/`, `/pricing`, `/terms`, `/privacy`, `/refund-policy`, `/ar/terms`, `/ar/privacy`, `/ar/refund-policy`) on desktop 1280x800, mobile ~390x844, English LTR, Arabic RTL, light mode, dark mode, footer legal navigation, direct public access, and contact dialog trigger. All 10 Paddle domain reviewer matrix requirements are PASSED. Security Validation for PR #256 is correctly UNVERIFIED as a standalone check. PR Validation PASSED. Paddle website approval status: SUBMITTED / AWAITING REVIEW. Production billing remains strictly disabled (`BILLING_CHECKOUT_ENABLED=false`). Payment baseline state preserved: `P4_CATALOG_RECONCILIATION_SUCCESS` (run `33376804507`) and `P4_PREFLIGHT_SAFE_BUT_ORIGIN_UNVERIFIED` (run `33376897666`). Production Paddle Default payment link is NOT configured yet. Zero checkouts/payments created.
 
 **Repository:** `iammagdy/WiseResume-TWC`
 **Production:** `https://wiseresume.app`
 
 ---
 
-## Payments Phase P4 Production catalog baseline verified & Paddle legal compliance rollout — 2026-08-31
+## Payments Phase P4 Paddle Domain Review Readiness & Legal Accuracy Hardening — 2026-08-31
 
-* **Verdict:** `P4_CATALOG_BASELINE_VERIFIED` (Live catalog reconciliation run `33376804507` PASSED; read-only preflight audit run `33376897666` PASSED; legal compliance pages implemented and accuracy-hardened).
-* **PR #255 Status:** Merged into `main` at commit `bb6b7def3a60c193b11428d9c50249d4ae7d133f`.
-* **Live Catalog Reconciliation Evidence (Run 33376804507):**
-  - Mode: `production-catalog-reconcile`.
-  - Verdict: `P4_CATALOG_RECONCILIATION_SUCCESS`.
-  - All four Production catalog variables in Appwrite `billing-checkout` deleted from secret state and recreated as non-secret (`secret_flag=false`):
-    - `BILLING_PRODUCTION_PRO_PRICE_ID`: `pri_01m192gqtw1cxrkctafjcahmfe` (`secret_flag=false`)
-    - `BILLING_PRODUCTION_PRO_PRODUCT_ID`: `pro_01m1924dqce7nd69khnakxftzw` (`secret_flag=false`)
-    - `BILLING_PRODUCTION_PREMIUM_PRICE_ID`: `pri_01m192m6bwzvarmcr05c78by7r` (`secret_flag=false`)
-    - `BILLING_PRODUCTION_PREMIUM_PRODUCT_ID`: `pro_01m192jr9nzd6k5ysa6yhk5aq7` (`secret_flag=false`)
-* **Live Read-Only Preflight Audit Evidence (Run 33376897666):**
-  - Mode: `production-preflight-audit` (Read-only, zero mutations performed).
-  - Verdict: `P4_PREFLIGHT_SAFE_BUT_ORIGIN_UNVERIFIED`.
-  - Catalog Status: MATCH (all 4 present and non-secret).
-  - Proven Live Gate States: `BILLING_CHECKOUT_ENABLED=false`, `BILLING_CHECKOUT_PROVIDER_READY=false`, `BILLING_CHECKOUT_ENVIRONMENT=sandbox`, `BILLING_CHECKOUT_APPROVED_ORIGIN=https://wiseresume.app`.
-  - Access Consumers: `ai-gateway`, `coupons`, `admin-devkit-data` all `[UNCONFIGURED]`.
-* **Paddle Domain Compliance Rollout & Accuracy Hardening:**
-  - Added public legal routes `/terms`, `/privacy`, `/refund-policy` (and AR variants `/ar/terms`, `/ar/privacy`, `/ar/refund-policy`).
-  - Added persistent legal links in website footer (`Footer.tsx`).
-  - Hardened legal accuracy: Last Updated set to August 31, 2026; Refund Policy Effective Date set to August 31, 2026; corrected subscription entitlement updates to wait for provider lifecycle events; updated cancellation instructions to reference Paddle purchase communications and support; clarified 14-day statutory withdrawal rights subject to conditions/Paddle terms; documented actual production processors (Appwrite, Paddle, Vercel, Sentry, Cloudflare Turnstile, server-side AI); and removed unverified DPO/formal department titles.
-* **Current Safety State:** `BILLING_CHECKOUT_ENABLED=false` preserved. Production billing remains strictly disabled. Zero real checkouts/payments created.
+* **Verdict:** `PADDLE_DOMAIN_REVIEW_SITE_READY` (PR #256 merged into `main` at commit `1ee534aeb0fce2844f5d03e2ba1ca755f056491b`; Vercel Production deployment `8Fo4XQe7PLPvQM39xggzPeXUKTYB` succeeded; Playwright Chromium live production QA passed 17/17 tests).
+* **PR #255 Merged:** Commit `bb6b7def3a60c193b11428d9c50249d4ae7d133f`.
+* **PR #256 Merged:** Commit `1ee534aeb0fce2844f5d03e2ba1ca755f056491b` (Legal accuracy hardening for Paddle domain review).
+* **Vercel Production Deployment:** Deployment ID `8Fo4XQe7PLPvQM39xggzPeXUKTYB` on merge SHA `1ee534aeb0fce2844f5d03e2ba1ca755f056491b` completed with status `SUCCESS` (`Deployment has completed`). Alias: `https://wiseresume.app`.
+* **Real Production Browser QA Evidence (Playwright Chromium):**
+  - Live Target Host: `https://wiseresume.app`
+  - Routes Tested: `/`, `/pricing`, `/terms`, `/privacy`, `/refund-policy`, `/ar/terms`, `/ar/privacy`, `/ar/refund-policy` (8 routes, 17 test cases, 100% PASS).
+  - Exercised Combinations: Desktop 1280x800, Mobile ~390x844, English LTR, Arabic RTL (`dir="rtl"`), Light mode, Dark mode, persistent legal footer links, direct public access (no auth redirect), and contact dialog modal trigger (`[role="dialog"]`). No horizontal scroll overflow.
+  - Verified Content Accuracy: August 31, 2026 dates live across Privacy, Terms, and Refund policies; Terms cancellation references Paddle purchase communications/support (no "cancel from Settings" claim); no "Data Protection Officer" claims; conditional statutory withdrawal rights; Paddle MOR disclosures.
+* **Paddle Reviewer Matrix Verification:**
+  - Product Description: `PASS`
+  - Pricing: `PASS` ($5/mo Pro, $10/mo Ultimate)
+  - Features: `PASS`
+  - Terms: `PASS`
+  - Privacy: `PASS`
+  - Refund: `PASS`
+  - Footer / Navigation Links: `PASS`
+  - WiseResume Brand: `PASS`
+  - HTTPS: `PASS`
+  - Logged-Out Access: `PASS`
+* **GitHub Check Evidence for PR #256:**
+  - PR Validation: `PASS` (Job `99468908403`)
+  - Security Validation: `UNVERIFIED` as a standalone status check context
+  - TestSprite Current State: `fail` / `No tests detected` (standard pre-check state)
+* **Paddle Website Approval Status:** `SUBMITTED / AWAITING REVIEW` (Approval pending manual Paddle review).
+* **Billing Safety State:** `BILLING_CHECKOUT_ENABLED=false` preserved. Production billing remains strictly disabled. Production Paddle Default payment link is NOT configured yet. Zero checkouts/payments created.
+* **Preserved Payment Baseline State:** Live catalog reconciliation run `33376804507` (`P4_CATALOG_RECONCILIATION_SUCCESS`) and read-only preflight audit run `33376897666` (`P4_PREFLIGHT_SAFE_BUT_ORIGIN_UNVERIFIED`).
 
 
 ## Payments Phase P3 RevenueCat Production webhook routing verified — 2026-08-30
