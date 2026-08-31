@@ -1,5 +1,14 @@
 # WiseResume Atlas Master Changelog
 
+## 2026-08-31 - WiseResume What's New Page Content Reconciliation & UX Redesign
+
+- **Verdict:** `PR_READY_FOR_REVIEW` (PR #258 open on `feat/whats-new-release-hub`; full content audit and reconciliation of 24 customer-facing release items from October 2025 through August 31, 2026 completed; UX redesigned into a modern Product Updates Hub with category filtering, month jump navigation, progressive disclosure, and bilingual Arabic RTL / English LTR support; Vitest 29/29 tests passed; TypeScript clean; NOT merged; NOT production deployed; NOT production/browser verified).
+- **Files Modified/Created:** `src/data/whatsNewData.ts` (NEW dataset), `src/pages/WhatsNewPage.tsx` (REDESIGNED component), `src/pages/__tests__/WhatsNewPage.test.tsx` (NEW unit test suite).
+- **Reconciliation Scope:** Reconciled 24 customer-facing release items spanning October 2025 to August 31, 2026. Featured release set to Remote Jobs Feed (`/jobs`). Reconciled dates matching PR merge history (Remote Jobs Feed in August 2026; Portfolio Visitor AI Assistant in March 2026; Legal Policy Updates in August 2026). Removed unproven Coming Soon items and internal Appwrite permission mechanics.
+- **UX Improvements:** Hero section, Featured release card, 7 interactive category filters (`All`, `New Features`, `AI & Tailoring`, `Jobs & Career`, `Resume & Portfolio`, `Security & Legal`, `Improvements & Fixes`), 4 month filter pills (`August 2026`, `April 2026`, `March 2026`, `Older Updates`), direct item anchor links (`#id`), progressive disclosure toggle for 2025 updates, and canonical legal footer links (`/privacy`, `/terms`, `/refund-policy`).
+- **Trust Copy & Governance Boundaries:** All copy verified against `productTrustCopy.test.ts` (zero fabricated ATS scores, speed metrics, encryption claims, or unapproved product nicknames).
+- **Verification State:** Implemented: YES, Locally Tested: YES (29/29 tests passed), Pushed: YES (`feat/whats-new-release-hub`), PR #258: OPEN, Production Deployed: NO, Live Production Browser Verified: NO.
+
 ## 2026-08-31 - Phase P4 Paddle domain review readiness & legal accuracy hardening
 
 - **Verdict:** `PADDLE_DOMAIN_REVIEW_SITE_READY` (PR #256 merged into `main` at commit `1ee534aeb0fce2844f5d03e2ba1ca755f056491b`; Vercel Production deployment `8Fo4XQe7PLPvQM39xggzPeXUKTYB` succeeded; Playwright Chromium live production QA passed 17/17 tests).
