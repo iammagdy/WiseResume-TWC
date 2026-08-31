@@ -12,8 +12,8 @@ import { sendFeedback } from '@/lib/sendFeedback';
 
 export const DEPARTMENTS = [
   { value: 'general', label: 'General Support' },
-  { value: 'legal', label: 'Legal Department' },
-  { value: 'privacy', label: 'Privacy Team' },
+  { value: 'legal', label: 'Legal Support' },
+  { value: 'privacy', label: 'Privacy Support' },
   { value: 'data-protection', label: 'Data Protection' },
   { value: 'billing', label: 'Billing & Payments' },
   { value: 'technical', label: 'Technical Support' },

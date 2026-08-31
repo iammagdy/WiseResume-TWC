@@ -20,7 +20,7 @@ export const legalContent: Record<'en' | 'ar', Record<'privacy' | 'terms' | 'ref
   en: {
     privacy: {
       title: 'Privacy Policy',
-      effectiveDate: 'Effective Date: February 20, 2026 · Last Updated: March 9, 2026',
+      effectiveDate: 'Effective Date: February 20, 2026 · Last Updated: August 31, 2026',
       intro: 'Your privacy matters to us. This policy explains what data WiseResume collects, how we use it, how AI processing operates, and how we protect your personal information.',
       sections: [
         {
@@ -44,29 +44,31 @@ export const legalContent: Record<'en' | 'ar', Record<'privacy' | 'terms' | 'ref
         {
           title: 'AI Processing and Data Boundaries',
           bullets: [
-            'User-Initiated Processing: Resume content and job descriptions are sent to AI providers only when you explicitly request an AI action.',
-            'No Sale of Personal Data: WiseResume does NOT sell your personal data or resume content to third parties.',
-            'No Public Model Training: Your uploaded resume content is not used by WiseResume to train public AI models.',
+            'User-Initiated Processing: Resume content and job descriptions are sent to server-side AI providers (such as Groq, OpenRouter, and Google Gemini) only when you explicitly request an AI action.',
+            'No Sale of Personal Data: WiseResume itself does NOT sell your personal data or resume content to third parties.',
+            'Provider Processing Terms: Third-party AI provider processing is governed by the applicable provider arrangements and privacy policies.',
             'User Review Responsibility: AI-generated outputs are automated suggestions; you remain responsible for reviewing and approving all content before use.',
           ],
         },
         {
-          title: 'Subprocessors and Infrastructure Partners',
+          title: 'Subprocessors and Technical Service Providers',
           paragraphs: [
-            'We work with trusted service providers to deliver WiseResume under strict data protection standards:',
+            'We work with third-party service providers to deliver WiseResume:',
           ],
           bullets: [
             'Appwrite: Managed cloud database, file storage, and authentication services.',
             'Paddle: Merchant of Record, payment processing, tax compliance, and transaction receipts.',
-            'Server-Side AI Services: Secure API providers for processing user-requested AI feature inputs.',
-            'Vercel: Global web hosting and content delivery network.',
+            'Vercel: Web application hosting and content delivery network.',
+            'Sentry: Error logging and diagnostic telemetry.',
+            'Cloudflare Turnstile: Security verification and bot protection.',
+            'Server-Side AI Services: API providers for processing user-requested AI feature inputs.',
           ],
         },
         {
           title: 'Data Security, Retention, and Ownership',
           paragraphs: [
             'We enforce transport encryption (TLS/HTTPS) and access controls to shield your information. Your resumes and documents remain private by default and are shared publicly only if you choose to publish a portfolio or share a public link.',
-            'We retain personal information only as long as reasonably necessary to operate your account, fulfill requested services, or satisfy legal and security obligations. You can edit, export, or delete your content anytime, or request full account deletion via account settings and support channels.',
+            'We retain personal information only as long as reasonably necessary to operate your account, fulfill requested services, or satisfy legal and security obligations. You can edit, export, or delete your stored resumes and documents anytime directly within app settings, or request full account deletion by contacting support.',
           ],
         },
         {
@@ -74,20 +76,20 @@ export const legalContent: Record<'en' | 'ar', Record<'privacy' | 'terms' | 'ref
           bullets: [
             'Access and review your stored account and document data.',
             'Request corrections or complete export of your personal information.',
-            'Delete documents or request account termination at any time.',
+            'Delete documents in settings or request account termination via support.',
             'Statutory rights under applicable consumer and data protection laws are preserved.',
           ],
         },
       ],
       contactTitle: 'Privacy & Data Inquiries',
       contactText: 'Have questions about your personal data, AI disclosures, or this Privacy Policy?',
-      primaryContact: 'Privacy Team',
-      secondaryContact: 'Data Protection Officer',
+      primaryContact: 'Privacy Support',
+      secondaryContact: 'General Support',
       backLabel: 'Go back',
     },
     terms: {
       title: 'Terms of Service',
-      effectiveDate: 'Effective Date: February 20, 2026 · Last Updated: March 9, 2026',
+      effectiveDate: 'Effective Date: February 20, 2026 · Last Updated: August 31, 2026',
       intro: 'These Terms of Service govern your access to and use of WiseResume. By creating an account or using WiseResume, you agree to these Terms.',
       sections: [
         {
@@ -115,8 +117,8 @@ export const legalContent: Record<'en' | 'ar', Record<'privacy' | 'terms' | 'ref
           title: 'Subscriptions and Pricing',
           bullets: [
             'WiseResume offers Free, Pro ($5/month), and Ultimate ($10/month) plans as detailed on our Pricing page.',
-            'Paid subscriptions automatically renew each month until cancelled. You may cancel your subscription at any time via your account settings to prevent future renewal charges.',
-            'Feature limits and entitlement access update immediately upon plan changes.',
+            'Paid subscriptions automatically renew each month until cancelled. You can manage or cancel a Paddle-processed subscription using the subscription management options provided with your purchase, including the manage-subscription link in Paddle communications where available, or by contacting support.',
+            'Subscription and entitlement changes are reflected after the payment and subscription provider confirms the relevant lifecycle event. Processing may take a short period of time.',
           ],
         },
         {
@@ -144,13 +146,13 @@ export const legalContent: Record<'en' | 'ar', Record<'privacy' | 'terms' | 'ref
       ],
       contactTitle: 'Legal & Terms Questions',
       contactText: 'Have questions regarding these Terms or subscription policies?',
-      primaryContact: 'Legal Department',
+      primaryContact: 'Legal Support',
       secondaryContact: 'General Support',
       backLabel: 'Go back',
     },
     refund: {
       title: 'Refund Policy',
-      effectiveDate: 'Effective Date: February 20, 2026 · Last Updated: March 9, 2026',
+      effectiveDate: 'Effective Date: August 31, 2026 · Last Updated: August 31, 2026',
       intro: 'This Refund Policy describes how subscription cancellations, statutory consumer rights, and refund requests are handled for WiseResume.',
       sections: [
         {
@@ -162,17 +164,17 @@ export const legalContent: Record<'en' | 'ar', Record<'privacy' | 'terms' | 'ref
         {
           title: 'Subscription Cancellation',
           bullets: [
-            'You may cancel your paid subscription (Pro or Ultimate) at any time from your account settings under the Subscription section.',
-            'Upon cancellation, your subscription will remain active until the end of the current billing cycle. Cancelling stops future recurring billing.',
-            'Cancelling a subscription prevents future renewals but does not automatically issue a retroactive refund for previously billed periods unless required by applicable law or Paddle buyer policy.',
+            'You can manage or cancel a Paddle-processed subscription using the subscription management options provided with your purchase, including the manage-subscription link in Paddle communications where available, or by contacting support for guidance.',
+            'Upon cancellation, your subscription remains active until the end of the current paid billing cycle. Cancelling stops future recurring billing renewals.',
+            'Cancelling a subscription prevents future renewals but does not itself guarantee a retroactive refund for previously billed periods unless required by applicable law or Paddle buyer terms.',
           ],
         },
         {
           title: 'Refund Eligibility and Statutory Rights',
           bullets: [
-            'Statutory Withdrawal Rights: Mandatory consumer cooling-off or statutory withdrawal rights guaranteed under applicable law (such as the EU/UK statutory 14-day right of withdrawal) are fully honored.',
-            'Service Issues & Billing Errors: If you experience duplicate charges, technical errors preventing access to paid features, or unauthorized account activity, please contact support for prompt review.',
-            'Refund Processing: Approved refunds are processed through Paddle back to the original payment method. When a refund is completed, your account access reverts to the Free tier.',
+            'Statutory Withdrawal Rights: Mandatory statutory withdrawal rights may apply depending on your location, transaction type, and use of the service. For example, some EU/EEA/UK digital service purchases may qualify for a 14-day withdrawal period, subject to applicable exceptions and Paddle\'s Buyer Terms.',
+            'Service Issues & Billing Errors: If you experience duplicate charges, technical errors preventing access to paid features, or billing discrepancies, please contact support for prompt review.',
+            'Discretionary Refunds & Access Adjustment: Paddle or WiseResume may grant discretionary refunds under applicable policies. Paid access may be adjusted after the refund or relevant subscription lifecycle event is confirmed by the subscription provider.',
           ],
         },
         {
@@ -192,7 +194,7 @@ export const legalContent: Record<'en' | 'ar', Record<'privacy' | 'terms' | 'ref
   ar: {
     privacy: {
       title: 'سياسة الخصوصية',
-      effectiveDate: 'تاريخ السريان: 20 فبراير 2026 · آخر تحديث: 9 مارس 2026',
+      effectiveDate: 'تاريخ السريان: 20 فبراير 2026 · آخر تحديث: 31 أغسطس 2026',
       intro: 'خصوصيتك مهمة جداً بالنسبة لنا. توضح هذه السياسة البيانات التي تجمعها WiseResume، وكيفية استخدامها، وكيفية عمل معالجة الذكاء الاصطناعي، ووسائل حماية معلوماتك الشخصية.',
       sections: [
         {
@@ -216,29 +218,31 @@ export const legalContent: Record<'en' | 'ar', Record<'privacy' | 'terms' | 'ref
         {
           title: 'معالجة الذكاء الاصطناعي وحدود البيانات',
           bullets: [
-            'المعالجة بطلب المستخدم: يُرسل المحتوى للذكاء الاصطناعي فقط عندما تطلب استخدام ميزة تعتمد عليه.',
+            'المعالجة بطلب المستخدم: يُرسل المحتوى لمزودي الذكاء الاصطناعي عبر الخادم (مثل Groq وOpenRouter وGoogle Gemini) فقط عندما تطلب استخدام ميزة تعتمد عليه.',
             'عدم بيع البيانات الشخصية: لا تبيع WiseResume بياناتك الشخصية أو محتوى سيرتك الذاتية لأي طرف ثالث.',
-            'عدم استخدام البيانات لتدريب النماذج العامة: لا تُستخدم مستنداتك لتدريب نماذج ذكاء اصطناعي عامة.',
+            'شروط معالجة المزودين: تخضع معالجة مزودي الخدمة الخارجيين لاتفاقيات وسياسات الخصوصية الخاصة بتلك الجهات.',
             'مسؤولية مراجعة المحتوى: اقتراحات الذكاء الاصطناعي هي أدوات مساعدة؛ وتظل مسؤولاً عن مراجعة واعتتماد المحتوى قبل استخدامه.',
           ],
         },
         {
           title: 'معالجو البيانات والشركاء',
           paragraphs: [
-            'نعمل مع مزودي خدمات موثوقين لتقديم الخدمة وفق أعلى معايير حماية البيانات:',
+            'نعمل مع مزودي خدمات موثوقين لتقديم الخدمة:',
           ],
           bullets: [
             'Appwrite: قواعد البيانات السحابية، والتخزين، وإدارة الهوية والتحقق.',
             'Paddle: التاجر المسجل والمعالج المعتمد لعمليات الدفع والضرائب والإيصالات.',
-            'خدمات الذكاء الاصطناعي عبر الخادم: مزودو واجهات البرمجة الآمنة لمعالجة الطلبات.',
             'Vercel: استضافة الموقع والشبكة العالمية لتوصيل المحتوى.',
+            'Sentry: تسجيل الأخطاء والتشخيص التقني.',
+            'Cloudflare Turnstile: التحقق الأمني والحماية من البرمجيات الآلية.',
+            'خدمات الذكاء الاصطناعي عبر الخادم: مزودو واجهات البرمجة لمعالجة الطلبات.',
           ],
         },
         {
           title: 'أمان البيانات والاحتفاظ بها والملكية',
           paragraphs: [
             'نطبق التشفير أثناء النقل (TLS/HTTPS) وضوابط الوصول لحماية معلوماتك. تظل مستنداتك خاصة افتراضياً ولا تظهر للعامة إلا إذا اخترت نشر معرض أعمالك أو مشاركة رابط عام.',
-            'نحتفظ بالمعلومات الشخصية فقط للفترة اللازمة لتشغيل حسابك وتقديم الخدمات المطلوبة أو الامتثال للالتزامات القانونية والأمنية. يمكنك تعديل محتواك أو تصديره أو حذفه في أي وقت، أو طلب حذف الحساب بالكامل.',
+            'نحتفظ بالمعلومات الشخصية فقط للفترة اللازمة لتشغيل حسابك وتقديم الخدمات المطلوبة أو الامتثال للالتزامات القانونية والأمنية. يمكنك تعديل سيرتك الذاتية ومستنداتك أو تصديرها أو حذفها في أي وقت عبر إعدادات التطبيق، أو طلب حذف الحساب بالكامل من خلال التواصل مع الدعم.',
           ],
         },
         {
@@ -246,20 +250,20 @@ export const legalContent: Record<'en' | 'ar', Record<'privacy' | 'terms' | 'ref
           bullets: [
             'الوصول إلى بيانات حسابك ومستنداتك ومراجعتها.',
             'طلب تصحيح البيانات أو تصديرها بالكامل.',
-            'حذف المستندات أو طلب إنهاء الحساب في أي وقت.',
+            'حذف المستندات في الإعدادات أو طلب إنهاء الحساب عبر التواصل مع الدعم.',
             'الحقوق القانونية المضمونة بموجب قوانين حماية المستهلك والبيانات تظل محفوظة.',
           ],
         },
       ],
       contactTitle: 'الاستفسارات حول الخصوصية',
       contactText: 'هل لديك أسئلة حول بياناتك أو إفصاحات الذكاء الاصطناعي أو سياسة الخصوصية؟',
-      primaryContact: 'فريق الخصوصية',
-      secondaryContact: 'مسؤول حماية البيانات',
+      primaryContact: 'دعم الخصوصية',
+      secondaryContact: 'الدعم العام',
       backLabel: 'العودة',
     },
     terms: {
       title: 'شروط الخدمة',
-      effectiveDate: 'تاريخ السريان: 20 فبراير 2026 · آخر تحديث: 9 مارس 2026',
+      effectiveDate: 'تاريخ السريان: 20 فبراير 2026 · آخر تحديث: 31 أغسطس 2026',
       intro: 'تنظم شروط الخدمة هذه الوصول إلى WiseResume واستخدامها. بإنشاء حساب أو استخدام الخدمة، فإنك توافق على هذه الشروط.',
       sections: [
         {
@@ -287,8 +291,8 @@ export const legalContent: Record<'en' | 'ar', Record<'privacy' | 'terms' | 'ref
           title: 'الاشتراكات والأسعار',
           bullets: [
             'توفر WiseResume خططاً مجانية (Free)، واحترافية (Pro - $5/شهرياً)، وشاملة (Ultimate - $10/شهرياً) كما هو موضح في صفحة الأسعار.',
-            'تتجدد الاشتراكات المدفوعة تلقائياً كل شهر حتى يتم إلغاؤها. يمكنك إلغاء اشتراكك في أي وقت عبر إعدادات حسابك لمنع التجديد المستقبلي.',
-            'تُحدث حدود الميزات وصلاحيات الوصول فور تغيير الخطة.',
+            'تتجدد الاشتراكات المدفوعة تلقائياً كل شهر حتى يتم إلغاؤها. يمكنك إدارة أو إلغاء الاشتراك المعالج عبر Paddle باستخدام خيارات إدارة الاشتراك المقدمة عند الشراء، بما في ذلك رابط إدارة الاشتراك الموجود في إشعارات Paddle عند توفرها، أو عبر التواصل مع الدعم.',
+            'تُنعكس تغييرات الاشتراك والصلاحيات بعد تأكيد مزود الدفع والاشتراك لحدث دورة الحياة ذي الصلة. وقد تستغرق المعالجة فترة قصيرة من الوقت.',
           ],
         },
         {
@@ -316,13 +320,13 @@ export const legalContent: Record<'en' | 'ar', Record<'privacy' | 'terms' | 'ref
       ],
       contactTitle: 'الاستفسارات القانونية',
       contactText: 'هل لديك سؤال حول شروط الخدمة أو سياسات الاشتراك؟',
-      primaryContact: 'القسم القانوني',
+      primaryContact: 'الدعم القانوني',
       secondaryContact: 'الدعم العام',
       backLabel: 'العودة',
     },
     refund: {
       title: 'سياسة الاسترداد',
-      effectiveDate: 'تاريخ السريان: 20 فبراير 2026 · آخر تحديث: 9 مارس 2026',
+      effectiveDate: 'تاريخ السريان: 31 أغسطس 2026 · آخر تحديث: 31 أغسطس 2026',
       intro: 'توضح سياسة الاسترداد هذه كيفية التعامل مع إلغاء الاشتراكات، والحقوق القانونية للمستهلك، وطلبات الاسترداد في WiseResume.',
       sections: [
         {
@@ -334,17 +338,17 @@ export const legalContent: Record<'en' | 'ar', Record<'privacy' | 'terms' | 'ref
         {
           title: 'إلغاء الاشتراك',
           bullets: [
-            'يمكنك إلغاء اشتراكك المدفوع (Pro أو Ultimate) في أي وقت من إعدادات حسابك في قسم الاشتراك.',
-            'عند الإلغاء، يظل اشتراكك نشطاً حتى نهاية فترة الفوترة الحالية. يوقف الإلغاء الفواتير التلقائية المستقبلية.',
-            'إلغاء الاشتراك يمنع التجديد المستقبلي ولكنه لا يصدر استرداداً تلقائياً للفترات المسددة سابقاً إلا إذا نص القانون أو سياسة Paddle على خلاف ذلك.',
+            'يمكنك إدارة أو إلغاء الاشتراك المعالج عبر Paddle باستخدام خيارات إدارة الاشتراك المقدمة عند الشراء، بما في ذلك رابط إدارة الاشتراك الموجود في إشعارات Paddle عند توفرها، أو التواصل مع الدعم للحصول على الإرشاد.',
+            'عند الإلغاء، يظل اشتراكك نشطاً حتى نهاية فترة الفوترة المدفوعة الحالية. يوقف الإلغاء التجديد التلقائي المستقبلي.',
+            'إلغاء الاشتراك يمنع التجديد المستقبلي ولكنه لا يضمن بحد ذاته استرداداً تلقائياً للفترات المسددة سابقاً إلا إذا نص القانون أو شروط Paddle على خلاف ذلك.',
           ],
         },
         {
           title: 'أهلية الاسترداد والحقوق القانونية',
           bullets: [
-            'الحقوق القانونية في الانسحاب: يُحترم حق الانسحاب القانوني للمستهلك (مثل فترة الانسحاب البالغة 14 يوماً بموجب قوانين الاتحاد الأوروبي والمملكة المتحدة عند تطبيقها).',
+            'الحقوق القانونية في الانسحاب: قد تطبق حقوق الانسحاب القانونية الإلزامية اعتماداً على موقعك، ونوع المعاملة، واستخدام الخدمة. على سبيل المثال، قد تتمتع بعض مشتريات الخدمات الرقمية في الاتحاد الأوروبي/المنطقة الاقتصادية الأوروبية/المملكة المتحدة بمهلة انسحاب لمدة 14 يوماً، مع مراعاة الاستثناءات المطبقة وشروط المشتري لدى Paddle.',
             'مشاكل الخدمة وأخطاء الفوترة: في حال حدوث دفع مكرر أو خطأ تقني يمنع الوصول للميزات المدفوعة، يرجى التواصل مع الدعم للمراجعة الفورية.',
-            'طريقة الاسترداد: تُعالج طلبات الاسترداد المقبولة عبر Paddle بنفس طريقة الدفع الأصلية. وعند اكتمال الاسترداد، تعود الخطة إلى الفئة المجانية.',
+            'الاسترداد التقديري وتعديل الصلاحيات: يجوز لـ Paddle أو WiseResume منح استرداد تقديري وفقاً للسياسات المعمول بها. وقد تُعدل صلاحيات الوصول المدفوعة بعد تأكيد الاسترداد أو حدث دورة الحياة ذي الصلة من قبل مزود الخدمة.',
           ],
         },
         {
