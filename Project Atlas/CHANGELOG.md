@@ -1,13 +1,16 @@
 # WiseResume Atlas Master Changelog
 
-### 2026-09-01 - WiseResume P2-1 useMe Polling Optimization (Branch fix/p2-1-useme-polling)
+### 2026-09-01 - WiseResume P2-1 useMe Polling Optimization (Merged & Deployed)
 
-- **Workstream Verdict:** `PR_READY_FOR_MERGE_REVIEW` (PR #265, head `d1fe15150e4a11c0cfd677657ce4928861b97a98`).
-- **Branch:** `fix/p2-1-useme-polling`.
-- **Baseline Commit:** `ff8eee9633cc9bcfbaa91741e1e627586745d2bf` (`main`).
+- **Workstream Verdict:** `DEPLOYED_PASS_WITH_BROWSER_QA_PENDING`.
+- **Merge Commit:** [`541698e675bece621529fc3f7b868fad3a419eb6`](https://github.com/iammagdy/WiseResume-TWC/commit/541698e675bece621529fc3f7b868fad3a419eb6) (`main`). PR #265 merged at `2026-09-01T13:48:10Z` (reviewed head `d0441355dcc0919d87cb640ddc0009e0b9727399`).
+- **Deployment Status:**
+  - Vercel Production: `SUCCESS` (`Deployment has completed`, deployment URL: `https://vercel.com/iam-magdy/wise-resume-twc/H5d3Nf9yV8nDr2ucUECYWQari7ba`).
+  - Appwrite Functions: `NOT REQUIRED / NOT PERFORMED` (client-side React Query optimization only).
 - **Optimization & Theoretical Impact:** In `src/hooks/useMe.ts`, relaxed query `refetchInterval` from 15 seconds (`15 * 1000`) to 5 minutes (`5 * 60 * 1000` = 300,000ms). Expected static request pattern for a continuously visible active tab: approximately 480 top-level browser Appwrite HTTP requests/hour before the change versus approximately 24/hour after the change, representing an expected theoretical reduction of approximately 95% (`EXPECTED_STATIC_REQUEST_REDUCTION`). Authenticated production runtime traffic was not measured in this phase. Background-tab interval polling is not enabled. Retained the 5-minute interval as a safety net fallback for provider-only lifecycle changes (such as RevenueCat in `revenuecat_subscription_state` while client Realtime listens to `subscriptions`).
 - **Preserved Controls:** Maintained `staleTime: 60 * 1000`, `refetchOnWindowFocus: true`, Realtime WebSocket subscription on `databases.main.collections.subscriptions.documents`, and explicit action invalidations.
 - **Tests Added:** Added `src/hooks/__tests__/useMe.test.tsx` proving no refetch at 15s, no refetch before 5m, refetch occurs at 5m, matching subscription Realtime event triggers invalidation, unrelated user event does not, and unauthenticated query remains disabled (5/5 pass).
+- **Production QA Status:** Authenticated browser verification remains pending (`BLOCKED_AUTHENTICATED_RUNTIME_QA` due to lack of non-customer QA credentials in workspace; `AI_CREDIT_RUNTIME_QA_NOT_PERFORMED`).
 
 ### 2026-09-01 - WiseResume P1 Pre-Load-Test Stabilization (Deployed & Production-Verified)
 

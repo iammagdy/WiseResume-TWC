@@ -12,15 +12,23 @@
 
 ---
 
-## P2-1 useMe Polling Optimization (Branch fix/p2-1-useme-polling) — 2026-09-01
+## P2-1 useMe Polling Optimization (Merged & Deployed) — 2026-09-01
 
-* **Workstream Status:** `PR_READY_FOR_MERGE_REVIEW` (PR #265 open on branch `fix/p2-1-useme-polling`, PR head `d1fe15150e4a11c0cfd677657ce4928861b97a98`).
+* **Workstream Status:** `DEPLOYED_PASS_WITH_BROWSER_QA_PENDING`.
+* **Merge Commit:** [`541698e675bece621529fc3f7b868fad3a419eb6`](https://github.com/iammagdy/WiseResume-TWC/commit/541698e675bece621529fc3f7b868fad3a419eb6) (`main`). PR #265 merged at `2026-09-01T13:48:10Z` (reviewed head `d0441355dcc0919d87cb640ddc0009e0b9727399`).
+* **Deployment Status:**
+  - Vercel Production: `SUCCESS` (`Deployment has completed`, deployment URL: `https://vercel.com/iam-magdy/wise-resume-twc/H5d3Nf9yV8nDr2ucUECYWQari7ba`).
+  - Appwrite Functions: `NOT REQUIRED / NOT PERFORMED` (client-side React Query optimization only).
 * **Change Summary & Theoretical Impact:**
   - In `src/hooks/useMe.ts`: Relaxed `refetchInterval: 15 * 1000` to `refetchInterval: 5 * 60 * 1000` (5 minutes = 300,000ms).
   - Expected static request pattern for a continuously visible active tab: approximately 480 top-level browser Appwrite HTTP requests/hour before the change versus approximately 24/hour after the change, representing an expected theoretical reduction of approximately 95% (`EXPECTED_STATIC_REQUEST_REDUCTION`). Authenticated production runtime traffic was not measured in this phase. Background-tab interval polling is not enabled.
   - Preserved 5-minute interval as safety net for provider-only lifecycle changes (e.g. RevenueCat in `revenuecat_subscription_state` while client Realtime listens to `subscriptions`).
   - Preserved `staleTime: 60 * 1000`, `refetchOnWindowFocus: true`, and Realtime WebSocket listener on `subscriptions.documents`.
   - Added dedicated unit test suite `src/hooks/__tests__/useMe.test.tsx` (5/5 passing).
+* **Production Runtime QA Status:**
+  - Authenticated Browser QA: `BLOCKED_AUTHENTICATED_RUNTIME_QA` (no test user credentials in workspace; customer credentials not permitted).
+  - AI Credit Runtime QA: `AI_CREDIT_RUNTIME_QA_NOT_PERFORMED`.
+  - Fake-timer unit tests verify the exact 300s interval and Realtime invalidation.
 
 ## P1 Pre-Load-Test Stabilization (Deployed & Production-Verified) — 2026-09-01
 
