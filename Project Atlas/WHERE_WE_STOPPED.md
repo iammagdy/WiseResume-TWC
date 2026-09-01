@@ -1,8 +1,54 @@
 # Project Atlas — Active Operational & Handover State
 
 **Last Verified:** 2026-09-01
-**Status:** `PADDLE_DOMAIN_REVIEW_SITE_READY` with `REPOSITORY_RECONCILED_WITH_PRESERVED_BRANCHES` — Local `main` synchronized with `origin/main` at `2744eb1bd374d50fdaa699cb8045d49de94e169f` (PR #261 merged). Full PR audit completed (0 safe unmerged PRs; 7 PRs audited and categorized; 66 merged remote branches deleted; 29 merged local branches deleted; 8 local branches preserved due to unique work, active worktrees, or open PRs). Active Paddle/payments readiness baseline preserved.
+**Status:** `PADDLE_DOMAIN_REVIEW_SITE_READY` with `REPOSITORY_RECONCILED_WITH_OWNER_DECISIONS_REQUIRED` — Repository final consolidation phase completed: 5 superseded PRs closed without merge (#235, #232, #228, #165, #163); 2 PRs preserved open for protected area review (#252, #164); 5 unique/expired branches deleted locally and remotely (`agent/comprehensive-trust-audit`, `backup/dependency-remediation-pre-rewrite-2026-08-09`, `docs/two-owner-hardening-closeout`, `codex/create-transaction-diagnostic-docs`, `codex/pro-sandbox-provider-unavailable-docs`); 3 external worktrees and their branches preserved for explicit owner decision (`billing-readonly-diag`, `phase2db1`, `billing-sandbox-continuation`). Local and remote `main` synchronized at `63128de4c16bf7717b09acd826e879a856464b82`.
 **Location:** `Project Atlas/WHERE_WE_STOPPED.md`
+
+## Preserved Work Resolution & Repository Consolidation Closeout — 2026-09-01
+
+* **Verdict:** `REPOSITORY_RECONCILED_WITH_OWNER_DECISIONS_REQUIRED`
+* **Local Main Parity:** `main` synchronized with `origin/main` at commit `63128de4c16bf7717b09acd826e879a856464b82`. Working tree clean. Documentation PR opened on branch `docs/final-preserved-work-reconciliation`.
+* **Pull Request Resolution (7 audited):**
+  * **PR #235 (`docs(billing): record provider unavailable retry`):** `CLOSED` without merge. Superseded by current main and living Project Atlas state (Phase P4 billing and Paddle domain compliance); no unique implementation remains.
+  * **PR #232 (`docs: record billing transaction diagnostic`):** `CLOSED` without merge. Superseded by current main and living Project Atlas state; underlying PR #231 already merged into main.
+  * **PR #228 (`docs(billing): add comprehensive Codex handover`):** `CLOSED` without merge. Superseded by current living Atlas state; historical August 28 handover superseded by Phase P4 and PR #260/#261 handovers.
+  * **PR #165 (`chore(deps-dev): bump @testing-library/jest-dom from 6.9.1 to 7.0.0`):** `CLOSED` without merge. Closed as stale major version bump; isolated dev-dependency bump superseded by consolidated dependency reviews.
+  * **PR #163 (`chore(deps): bump @hookform/resolvers from 3.10.0 to 5.9.1`):** `CLOSED` without merge. Closed as stale unvetted major version jump (v3 to v5); breaking API changes require dedicated compatibility testing.
+  * **PR #252 (`build(deps): bump the safe-minor-and-patch group across 1 directory with 29 updates`):** `PROTECTED_AREA_REVIEW_REQUIRED` — Left OPEN. Touches 29 dependencies including auth (`jose`), Sentry, and PDF rendering (`puppeteer-core`). Frozen per policy during Paddle review; requires owner evaluation.
+  * **PR #164 (`chore(deps): bump @sparticuz/chromium from 148.0.0 to 149.0.0`):** `PROTECTED_AREA_REVIEW_REQUIRED` — Left OPEN. Touches serverless PDF generation runtime. Requires dedicated runtime verification before merge.
+* **Preserved Branch Resolution & Deletions:**
+  * **`agent/comprehensive-trust-audit`:** `SAFE_TO_DELETE_SUPERSEDED` — Local and remote branches DELETED. Both unique commits (`953576ba`, `2bab658d`) were squashed and merged into `main` in PR #197 at commit `2702dd89b2d9ee6745995e69c9ae0fa92605715b`.
+  * **`backup/dependency-remediation-pre-rewrite-2026-08-09`:** `SAFE_TO_DELETE_EXPIRED_BACKUP` — Local and remote branches DELETED. Pre-rewrite backup taken for PR #170; all code resolutions are identical to PR #170 merged into `main` at `c2264865e523f38ff3a199d3dcfeefb4b6ba370e`; no active recovery operation depends on it.
+  * **`docs/two-owner-hardening-closeout`:** `SAFE_TO_DELETE_SUPERSEDED` — Local and remote branches DELETED. Commit `606ceddf` evidence is already 100% incorporated into `Project Atlas/security/public-repository-hardening.md` (lines 68–84) on `main`.
+  * **`codex/create-transaction-diagnostic-docs`:** `SAFE_TO_DELETE_SUPERSEDED` — Worktree `D:/WiseResume-TWC-create-transaction-diagnostic-docs` removed, local and remote branches DELETED following PR #232 closure.
+  * **`codex/pro-sandbox-provider-unavailable-docs`:** `SAFE_TO_DELETE_SUPERSEDED` — Worktree `D:/WiseResume-TWC-pro-sandbox-provider-unavailable-docs` removed, local and remote branches DELETED following PR #235 closure.
+  * **`docs/codex-billing-handover`:** Remote branch DELETED following PR #228 closure.
+* **Preserved Branches & Worktrees (Owner Action Required):**
+  1. **`codex/billing-readonly-diag`** (Worktree `D:/WiseResume-TWC-billing-readonly-diag`): Preserved because it contains untracked file `Project Atlas/reports/2026-08-30-sandbox-paddle-runtime-credential-audit.md`. Classified as `SUPERSEDED_INTERMEDIATE_AUDIT`: its diagnosis that sandbox secrets were missing was already resolved by PR #254 secret recreation. Recommended owner choice: `DISCARD` or `PROMOTE_THEN_DELETE` to `Project Atlas/archive/`.
+  2. **`feat/phase2db1-sandbox-ptxn`** (Worktree `D:/WiseResume-TWC-phase2db1`): Preserved because it contains uncommitted draft files. Classified as `SUPERSEDED_EXPERIMENT`: these draft files were committed to `feat/phase2db1-live-sandbox-checkout` and merged into `main` via PR #220, and subsequently replaced by server-owned checkout in PR #223 and PR #225. Recommended owner choice: `DISCARD`.
+  3. **`codex/billing-diagnostic-closeout`** (Worktree `D:/WiseResume-TWC-billing-sandbox-continuation`): Preserved because it contains 3 unique commits (`a5af337c`, `8dc1b352`, `761eee8e`) with report `Project Atlas/reports/2026-08-30-controlled-pro-provider-retry-closeout.md`. Recommended owner choice: `PROMOTE_THEN_DELETE` (promote report to Atlas archive, then delete branch and worktree).
+  4. **`origin/design/audit-2026-08-28`**: Preserved because it contains unmerged strategy review `reports/design-review-2026-08-28.md`. Recommended owner choice: `PROMOTE_THEN_DELETE` (archive report, then delete remote branch).
+  5. **`origin/docs/payments-phase2c-fixture-gate`**: Preserved because it contains 7 historical sandbox diagnostic reports from Aug 25 (superseded by Phase 2C closeout PR #218 and Phase P4). Recommended owner choice: `DISCARD` or `PROMOTE_THEN_DELETE`.
+* **Repository State Summary:**
+  * Local branches: 4 (`main` + 3 preserved worktree branches)
+  * Remote branches: 6 (`origin/main`, PR #252, PR #164, `codex/billing-diagnostic-closeout`, `design/audit-2026-08-28`, `docs/payments-phase2c-fixture-gate`)
+  * Open PRs: 2 (PR #252, PR #164)
+  * External Worktrees: 3
+* **What's New Decision Block:**
+  ```text
+  WHATS_NEW_DECISION
+
+  Status:
+  WHATS_NEW_NOT_REQUIRED
+
+  Reason:
+  Repository cleanup, PR closure, branch resolution, and worktree consolidation are internal repository maintenance operations without customer-facing product changes.
+
+  Evidence:
+  - Branch: docs/final-preserved-work-reconciliation
+  - Base Commit: 63128de4c16bf7717b09acd826e879a856464b82
+  - Production Deployment: N/A (internal maintenance)
+  ```
 
 ## Repository Reconciliation, PR Audit, Branch Cleanup, and Local-Remote Sync — 2026-09-01
 

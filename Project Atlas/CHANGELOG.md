@@ -1,5 +1,25 @@
 # WiseResume Atlas Master Changelog
 
+## 2026-09-01 - WiseResume Final Preserved Work Resolution & Repository Consolidation
+
+- **Verdict:** `REPOSITORY_RECONCILED_WITH_OWNER_DECISIONS_REQUIRED`
+- **PR Audit & Resolution:** 5 superseded PRs closed without merge (#235, #232, #228, #165, #163); 2 PRs preserved open for protected area review (#252, #164).
+- **Branch Deletions:** 5 branches deleted locally and remotely (`agent/comprehensive-trust-audit`, `backup/dependency-remediation-pre-rewrite-2026-08-09`, `docs/two-owner-hardening-closeout`, `codex/create-transaction-diagnostic-docs`, `codex/pro-sandbox-provider-unavailable-docs`); 1 remote branch deleted (`docs/codex-billing-handover`). 2 clean worktrees removed.
+- **Preserved Worktrees & Branches for Owner Decision:**
+  - `codex/billing-readonly-diag` (untracked audit report; superseded by PR #254 secret recreation).
+  - `feat/phase2db1-sandbox-ptxn` (uncommitted draft checkout files; superseded by PR #220 and server-owned checkout PR #223/#225).
+  - `codex/billing-diagnostic-closeout` (3 unique commits with Aug 30 retry report).
+  - `origin/design/audit-2026-08-28` (advisory design review report).
+  - `origin/docs/payments-phase2c-fixture-gate` (7 historical Phase 2C fixture reports).
+- **Repository State:** Local branches: 4 (`main` + 3 worktrees); remote branches: 6; open PRs: 2; worktrees: 4.
+- **What's New Decision Block:**
+  ```text
+  WHATS_NEW_DECISION
+  Status: WHATS_NEW_NOT_REQUIRED
+  Reason: Repository cleanup and historical reconciliation are internal maintenance only.
+  Evidence: Base Commit 63128de4c16bf7717b09acd826e879a856464b82 on docs/final-preserved-work-reconciliation.
+  ```
+
 ## 2026-09-01 - WiseResume Full Repository & Branch Reconciliation, Safe Cleanup, and Local-Remote Sync
 
 - **Verdict:** `REPOSITORY_RECONCILED_WITH_PRESERVED_BRANCHES`
