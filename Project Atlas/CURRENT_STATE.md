@@ -1,12 +1,44 @@
 # WiseResume Current Production State Snapshot
 
-**Last Verified:** 2026-08-31
-**Status:** `PADDLE_DOMAIN_REVIEW_SITE_READY` — PR #255 (`bb6b7def3a60c193b11428d9c50249d4ae7d133f`) and PR #256 (`1ee534aeb0fce2844f5d03e2ba1ca755f056491b`) merged into `main`. PR #256 implemented legal accuracy hardening for Paddle domain review. Production Vercel deployment `8Fo4XQe7PLPvQM39xggzPeXUKTYB` succeeded (`Deployment has completed`) on merge SHA `1ee534aeb0fce2844f5d03e2ba1ca755f056491b`. Real production browser QA executed via Playwright Chromium on `https://wiseresume.app` passed 17/17 tests across all 8 required public routes (`/`, `/pricing`, `/terms`, `/privacy`, `/refund-policy`, `/ar/terms`, `/ar/privacy`, `/ar/refund-policy`) on desktop 1280x800, mobile ~390x844, English LTR, Arabic RTL, light mode, dark mode, footer legal navigation, direct public access, and contact dialog trigger. All 10 Paddle domain reviewer matrix requirements are PASSED. Security Validation for PR #256 is correctly UNVERIFIED as a standalone check. PR Validation PASSED. Paddle website approval status: SUBMITTED / AWAITING REVIEW. Production billing remains strictly disabled (`BILLING_CHECKOUT_ENABLED=false`). Payment baseline state preserved: `P4_CATALOG_RECONCILIATION_SUCCESS` (run `33376804507`) and `P4_PREFLIGHT_SAFE_BUT_ORIGIN_UNVERIFIED` (run `33376897666`). Production Paddle Default payment link is NOT configured yet. Zero checkouts/payments created.
+**Last Verified:** 2026-09-01
+**Status:** `PADDLE_DOMAIN_REVIEW_SITE_READY` with `WHATS_NEW_VERIFIED_READY` — Production application snapshot preserves active multi-workstream state:
+* **What's New Remediation (PR #260):** `VERIFIED_READY` — PR #260 (`fix/whats-new-timeline-locale-routing`, HEAD `e9aed13d44f49bde1fe5fffbf7653241208abfba`) merged into `main` at merge SHA `4126c445c6c387057380f3d1279c0973c41b30a4`. Production Vercel deployment `dpl_9T8y4dZqVXoULMCVdLWvWUhvJkcK` completed with status `READY`. Live visual verification confirmed by owner on `https://wiseresume.app/whats-new` and `https://wiseresume.app/ar/whats-new`.
+* **Paddle Domain Review & Legal Accuracy (PR #256):** Preserved as `PADDLE_DOMAIN_REVIEW_SITE_READY` (merged @ `1ee534aeb0fce2844f5d03e2ba1ca755f056491b`; deployment `8Fo4XQe7PLPvQM39xggzPeXUKTYB`; 17/17 live Playwright verification; Paddle website approval status: SUBMITTED / AWAITING REVIEW).
+* **Billing Safety State:** Production billing remains strictly disabled (`BILLING_CHECKOUT_ENABLED=false`). Payment baseline state preserved: `P4_CATALOG_RECONCILIATION_SUCCESS` (run `33376804507`) and `P4_PREFLIGHT_SAFE_BUT_ORIGIN_UNVERIFIED` (run `33376897666`). Zero checkouts/payments created.
 
 **Repository:** `iammagdy/WiseResume-TWC`
 **Production:** `https://wiseresume.app`
 
 ---
+
+## What's New Product Updates Hub & Public Locale Routing (PR #260) — 2026-09-01
+
+* **Workstream Verdict:** `VERIFIED_READY` (PR #260 merged into `main` at commit `4126c445c6c387057380f3d1279c0973c41b30a4`; Vercel Production deployment `dpl_9T8y4dZqVXoULMCVdLWvWUhvJkcK` completed with status `READY`).
+* **PR Details:**
+  * PR: `#260`
+  * Branch: `fix/whats-new-timeline-locale-routing`
+  * PR Head: `e9aed13d44f49bde1fe5fffbf7653241208abfba`
+  * Merge SHA: `4126c445c6c387057380f3d1279c0973c41b30a4`
+  * Production Vercel Deployment: `dpl_9T8y4dZqVXoULMCVdLWvWUhvJkcK` (`READY`)
+  * Production URL: `https://wiseresume.app`
+* **Owner Live Manual Verification (Production Confirmation):**
+  * Live `/whats-new` visually looked correct.
+  * Live `/ar/whats-new` visually looked correct.
+  * Month timeline visually looked correct.
+  * Visual presentation approved by owner.
+* **Automated & Local Pre-Merge Validation Evidence:**
+  * Locale authority and storage override invariants proven via automated tests (`publicLocaleRouting.test.ts`, `LocaleProvider.test.tsx`).
+  * 47/47 Vitest passed across 7 locale and content test files.
+  * `npm run test:i18n` passed (11 namespaces), `npm run test:i18n:coverage` passed (13 surfaces).
+  * `npx tsc --noEmit` passed (0 errors), `npm run build` passed (47.84s, 0 sourcemaps), `git diff --check` passed.
+* **Remediation Delivered:**
+  * Timeline navigation derives dynamically from the current reconciled 34-item public release dataset with normalized `YYYY-MM` month keys (eliminating stale list and 2026 month hiding).
+  * Public route locale authority enforced on `/whats-new` (English LTR) and `/ar/whats-new` (Arabic RTL), while preserving authenticated user preference for private routes.
+* **Governance System Added:**
+  * Permanent What's New evaluation section added to `Project Atlas/RULES.md` (Section 9).
+  * Operational skill created at `Project Atlas/skills/whats-new-maintenance.md`.
+  * Mandatory What's New closeout gate added to `Project Atlas/skills/documentation-closeout.md`.
+  * Registered in `Project Atlas/skills/SKILLS_INDEX.md` and `Project Atlas/SOURCE_OF_TRUTH_MAP.md`.
 
 ## Payments Phase P4 Paddle Domain Review Readiness & Legal Accuracy Hardening — 2026-08-31
 

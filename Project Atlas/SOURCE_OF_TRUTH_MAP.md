@@ -20,6 +20,7 @@
 | **Architecture Decision Records (ADR)** | [`Project Atlas/DECISIONS.md`](./DECISIONS.md) |
 | **System Change Log** | [`Project Atlas/CHANGELOG.md`](./CHANGELOG.md) |
 | **Appwrite Functions Spec** | [`Project Atlas/architecture/appwrite-functions.md`](./architecture/appwrite-functions.md) |
+| **What's New Governance & Maintenance** | [`Project Atlas/skills/whats-new-maintenance.md`](./skills/whats-new-maintenance.md) |
 | **Current Deployment Guide** | [`Project Atlas/deployment/current-deployment.md`](./deployment/current-deployment.md) |
 | **Chronological Handover History** | [`Project Atlas/MASTER_HANDOVER_2026.md`](./MASTER_HANDOVER_2026.md) |
 
@@ -70,6 +71,7 @@
 * `skills/qa-validation.md` — QA and test suite validation.
 * `skills/security-review.md` — Security and auth review.
 * `skills/documentation-closeout.md` — Documentation closeout workflow.
+* `skills/whats-new-maintenance.md` — What's New Product Updates Hub maintenance workflow & governance.
 * `skills/skillkit-optional-setup.md` — Optional SkillKit setup guidelines.
 
 ### `deployment/` & `operations/` — Operations & Deployment Specifications

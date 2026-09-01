@@ -33,6 +33,7 @@ A task is not finished until:
 - the change is verified to work, or the verification blocker is clearly reported;
 - user-facing UI contains no unnecessary regional references such as provider regions;
 - relevant files in `Project Atlas/` are updated;
+- for customer-impacting product, feature, or bug-fix tasks, an explicit What's New eligibility decision (`WHATS_NEW_REQUIRED`, `WHATS_NEW_NOT_REQUIRED`, or `WHATS_NEW_DEFER_UNTIL_PRODUCTION`) is recorded in task closeout;
 - `Project Atlas/CHANGELOG.md` has a dated entry for accepted changes;
 - deployment-sensitive changes follow `Project Atlas/DEPLOYMENT_GUIDE.md`.
 
@@ -75,6 +76,62 @@ The owner is non-technical. Explain high-risk changes in plain language before i
 * **Mandatory Routing Pre-Check**: Consult [`Project Atlas/ATLAS_ROUTING_RULES.md`](./ATLAS_ROUTING_RULES.md) to determine exact file placement before creating new files.
 * **Root Hygiene**: Never place unclassified Markdown files or scratch logs directly in repository root (`/`) or `Project Atlas/` root.
 * **Temporary Files**: Intermediate working files belong in `Project Atlas/temp/` and MUST be deleted or promoted to living specs before task closeout.
+
+## 9. What's New Governance & Public Release Evaluation
+
+The `/whats-new` Product Updates Hub must accurately reflect genuine customer-facing releases. Every completed customer-impacting product, feature, or bug-fix task must be evaluated for What's New eligibility during documentation closeout following [`Project Atlas/skills/whats-new-maintenance.md`](./skills/whats-new-maintenance.md).
+
+### Mandatory Closeout Evaluation
+Every completed customer-impacting product, feature, or bug-fix task MUST receive an explicit What's New decision during task closeout:
+- `WHATS_NEW_REQUIRED`: The change is eligible and must be published to the updates hub.
+- `WHATS_NEW_NOT_REQUIRED`: The change is internal-only, operational, or does not meet customer-facing criteria.
+- `WHATS_NEW_DEFER_UNTIL_PRODUCTION`: The change qualifies, but production deployment and live browser/runtime verification have not yet occurred.
+
+Internal, documentation-only, or administrative housekeeping tasks are not required to complete a What's New evaluation unless a closeout decision is specifically useful.
+
+### REQUIRED Criteria
+A change is eligible for `/whats-new` when it:
+- creates or materially changes a user-visible feature;
+- materially improves a real user workflow;
+- adds a new customer-facing capability;
+- significantly changes UX that users will notice;
+- changes public plans, product behavior, localization, exports, portfolio, resume workflows, job workflows, or similar user-visible functionality;
+- fixes a meaningful user-facing product problem where communicating the fix benefits customers.
+
+### NOT REQUIRED Criteria
+Do NOT publish internal-only work to the public updates hub, including:
+- backend-only refactors;
+- schema mechanics or database migrations;
+- deployment mechanics or CI/test-only changes;
+- source-hash updates;
+- infrastructure changes or secret rotation;
+- internal security hardening with no user-visible effect;
+- admin-only or internal DevKit changes;
+- documentation-only changes;
+- technical implementation details users do not need to know.
+
+Internal work may only qualify if it directly produces a clear, factual, user-facing outcome.
+
+### Production Requirement
+Do NOT publish a release as shipped until production deployment and appropriate runtime/browser verification are complete. Merging a PR or completing local implementation is NOT sufficient. If implementation is merged but production verification is pending, assign `WHATS_NEW_DEFER_UNTIL_PRODUCTION`.
+
+### Evidence Requirement
+Never fabricate or infer release dates. Release timing must follow this evidence hierarchy:
+1. Verified production/deployment evidence (Vercel/Appwrite deployment records, live URL verification);
+2. Living Atlas feature/QA/deployment records;
+3. Merge and commit history;
+4. Verified existing public release records.
+
+If release timing cannot be proven from this evidence hierarchy, mark it as `UNVERIFIED_DATE` and do NOT publish until verified.
+
+### Copy Requirements
+All public What's New entries must:
+- focus on customer outcomes rather than internal engineering mechanics;
+- avoid developer jargon and internal provider/schema details;
+- avoid unsupported marketing claims or fabricated performance metrics;
+- avoid absolute claims such as "fully", "instant", "perfect", or "secure" unless explicitly supported by verified evidence;
+- describe real user impact factually;
+- provide bilingual English LTR and Arabic RTL copy.
 
 ---
 
