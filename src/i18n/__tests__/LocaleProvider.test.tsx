@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { BidiText } from '../BidiText';
 import { LocaleProvider, useLocale } from '../LocaleProvider';
@@ -52,5 +52,41 @@ describe('LocaleProvider', () => {
   it('returns the provided fallback string when a translation key is missing', () => {
     render(<LocaleProvider initialLocale="ar"><Probe /></LocaleProvider>);
     expect(screen.getByTestId('fallback')).toHaveTextContent('Localized fallback');
+  });
+
+  it('updates document lang and dir when navigating client-side between AR and EN public routes', async () => {
+    window.history.pushState({}, '', '/');
+
+    render(
+      <LocaleProvider>
+        <Probe />
+      </LocaleProvider>
+    );
+
+    expect(screen.getByTestId('locale')).toHaveTextContent('en');
+
+    // SPA Navigate to /ar/whats-new (Arabic public route) -> updates locale to ar without hard reload
+    window.history.pushState({}, '', '/ar/whats-new');
+    act(() => {
+      window.dispatchEvent(new PopStateEvent('popstate'));
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('locale')).toHaveTextContent('ar');
+      expect(document.documentElement).toHaveAttribute('lang', 'ar');
+      expect(document.documentElement).toHaveAttribute('dir', 'rtl');
+    });
+
+    // SPA Navigate back to / (English public route) -> updates locale back to en without hard reload
+    window.history.pushState({}, '', '/');
+    act(() => {
+      window.dispatchEvent(new PopStateEvent('popstate'));
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('locale')).toHaveTextContent('en');
+      expect(document.documentElement).toHaveAttribute('lang', 'en');
+      expect(document.documentElement).toHaveAttribute('dir', 'ltr');
+    });
   });
 });

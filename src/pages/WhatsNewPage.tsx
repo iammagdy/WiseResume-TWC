@@ -8,7 +8,7 @@ import { LanguageSwitcher } from '@/i18n/LanguageSwitcher';
 import {
   whatsNewReleases,
   CATEGORY_FILTERS,
-  MONTH_GROUPS,
+  getAvailableMonthGroups,
   type ReleaseCategory,
 } from '@/data/whatsNewData';
 import {
@@ -35,6 +35,10 @@ export default function WhatsNewPage() {
   const [showOlder, setShowOlder] = useState<boolean>(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
+  const monthGroups = useMemo(() => {
+    return getAvailableMonthGroups(whatsNewReleases);
+  }, []);
+
   // Separate featured update from the main list
   const featuredRelease = useMemo(() => {
     return whatsNewReleases.find((r) => r.featured);
@@ -52,15 +56,11 @@ export default function WhatsNewPage() {
         return false;
       }
       // Month filter
-      if (selectedMonth !== 'all') {
-        if (selectedMonth === 'older') {
-          if (release.year >= 2026 && release.monthYear !== 'older') return false;
-        } else if (release.monthYear !== selectedMonth) {
-          return false;
-        }
+      if (selectedMonth !== 'all' && release.monthKey !== selectedMonth) {
+        return false;
       }
-      // Progressive disclosure: hide 2025 releases unless showOlder is true or user filtered explicitly
-      if (!showOlder && release.year < 2026 && selectedMonth === 'all') {
+      // Progressive disclosure: hide 2025 releases unless showOlder is true or user filtered explicitly by month/category
+      if (!showOlder && release.year < 2026 && selectedMonth === 'all' && activeCategory === 'all') {
         return false;
       }
       return true;
@@ -104,7 +104,7 @@ export default function WhatsNewPage() {
       <header className="sticky top-0 z-50 bg-background/95 backdrop-blur-md border-b border-border shadow-xs">
         <div className="flex items-center justify-between px-4 sm:px-6 h-16 max-w-6xl mx-auto w-full">
           <Link
-            to="/"
+            to={locale === 'ar' ? '/ar' : '/'}
             className="flex items-center gap-2 text-lg font-bold text-primary tracking-tight hover:opacity-85 transition-opacity"
           >
             <Zap className="w-5 h-5 text-primary fill-primary/20" />
@@ -245,7 +245,7 @@ export default function WhatsNewPage() {
               >
                 {lang === 'ar' ? 'جميع الأشهر' : 'All Months'}
               </button>
-              {MONTH_GROUPS.map((month) => {
+              {monthGroups.map((month) => {
                 const isActive = selectedMonth === month.id;
                 return (
                   <button
@@ -412,7 +412,7 @@ export default function WhatsNewPage() {
       {/* Canonical Footer */}
       <footer className="border-t border-border py-8 text-center text-xs sm:text-sm text-muted-foreground bg-card/30 mt-auto">
         <div className="flex flex-wrap justify-center gap-5 mb-3 font-medium">
-          <Link to="/" className="hover:text-foreground transition-colors">
+          <Link to={locale === 'ar' ? '/ar' : '/'} className="hover:text-foreground transition-colors">
             {lang === 'ar' ? 'الرئيسية' : 'Home'}
           </Link>
           <Link to={locale === 'ar' ? '/ar/pricing' : '/pricing'} className="hover:text-foreground transition-colors">

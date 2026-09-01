@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { databases } from '@/lib/appwrite';
-import { localeFromPublicPath } from './core';
+import { isPublicLocalizedRoute, localeFromPublicPath } from './core';
 import { useLocale } from './LocaleProvider';
 import {
   loadLocalePreference,
@@ -37,7 +37,8 @@ export function LocaleAccountSync() {
         remoteLocale.current = storedLocale;
         setReadyUserId(user.id);
         const pathLocale = localeFromPublicPath(window.location.pathname);
-        if (storedLocale && !pathLocale && storedLocale !== localeRef.current) setLocale(storedLocale);
+        const isPublic = isPublicLocalizedRoute(window.location.pathname);
+        if (storedLocale && !pathLocale && !isPublic && storedLocale !== localeRef.current) setLocale(storedLocale);
       })
       .catch((error) => {
         if (!cancelled) {

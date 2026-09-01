@@ -1,5 +1,13 @@
 # WiseResume Atlas Master Changelog
 
+## 2026-08-31 - WiseResume What's New Timeline Reconciliation & Public Locale Routing Remediation
+
+- **Classification:** `TESTED_LOCAL` / `PRODUCT_BUG_CONFIRMED` / Remediation on `fix/whats-new-timeline-locale-routing`. Preserves owner review finding after PR #258 merge.
+- **Root Cause & Scope:**
+  1. **Timeline Month Navigation:** Production hardcoded `MONTH_GROUPS` exposing only 4 month options and collapsing Jan/Feb 2026 into `older`, missing June & July 2026 customer-facing releases. Resolved by dynamically deriving `getAvailableMonthGroups` from all 34 reconciled release items across Oct 2025 – Aug 2026 with normalized YYYY-MM month keys. May 2026 release title updated to "AI Resume Tailoring & Workspace Stabilization" matching May audit evidence.
+  2. **Public Locale Routing:** Canonical English public routes (`/whats-new`, `/pricing`, `/terms`, etc.) allowed persisted `localStorage['wiseresume-locale'] = 'ar'` to override URL language. Resolved in `resolveLocale`, `LocaleProvider`, and `LocaleAccountSync` to strictly enforce URL authority for public routes while preserving user preference for authenticated routes.
+- **Validation:** 13/13 focused Vitest passed (`src/i18n/__tests__/publicLocaleRouting.test.ts` & `src/pages/__tests__/WhatsNewPage.test.tsx`), 46/46 passed across 7-file locale regression suite, `npm run test:i18n` passed, `npm run test:i18n:coverage` passed, `npx tsc --noEmit` passed, `npm run build` passed, `git diff --check` passed.
+
 ## 2026-08-31 - WiseResume What's New Page Content Reconciliation & UX Redesign
 
 - **Verdict:** `VERIFIED_READY` (PR #258 merged into `main` at commit `6424c1da4f3797987fd6169683a2904eefc51667`; automatic Vercel Production deployment `Fa12ew9DmoWZFZv4iRAEgKovbtuF` completed with status `SUCCESS`; Playwright Chromium live production QA passed desktop/mobile LTR/RTL verification at `https://wiseresume.app/whats-new` and `/ar/whats-new`).

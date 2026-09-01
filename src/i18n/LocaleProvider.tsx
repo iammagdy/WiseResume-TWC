@@ -10,6 +10,7 @@ import {
 import { DirectionProvider } from '@radix-ui/react-direction';
 import i18next, { type i18n } from 'i18next';
 import { I18nextProvider, initReactI18next } from 'react-i18next';
+import { useInRouterContext, useLocation } from 'react-router-dom';
 import {
   LOCALE_STORAGE_KEY,
   directionForLocale,
@@ -60,13 +61,12 @@ function readPersistedLocale(): string | null {
   }
 }
 
-function getInitialLocale(initialLocale?: SupportedLocale): SupportedLocale {
-  if (initialLocale) return initialLocale;
-  return resolveLocale({
-    pathname: typeof window !== 'undefined' ? window.location.pathname : undefined,
-    persistedPreference: typeof window !== 'undefined' ? readPersistedLocale() : null,
-    browserLanguages: typeof navigator !== 'undefined' ? navigator.languages : [],
-  });
+function RouterPathSync({ onChange }: { onChange: (pathname: string) => void }) {
+  const location = useLocation();
+  useLayoutEffect(() => {
+    onChange(location.pathname);
+  }, [location.pathname, onChange]);
+  return null;
 }
 
 export function LocaleProvider({
@@ -76,7 +76,16 @@ export function LocaleProvider({
   children: ReactNode;
   initialLocale?: SupportedLocale;
 }) {
-  const [locale, setLocaleState] = useState<SupportedLocale>(() => getInitialLocale(initialLocale));
+  const inRouter = useInRouterContext();
+  const [locale, setLocaleState] = useState<SupportedLocale>(() => {
+    if (initialLocale) return initialLocale;
+    const currentPath = typeof window !== 'undefined' ? window.location.pathname : undefined;
+    return resolveLocale({
+      pathname: currentPath,
+      persistedPreference: typeof window !== 'undefined' ? readPersistedLocale() : null,
+      browserLanguages: typeof navigator !== 'undefined' ? navigator.languages : [],
+    });
+  });
   const direction = directionForLocale(locale);
 
   const setLocale = useCallback((nextLocale: SupportedLocale) => {
@@ -87,6 +96,32 @@ export function LocaleProvider({
       // Locale still applies for the current session when storage is unavailable.
     }
   }, []);
+
+  const handleRouterPathChange = useCallback((pathname: string) => {
+    if (initialLocale) return;
+    const targetLocale = resolveLocale({
+      pathname,
+      persistedPreference: readPersistedLocale(),
+      browserLanguages: typeof navigator !== 'undefined' ? navigator.languages : [],
+    });
+    setLocaleState((prev) => (prev !== targetLocale ? targetLocale : prev));
+  }, [initialLocale]);
+
+  useLayoutEffect(() => {
+    if (initialLocale || inRouter) return;
+    function handleSync() {
+      if (typeof window === 'undefined') return;
+      const targetLocale = resolveLocale({
+        pathname: window.location.pathname,
+        persistedPreference: readPersistedLocale(),
+        browserLanguages: typeof navigator !== 'undefined' ? navigator.languages : [],
+      });
+      setLocaleState((prev) => (prev !== targetLocale ? targetLocale : prev));
+    }
+
+    window.addEventListener('popstate', handleSync);
+    return () => window.removeEventListener('popstate', handleSync);
+  }, [initialLocale, inRouter]);
 
   useLayoutEffect(() => {
     const root = document.documentElement;
@@ -108,7 +143,10 @@ export function LocaleProvider({
   return (
     <I18nextProvider i18n={i18nInstance}>
       <DirectionProvider dir={direction}>
-        <LocaleContext.Provider value={value}>{children}</LocaleContext.Provider>
+        <LocaleContext.Provider value={value}>
+          {inRouter && <RouterPathSync onChange={handleRouterPathChange} />}
+          {children}
+        </LocaleContext.Provider>
       </DirectionProvider>
     </I18nextProvider>
   );
@@ -132,4 +170,3 @@ export function useLocale(): LocaleContextValue {
   }
   return value;
 }
-
