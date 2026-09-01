@@ -1,5 +1,48 @@
 # WiseResume Atlas Master Changelog
 
+### 2026-09-01 - WiseResume P1 Pre-Load-Test Stabilization (PR #263)
+
+- **Workstream Verdict:** `PR_READY_FOR_MERGE_REVIEW` with `OWNER_ACTION_REQUIRED` for production custom domain verification and targeted deployment authorization (runtime QA pending deployment; not merged; not deployed).
+- **Active Branch:** `fix/p1-preload-stabilization` (branched from `main` @ `4a75c96483be4a81ed91f34d4f48415f0ab88857`). PR #263 open. Prior head commit: `680ef9f34ea52f5af84e464a073ee7bbd9368892`.
+- **P1-1 Public Portfolio Contact Form Remediation & Routing Isolation:**
+  - Dedicated Public Route: Created isolated action `send-portfolio-contact-email` routed to public `email-service` hub (`execute: ["any"]`), invoked exclusively from `PortfolioContactForm`.
+  - Preserved Generic Routing: Restored `send-contact-email` inside `AI_HUB_FUNCTIONS` in `src/lib/appwrite-bridge.ts`, ensuring generic feedback, bug reports, auto-crash reports (`src/lib/sendFeedback.ts`), and username requests (`UsernameRequestDialog.tsx`) continue routing through `ai-gateway` with full crash deduplication and persistence.
+  - Execution Boundary: `ai-gateway` execution boundary remains strictly authenticated (`execute: ["users"]`).
+  - Trusted Client IP: Extracted exclusively from `req.headers['x-appwrite-client-ip']` (injected at Appwrite Cloud infrastructure gateway); strictly ignores caller-supplied `body?.__headers` and spoofable proxy headers.
+  - Honeypot silent trap (`website` field) and Cloudflare Turnstile token validation (`verifyTurnstileToken`).
+  - Input validation, string length clamping, HTML escaping.
+  - Narrow Security Boundary: `email-service` accepts only `action: 'send-portfolio-contact-email'` and `msgType: 'portfolio_contact'`. Action override guard in `src/lib/appwrite-functions.ts` spreads `action: 'send-portfolio-contact-email'` after `...finalPayload` to prevent caller payload override. Generic contact, bug, feature, or crash actions are strictly rejected with HTTP 400.
+  - Rate-Limit Concurrency Semantics: Concurrency-safe persistent limiter using deterministic hourly time-bucket document IDs (`sha256("pf_contact:" + rateKey + ":" + hourBucket).slice(0, 32)`). Limits abuse to `3 portfolio-contact submissions per rate identity per fixed hourly bucket` with Turnstile as an additional abuse-control layer. Safe zero-initialization and atomic reservation via `db.incrementDocumentAttribute(..., max=3)`. Eliminates mutable window reset races completely without introducing Redis or new backends.
+  - Portfolio owner resolution via `profiles` collection by `username`
+  - HTML transactional email delivery via Resend with `reply_to: visitorEmail`
+  - In-app notification creation in `notifications` collection with permissions scoped strictly to `Role.user(ownerUserId)`
+  - Added `TURNSTILE_SECRET_KEY` variable propagation to `email-service` in `scripts/deploy_hubs.cjs` without printing secrets.
+  - Recomputed hub source hashes in `src/lib/devkit/sourceHashes.generated.json` for CI deployment gate compliance.
+  - Added comprehensive unit test suites in `tests/hubs/email-service-portfolio-contact.test.cjs` (12/12 pass) and `src/lib/__tests__/contactRoutingRegression.test.ts` (6/6 pass).
+- **P1-2 Custom Domain Public Scan Remediation:**
+  - Fail-closed `GET /api/public-portfolio?mode=domain` with HTTP `501 Not Implemented` (`custom_domains_not_supported`) in `api/public-portfolio.ts`.
+  - Replaced `findProfileByCustomDomain` with immediate `null` return to prevent unindexed 5,000-doc scan loops.
+  - Preserved normal `/p/:username` path untouched.
+  - Added security contract assertion in `src/lib/security/publicPrivacyHardening.test.ts` (5/5 pass).
+- **Validation Evidence:**
+  - 17/17 hub tests passed (`tests/hubs/email-service-portfolio-contact.test.cjs`, `email-service-verification.test.cjs`, `appwrite-function-policy.test.cjs`).
+  - 59/59 Vitest tests passed across all relevant suites.
+  - `node --check appwrite-hubs/email-service/src/main.js`: Clean exit code 0.
+  - `npx tsc --noEmit`: Clean exit code 0.
+  - `npm run build`: Clean production build (0 sourcemaps).
+  - `git diff --check`: Clean formatting, 0 errors.
+- **Targeted Deployment Requirement:**
+  - Appwrite: GitHub Actions workflow `.github/workflows/deploy-appwrite-hubs.yml` with input `target: email-service`. No `target=all`.
+  - Frontend Rollback: Repository-controlled only (`git revert on main → normal Vercel deployment from main`). No manual Vercel dashboard actions.
+  - Preview Turnstile Status: `PREVIEW_TURNSTILE_RUNTIME_UNVERIFIED` (backend accepts `*.vercel.app` and `localhost`, but Cloudflare widget sitekey issuance on preview hostnames is unverified until live runtime tested).
+- **What's New Decision Block (Mandatory Gate):**
+  ```text
+  WHATS_NEW_DECISION
+  Status: WHATS_NEW_DEFER_UNTIL_PRODUCTION
+  Reason: P1-1 fixes public portfolio contact submission for anonymous visitors. Customer-impacting fix deferred until production deployment (Appwrite email-service and Vercel) and live verification.
+  Evidence: Branch fix/p1-preload-stabilization, base commit 4a75c96483be4a81ed91f34d4f48415f0ab88857.
+  ```
+
 ## 2026-09-01 - WiseResume Final Repository Cleanup to Main-Only
 
 - **Verdict:** `REPOSITORY_MAIN_ONLY_VERIFIED` (pending PR #262 merge)
