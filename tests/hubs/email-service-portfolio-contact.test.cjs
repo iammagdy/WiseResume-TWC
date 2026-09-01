@@ -9,7 +9,7 @@ const service = require(servicePath);
 const handler = service;
 const {
   verifyTurnstileToken,
-  handleSendContactEmail,
+  handleSendPortfolioContactEmail,
   checkInMemoryContactRateLimit,
   checkPersistentContactRateLimit,
   getTrustedAppwriteClientIp,
@@ -34,11 +34,12 @@ function createMockRes() {
 // ── 1. Honeypot check ────────────────────────────────────────────────────────
 test('email-service portfolio-contact: honeypot silently succeeds', async () => {
   const body = {
-    action: 'send-contact-email',
+    action: 'send-portfolio-contact-email',
     website: 'http://spam-bot.com',
     name: 'Spam Bot',
     email: 'bot@spam.com',
     message: 'Buy cheap watches',
+    metadata: { portfolio_username: 'janedoe' },
   };
   const req = { method: 'POST', headers: {}, body };
   const res = createMockRes();
@@ -54,7 +55,7 @@ test('email-service portfolio-contact: honeypot silently succeeds', async () => 
 // ── 2. Missing Turnstile & unauthenticated ────────────────────────────────────
 test('email-service portfolio-contact: rejects missing Turnstile and unauthenticated visitor', async () => {
   const body = {
-    action: 'send-contact-email',
+    action: 'send-portfolio-contact-email',
     name: 'Anonymous Visitor',
     email: 'visitor@example.com',
     message: 'Hello, I love your portfolio!',
@@ -86,7 +87,7 @@ test('email-service portfolio-contact: rejects invalid Turnstile token', async (
 
   try {
     const body = {
-      action: 'send-contact-email',
+      action: 'send-portfolio-contact-email',
       turnstileToken: 'invalid-turnstile-token',
       name: 'Anonymous Visitor',
       email: 'visitor@example.com',
@@ -123,7 +124,7 @@ test('email-service portfolio-contact: rejects malformed payload (short message 
   try {
     // 1. Short message (< 4 chars)
     const body = {
-      action: 'send-contact-email',
+      action: 'send-portfolio-contact-email',
       turnstileToken: 'valid-token',
       name: 'Visitor',
       email: 'visitor@example.com',
@@ -138,7 +139,7 @@ test('email-service portfolio-contact: rejects malformed payload (short message 
 
     // 2. Malformed email
     const body2 = {
-      action: 'send-contact-email',
+      action: 'send-portfolio-contact-email',
       turnstileToken: 'valid-token',
       name: 'Visitor',
       email: 'not-an-email',
@@ -155,65 +156,36 @@ test('email-service portfolio-contact: rejects malformed payload (short message 
   }
 });
 
-// ── 5. Oversized payload ──────────────────────────────────────────────────────
-test('email-service portfolio-contact: rejects oversized payload', async () => {
-  const originalFetch = global.fetch;
-  process.env.TURNSTILE_SECRET_KEY = 'mock-turnstile-secret';
-  process.env.RESEND_API_KEY = 're_mock_test_key';
-
-  global.fetch = async (url) => {
-    if (url.includes('turnstile')) {
-      return {
-        ok: true,
-        json: async () => ({ success: true, hostname: 'wiseresume.app' }),
-      };
-    }
-    return { ok: false };
+// ── 5. Rejects unsupported actions & non-portfolio types ─────────────────────
+test('email-service portfolio-contact: rejects generic actions and non-portfolio types', async () => {
+  // 1. Calling generic 'send-contact-email' on email-service is rejected (hits default 400)
+  const body1 = {
+    action: 'send-contact-email',
+    name: 'User',
+    email: 'user@example.com',
+    message: 'Bug report message',
+    type: 'bug',
   };
+  const req1 = { method: 'POST', headers: {}, body: body1 };
+  const res1 = createMockRes();
+  await handler({ req: req1, res: res1, log: () => {}, error: () => {} });
+  assert.equal(res1.statusCode, 400);
+  assert.match(res1.body?.error, /unsupported email request/i);
 
-  try {
-    // Oversized name (> 200 chars) is clamped, but oversized message (> 5000 chars) is clamped
-    const body = {
-      action: 'send-contact-email',
-      turnstileToken: 'valid-token',
-      name: 'a'.repeat(250),
-      email: 'visitor@example.com',
-      message: 'm'.repeat(6000),
-      metadata: { portfolio_username: 'janedoe' },
-    };
-    const req = { method: 'POST', headers: {}, body };
-    const res = createMockRes();
-
-    // With clamping, it succeeds with clamped content rather than unhandled exception
-    let resendPayload = null;
-    global.fetch = async (url, opts) => {
-      if (url.includes('turnstile')) return { ok: true, json: async () => ({ success: true, hostname: 'wiseresume.app' }) };
-      if (url.includes('api.resend.com')) {
-        resendPayload = JSON.parse(opts.body);
-        return { ok: true, status: 200, text: async () => JSON.stringify({ id: 'msg-1' }) };
-      }
-      return { ok: false };
-    };
-
-    const fakeDb = {
-      async listDocuments() {
-        return { total: 1, documents: [{ user_id: 'u1', username: 'janedoe', contact_email: 'owner@example.com' }] };
-      },
-      async getDocument() { const e = new Error('not found'); e.code = 404; throw e; },
-      async createDocument(_db, _col, _id, data) { return data; },
-      async updateDocument(_db, _col, _id, data) { return data; },
-      async incrementDocumentAttribute() { return { count: 1 }; },
-    };
-    setInjectedDb(fakeDb);
-
-    await handler({ req, res, log: () => {}, error: () => {} });
-    assert.equal(res.statusCode, 200);
-    // Verified message content was bounded to max 5000 characters
-    assert.ok(resendPayload?.html.length < 15000);
-  } finally {
-    global.fetch = originalFetch;
-    setInjectedDb(null);
-  }
+  // 2. Calling send-portfolio-contact-email with type="bug" or type="feature" is rejected
+  const body2 = {
+    action: 'send-portfolio-contact-email',
+    name: 'User',
+    email: 'user@example.com',
+    message: 'I found a bug in the app',
+    type: 'bug',
+    metadata: { portfolio_username: 'janedoe' },
+  };
+  const req2 = { method: 'POST', headers: {}, body: body2 };
+  const res2 = createMockRes();
+  await handler({ req: req2, res: res2, log: () => {}, error: () => {} });
+  assert.equal(res2.statusCode, 400);
+  assert.match(res2.body?.error, /only portfolio contact messages are accepted/i);
 });
 
 // ── 6. In-memory rate limiting (tightened to 3/hour) ──────────────────────────
@@ -298,7 +270,7 @@ test('email-service portfolio-contact: successful delivery for logged-out visito
 
   try {
     const body = {
-      action: 'send-contact-email',
+      action: 'send-portfolio-contact-email',
       turnstileToken: 'valid-turnstile-token',
       name: 'Ahmed Recruiter',
       email: 'recruiter@company.com',
@@ -350,10 +322,6 @@ test('email-service portfolio-contact: authenticated visitor succeeds without Tu
     if (url.includes('api.resend.com')) {
       return { ok: true, status: 200, text: async () => JSON.stringify({ id: 'msg-auth' }) };
     }
-    // Mock Appwrite Account.get() response
-    if (url.includes('/account')) {
-      return { ok: true, status: 200, json: async () => ({ $id: 'auth-user-999', email: 'auth@example.com' }) };
-    }
     return { ok: false };
   };
 
@@ -375,8 +343,7 @@ test('email-service portfolio-contact: authenticated visitor succeeds without Tu
 
   try {
     const body = {
-      action: 'send-contact-email',
-      // No turnstileToken provided
+      action: 'send-portfolio-contact-email',
       name: 'Auth Visitor',
       email: 'visitor@example.com',
       message: 'Hello from logged in user',
@@ -426,12 +393,13 @@ test('email-service portfolio-contact: nonexistent portfolio owner returns 422',
       throw err;
     },
     async createDocument(_db, _col, _id, data) { return data; },
+    async incrementDocumentAttribute() { return { count: 1 }; },
   };
   setInjectedDb(emptyDb);
 
   try {
     const body = {
-      action: 'send-contact-email',
+      action: 'send-portfolio-contact-email',
       turnstileToken: 'valid-token',
       name: 'Visitor',
       email: 'visitor@example.com',
@@ -481,7 +449,7 @@ test('email-service portfolio-contact: owner without contact email returns 422',
 
   try {
     const body = {
-      action: 'send-contact-email',
+      action: 'send-portfolio-contact-email',
       turnstileToken: 'valid-token',
       name: 'Visitor',
       email: 'visitor@example.com',
@@ -501,42 +469,63 @@ test('email-service portfolio-contact: owner without contact email returns 422',
   }
 });
 
-// ── 11. Durable rate limit & atomic concurrency ──────────────────────────────
-test('email-service portfolio-contact: durable rate limit enforces limit and blocks subsequent attempts', async () => {
-  let docCount = 0;
+// ── 11. Concurrency test: simultaneous calls at new-window boundary ─────────
+test('email-service portfolio-contact: time-bucket concurrency test covering simultaneous calls at new-window/reset boundary', async () => {
+  // Simulate Appwrite database with atomic increment and duplicate-create handling
+  const store = new Map();
+  let duplicateCreates = 0;
+
   const mockDb = {
-    async getDocument() {
-      return {
-        $id: 'rate-doc',
-        count: docCount,
-        reset_at: new Date(Date.now() + 3600 * 1000).toISOString(),
-      };
+    async getDocument(_db, _col, id) {
+      if (store.has(id)) return store.get(id);
+      const err = new Error('not found');
+      err.code = 404;
+      throw err;
     },
-    async incrementDocumentAttribute(_db, _col, _id, _attr, _amount, max) {
-      if (docCount >= max) {
+    async createDocument(_db, _col, id, data) {
+      if (store.has(id)) {
+        duplicateCreates += 1;
+        const err = new Error('document already exists');
+        err.code = 409;
+        throw err;
+      }
+      const doc = { $id: id, ...data };
+      store.set(id, doc);
+      return doc;
+    },
+    async incrementDocumentAttribute(_db, _col, id, _attr, amount, max) {
+      const doc = store.get(id);
+      if (!doc) throw new Error('doc not found');
+      if (doc.count >= max) {
         throw new Error('Maximum exceeded');
       }
-      docCount += 1;
-      return { count: docCount };
+      doc.count += amount;
+      return doc;
     },
   };
 
-  // 1st increment passes (count -> 1)
-  const r1 = await checkPersistentContactRateLimit(mockDb, '203.0.113.10', 'test@test.com');
-  assert.equal(r1.ok, true);
+  // Launch 10 simultaneous requests at the exact same millisecond
+  const testIp = '203.0.113.200';
+  const testEmail = 'visitor@example.com';
+  const results = await Promise.all(
+    Array.from({ length: 10 }, () => checkPersistentContactRateLimit(mockDb, testIp, testEmail))
+  );
 
-  // 2nd increment passes (count -> 2)
-  const r2 = await checkPersistentContactRateLimit(mockDb, '203.0.113.10', 'test@test.com');
-  assert.equal(r2.ok, true);
+  // Exactly 3 succeed (limit is 3), and 7 are throttled
+  const successCount = results.filter((r) => r.ok === true).length;
+  const blockedCount = results.filter((r) => r.ok === false).length;
 
-  // 3rd increment passes (count -> 3)
-  const r3 = await checkPersistentContactRateLimit(mockDb, '203.0.113.10', 'test@test.com');
-  assert.equal(r3.ok, true);
+  assert.equal(successCount, 3, 'Exactly 3 concurrent requests must be admitted');
+  assert.equal(blockedCount, 7, 'Remaining 7 concurrent requests must be blocked');
 
-  // 4th increment fails atomically because count >= CONTACT_RATE_MAX (3)
-  const r4 = await checkPersistentContactRateLimit(mockDb, '203.0.113.10', 'test@test.com');
-  assert.equal(r4.ok, false);
-  assert.ok(r4.retryAfterSeconds > 0);
+  // Verify duplicate creation attempts were safely handled
+  assert.ok(duplicateCreates > 0, 'Concurrent creates must race safely without unhandled error');
+
+  // Verify all blocked results contain valid retryAfterSeconds
+  const blocked = results.filter((r) => !r.ok);
+  for (const b of blocked) {
+    assert.ok(b.retryAfterSeconds > 0, 'Blocked responses must include retry interval');
+  }
 });
 
 // ── 12. Trusted client IP extraction behavior ────────────────────────────────

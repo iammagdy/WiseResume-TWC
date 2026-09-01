@@ -1654,9 +1654,16 @@ function checkInMemoryContactRateLimit(ip) {
   const key = ip && ip !== 'unknown' ? ip : null;
   if (!key) return { ok: true };
   const now = Date.now();
-  const entry = _contactRateLimits.get(key);
-  if (!entry || now > entry.resetAt) {
-    _contactRateLimits.set(key, { count: 1, resetAt: now + CONTACT_RATE_WINDOW_MS });
+  const hourBucket = Math.floor(now / CONTACT_RATE_WINDOW_MS);
+  const memoryKey = `${key}:${hourBucket}`;
+  const entry = _contactRateLimits.get(memoryKey);
+  if (!entry) {
+    _contactRateLimits.set(memoryKey, { count: 1, resetAt: (hourBucket + 1) * CONTACT_RATE_WINDOW_MS });
+    if (_contactRateLimits.size > 1000) {
+      for (const [k, v] of _contactRateLimits.entries()) {
+        if (now > v.resetAt) _contactRateLimits.delete(k);
+      }
+    }
     return { ok: true };
   }
   if (entry.count >= CONTACT_RATE_MAX) {
@@ -1666,45 +1673,57 @@ function checkInMemoryContactRateLimit(ip) {
   return { ok: true };
 }
 
+/**
+ * Concurrency-safe persistent rate limiter using deterministic time-bucket documents.
+ * Document ID: sha256("pf_contact:" + rateKey + ":" + hourBucket).slice(0, 32)
+ * Eliminates mutable window reset races: each hour bucket has an immutable ID,
+ * initialized at zero and reserved solely via Appwrite atomic increment.
+ */
 async function checkPersistentContactRateLimit(db, clientIp, senderEmail) {
   const rateKey = (clientIp && clientIp !== 'unknown')
     ? clientIp
     : (senderEmail ? `email:${senderEmail}` : null);
   if (!rateKey) return { ok: true };
 
-  const id = crypto.createHash('sha256').update(rateKey).digest('hex').slice(0, 32);
   const now = Date.now();
+  const hourBucket = Math.floor(now / CONTACT_RATE_WINDOW_MS);
+  const windowEndMs = (hourBucket + 1) * CONTACT_RATE_WINDOW_MS;
+
+  const id = crypto
+    .createHash('sha256')
+    .update(`pf_contact:${rateKey}:${hourBucket}`)
+    .digest('hex')
+    .slice(0, 32);
 
   try {
     let doc;
     try {
       doc = await db.getDocument(DB_ID, 'email_rate_limits', id);
     } catch (e) {
-      if (e?.code === 404 || /could not be found/i.test(e?.message || '')) doc = null;
-      else throw e;
-    }
-
-    if (!doc || now > new Date(doc.reset_at).getTime()) {
-      const resetAt = new Date(now + CONTACT_RATE_WINDOW_MS).toISOString();
-      if (!doc) {
+      if (e?.code === 404 || /could not be found/i.test(e?.message || '')) {
         try {
-          await db.createDocument(DB_ID, 'email_rate_limits', id, { count: 1, reset_at: resetAt });
-          return { ok: true };
+          doc = await db.createDocument(
+            DB_ID,
+            'email_rate_limits',
+            id,
+            { count: 0, reset_at: new Date(windowEndMs).toISOString() }
+          );
         } catch (createErr) {
-          if (createErr?.code !== 409 && !/already exists|duplicate/i.test(createErr?.message || '')) {
+          if (createErr?.code === 409 || /already exists|duplicate/i.test(createErr?.message || '')) {
+            doc = await db.getDocument(DB_ID, 'email_rate_limits', id);
+          } else {
             throw createErr;
           }
-          doc = await db.getDocument(DB_ID, 'email_rate_limits', id);
         }
       } else {
-        await db.updateDocument(DB_ID, 'email_rate_limits', id, { count: 1, reset_at: resetAt });
-        return { ok: true };
+        throw e;
       }
     }
 
     const currentCount = Number(doc?.count || 0);
     if (currentCount >= CONTACT_RATE_MAX) {
-      return { ok: false, retryAfterSeconds: Math.max(1, Math.ceil((new Date(doc.reset_at).getTime() - now) / 1000)) };
+      const retryAfterSeconds = Math.max(1, Math.ceil((windowEndMs - now) / 1000));
+      return { ok: false, retryAfterSeconds };
     }
 
     try {
@@ -1718,7 +1737,12 @@ async function checkPersistentContactRateLimit(db, clientIp, senderEmail) {
       );
       return { ok: true };
     } catch (incErr) {
-      return { ok: false, retryAfterSeconds: Math.max(1, Math.ceil((new Date(doc.reset_at).getTime() - now) / 1000)) };
+      const isLimitError = incErr?.code === 400 || /maximum|exceeded|limit/i.test(incErr?.message || '');
+      if (isLimitError) {
+        const retryAfterSeconds = Math.max(1, Math.ceil((windowEndMs - now) / 1000));
+        return { ok: false, retryAfterSeconds };
+      }
+      return { ok: true };
     }
   } catch (err) {
     // If collection is not ready or fails, fail-open to in-memory check
@@ -1809,12 +1833,23 @@ function getDatabaseClient() {
   return new sdk.Databases(adminClient);
 }
 
-async function handleSendContactEmail({ req, res, log, error, body }) {
+async function handleSendPortfolioContactEmail({ req, res, log, error, body }) {
+  const action = String(body?.action || '').trim();
+  if (action && action !== 'send-portfolio-contact-email') {
+    return json(res, { error: 'Unsupported email request.' }, 400);
+  }
+
+  // Strictly accept portfolio contact messages only.
+  const msgType = String(body?.type || 'portfolio_contact').trim();
+  if (msgType !== 'portfolio_contact') {
+    return json(res, { error: 'Unsupported contact request. Only portfolio contact messages are accepted.' }, 400);
+  }
+
   const turnstileToken = String(body?.turnstileToken || '').trim();
   const correlationId = String(body?.correlationId || '').trim();
   const website = String(body?.website || '').trim();
 
-  // 1. Honeypot check — silently succeed without sending
+  // 1. Honeypot check
   if (website) {
     return json(res, { status: 'success', data: { id: null, success: true } });
   }
@@ -1837,7 +1872,6 @@ async function handleSendContactEmail({ req, res, log, error, body }) {
   const metadata = typeof body?.metadata === 'object' && body?.metadata !== null ? body.metadata : {};
   const senderName = String(body?.name || metadata.visitor_name || '').trim().slice(0, 200);
   const senderEmail = String(body?.email || '').trim().toLowerCase().slice(0, 254);
-  const msgType = String(body?.type || 'portfolio_contact').trim().slice(0, 100);
   const msgBody = String(body?.message || '').trim().slice(0, 5000);
 
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -1845,52 +1879,44 @@ async function handleSendContactEmail({ req, res, log, error, body }) {
     return json(res, { error: 'Please provide a valid name, email, and a message of at least 4 characters.' }, 400);
   }
 
-  // 4. Rate limiting (in-memory + persistent)
+  const portfolioUsername = String(metadata.portfolio_username || '').trim().toLowerCase();
+  if (!portfolioUsername) {
+    return json(res, { error: 'Portfolio username is required.' }, 400);
+  }
+
+  // 4. Rate limiting
   const memLimit = checkInMemoryContactRateLimit(clientIp);
   if (!memLimit.ok) {
     return json(res, { error: `Too many messages sent. Please wait ${Math.ceil(memLimit.retryAfterSeconds / 60)} minute(s) before trying again.` }, 429);
   }
 
   const db = getDatabaseClient();
-
   const persistLimit = await checkPersistentContactRateLimit(db, clientIp, senderEmail);
   if (!persistLimit.ok) {
     return json(res, { error: `Too many messages sent. Please wait ${Math.ceil(persistLimit.retryAfterSeconds / 60)} minute(s) before trying again.` }, 429);
   }
 
   // 5. Portfolio owner resolution
-  let recipient = process.env.RESEND_FROM_EMAIL || 'contact@thewise.cloud';
-  let replyTo = senderEmail;
+  let ownerEmail = '';
   let ownerUserIdForNotif = '';
-  let portfolioUsername = '';
-
-  if (msgType === 'portfolio_contact') {
-    portfolioUsername = String(metadata.portfolio_username || '').trim().toLowerCase();
-    if (!portfolioUsername) {
-      return json(res, { error: 'Portfolio username is required.' }, 400);
+  try {
+    const ownerRes = await db.listDocuments(DB_ID, 'profiles', [
+      sdk.Query.equal('username', portfolioUsername),
+      sdk.Query.limit(1),
+    ]);
+    if (ownerRes.total > 0) {
+      const ownerDoc = ownerRes.documents[0];
+      ownerEmail = String(ownerDoc.contact_email || ownerDoc.email || '').trim();
+      ownerUserIdForNotif = String(ownerDoc.user_id || '').trim();
     }
+  } catch (lookupErr) {
+    error(`[email-service] portfolio owner lookup failed for "${portfolioUsername}": ${lookupErr?.message || lookupErr}`);
+  }
 
-    let ownerEmail = '';
-    try {
-      const ownerRes = await db.listDocuments(DB_ID, 'profiles', [
-        sdk.Query.equal('username', portfolioUsername),
-        sdk.Query.limit(1),
-      ]);
-      if (ownerRes.total > 0) {
-        const ownerDoc = ownerRes.documents[0];
-        ownerEmail = String(ownerDoc.contact_email || ownerDoc.email || '').trim();
-        ownerUserIdForNotif = String(ownerDoc.user_id || '').trim();
-      }
-    } catch (lookupErr) {
-      error(`[email-service] portfolio owner lookup failed for "${portfolioUsername}": ${lookupErr?.message || lookupErr}`);
-    }
-
-    if (!ownerEmail) {
-      return json(res, {
-        error: "This portfolio owner hasn't set up a contact email yet, so your message can't be delivered.",
-      }, 422);
-    }
-    recipient = ownerEmail;
+  if (!ownerEmail) {
+    return json(res, {
+      error: "This portfolio owner hasn't set up a contact email yet, so your message can't be delivered.",
+    }, 422);
   }
 
   // 6. Build and send HTML email via Resend
@@ -1904,14 +1930,14 @@ async function handleSendContactEmail({ req, res, log, error, body }) {
 
   try {
     const emailResult = await resendSend({
-      to: recipient,
+      to: ownerEmail,
       subject,
       html,
-      replyTo,
+      replyTo: senderEmail,
     });
 
     // 7. In-app notification for portfolio owner
-    if (msgType === 'portfolio_contact' && ownerUserIdForNotif) {
+    if (ownerUserIdForNotif) {
       await createOwnerNotification(db, {
         user_id: ownerUserIdForNotif,
         type: 'portfolio_message',
@@ -1921,7 +1947,7 @@ async function handleSendContactEmail({ req, res, log, error, body }) {
       });
     }
 
-    log(`[email-service] Contact email delivered to ${recipient} (correlationId=${correlationId})`);
+    log(`[email-service] Contact email delivered to ${ownerEmail} (correlationId=${correlationId})`);
     return json(res, { status: 'success', data: { id: emailResult?.id || null, success: true } });
   } catch (sendErr) {
     error(`[email-service] Failed to send contact email: ${sendErr?.message || sendErr}`);
@@ -1934,7 +1960,6 @@ module.exports = async ({ req, res, log, error }) => {
     return json(res, { error: 'Method not allowed' }, 405);
   }
 
-  // Parse body — Appwrite runtime delivers it as an object when Content-Type is JSON
   const rawBody = req.body;
   const body = typeof rawBody === 'string'
     ? (() => { try { return JSON.parse(rawBody); } catch { return {}; } })()
@@ -1945,10 +1970,8 @@ module.exports = async ({ req, res, log, error }) => {
   switch (action) {
     case 'send-verification':
       return handleSendVerification({ req, res, log, error, body });
-
     case 'send-password-reset':
       return handleSendPasswordReset({ req, res, log, error, body });
-
     case 'send-password-reset-otp':
       return handleSendPasswordResetOtp({ req, res, log, error, body });
 
@@ -1988,9 +2011,8 @@ module.exports = async ({ req, res, log, error }) => {
     case 'get-verification-status':
       return handleGetVerificationStatus({ req, res, log, error, body });
 
-    case 'send-contact-email':
-    case 'portfolio-contact':
-      return handleSendContactEmail({ req, res, log, error, body });
+    case 'send-portfolio-contact-email':
+      return handleSendPortfolioContactEmail({ req, res, log, error, body });
 
     default:
       error(`Unknown action: ${action}`);
@@ -2009,7 +2031,8 @@ module.exports._test = {
   requestUserEmailVerification,
   resendSend,
   verifyTurnstileToken,
-  handleSendContactEmail,
+  handleSendPortfolioContactEmail,
+  handleSendContactEmail: handleSendPortfolioContactEmail,
   checkInMemoryContactRateLimit,
   checkPersistentContactRateLimit,
   getTrustedAppwriteClientIp,

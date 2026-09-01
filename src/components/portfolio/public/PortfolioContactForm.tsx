@@ -145,9 +145,9 @@ export function PortfolioContactForm({ username, accentColor, ownerName }: Portf
       if (turnstileToken) body.turnstileToken = turnstileToken;
 
       if (isDebug) {
-        console.log(`[pf-contact] [${correlationId}] Invoking send-contact-email...`);
+        console.log(`[pf-contact] [${correlationId}] Invoking send-portfolio-contact-email...`);
       }
-      const { error } = await appwriteFunctions.invoke('send-contact-email', { body });
+      const { error } = await appwriteFunctions.invoke('send-portfolio-contact-email', { body });
 
       if (!error) {
         if (isDebug) {

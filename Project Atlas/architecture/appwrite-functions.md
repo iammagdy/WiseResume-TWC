@@ -39,7 +39,7 @@ The 28 deployable functions are registered in `scripts/deploy_hubs.cjs`, the sou
 
 | Function | Purpose | Boundary |
 |---|---|---|
-| `email-service` | Transactional email delivery and public portfolio contact (`send-contact-email`) | Action-specific public/session controls; Turnstile & durable `email_rate_limits` for visitor contact |
+| `email-service` | Transactional email delivery and public portfolio contact (`send-portfolio-contact-email`) | Action-specific public/session controls; Turnstile & durable `email_rate_limits` for visitor contact |
 | `admin-email` | Admin-triggered email operations | DevKit/admin authentication |
 | `admin-testmail` | Email configuration test utility | DevKit/admin authentication |
 
@@ -78,7 +78,7 @@ The 28 deployable functions are registered in `scripts/deploy_hubs.cjs`, the sou
 * Functions use the Appwrite `main` database where database access is required.
 * Function variables remain server-side. Never document secret values.
 * `track-visitor-event` receives no browser-derived GeoJS country. The deployed function may enrich from Appwrite request metadata and still contains a server-side GeoJS fallback; changing that requires a separate targeted review.
-* **Public Portfolio Contact Routing (P1-1):** `send-contact-email` is routed to `email-service` (`execute: ["any"]`) rather than `ai-gateway`, preserving `ai-gateway`'s authenticated-only execution boundary (`execute: ["users"]`). The handler validates Turnstile tokens (or session JWTs), traps honeypot inputs, throttles via in-memory and persistent `email_rate_limits` database checks, resolves the portfolio owner from `profiles`, delivers the email via Resend (`reply_to: visitorEmail`), and creates in-app notifications.
+* **Public Portfolio Contact Routing (P1-1):** Dedicated action `send-portfolio-contact-email` is routed to `email-service` (`execute: ["any"]`), while generic `send-contact-email` remains routed to `ai-gateway` (`execute: ["users"]`) for feedback, bug reports, crash deduplication, and username requests. The portfolio handler validates Turnstile tokens (or session JWTs), traps honeypot inputs, throttles via in-memory and deterministic hourly time-bucket `email_rate_limits` database checks with atomic increment reservation, resolves the portfolio owner from `profiles`, delivers the email via Resend (`reply_to: visitorEmail`), and creates in-app notifications.
 
 ## Deployment
 

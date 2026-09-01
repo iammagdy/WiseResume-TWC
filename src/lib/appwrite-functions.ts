@@ -196,11 +196,11 @@ const ANONYMOUS_PUBLIC_SHARE_FUNCTIONS = new Set([
   'create-portfolio-chat-session',
   'ask-portfolio',
   'portfolio-interest',
-  'send-contact-email',
+  'send-portfolio-contact-email',
 ]);
 
 function isEmailServiceFunction(fnName: string): boolean {
-  return fnName === 'email-service' || fnName === 'send-contact-email';
+  return fnName === 'email-service' || fnName === 'send-portfolio-contact-email';
 }
 
 function isCouponFunction(fnName: string): boolean {
@@ -431,7 +431,7 @@ export const appwriteFunctions = {
               ? JSON.stringify({ ...finalPayload, action: fnName })
               : routeToEmailService
                 ? JSON.stringify({
-                    action: fnName === 'send-contact-email' ? 'send-contact-email' : ((bodyPayload as Record<string, unknown>).action || fnName),
+                    action: fnName === 'send-portfolio-contact-email' ? 'send-portfolio-contact-email' : ((bodyPayload as Record<string, unknown>).action || fnName),
                     ...finalPayload,
                   })
         : JSON.stringify(finalPayload);
