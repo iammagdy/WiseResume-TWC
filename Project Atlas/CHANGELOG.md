@@ -2,10 +2,10 @@
 
 ### 2026-09-01 - WiseResume P2-1 useMe Polling Optimization (Branch fix/p2-1-useme-polling)
 
-- **Workstream Verdict:** `IMPLEMENTED_VALIDATED_READY_FOR_PR`.
+- **Workstream Verdict:** `PR_READY_FOR_MERGE_REVIEW` (PR #265, head `d1fe15150e4a11c0cfd677657ce4928861b97a98`).
 - **Branch:** `fix/p2-1-useme-polling`.
 - **Baseline Commit:** `ff8eee9633cc9bcfbaa91741e1e627586745d2bf` (`main`).
-- **Optimization:** In `src/hooks/useMe.ts`, relaxed query `refetchInterval` from 15 seconds (`15 * 1000`) to 5 minutes (`5 * 60 * 1000` = 300,000ms). Retained the 5-minute interval as a safety net fallback for provider-only lifecycle changes (such as RevenueCat in `revenuecat_subscription_state` while client Realtime listens to `subscriptions`).
+- **Optimization & Theoretical Impact:** In `src/hooks/useMe.ts`, relaxed query `refetchInterval` from 15 seconds (`15 * 1000`) to 5 minutes (`5 * 60 * 1000` = 300,000ms). Expected static request pattern for a continuously visible active tab: approximately 480 top-level browser Appwrite HTTP requests/hour before the change versus approximately 24/hour after the change, representing an expected theoretical reduction of approximately 95% (`EXPECTED_STATIC_REQUEST_REDUCTION`). Authenticated production runtime traffic was not measured in this phase. Background-tab interval polling is not enabled. Retained the 5-minute interval as a safety net fallback for provider-only lifecycle changes (such as RevenueCat in `revenuecat_subscription_state` while client Realtime listens to `subscriptions`).
 - **Preserved Controls:** Maintained `staleTime: 60 * 1000`, `refetchOnWindowFocus: true`, Realtime WebSocket subscription on `databases.main.collections.subscriptions.documents`, and explicit action invalidations.
 - **Tests Added:** Added `src/hooks/__tests__/useMe.test.tsx` proving no refetch at 15s, no refetch before 5m, refetch occurs at 5m, matching subscription Realtime event triggers invalidation, unrelated user event does not, and unauthenticated query remains disabled (5/5 pass).
 

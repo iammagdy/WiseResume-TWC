@@ -14,9 +14,10 @@
 
 ## P2-1 useMe Polling Optimization (Branch fix/p2-1-useme-polling) — 2026-09-01
 
-* **Workstream Status:** `IMPLEMENTED_VALIDATED_READY_FOR_PR` (Branch `fix/p2-1-useme-polling`).
-* **Change Summary:**
+* **Workstream Status:** `PR_READY_FOR_MERGE_REVIEW` (PR #265 open on branch `fix/p2-1-useme-polling`, PR head `d1fe15150e4a11c0cfd677657ce4928861b97a98`).
+* **Change Summary & Theoretical Impact:**
   - In `src/hooks/useMe.ts`: Relaxed `refetchInterval: 15 * 1000` to `refetchInterval: 5 * 60 * 1000` (5 minutes = 300,000ms).
+  - Expected static request pattern for a continuously visible active tab: approximately 480 top-level browser Appwrite HTTP requests/hour before the change versus approximately 24/hour after the change, representing an expected theoretical reduction of approximately 95% (`EXPECTED_STATIC_REQUEST_REDUCTION`). Authenticated production runtime traffic was not measured in this phase. Background-tab interval polling is not enabled.
   - Preserved 5-minute interval as safety net for provider-only lifecycle changes (e.g. RevenueCat in `revenuecat_subscription_state` while client Realtime listens to `subscriptions`).
   - Preserved `staleTime: 60 * 1000`, `refetchOnWindowFocus: true`, and Realtime WebSocket listener on `subscriptions.documents`.
   - Added dedicated unit test suite `src/hooks/__tests__/useMe.test.tsx` (5/5 passing).

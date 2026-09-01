@@ -6,10 +6,11 @@
 
 ## P2-1 useMe Polling Optimization (Branch fix/p2-1-useme-polling) — 2026-09-01
 
-* **Workstream Status:** `IMPLEMENTED_VALIDATED_READY_FOR_PR`.
+* **Workstream Status:** `PR_READY_FOR_MERGE_REVIEW` (PR #265 open on branch `fix/p2-1-useme-polling`).
 * **Baseline `main` SHA:** [`ff8eee9633cc9bcfbaa91741e1e627586745d2bf`](https://github.com/iammagdy/WiseResume-TWC/commit/ff8eee9633cc9bcfbaa91741e1e627586745d2bf).
-* **Branch:** `fix/p2-1-useme-polling`.
-* **Problem Solved:** Authenticated layout persistently polled `get-subscription` Function executions and `ai_credits` database reads every 15 seconds while users were completely idle (480 requests/hr per user), rapidly depleting Appwrite Cloud execution quotas.
+* **PR:** [PR #265](https://github.com/iammagdy/WiseResume-TWC/pull/265).
+* **PR Head SHA:** `d1fe15150e4a11c0cfd677657ce4928861b97a98`.
+* **Problem Solved & Request-Reduction Impact:** Authenticated layout previously polled `useMe` every 15 seconds. Expected static request pattern for a continuously visible active tab: approximately 480 top-level browser Appwrite HTTP requests/hour before the change versus approximately 24/hour after the change, representing an expected theoretical reduction of approximately 95% (`EXPECTED_STATIC_REQUEST_REDUCTION`). Authenticated production runtime traffic was not measured in this phase. Background-tab interval polling is not enabled.
 * **Exact Implementation:**
   - In `src/hooks/useMe.ts`: Changed `refetchInterval: 15 * 1000` to `refetchInterval: 5 * 60 * 1000` (5 minutes).
   - Reason for retaining 5-minute poll: RevenueCat provider lifecycle state is stored in server-only `revenuecat_subscription_state`, while client Realtime currently listens only to `subscriptions`. The 5-minute poll serves as an essential safety net for provider-only lifecycle changes.
@@ -31,7 +32,7 @@
   - P2-3 (Tailoring client polling loop): Untouched.
   - P3 findings: Untouched.
 * **Exact Next Action:**
-  Commit and push `fix/p2-1-useme-polling`, open Pull Request against `main`, inspect CI, and stop for owner merge review.
+  Review PR #265 and merge only after owner authorization; production browser verification remains post-merge.
 
 ## P1 Pre-Load-Test Stabilization (Closed & Verified in Production) — 2026-09-01
 
