@@ -12,10 +12,13 @@
 
 ---
 
-## P1 Pre-Load-Test Stabilization (Branch `fix/p1-preload-stabilization` / PR #263) — 2026-09-01
+## P1 Pre-Load-Test Stabilization (PR #263 Merged) — 2026-09-01
 
-* **Workstream Status:** `PR_READY_FOR_MERGE_REVIEW` with `OWNER_ACTION_REQUIRED` (PR #263 open; previous head `680ef9f34ea52f5af84e464a073ee7bbd9368892`; runtime QA pending deployment; not merged; not deployed).
-* **Base Commit:** `4a75c96483be4a81ed91f34d4f48415f0ab88857` (`main`).
+* **Workstream Status:** `MERGED_PENDING_APPWRITE_DEPLOYMENT_AND_RUNTIME_QA` (PR #263 merged into `main` at merge commit `176df210c6c1ed5a7e05a2cdeea94e792522c819`; pre-merge reviewed head `13d121dc25cdcdcff38d6c750fe598a9b8252779`).
+* **Owner Decision Recorded:** `OWNER_APPROVED_TEMPORARY_CUSTOM_DOMAIN_BETA_DISABLE` — The incomplete WiseResume custom-domain portfolio beta remains fail-closed with HTTP 501 until intentionally implemented using an indexed, server-owned lookup.
+* **Deployment & QA Status:**
+  - Appwrite Deployment: `NOT DEPLOYED` (Targeted deployment of `email-service` via GitHub Actions workflow `.github/workflows/deploy-appwrite-hubs.yml` with `target: email-service` pending explicit authorization in subsequent phase).
+  - Runtime QA: `PENDING` (Production contact form fix is **NOT** yet verified in production until `email-service` is deployed to Appwrite Cloud).
 * **P1-1 Public Portfolio Contact Form & Routing Isolation:**
   - Dedicated Public Route: Created isolated action `send-portfolio-contact-email` routed to public `email-service` hub (`execute: ["any"]`), invoked exclusively from `PortfolioContactForm`. Action override guard in `src/lib/appwrite-functions.ts` spreads `action: 'send-portfolio-contact-email'` after `...finalPayload` to prevent caller payload override.
   - Preserved Generic Routing: Restored `send-contact-email` inside `AI_HUB_FUNCTIONS` in `src/lib/appwrite-bridge.ts`, ensuring generic feedback, bug reports, auto-crash reports (`src/lib/sendFeedback.ts`), and username requests (`UsernameRequestDialog.tsx`) continue routing through `ai-gateway` with full crash deduplication and persistence.
@@ -30,15 +33,15 @@
 * **P1-2 Custom Domain Public Scan:**
   - Fail-closed `GET /api/public-portfolio?mode=domain` with HTTP `501 Not Implemented` (`custom_domains_not_supported`) without scanning unindexed profile documents.
   - Immediate `null` return in `findProfileByCustomDomain` prevents any 5,000-document offset loops. Standard username portfolio lookups (`/p/:username`) are unaffected.
-  - Custom domain production usage remains `OWNER_ACTION_REQUIRED` until owner data verification confirms zero active users rely on custom domains. PR #263 must NOT be merged until verified or explicitly authorized.
+  - Custom domain beta disable is owner-approved and active in production code.
 * **Validation Evidence:**
   - 17/17 hub tests passed (`tests/hubs/email-service-portfolio-contact.test.cjs`, `email-service-verification.test.cjs`, `appwrite-function-policy.test.cjs`).
-  - 59/59 Vitest tests passed (`src/lib/__tests__/contactRoutingRegression.test.ts`, `src/lib/security/publicPrivacyHardening.test.ts`, `src/hooks/__tests__/usePublicPortfolio.test.tsx`, `src/pages/__tests__/NotificationsPage.filter.test.ts`).
+  - 59/59 Vitest tests passed across all relevant suites.
   - `node --check appwrite-hubs/email-service/src/main.js` passed cleanly.
   - `npx tsc --noEmit` passed with 0 errors.
   - `npm run build` passed (0 sourcemaps).
   - `git diff --check` passed cleanly.
-* **Targeted Deployment Requirement:**
+* **Deployment & Rollback Controls:**
   - Appwrite: GitHub Actions workflow `.github/workflows/deploy-appwrite-hubs.yml` with input `target: email-service`. No `target=all`.
   - Frontend Rollback: Repository-controlled only (`git revert on main → normal Vercel deployment from main`). No manual Vercel dashboard rollback.
   - Preview Turnstile Status: `PREVIEW_TURNSTILE_RUNTIME_UNVERIFIED` (backend accepts `*.vercel.app` and `localhost`, but Cloudflare widget sitekey issuance on preview hostnames is unverified until live runtime tested).

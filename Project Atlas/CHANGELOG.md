@@ -1,9 +1,11 @@
 # WiseResume Atlas Master Changelog
 
-### 2026-09-01 - WiseResume P1 Pre-Load-Test Stabilization (PR #263)
+### 2026-09-01 - WiseResume P1 Pre-Load-Test Stabilization (PR #263 Merged)
 
-- **Workstream Verdict:** `PR_READY_FOR_MERGE_REVIEW` with `OWNER_ACTION_REQUIRED` for production custom domain verification and targeted deployment authorization (runtime QA pending deployment; not merged; not deployed).
-- **Active Branch:** `fix/p1-preload-stabilization` (branched from `main` @ `4a75c96483be4a81ed91f34d4f48415f0ab88857`). PR #263 open. Prior head commit: `680ef9f34ea52f5af84e464a073ee7bbd9368892`.
+- **Workstream Verdict:** `MERGED_PENDING_APPWRITE_DEPLOYMENT_AND_RUNTIME_QA`.
+- **Merge Commit:** [`176df210c6c1ed5a7e05a2cdeea94e792522c819`](https://github.com/iammagdy/WiseResume-TWC/commit/176df210c6c1ed5a7e05a2cdeea94e792522c819) (`main`). Reviewed PR head: `13d121dc25cdcdcff38d6c750fe598a9b8252779`.
+- **Owner Authorization Recorded:** `OWNER_APPROVED_TEMPORARY_CUSTOM_DOMAIN_BETA_DISABLE` — The incomplete WiseResume custom-domain portfolio beta remains fail-closed with HTTP 501 until intentionally implemented using an indexed, server-owned lookup.
+- **Deployment & QA Status:** Appwrite hub deployment is `NOT DEPLOYED` (pending explicit authorization in subsequent phase). Production contact fix is `NOT` yet verified in production until `email-service` is deployed to Appwrite Cloud.
 - **P1-1 Public Portfolio Contact Form Remediation & Routing Isolation:**
   - Dedicated Public Route: Created isolated action `send-portfolio-contact-email` routed to public `email-service` hub (`execute: ["any"]`), invoked exclusively from `PortfolioContactForm`.
   - Preserved Generic Routing: Restored `send-contact-email` inside `AI_HUB_FUNCTIONS` in `src/lib/appwrite-bridge.ts`, ensuring generic feedback, bug reports, auto-crash reports (`src/lib/sendFeedback.ts`), and username requests (`UsernameRequestDialog.tsx`) continue routing through `ai-gateway` with full crash deduplication and persistence.
