@@ -20,8 +20,8 @@
        - Trusted Client IP: Reads solely `req.headers['x-appwrite-client-ip']` from Appwrite runtime. Ignores caller-supplied `body?.__headers` and spoofable headers.
        - Honeypot silent trap (`website` field)
        - Cloudflare Turnstile token validation (`verifyTurnstileToken`) and fallback to user session JWT
-       - Input validation and string length clamping
-       - Rate-limit Concurrency Fix: Concurrency-safe persistent limiter using deterministic hourly time-bucket document IDs (`sha256("pf_contact:" + rateKey + ":" + hourBucket).slice(0, 32)`). Safe zero-initialization and atomic reservation via `db.incrementDocumentAttribute(..., max=3)`. Eliminates mutable window reset races completely.
+       - Rate-limit Concurrency Semantics: Concurrency-safe persistent limiter using deterministic hourly time-bucket document IDs (`sha256("pf_contact:" + rateKey + ":" + hourBucket).slice(0, 32)`). Limits abuse to `3 portfolio-contact submissions per rate identity per fixed hourly bucket` with Turnstile as an additional abuse-control layer. Safe zero-initialization and atomic reservation via `db.incrementDocumentAttribute(..., max=3)`. Eliminates mutable window reset races completely.
+       - Action Override Guard: Spreads `action: 'send-portfolio-contact-email'` after `...finalPayload` in `src/lib/appwrite-functions.ts` to prevent caller payload override.
        - Portfolio owner resolution via `profiles` collection by `username`
        - HTML transactional email delivery via Resend with `reply_to: visitorEmail`
        - In-app notification creation in `notifications` collection with permissions scoped strictly to `Role.user(ownerUserId)`

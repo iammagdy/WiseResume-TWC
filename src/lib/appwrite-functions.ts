@@ -431,8 +431,10 @@ export const appwriteFunctions = {
               ? JSON.stringify({ ...finalPayload, action: fnName })
               : routeToEmailService
                 ? JSON.stringify({
-                    action: fnName === 'send-portfolio-contact-email' ? 'send-portfolio-contact-email' : ((bodyPayload as Record<string, unknown>).action || fnName),
                     ...finalPayload,
+                    action: fnName === 'send-portfolio-contact-email'
+                      ? 'send-portfolio-contact-email'
+                      : ((bodyPayload as Record<string, unknown>).action || fnName),
                   })
         : JSON.stringify(finalPayload);
 

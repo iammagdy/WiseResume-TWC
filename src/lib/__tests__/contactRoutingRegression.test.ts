@@ -67,4 +67,32 @@ describe('Contact & Feedback Routing Regression Suite', () => {
     expect(FUNCTION_EXECUTION_POLICIES['email-service'].execute).toEqual(['any']);
     expect(FUNCTION_EXECUTION_POLICIES['email-service'].classification).toBe('anonymous-public');
   });
+
+  it('prevents caller-supplied action from overriding send-portfolio-contact-email', async () => {
+    const { functions } = await import('../../lib/appwrite');
+    const { vi } = await import('vitest');
+
+    const createExecutionSpy = vi.spyOn(functions, 'createExecution').mockResolvedValueOnce({
+      $id: 'exec-test-1',
+      responseStatusCode: 200,
+      responseBody: JSON.stringify({ status: 'success' }),
+    } as never);
+
+    await appwriteFunctions.invoke('send-portfolio-contact-email', {
+      body: {
+        action: 'malicious-override-action',
+        visitor_name: 'Jane Visitor',
+      },
+    });
+
+    expect(createExecutionSpy).toHaveBeenCalled();
+    const [targetFunctionId, payloadString] = createExecutionSpy.mock.calls[0];
+    expect(targetFunctionId).toBe('email-service');
+
+    const parsedPayload = JSON.parse(payloadString as string);
+    expect(parsedPayload.action).toBe('send-portfolio-contact-email');
+    expect(parsedPayload.visitor_name).toBe('Jane Visitor');
+
+    createExecutionSpy.mockRestore();
+  });
 });
