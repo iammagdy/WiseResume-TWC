@@ -1,20 +1,27 @@
 # Project Atlas — Active Operational & Handover State
 
 **Last Verified:** 2026-09-01
-**Status:** `MERGED_PENDING_APPWRITE_DEPLOYMENT_AND_RUNTIME_QA` — PR #263 has been merged into `main` at commit `176df210c6c1ed5a7e05a2cdeea94e792522c819` (reviewed head `13d121dc25cdcdcff38d6c750fe598a9b8252779`). Owner explicitly authorized `OWNER_APPROVED_TEMPORARY_CUSTOM_DOMAIN_BETA_DISABLE`. Appwrite hub deployment remains pending. Production contact form fix is NOT yet verified in production until `email-service` is deployed and live verified.
+**Status:** `PASS_WITH_WARNINGS` — PR #263 has been merged into `main` (`176df210c6c1ed5a7e05a2cdeea94e792522c819`). Targeted Appwrite deployment of `email-service` succeeded (Workflow run `33508861238`, deployment ID `6a96c79aa3c6c53e6cdf`, status `ready`). Production runtime security, custom-domain 501 fail-close, honeypot trap, and public portfolio rendering were all verified in live production. End-to-end inbox delivery requires owner mailbox confirmation (`OWNER_ACTION_REQUIRED_EMAIL_DELIVERY_CONFIRMATION`).
 **Location:** `Project Atlas/WHERE_WE_STOPPED.md`
 
-## P1 Pre-Load-Test Stabilization (PR #263 Merged) — 2026-09-01
+## P1 Pre-Load-Test Stabilization (Deployed & Production-Verified) — 2026-09-01
 
-* **Workstream Verdict:** `MERGED_PENDING_APPWRITE_DEPLOYMENT_AND_RUNTIME_QA`.
-* **Merge Commit:** [`176df210c6c1ed5a7e05a2cdeea94e792522c819`](https://github.com/iammagdy/WiseResume-TWC/commit/176df210c6c1ed5a7e05a2cdeea94e792522c819) (`origin/main` & local `main`).
-* **Reviewed PR Head:** `13d121dc25cdcdcff38d6c750fe598a9b8252779`.
-* **Owner Decision Recorded:** `OWNER_APPROVED_TEMPORARY_CUSTOM_DOMAIN_BETA_DISABLE` — The incomplete WiseResume custom-domain portfolio beta remains fail-closed with HTTP 501 until intentionally implemented using an indexed, server-owned lookup.
+* **Workstream Verdict:** `PASS_WITH_WARNINGS`.
+* **Merge Commit:** [`176df210c6c1ed5a7e05a2cdeea94e792522c819`](https://github.com/iammagdy/WiseResume-TWC/commit/176df210c6c1ed5a7e05a2cdeea94e792522c819) (`main`).
+* **Owner Decision Recorded:** `OWNER_APPROVED_TEMPORARY_CUSTOM_DOMAIN_BETA_DISABLE` — Incomplete WiseResume custom-domain portfolio beta remains fail-closed with HTTP 501 until intentionally implemented using an indexed, server-owned lookup.
 * **PR:** [PR #263](https://github.com/iammagdy/WiseResume-TWC/pull/263) (Status: `MERGED`).
-* **Deployment & QA Status:**
-  - Appwrite Deployment: `NOT DEPLOYED` (Targeted deployment of `email-service` via GitHub Actions workflow `.github/workflows/deploy-appwrite-hubs.yml` with `target: email-service` pending explicit authorization in subsequent phase).
-  - Vercel Deployment: Automatic production build from `main` initiated by Vercel.
-  - Runtime QA: `PENDING` (Live browser contact form verification has not yet occurred; production contact fix is **NOT** yet verified until deployed).
+* **Deployment Status:**
+  - Appwrite Deployment: `DEPLOYED` via `.github/workflows/deploy-appwrite-hubs.yml` (Run ID: `33508861238`, Deployment ID: `6a96c79aa3c6c53e6cdf`, status: `ready`).
+  - Vercel Deployment: `DEPLOYED` automatically from `main` (Deployment `4u755CpdjZ8dY3Qjamk6ksyDLs7t`, status: `success`).
+* **Production Runtime QA Evidence:**
+  - Standard Public Portfolio: Loaded logged out at `https://wiseresume.app/p/magdy` with HTTP 200 OK. Public sections rendered, no auth redirect, contact form and honeypot present in DOM.
+  - Custom Domain Fail-Close: `GET /api/public-portfolio?mode=domain&domain=example.com` verified in live production returning HTTP `501 Not Implemented` with `{"error":"custom_domains_not_supported"}` instantaneously. Normal `/p/magdy` verified working immediately afterward.
+  - Narrow Public Route Security: Tested live against deployed `email-service`. Generic `action: 'send-contact-email'` and non-portfolio types (`type: 'bug'`) strictly rejected with HTTP 400 without touching database or Resend.
+  - Negative Turnstile Enforcement: Missing Turnstile rejected with HTTP 403 `{"error":"Security check required."}`; invalid Turnstile token verified outbound via Cloudflare Turnstile API and rejected with HTTP 403 `{"error":"Security check failed. Please try again."}`.
+  - Honeypot Trap: Live execution with `website` populated returned silent HTTP 200 `{ status: 'success', data: { id: null, success: true } }` without dispatching email or notifications.
+  - Trusted Client IP: Verified runtime reads `x-appwrite-client-ip` header injected at Appwrite gateway.
+  - Delivery Contract & Inbox: `OWNER_ACTION_REQUIRED_EMAIL_DELIVERY_CONFIRMATION` (Mailbox access unavailable to agent; live email delivery requires owner confirmation).
+  - Owner In-App Notification: `PENDING` (Owner session inspection required).
 * **Work Accomplished & Merged to `main`:**
   1. **P1-1 Public Portfolio Contact Form & Routing Isolation:**
      - Created dedicated public action `send-portfolio-contact-email` routed exclusively to public `email-service` (`execute: ["any"]`).
@@ -52,12 +59,13 @@
   WHATS_NEW_DEFER_UNTIL_PRODUCTION
 
   Reason:
-  P1-1 restores functionality for public portfolio contact submissions by anonymous visitors. This is a customer-impacting bug fix, but release notes are deferred until targeted deployment to production (Appwrite email-service) and live production verification are complete.
+  P1-1 restores functionality for public portfolio contact submissions by anonymous visitors. This is a customer-impacting bug fix, but release notes are deferred until owner confirms live inbox receipt in production.
 
   Evidence:
   - Branch: main
   - Merge Commit: 176df210c6c1ed5a7e05a2cdeea94e792522c819
-  - Missing for publication: Targeted deploy of email-service to Appwrite and production browser QA.
+  - Deployed Appwrite Run ID: 33508861238 (email-service deployment 6a96c79aa3c6c53e6cdf)
+  - Missing for publication: Owner confirmation of live inbox delivery receipt.
   ```
 
 * **Remaining P2/P3 Scope Untouched:**
@@ -66,7 +74,7 @@
   - P2-3 (Tailoring client polling loop): Untouched.
   - P3 findings: Untouched.
 * **Exact Next Action:**
-  Authorize targeted deployment of `email-service` hub via GitHub Actions workflow `.github/workflows/deploy-appwrite-hubs.yml` with `target: email-service` (no `target=all`), followed by live production browser verification on `https://wiseresume.app/p/:username`.
+  Owner confirms live inbox delivery receipt for portfolio contact form submission, then authorize subsequent P2 optimization phase.
 
 ## Final Repository Cleanup to Main-Only — 2026-09-01
 

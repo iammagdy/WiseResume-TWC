@@ -1,11 +1,17 @@
 # WiseResume Atlas Master Changelog
 
-### 2026-09-01 - WiseResume P1 Pre-Load-Test Stabilization (PR #263 Merged)
+### 2026-09-01 - WiseResume P1 Pre-Load-Test Stabilization (Deployed & Production-Verified)
 
-- **Workstream Verdict:** `MERGED_PENDING_APPWRITE_DEPLOYMENT_AND_RUNTIME_QA`.
+- **Workstream Verdict:** `PASS_WITH_WARNINGS`.
 - **Merge Commit:** [`176df210c6c1ed5a7e05a2cdeea94e792522c819`](https://github.com/iammagdy/WiseResume-TWC/commit/176df210c6c1ed5a7e05a2cdeea94e792522c819) (`main`). Reviewed PR head: `13d121dc25cdcdcff38d6c750fe598a9b8252779`.
-- **Owner Authorization Recorded:** `OWNER_APPROVED_TEMPORARY_CUSTOM_DOMAIN_BETA_DISABLE` — The incomplete WiseResume custom-domain portfolio beta remains fail-closed with HTTP 501 until intentionally implemented using an indexed, server-owned lookup.
-- **Deployment & QA Status:** Appwrite hub deployment is `NOT DEPLOYED` (pending explicit authorization in subsequent phase). Production contact fix is `NOT` yet verified in production until `email-service` is deployed to Appwrite Cloud.
+- **Targeted Appwrite Deployment:** Workflow run `33508861238` succeeded in 1m45s. Hub `email-service` deployed to Appwrite Cloud with deployment ID `6a96c79aa3c6c53e6cdf` (status `ready`). Schema preflight and source-hash checks passed.
+- **Production Runtime Verification:**
+  - Public Portfolio: Loaded logged out at `https://wiseresume.app/p/magdy` with HTTP 200 OK. Public sections rendered, no auth redirect, contact form and honeypot present.
+  - Custom Domain Fail-Close: Verified live returning HTTP `501 Not Implemented` with `{"error":"custom_domains_not_supported"}` instantaneously. Normal `/p/magdy` verified operational.
+  - Security Boundaries: Tested live against deployed `email-service`: generic action (`send-contact-email`) and wrong message type (`type: 'bug'`) rejected with HTTP 400; missing Turnstile rejected with HTTP 403 `{"error":"Security check required."}`; invalid Turnstile token rejected via Cloudflare Turnstile API with HTTP 403 `{"error":"Security check failed. Please try again."}`; honeypot trap silently returns HTTP 200 without email dispatch.
+  - Delivery Contract & Inbox: `OWNER_ACTION_REQUIRED_EMAIL_DELIVERY_CONFIRMATION` (Mailbox access unavailable to agent; live email delivery requires owner confirmation).
+  - Owner In-App Notification: `PENDING` (Owner session inspection required).
+- **Owner Authorization Recorded:** `OWNER_APPROVED_TEMPORARY_CUSTOM_DOMAIN_BETA_DISABLE` — Incomplete WiseResume custom-domain portfolio beta remains fail-closed with HTTP 501 until intentionally implemented using an indexed, server-owned lookup.
 - **P1-1 Public Portfolio Contact Form Remediation & Routing Isolation:**
   - Dedicated Public Route: Created isolated action `send-portfolio-contact-email` routed to public `email-service` hub (`execute: ["any"]`), invoked exclusively from `PortfolioContactForm`.
   - Preserved Generic Routing: Restored `send-contact-email` inside `AI_HUB_FUNCTIONS` in `src/lib/appwrite-bridge.ts`, ensuring generic feedback, bug reports, auto-crash reports (`src/lib/sendFeedback.ts`), and username requests (`UsernameRequestDialog.tsx`) continue routing through `ai-gateway` with full crash deduplication and persistence.
