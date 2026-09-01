@@ -1,8 +1,57 @@
 # Project Atlas — Active Operational & Handover State
 
 **Last Verified:** 2026-09-01
-**Status:** `PADDLE_DOMAIN_REVIEW_SITE_READY` with `REPOSITORY_RECONCILED_WITH_PRESERVED_BRANCHES` — Local `main` synchronized with `origin/main` at `2744eb1bd374d50fdaa699cb8045d49de94e169f` (PR #261 merged). Full PR audit completed (0 safe unmerged PRs; 7 PRs audited and categorized; 66 merged remote branches deleted; 29 merged local branches deleted; 8 local branches preserved due to unique work, active worktrees, or open PRs). Active Paddle/payments readiness baseline preserved.
+**Status:** `PADDLE_DOMAIN_REVIEW_SITE_READY` with `REPOSITORY_MAIN_ONLY_READY` — Repository consolidation to main-only completed: All external worktrees removed; all historical reports promoted and archived into Project Atlas; 7 PRs closed without merge (#252, #235, #232, #228, #165, #164, #163); all historical and feature branches deleted locally and remotely; PR #262 is the sole remaining open PR containing final Atlas documentation. Post-merge target: local `main` only, remote `origin/main` only, 0 open PRs, 1 worktree. Active Paddle/payments readiness baseline preserved.
 **Location:** `Project Atlas/WHERE_WE_STOPPED.md`
+
+## Final Repository Cleanup to Main-Only — 2026-09-01
+
+* **Verdict:** `REPOSITORY_MAIN_ONLY_VERIFIED` (pending PR #262 merge)
+* **Consolidation Summary:**
+  * **PRs Closed Without Merge (7 total):**
+    * **PR #252 (`safe-minor-and-patch-23e44221ae`):** Closed without merge. Large 29-package batch update touching sensitive runtime areas (`jose`, `@sentry/*`, `puppeteer-core`). Remote branch deleted.
+    * **PR #164 (`sparticuz/chromium-149.0.0`):** Closed without merge. Breaking changes in headless Chromium runtime impacting serverless PDF generation; requires dedicated export runtime task. Remote branch deleted.
+    * **PR #235 (`codex/pro-sandbox-provider-unavailable-docs`):** Closed without merge. Superseded by current main and living Project Atlas state (Phase P4 billing and Paddle review). Branch and worktree removed.
+    * **PR #232 (`codex/create-transaction-diagnostic-docs`):** Closed without merge. Underlying PR #231 already merged. Branch and worktree removed.
+    * **PR #228 (`docs/codex-billing-handover`):** Closed without merge. Failing CI checks; superseded by Phase P4 and PR #260/#261 handovers. Remote branch deleted.
+    * **PR #165 (`jest-dom-7.0.0`):** Closed without merge. Stale dev-dependency major bump.
+    * **PR #163 (`resolvers-5.5.7`):** Closed without merge. Stale unvetted major bump v3 $\rightarrow$ v5.
+  * **Historical Evidence Promoted & Preserved:**
+    * `Project Atlas/reports/2026-08-30-sandbox-paddle-runtime-credential-audit.md` (promoted from `billing-readonly-diag` worktree; confirms root-cause diagnosis resolved by PR #254 secret recreation).
+    * `Project Atlas/reports/2026-08-30-controlled-pro-provider-retry-closeout.md` (promoted from `billing-sandbox-continuation` worktree).
+    * `Project Atlas/reports/ui-ux/2026-08-28-design-review-and-differentiation-strategy.md` (promoted from `origin/design/audit-2026-08-28`).
+    * `Project Atlas/reports/historical-audits/payments-phase2c/` (7 historical Phase 2C failure diagnostics archived from `origin/docs/payments-phase2c-fixture-gate`).
+  * **Worktrees Removed (3 external worktrees):**
+    * `D:/WiseResume-TWC-phase2db1` (discarded: draft client checkout code superseded by PR #220 and server-owned checkout PR #223/#225; zero unique production logic).
+    * `D:/WiseResume-TWC-billing-readonly-diag` (removed after report promotion).
+    * `D:/WiseResume-TWC-billing-sandbox-continuation` (removed after report promotion).
+  * **Branches Deleted:**
+    * Local: `feat/phase2db1-sandbox-ptxn`, `codex/billing-readonly-diag`, `codex/billing-diagnostic-closeout`, `agent/comprehensive-trust-audit`, `backup/dependency-remediation-pre-rewrite-2026-08-09`, `docs/two-owner-hardening-closeout`, `codex/create-transaction-diagnostic-docs`, `codex/pro-sandbox-provider-unavailable-docs`.
+    * Remote: `origin/codex/billing-diagnostic-closeout`, `origin/design/audit-2026-08-28`, `origin/docs/payments-phase2c-fixture-gate`, `origin/dependabot/npm_and_yarn/safe-minor-and-patch-23e44221ae`, `origin/dependabot/npm_and_yarn/sparticuz/chromium-149.0.0`, `origin/docs/codex-billing-handover`, `origin/agent/comprehensive-trust-audit`, `origin/backup/dependency-remediation-pre-rewrite-2026-08-09`, `origin/docs/two-owner-hardening-closeout`, `origin/codex/create-transaction-diagnostic-docs`, `origin/codex/pro-sandbox-provider-unavailable-docs`.
+  * **Final Repository State (Post PR #262 merge):**
+    * Current Branch: `main`
+    * Local Branches: `main` only (1)
+    * Remote Branches: `origin/main` only (1)
+    * Open PRs: 0
+    * Worktrees: Primary `D:/WiseResume-TWC` only (1)
+    * Parity: HEAD == main == origin/main; working tree completely clean
+* **What's New Decision Block:**
+  ```text
+  WHATS_NEW_DECISION
+
+  Status:
+  WHATS_NEW_NOT_REQUIRED
+
+  Reason:
+  Repository cleanup, PR closure, branch deletion, and historical evidence archival are internal repository maintenance operations without customer-facing product changes.
+
+  Evidence:
+  - PR: #262
+  - Branch: docs/final-preserved-work-reconciliation
+  - Base Commit: 63128de4c16bf7717b09acd826e879a856464b82
+  - Production Deployment: N/A (internal maintenance)
+  ```
+  ```
 
 ## Repository Reconciliation, PR Audit, Branch Cleanup, and Local-Remote Sync — 2026-09-01
 

@@ -1,5 +1,25 @@
 # WiseResume Atlas Master Changelog
 
+## 2026-09-01 - WiseResume Final Repository Cleanup to Main-Only
+
+- **Verdict:** `REPOSITORY_MAIN_ONLY_VERIFIED` (pending PR #262 merge)
+- **PR Resolutions:** All 7 unmerged PRs closed without merge (#252, #235, #232, #228, #165, #164, #163); remote branches deleted. PR #262 is the sole remaining open PR containing final Atlas consolidation.
+- **Historical Evidence Promoted & Preserved:**
+  - `Project Atlas/reports/2026-08-30-sandbox-paddle-runtime-credential-audit.md` (promoted from `billing-readonly-diag` worktree).
+  - `Project Atlas/reports/2026-08-30-controlled-pro-provider-retry-closeout.md` (promoted from `billing-sandbox-continuation` worktree).
+  - `Project Atlas/reports/ui-ux/2026-08-28-design-review-and-differentiation-strategy.md` (promoted from `origin/design/audit-2026-08-28`).
+  - `Project Atlas/reports/historical-audits/payments-phase2c/` (7 historical Phase 2C failure diagnostics archived from `origin/docs/payments-phase2c-fixture-gate`).
+- **Worktrees Removed:** All 3 external worktrees removed (`D:/WiseResume-TWC-phase2db1` discarded; `D:/WiseResume-TWC-billing-readonly-diag` removed; `D:/WiseResume-TWC-billing-sandbox-continuation` removed). Only primary worktree `D:/WiseResume-TWC` remains.
+- **Branches Deleted:** All historical local branches (`feat/phase2db1-sandbox-ptxn`, `codex/billing-readonly-diag`, `codex/billing-diagnostic-closeout`, etc.) and remote branches (`origin/codex/billing-diagnostic-closeout`, `origin/design/audit-2026-08-28`, `origin/docs/payments-phase2c-fixture-gate`, Dependabot branches, etc.) deleted.
+- **Final Repository Target State:** Local branches: `main` only; remote branches: `origin/main` only; open PRs: 0; worktrees: 1 (`D:/WiseResume-TWC`).
+- **What's New Decision Block:**
+  ```text
+  WHATS_NEW_DECISION
+  Status: WHATS_NEW_NOT_REQUIRED
+  Reason: Repository cleanup and historical evidence archival are internal maintenance only.
+  Evidence: PR #262 on docs/final-preserved-work-reconciliation (base 63128de4c16bf7717b09acd826e879a856464b82).
+  ```
+
 ## 2026-09-01 - WiseResume Full Repository & Branch Reconciliation, Safe Cleanup, and Local-Remote Sync
 
 - **Verdict:** `REPOSITORY_RECONCILED_WITH_PRESERVED_BRANCHES`
