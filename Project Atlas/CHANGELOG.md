@@ -1,5 +1,29 @@
 # WiseResume Atlas Master Changelog
 
+## 2026-09-01 - WiseResume Full Repository & Branch Reconciliation, Safe Cleanup, and Local-Remote Sync
+
+- **Verdict:** `REPOSITORY_RECONCILED_WITH_PRESERVED_BRANCHES`
+- **Synchronization State:** Local `main` fast-forwarded to `origin/main` at commit `2744eb1bd374d50fdaa699cb8045d49de94e169f` (PR #261 merged). Working tree clean. Parity verified: HEAD == local main == origin/main.
+- **Pull Request Audit & Classification (7 open PRs audited):**
+  - PR #252 (`dependabot/.../safe-minor-and-patch-23e44221ae`): `PROTECTED_AREA_REVIEW_REQUIRED` (29 unvetted dependency bumps across core runtime packages; frozen per review policy).
+  - PR #235 (`codex/pro-sandbox-provider-unavailable-docs`): `BLOCKED_CONFLICT` / `SUPERSEDED_BY_MAIN` (conflicts in 4 Atlas files; describes intermediate sandbox retry superseded by subsequent Phase P4 catalog reconciliation and Paddle review compliance).
+  - PR #232 (`codex/create-transaction-diagnostic-docs`): `BLOCKED_CONFLICT` / `SUPERSEDED_BY_MAIN` (conflicts in 3 Atlas files; describes intermediate diagnostic superseded by subsequent Phase P4 states).
+  - PR #228 (`docs/codex-billing-handover`): `BLOCKED_CHECKS` / `SUPERSEDED_BY_MAIN` (CI typecheck/tests failing; historical Codex handover superseded by live Atlas handover).
+  - PR #165 (`dependabot/.../testing-library/jest-dom-7.0.0`): `STALE_NEEDS_REVIEW` (unvetted major dependency bump).
+  - PR #164 (`dependabot/.../sparticuz/chromium-149.0.0`): `PROTECTED_AREA_REVIEW_REQUIRED` (backend runtime dependency bump).
+  - PR #163 (`dependabot/.../hookform/resolvers-5.5.7`): `STALE_NEEDS_REVIEW` (unvetted major dependency bump v3 -> v5).
+- **Branch Cleanup:**
+  - 29 safely merged local branches deleted (`codex/ai-runtime-receipts-ci-schema`, `codex/ai-runtime-receipts-closeout`, `codex/billing-sandbox-continuation`, `codex/billing-ttl-fix-docs`, `codex/controlled-pro-sandbox-retry-docs`, `codex/create-transaction-diagnostic`, `codex/fix-appwrite-transaction-ttl`, `codex/fix-auth-jobs-stabilization`, `codex/fix-verification-delivery`, `codex/jobs-feed-production-closeout`, `codex/pro-sandbox-payment-completion-docs`, `codex/provider-boundary-diagnostic`, `codex/provider-boundary-diagnostic-docs`, `codex/qa-runtime-observability-fixtures`, `codex/rc-webhook-reconciliation-docs`, `codex/sandbox-paddle-credential-wired-docs`, `docs/final-repository-reconciliation`, `docs/p2-production-billing-deployment-closeout`, `docs/p3-production-webhook-routing-closeout`, `docs/pr258-whats-new-closeout`, `docs/whats-new-governance`, `feat/phase2db1-sandbox-ptxn-mounted`, `feat/production-billing-runtime-gates`, `feat/show-jobs-feed`, `feat/whats-new-release-hub`, `fix/p2-source-hash-manifest`, `fix/production-billing-wiring`, `fix/sandbox-paddle-wiring`, `fix/sentry-production-errors`, `fix/whats-new-timeline-locale-routing`, `security/dependency-remediation-2026-08`).
+  - 66 merged remote branches deleted from `origin` (62 git-ancestor branches + 4 squash-merged branches: `docs/payments-session-closeout`, `fix/appwrite-preflight-permissions-shape`, `fix/appwrite-runtime-receipts-final-preflight`, `fix/appwrite-verification-template`).
+  - 8 non-main local branches preserved with documented rationale (unique audit commits, active worktrees, open PRs).
+- **What's New Decision Block:**
+  ```text
+  WHATS_NEW_DECISION
+  Status: WHATS_NEW_NOT_REQUIRED
+  Reason: Repository audit, branch reconciliation, and local-remote sync are internal repository maintenance operations without customer-facing changes.
+  Evidence: PR #261 (merged @ 2744eb1b), Merge SHA 2744eb1bd374d50fdaa699cb8045d49de94e169f.
+  ```
+
 ## 2026-09-01 - WiseResume What's New Remediation Production Verification (PR #260 Merged) & Governance System
 
 - **Workstream Verdict:** `VERIFIED_READY` (PR #260 merged into `main` at commit `4126c445c6c387057380f3d1279c0973c41b30a4`; Vercel Production deployment `dpl_9T8y4dZqVXoULMCVdLWvWUhvJkcK` completed with status `READY`).

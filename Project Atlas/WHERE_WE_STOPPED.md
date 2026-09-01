@@ -1,8 +1,50 @@
 # Project Atlas — Active Operational & Handover State
 
 **Last Verified:** 2026-09-01
-**Status:** `PADDLE_DOMAIN_REVIEW_SITE_READY` with `WHATS_NEW_VERIFIED_READY` — PR #260 (`fix/whats-new-timeline-locale-routing`, HEAD `e9aed13d44f49bde1fe5fffbf7653241208abfba`) merged into `main` at merge SHA `4126c445c6c387057380f3d1279c0973c41b30a4`. Production Vercel deployment `dpl_9T8y4dZqVXoULMCVdLWvWUhvJkcK` completed with status `READY`. Owner manual live verification PASSED on `https://wiseresume.app/whats-new` and `https://wiseresume.app/ar/whats-new` (visual result approved by owner). What's New permanent governance system established. Active Paddle/payments readiness baseline preserved.
+**Status:** `PADDLE_DOMAIN_REVIEW_SITE_READY` with `REPOSITORY_RECONCILED_WITH_PRESERVED_BRANCHES` — Local `main` synchronized with `origin/main` at `2744eb1bd374d50fdaa699cb8045d49de94e169f` (PR #261 merged). Full PR audit completed (0 safe unmerged PRs; 7 PRs audited and categorized; 66 merged remote branches deleted; 29 merged local branches deleted; 8 local branches preserved due to unique work, active worktrees, or open PRs). Active Paddle/payments readiness baseline preserved.
 **Location:** `Project Atlas/WHERE_WE_STOPPED.md`
+
+## Repository Reconciliation, PR Audit, Branch Cleanup, and Local-Remote Sync — 2026-09-01
+
+* **Verdict:** `REPOSITORY_RECONCILED_WITH_PRESERVED_BRANCHES`
+* **Local Main Parity:** `main` fast-forwarded to `origin/main` at commit `2744eb1bd374d50fdaa699cb8045d49de94e169f` (incorporating PR #261 `docs(atlas): add whats-new maintenance governance`). Working tree completely clean (`## main...origin/main`).
+* **PR Reconciliation Summary:**
+  * **PR #261 (`docs/whats-new-governance`):** `MERGED` into `main` at `2744eb1bd374d50fdaa699cb8045d49de94e169f`.
+  * **PR #252 (`dependabot/.../safe-minor-and-patch-23e44221ae`):** `PROTECTED_AREA_REVIEW_REQUIRED` — unvetted 29-package bump across core production dependencies (`puppeteer-core`, `sentry`, `jose`, etc.); frozen per policy during Paddle review; left open for owner review.
+  * **PR #235 (`codex/pro-sandbox-provider-unavailable-docs`):** `BLOCKED_CONFLICT` / `SUPERSEDED_BY_MAIN` — merge conflicts in 4 Atlas files; describes intermediate 2026-08-29 sandbox failure superseded by Phase P4 production catalog reconciliation and Paddle review compliance (PR #253–#256); preserved without merge.
+  * **PR #232 (`codex/create-transaction-diagnostic-docs`):** `BLOCKED_CONFLICT` / `SUPERSEDED_BY_MAIN` — merge conflicts in 3 Atlas files; describes intermediate PR #231 diagnostic superseded by subsequent Phase P4 Atlas states; preserved without merge.
+  * **PR #228 (`docs/codex-billing-handover`):** `BLOCKED_CHECKS` / `SUPERSEDED_BY_MAIN` — CI `Typecheck + portfolio tests` failing; historical August 28 Codex handover superseded by live Atlas handover; preserved without merge.
+  * **PR #165 (`dependabot/.../testing-library/jest-dom-7.0.0`):** `STALE_NEEDS_REVIEW` — unvetted major bump; preserved without merge.
+  * **PR #164 (`dependabot/.../sparticuz/chromium-149.0.0`):** `PROTECTED_AREA_REVIEW_REQUIRED` — backend PDF runtime dependency bump; preserved without merge.
+  * **PR #163 (`dependabot/.../hookform/resolvers-5.5.7`):** `STALE_NEEDS_REVIEW` — unvetted major bump (v3 $\rightarrow$ v5) with potential breaking changes to validation resolvers; preserved without merge.
+* **Branch Reconciliation & Cleanup:**
+  * **Local Branches Deleted (29 total):** Safely merged branches with zero unique unmerged work deleted locally (`codex/ai-runtime-receipts-ci-schema`, `codex/ai-runtime-receipts-closeout`, `codex/billing-sandbox-continuation`, `codex/billing-ttl-fix-docs`, `codex/controlled-pro-sandbox-retry-docs`, `codex/create-transaction-diagnostic`, `codex/fix-appwrite-transaction-ttl`, `codex/fix-auth-jobs-stabilization`, `codex/fix-verification-delivery`, `codex/jobs-feed-production-closeout`, `codex/pro-sandbox-payment-completion-docs`, `codex/provider-boundary-diagnostic`, `codex/provider-boundary-diagnostic-docs`, `codex/qa-runtime-observability-fixtures`, `codex/rc-webhook-reconciliation-docs`, `codex/sandbox-paddle-credential-wired-docs`, `docs/final-repository-reconciliation`, `docs/p2-production-billing-deployment-closeout`, `docs/p3-production-webhook-routing-closeout`, `docs/pr258-whats-new-closeout`, `docs/whats-new-governance`, `feat/phase2db1-sandbox-ptxn-mounted`, `feat/production-billing-runtime-gates`, `feat/show-jobs-feed`, `feat/whats-new-release-hub`, `fix/p2-source-hash-manifest`, `fix/production-billing-wiring`, `fix/sandbox-paddle-wiring`, `fix/sentry-production-errors`, `fix/whats-new-timeline-locale-routing`, `security/dependency-remediation-2026-08`).
+  * **Remote Branches Deleted (66 total):** All 62 git-merged remote branches plus 4 squash-merged remote branches (`docs/payments-session-closeout`, `fix/appwrite-preflight-permissions-shape`, `fix/appwrite-runtime-receipts-final-preflight`, `fix/appwrite-verification-template`) deleted from `origin`.
+  * **Preserved Local Branches (8 non-main):**
+    * `agent/comprehensive-trust-audit`: contains unmerged trust audit work from PR #197.
+    * `backup/dependency-remediation-pre-rewrite-2026-08-09`: explicit backup branch.
+    * `docs/two-owner-hardening-closeout`: contains unique authenticated two-owner verification report.
+    * `codex/billing-diagnostic-closeout`: contains 3 unmerged commits in worktree `D:/WiseResume-TWC-billing-sandbox-continuation`.
+    * `codex/billing-readonly-diag`: checked out in worktree `D:/WiseResume-TWC-billing-readonly-diag` with uncommitted credential audit report (`LOCAL_WORK_REQUIRES_REVIEW`).
+    * `feat/phase2db1-sandbox-ptxn`: checked out in worktree `D:/WiseResume-TWC-phase2db1` with uncommitted sandbox files (`LOCAL_WORK_REQUIRES_REVIEW`).
+    * `codex/create-transaction-diagnostic-docs`: checked out in worktree with open PR #232.
+    * `codex/pro-sandbox-provider-unavailable-docs`: checked out in worktree with open PR #235.
+* **What's New Decision Block:**
+  ```text
+  WHATS_NEW_DECISION
+
+  Status:
+  WHATS_NEW_NOT_REQUIRED
+
+  Reason:
+  Repository audit, PR reconciliation, branch cleanup, and local-to-remote synchronization are internal repository maintenance operations without customer-facing product capability changes.
+
+  Evidence:
+  - PR: #261 (merged @ 2744eb1b)
+  - Merge SHA: 2744eb1bd374d50fdaa699cb8045d49de94e169f
+  - Production Deployment: N/A (internal maintenance)
+  - Browser/Runtime Verification: N/A
+  ```
 
 ## What's New Timeline Navigation & Public Locale Routing Remediation (PR #260) — 2026-09-01
 

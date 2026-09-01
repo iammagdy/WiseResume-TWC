@@ -39,6 +39,7 @@
   * Operational skill created at `Project Atlas/skills/whats-new-maintenance.md`.
   * Mandatory What's New closeout gate added to `Project Atlas/skills/documentation-closeout.md`.
   * Registered in `Project Atlas/skills/SKILLS_INDEX.md` and `Project Atlas/SOURCE_OF_TRUTH_MAP.md`.
+  * Merged into `main` via PR #261 at merge SHA `2744eb1bd374d50fdaa699cb8045d49de94e169f`.
 
 ## Payments Phase P4 Paddle Domain Review Readiness & Legal Accuracy Hardening — 2026-08-31
 
