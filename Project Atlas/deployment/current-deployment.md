@@ -52,6 +52,40 @@ Appwrite Functions are deployed independently from the frontend application usin
 * **Appwrite Deployments:** `job-feed-sync` `6a637988c75fbc22829a`, `get-remote-jobs` `6a63799d79e6a27a64f3`, and `track-job-action` `6a6379ae192857be7a6e`; all `ready`.
 * **Verification:** 28/28 live policy matches; anonymous probes to internal-only and authenticated-user targets were denied; one authorized sync completed. Browser-only authenticated flows remain pending.
 
+### WiseResume P1 Pre-Load-Test Targeted Deployment & Production Verification — 2026-09-01
+
+* **PR #263 Merged & Deployed:** PR #263 merged to `main` at `176df210c6c1ed5a7e05a2cdeea94e792522c819`. Atlas closeout at `fdd5e15e47fa74e9859d1ee564c5b718d08cc98b`.
+* **Frontend Vercel Production:** Deployed automatically from `main` (`4u755CpdjZ8dY3Qjamk6ksyDLs7t`, status `success`).
+* **Targeted Appwrite Deployment:**
+  - **Workflow:** `.github/workflows/deploy-appwrite-hubs.yml` on `main` with `target: email-service` (broad `target=all` strictly avoided).
+  - **Run ID:** `33508861238` ([Run 33508861238](https://github.com/iammagdy/WiseResume-TWC/actions/runs/33508861238)) — conclusion: `success` (1m45s).
+  - **Deployed Hub:** `email-service` (`execute: ["any"]`).
+  - **Deployment ID:** `6a96c79aa3c6c53e6cdf`, status `ready`.
+  - **Preflight Gates:** Schema setup idempotent (`email_rate_limits` verified; `password_reset_otps` verified); source-hash gate passed (`0a3bdc2e05d7edd51ab26e5077dbf72a19a243eded08bd2165092c9c086e5baf`).
+  - **Variables Configured:** `TURNSTILE_SECRET_KEY` created server-side from `ai-gateway` secret source; `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `PASSWORD_RESET_OTP_SECRET` synchronized without secret logging.
+* **Production Runtime QA Evidence:**
+  - **Standard Public Portfolio:** Loaded logged out at `https://wiseresume.app/p/magdy` with HTTP 200 OK. Public sections rendered, no auth redirect, contact form present in DOM with honeypot trap and Turnstile widget container.
+  - **Custom Domain Fail-Close:** `GET /api/public-portfolio?mode=domain&domain=example.com` verified in live production returning HTTP `501 Not Implemented` with `{"error":"custom_domains_not_supported"}` instantaneously (zero unindexed 5,000-document scanning loops). Normal `/p/magdy` verified 100% operational immediately afterward.
+  - **Narrow Public Route Security:** Tested live against deployed `email-service`. Generic `action: 'send-contact-email'` and non-portfolio types (`type: 'bug'`) strictly rejected with HTTP 400 without touching database or Resend.
+  - **Negative Turnstile Enforcement:** Missing Turnstile rejected with HTTP 403 `{"error":"Security check required."}`; invalid Turnstile token verified outbound via Cloudflare Turnstile API and rejected with HTTP 403 `{"error":"Security check failed. Please try again."}`.
+  - **Honeypot Trap:** Live execution with `website` populated returned silent HTTP 200 `{ status: 'success', data: { id: null, success: true } }` without dispatching email or notifications.
+  - **Trusted Client IP:** Trusted `x-appwrite-client-ip` runtime value verified; value redacted from documentation.
+* **Owner Happy-Path Evidence Recorded:** `OWNER_VERIFIED_PORTFOLIO_CONTACT_HAPPY_PATH`
+  - Logged-out browser submission: **PASS**
+  - Cloudflare Turnstile positive path: **PASS**
+  - Actual inbox delivery: **PASS** (Contact email received in intended portfolio-owner inbox)
+  - Correct owner notification: **PASS** (In-app `portfolio_message` appeared for correct owner)
+  - Notification persistence after refresh/reopen: **PASS**
+* **Verification Classification:**
+  - Status: `DEPLOYED_VERIFIED_READY` (`P1_DEPLOYED_VERIFIED_READY`).
+  - Appwrite Deployed: `VERIFIED` (`6a96c79aa3c6c53e6cdf`, ready).
+  - Browser Page Tested: `VERIFIED` (logged out, no auth redirect).
+  - Custom-Domain Fail-Close: `VERIFIED` (HTTP 501).
+  - Security Negative Paths: `VERIFIED` (400 on wrong action, 403 on missing/invalid Turnstile, 200 on honeypot).
+  - Inbox Delivery: `VERIFIED` (Confirmed by owner inbox receipt).
+  - Owner In-App Notification: `VERIFIED` (Confirmed by owner notification tray inspection and persistence).
+* **Scope & Boundary Limits:** Broader application scalability has **NOT** been verified. P2/P3 findings remain untouched and unresolved for a subsequent authorized phase.
+
 ### Phase P1/P2/P3 Production Billing Deployment & Webhook Routing Status — 2026-08-30
 
 * **PR #247 & #248 Merged:** PR #247 merged (`78c0afc9`) with Production Paddle catalog & fail-closed deploy guards. PR #248 merged (`ba5a785e`) updating source-hash manifest for `revenuecat-webhook` (`704b896e0460187b21d84e1f42f208088baf4c3d128971f0c114137435e27cdd`).
