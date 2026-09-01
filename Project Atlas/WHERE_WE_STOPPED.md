@@ -1,13 +1,44 @@
 # Project Atlas — Active Operational & Handover State
 
 **Last Verified:** 2026-09-01
-**Status:** `P1_DEPLOYED_VERIFIED_READY` (`DEPLOYED_VERIFIED_READY`) — PR #263 has been merged into `main` (`176df210c6c1ed5a7e05a2cdeea94e792522c819`). Targeted Appwrite deployment of `email-service` succeeded (Workflow run `33508861238`, deployment ID `6a96c79aa3c6c53e6cdf`, status `ready`). Full owner happy-path delivery and in-app notification persistence have been verified in live production (`OWNER_VERIFIED_PORTFOLIO_CONTACT_HAPPY_PATH`).
+**Status:** `P2_1_IMPLEMENTED_PENDING_PR_MERGE_REVIEW` — PR #263 and documentation PR #264 have both been merged into `main` (commit `ff8eee9633cc9bcfbaa91741e1e627586745d2bf`). P1 stabilization is fully closed (`P1_DEPLOYED_VERIFIED_READY`). P2-1 (`useMe` polling interval relaxed from 15s to 5m) is implemented on branch `fix/p2-1-useme-polling` with 5/5 unit tests passing.
 **Location:** `Project Atlas/WHERE_WE_STOPPED.md`
 
-## P1 Pre-Load-Test Stabilization (Deployed & Production-Verified) — 2026-09-01
+## P2-1 useMe Polling Optimization (Branch fix/p2-1-useme-polling) — 2026-09-01
 
-* **Workstream Verdict:** `DEPLOYED_VERIFIED_READY` (`P1_DEPLOYED_VERIFIED_READY`).
+* **Workstream Status:** `PR_READY_FOR_MERGE_REVIEW` (PR #265 open on branch `fix/p2-1-useme-polling`).
+* **Baseline `main` SHA:** [`ff8eee9633cc9bcfbaa91741e1e627586745d2bf`](https://github.com/iammagdy/WiseResume-TWC/commit/ff8eee9633cc9bcfbaa91741e1e627586745d2bf).
+* **PR:** [PR #265](https://github.com/iammagdy/WiseResume-TWC/pull/265).
+* **PR Head SHA:** `d1fe15150e4a11c0cfd677657ce4928861b97a98`.
+* **Problem Solved & Request-Reduction Impact:** Authenticated layout previously polled `useMe` every 15 seconds. Expected static request pattern for a continuously visible active tab: approximately 480 top-level browser Appwrite HTTP requests/hour before the change versus approximately 24/hour after the change, representing an expected theoretical reduction of approximately 95% (`EXPECTED_STATIC_REQUEST_REDUCTION`). Authenticated production runtime traffic was not measured in this phase. Background-tab interval polling is not enabled.
+* **Exact Implementation:**
+  - In `src/hooks/useMe.ts`: Changed `refetchInterval: 15 * 1000` to `refetchInterval: 5 * 60 * 1000` (5 minutes).
+  - Reason for retaining 5-minute poll: RevenueCat provider lifecycle state is stored in server-only `revenuecat_subscription_state`, while client Realtime currently listens only to `subscriptions`. The 5-minute poll serves as an essential safety net for provider-only lifecycle changes.
+  - Preserved unchanged: `staleTime: 60 * 1000`, `refetchOnWindowFocus: true`, Realtime WebSocket subscription on `databases.main.collections.subscriptions.documents`, query key, auth guards, AI credits invalidation logic, and `SubscriptionPage` 5-second pending checkout loop.
+* **Validation Evidence:**
+  - 5/5 tests pass in `src/hooks/__tests__/useMe.test.tsx`:
+    1. Unauthenticated query remains disabled (`status: pending`, `fetchStatus: idle`, 0 invocations).
+    2. Proves no refetch occurs at 15 seconds and no interval refetch occurs before 5 minutes (elapsed 299s, 1 invocation).
+    3. Proves refetch occurs at 5 minutes while actively observed (elapsed 300s, 2 invocations).
+    4. Matching subscription Realtime event invalidates current user (invokes refetch).
+    5. Unrelated user Realtime event does not trigger invalidation.
+  - 5/5 tests pass in `src/hooks/__tests__/usePlan.test.tsx`.
+  - 5/5 tests pass in `src/hooks/__tests__/useAICredits.test.tsx`.
+  - `npx tsc --noEmit`: Clean (0 errors).
+  - `npm run build`: Clean production build (0 sourcemaps).
+  - `git diff --check`: Clean formatting.
+* **Remaining Scope Untouched:**
+  - P2-2 (Autosave invalidation): Untouched.
+  - P2-3 (Tailoring client polling loop): Untouched.
+  - P3 findings: Untouched.
+* **Exact Next Action:**
+  Review PR #265 and merge only after owner authorization; production browser verification remains post-merge.
+
+## P1 Pre-Load-Test Stabilization (Closed & Verified in Production) — 2026-09-01
+
+* **Workstream Verdict:** `P1_DEPLOYED_VERIFIED_READY`.
 * **Merge Commit:** [`176df210c6c1ed5a7e05a2cdeea94e792522c819`](https://github.com/iammagdy/WiseResume-TWC/commit/176df210c6c1ed5a7e05a2cdeea94e792522c819) (`main`).
+* **Documentation PR #264:** Merged into `main` at [`ff8eee9633cc9bcfbaa91741e1e627586745d2bf`](https://github.com/iammagdy/WiseResume-TWC/commit/ff8eee9633cc9bcfbaa91741e1e627586745d2bf).
 * **Owner Happy-Path Evidence Recorded:** `OWNER_VERIFIED_PORTFOLIO_CONTACT_HAPPY_PATH`
   - Logged-out browser submission: **PASS**
   - Cloudflare Turnstile positive path: **PASS**
