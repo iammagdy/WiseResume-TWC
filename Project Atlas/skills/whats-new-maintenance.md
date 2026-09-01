@@ -46,7 +46,7 @@ Before evaluating release updates, inspect:
 
 ## 4. Eligibility Decision Contract
 
-Every completed task must receive a What's New decision during closeout using this standardized template:
+Every completed customer-impacting product, feature, or bug-fix task must receive a What's New decision during closeout using this standardized template:
 
 ```text
 WHATS_NEW_DECISION
@@ -73,9 +73,11 @@ Release Month:
 YYYY-MM (or UNVERIFIED_DATE)
 ```
 
+Internal, documentation-only, or administrative housekeeping tasks may record `WHATS_NEW_NOT_REQUIRED` when useful, but are not burdened by mandatory release evaluation.
+
 ### Allowed Status Values
 * **`WHATS_NEW_REQUIRED`**: The work creates or materially alters a user-facing capability, UX workflow, export format, localization, or fixes a significant user-visible problem. Production deployment and live verification are complete.
-* **`WHATS_NEW_NOT_REQUIRED`**: The work is internal-only (backend refactors, schema migrations, CI/CD, dependency updates, internal DevKit tooling, secret rotation, documentation updates).
+* **`WHATS_NEW_NOT_REQUIRED`**: The work is internal-only (backend refactors, schema migrations, CI/CD, dependency updates, internal DevKit tooling, secret rotation, documentation updates) OR represents an operational/corrective bug fix to existing release history or hub routing that does not constitute an additional standalone customer capability (avoiding duplicate release cards).
 * **`WHATS_NEW_DEFER_UNTIL_PRODUCTION`**: The change qualifies for What's New, but production deployment and live browser verification have not yet occurred. The entry remains queued until deployed.
 
 ---

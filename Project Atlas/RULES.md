@@ -33,7 +33,7 @@ A task is not finished until:
 - the change is verified to work, or the verification blocker is clearly reported;
 - user-facing UI contains no unnecessary regional references such as provider regions;
 - relevant files in `Project Atlas/` are updated;
-- an explicit What's New eligibility decision (`WHATS_NEW_REQUIRED`, `WHATS_NEW_NOT_REQUIRED`, or `WHATS_NEW_DEFER_UNTIL_PRODUCTION`) is recorded in task closeout;
+- for customer-impacting product, feature, or bug-fix tasks, an explicit What's New eligibility decision (`WHATS_NEW_REQUIRED`, `WHATS_NEW_NOT_REQUIRED`, or `WHATS_NEW_DEFER_UNTIL_PRODUCTION`) is recorded in task closeout;
 - `Project Atlas/CHANGELOG.md` has a dated entry for accepted changes;
 - deployment-sensitive changes follow `Project Atlas/DEPLOYMENT_GUIDE.md`.
 
@@ -79,13 +79,15 @@ The owner is non-technical. Explain high-risk changes in plain language before i
 
 ## 9. What's New Governance & Public Release Evaluation
 
-The `/whats-new` Product Updates Hub must accurately reflect genuine customer-facing releases. Every completed product change must be evaluated for What's New eligibility during documentation closeout following [`Project Atlas/skills/whats-new-maintenance.md`](./skills/whats-new-maintenance.md).
+The `/whats-new` Product Updates Hub must accurately reflect genuine customer-facing releases. Every completed customer-impacting product, feature, or bug-fix task must be evaluated for What's New eligibility during documentation closeout following [`Project Atlas/skills/whats-new-maintenance.md`](./skills/whats-new-maintenance.md).
 
 ### Mandatory Closeout Evaluation
-Every customer-impacting completed task MUST receive an explicit What's New decision during task closeout:
+Every completed customer-impacting product, feature, or bug-fix task MUST receive an explicit What's New decision during task closeout:
 - `WHATS_NEW_REQUIRED`: The change is eligible and must be published to the updates hub.
 - `WHATS_NEW_NOT_REQUIRED`: The change is internal-only, operational, or does not meet customer-facing criteria.
 - `WHATS_NEW_DEFER_UNTIL_PRODUCTION`: The change qualifies, but production deployment and live browser/runtime verification have not yet occurred.
+
+Internal, documentation-only, or administrative housekeeping tasks are not required to complete a What's New evaluation unless a closeout decision is specifically useful.
 
 ### REQUIRED Criteria
 A change is eligible for `/whats-new` when it:

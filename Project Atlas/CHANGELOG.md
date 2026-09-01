@@ -2,27 +2,32 @@
 
 ## 2026-09-01 - WiseResume What's New Remediation Production Verification (PR #260 Merged) & Governance System
 
-- **Verdict:** `VERIFIED_READY` (PR #260 merged into `main` at commit `4126c445c6c387057380f3d1279c0973c41b30a4`; Vercel Production deployment `dpl_9T8y4dZqVXoULMCVdLWvWUhvJkcK` completed with status `READY`; Owner manual live verification PASSED on `https://wiseresume.app/whats-new` and `/ar/whats-new`).
+- **Workstream Verdict:** `VERIFIED_READY` (PR #260 merged into `main` at commit `4126c445c6c387057380f3d1279c0973c41b30a4`; Vercel Production deployment `dpl_9T8y4dZqVXoULMCVdLWvWUhvJkcK` completed with status `READY`).
 - **PR Details:** PR #260 on branch `fix/whats-new-timeline-locale-routing`, HEAD `e9aed13d44f49bde1fe5fffbf7653241208abfba`, merged into `main` at SHA `4126c445c6c387057380f3d1279c0973c41b30a4`.
-- **Live Production Browser Verification Evidence:** Owner performed manual live browser verification on production domain `https://wiseresume.app`:
-  - `/whats-new` rendering confirmed correct (English LTR, proper heading and release cards).
-  - `/ar/whats-new` rendering confirmed correct (Arabic RTL, proper heading and release cards).
-  - Dynamic month navigation verified (newest to oldest, 11 months represented, June/July 2026 present, Jan/Feb not hidden under older).
-  - Visual presentation and UX approved by owner.
+- **Live Production Owner Verification Evidence:** Owner performed manual live browser verification on production domain `https://wiseresume.app`:
+  - Live `/whats-new` visually looked correct.
+  - Live `/ar/whats-new` visually looked correct.
+  - Month timeline visually looked correct.
+  - Visual presentation approved by owner.
+- **Automated Pre-Merge Validation Evidence:**
+  - Locale authority and storage override invariants proven via automated tests (`publicLocaleRouting.test.ts`, `LocaleProvider.test.tsx`).
+  - 47/47 Vitest passed across 7 locale and content test files.
+  - `npm run test:i18n` passed (11 namespaces), `npm run test:i18n:coverage` passed (13 surfaces).
+  - `npx tsc --noEmit` passed (0 errors), `npm run build` passed (47.84s, 0 sourcemaps), `git diff --check` passed.
+- **Remediation Delivered:**
+  - Timeline navigation derives dynamically from the current reconciled 34-item public release dataset with normalized `YYYY-MM` month keys (eliminating stale list and 2026 month hiding).
+  - Public route locale authority enforced on `/whats-new` (English LTR) and `/ar/whats-new` (Arabic RTL), while preserving authenticated user preference for private routes.
 - **Permanent What's New Governance System Added:**
-  - Added Section 9 to `Project Atlas/RULES.md` mandating What's New eligibility evaluation (`WHATS_NEW_REQUIRED`, `WHATS_NEW_NOT_REQUIRED`, `WHATS_NEW_DEFER_UNTIL_PRODUCTION`) for every completed product change.
+  - Added Section 9 to `Project Atlas/RULES.md` mandating What's New eligibility evaluation (`WHATS_NEW_REQUIRED`, `WHATS_NEW_NOT_REQUIRED`, `WHATS_NEW_DEFER_UNTIL_PRODUCTION`) for every completed customer-impacting product, feature, or bug-fix task.
   - Created canonical skill `Project Atlas/skills/whats-new-maintenance.md` with eligibility contract, copy guidelines, timeline derivation rules, public locale routing rules, validation checklist, and browser QA matrix.
   - Updated `Project Atlas/skills/SKILLS_INDEX.md` and `Project Atlas/SOURCE_OF_TRUTH_MAP.md` to register `whats-new-maintenance.md`.
   - Hardened `Project Atlas/skills/documentation-closeout.md` with mandatory What's New evaluation gate.
 - **What's New Decision Block:**
   ```text
   WHATS_NEW_DECISION
-  Status: WHATS_NEW_REQUIRED
-  Reason: What's New Product Updates Hub dynamic timeline derivation and canonical public locale routing authority verified in production.
+  Status: WHATS_NEW_NOT_REQUIRED
+  Reason: PR #260 is an operational bug fix and routing reconciliation of the /whats-new hub infrastructure itself (correcting existing release history, dynamic month derivation, and canonical locale authority). It does not introduce a separate customer product capability; creating a distinct release card would produce redundant meta-release clutter.
   Evidence: PR #260, Merge SHA 4126c445, Production Deployment dpl_9T8y4dZqVXoULMCVdLWvWUhvJkcK, Owner live QA PASS.
-  Public Release Title: What's New Product Updates Hub & Public Locale Routing
-  Public Release Summary: Reconciled 34 customer-facing release updates with dynamic month navigation and enforced canonical public route locale authority for English and Arabic.
-  Release Month: 2026-08
   ```
 
 ## 2026-08-31 - WiseResume What's New Timeline Reconciliation & Public Locale Routing Remediation

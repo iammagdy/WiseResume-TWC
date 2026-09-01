@@ -1,12 +1,12 @@
 # Project Atlas — Active Operational & Handover State
 
 **Last Verified:** 2026-09-01
-**Status:** `VERIFIED_READY` — PR #260 (`fix/whats-new-timeline-locale-routing`, HEAD `e9aed13d44f49bde1fe5fffbf7653241208abfba`) merged into `main` at merge SHA `4126c445c6c387057380f3d1279c0973c41b30a4`. Production Vercel deployment `dpl_9T8y4dZqVXoULMCVdLWvWUhvJkcK` completed with status `READY`. Owner manual live verification PASSED on `https://wiseresume.app/whats-new` and `https://wiseresume.app/ar/whats-new` (correct English/Arabic rendering, dynamic month timeline verified, visual result approved by owner). What's New governance system established.
+**Status:** `PADDLE_DOMAIN_REVIEW_SITE_READY` with `WHATS_NEW_VERIFIED_READY` — PR #260 (`fix/whats-new-timeline-locale-routing`, HEAD `e9aed13d44f49bde1fe5fffbf7653241208abfba`) merged into `main` at merge SHA `4126c445c6c387057380f3d1279c0973c41b30a4`. Production Vercel deployment `dpl_9T8y4dZqVXoULMCVdLWvWUhvJkcK` completed with status `READY`. Owner manual live verification PASSED on `https://wiseresume.app/whats-new` and `https://wiseresume.app/ar/whats-new` (visual result approved by owner). What's New permanent governance system established. Active Paddle/payments readiness baseline preserved.
 **Location:** `Project Atlas/WHERE_WE_STOPPED.md`
 
 ## What's New Timeline Navigation & Public Locale Routing Remediation (PR #260) — 2026-09-01
 
-* **Verdict:** `VERIFIED_READY` (PR #260 merged into `main` at commit `4126c445c6c387057380f3d1279c0973c41b30a4`; Vercel Production deployment `dpl_9T8y4dZqVXoULMCVdLWvWUhvJkcK` succeeded with status `READY`; Owner manual live verification PASSED on `https://wiseresume.app/whats-new` and `/ar/whats-new`).
+* **Workstream Verdict:** `VERIFIED_READY` (PR #260 merged into `main` at commit `4126c445c6c387057380f3d1279c0973c41b30a4`; Vercel Production deployment `dpl_9T8y4dZqVXoULMCVdLWvWUhvJkcK` succeeded with status `READY`).
 * **PR Details:**
   * PR: `#260`
   * Branch: `fix/whats-new-timeline-locale-routing`
@@ -14,39 +14,34 @@
   * Merge SHA: `4126c445c6c387057380f3d1279c0973c41b30a4`
   * Production Vercel Deployment: `dpl_9T8y4dZqVXoULMCVdLWvWUhvJkcK` (`READY`)
   * Production URL: `https://wiseresume.app`
-* **Owner Manual Live Verification Evidence:**
-  * `/whats-new` rendering is correct (English LTR, correct H1, overrides persisted Arabic preference).
-  * `/ar/whats-new` rendering is correct (Arabic RTL, correct H1, overrides persisted English preference).
-  * Month timeline is correct (dynamically derived, newest $\rightarrow$ oldest, 2026 months not hidden under older).
-  * Visual result approved by owner.
+* **Owner Live Manual Verification (Production Confirmation):**
+  * Live `/whats-new` visually looked correct.
+  * Live `/ar/whats-new` visually looked correct.
+  * Month timeline visually looked correct.
+  * Visual presentation approved by owner.
+* **Automated Pre-Merge Validation Evidence:**
+  * Locale authority and storage override invariants proven via automated tests (`publicLocaleRouting.test.ts`, `LocaleProvider.test.tsx`).
+  * 47/47 Vitest passed across 7 locale and content test files.
+  * `npm run test:i18n` passed (11 namespaces), `npm run test:i18n:coverage` passed (13 surfaces).
+  * `npx tsc --noEmit` passed (0 errors), `npm run build` passed (47.84s, 0 sourcemaps), `git diff --check` passed.
 * **Remediation Delivered:**
-  * **Issue 1 (Timeline Navigation):** Reconciled 34 customer-facing release updates across 11 months (October 2025 – August 2026) with full Git/Atlas evidence matrix. Derived month navigation dynamically via `getAvailableMonthGroups` with normalized `YYYY-MM` month keys. Eliminated hardcoded stale list and `older` bucket for 2026.
+  * **Issue 1 (Timeline Navigation):** Reconciled the current 34-item public release dataset across 11 months (October 2025 – August 2026). Derived month navigation dynamically via `getAvailableMonthGroups` with normalized `YYYY-MM` month keys. Eliminated hardcoded stale list and `older` bucket for 2026.
   * **Issue 2 (Public Locale Routing):** Centralized public route locale authority in `resolveLocale`, `LocaleProvider`, and `LocaleAccountSync`. Unprefixed canonical public routes (`/whats-new`, `/pricing`, `/terms`, etc.) strictly enforce `locale = 'en'`, `dir = 'ltr'` ignoring `localStorage`. `/ar/...` public routes strictly enforce `locale = 'ar'`, `dir = 'rtl'`. User/persisted preference continues to control authenticated private routes (`/dashboard`, `/editor`, `/settings`).
-* **Automated Test Validation:** 47/47 Vitest passed across 7 locale and content files (`publicLocaleRouting.test.ts`, `LocaleProvider.test.tsx`, `LanguageSwitcher.test.tsx`, `WhatsNewPage.test.tsx`, `landingRouteContract.test.ts`, `ArabicPublicContentPages.test.tsx`, `productTrustCopy.test.ts`), `npm run test:i18n` passed (11 namespaces), `npm run test:i18n:coverage` passed (13 surfaces), `npx tsc --noEmit` passed (0 errors), `npm run build` passed (47.84s, 0 sourcemaps), `git diff --check` passed.
 * **What's New Decision Block:**
   ```text
   WHATS_NEW_DECISION
 
   Status:
-  WHATS_NEW_REQUIRED
+  WHATS_NEW_NOT_REQUIRED
 
   Reason:
-  Product Updates Hub (/whats-new and /ar/whats-new) UX overhaul, dynamic month derivation, and canonical public route locale routing authority shipped to production.
+  PR #260 is an operational bug fix and routing reconciliation of the /whats-new hub infrastructure itself (correcting existing release history, dynamic month derivation, and canonical locale authority). It does not introduce a separate customer product capability; creating a distinct release card would produce redundant meta-release clutter.
 
   Evidence:
   - PR: #260
   - Merge SHA: 4126c445c6c387057380f3d1279c0973c41b30a4
   - Production Deployment: dpl_9T8y4dZqVXoULMCVdLWvWUhvJkcK
-  - Browser/Runtime Verification: PASS (Owner manual live verification on production domain)
-
-  Public Release Title:
-  What's New Product Updates Hub & Public Locale Routing
-
-  Public Release Summary:
-  Reconciled 34 customer-facing release updates with dynamic month navigation and enforced canonical public route locale authority for English and Arabic.
-
-  Release Month:
-  2026-08
+  - Browser/Runtime Verification: PASS (Owner live visual verification; 47/47 automated tests)
   ```
 
 ## WiseResume What's New Page Content Reconciliation & UX Redesign — 2026-08-31
