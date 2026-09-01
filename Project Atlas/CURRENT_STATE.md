@@ -14,16 +14,24 @@
 
 ## P1 Pre-Load-Test Stabilization (Deployed & Production-Verified) — 2026-09-01
 
-* **Workstream Status:** `PASS_WITH_WARNINGS` (PR #263 merged into `main` at `176df210c6c1ed5a7e05a2cdeea94e792522c819`; targeted Appwrite `email-service` deployed; production runtime security and fail-close verified; live inbox delivery confirmation pending owner verification).
+* **Workstream Status:** `DEPLOYED_VERIFIED_READY` (`P1_DEPLOYED_VERIFIED_READY`) — PR #263 merged into `main` at `176df210c6c1ed5a7e05a2cdeea94e792522c819`; targeted Appwrite `email-service` deployed; production runtime security, custom-domain 501 fail-close, and full owner happy-path delivery verified in live production.
+* **Owner Confirmation Recorded:** `OWNER_VERIFIED_PORTFOLIO_CONTACT_HAPPY_PATH`
+  - Logged-out browser submission: **PASS**
+  - Cloudflare Turnstile positive path: **PASS**
+  - Actual inbox delivery to intended owner email: **PASS**
+  - Correct in-app `portfolio_message` owner notification: **PASS**
+  - Notification persistence after refresh/reopen: **PASS**
 * **Owner Decision Recorded:** `OWNER_APPROVED_TEMPORARY_CUSTOM_DOMAIN_BETA_DISABLE` — Incomplete WiseResume custom-domain portfolio beta remains fail-closed with HTTP 501 until intentionally implemented using an indexed, server-owned lookup.
-* **Deployment & Verification Status:**
-  - Appwrite Deployment: `DEPLOYED` — Workflow run `33508861238` succeeded in 1m45s. Deployment ID: `6a96c79aa3c6c53e6cdf` (status `ready`).
+* **Scope & Boundary Limits:** Broader application scalability has **NOT** been verified. P2/P3 findings remain untouched and unresolved for a subsequent authorized phase.
+* **Deployment & Verification Details:**
+  - Appwrite Deployment: `DEPLOYED` — Workflow run `33508861238` succeeded in 1m45s. Deployment ID: `6a96c79aa3c6c53e6cdf` (status `ready`). Targeted hub: `email-service` (`execute: ["any"]`).
   - Vercel Production: `DEPLOYED` — Deployment `4u755CpdjZ8dY3Qjamk6ksyDLs7t` (status `success`).
   - Runtime Browser QA: `VERIFIED` — Logged-out public portfolio loads at `https://wiseresume.app/p/magdy` with HTTP 200, no auth redirect, contact form and honeypot present.
   - Custom-Domain Fail-Close: `VERIFIED` — `GET /api/public-portfolio?mode=domain&domain=example.com` returns HTTP 501 Not Implemented with `{"error":"custom_domains_not_supported"}` instantaneously. Normal `/p/magdy` verified working immediately afterward.
   - Security Negative Paths: `VERIFIED` — Tested live against deployed `email-service`: generic action (`send-contact-email`) and wrong message type (`type: 'bug'`) rejected with HTTP 400; missing Turnstile rejected with HTTP 403 `{"error":"Security check required."}`; invalid Turnstile token rejected via Cloudflare Turnstile API with HTTP 403 `{"error":"Security check failed. Please try again."}`; honeypot trap silently returns HTTP 200 without email dispatch.
-  - Delivery Contract & Inbox: `OWNER_ACTION_REQUIRED_EMAIL_DELIVERY_CONFIRMATION` (Mailbox access unavailable to agent; live email delivery requires owner confirmation).
-  - Owner In-App Notification: `PENDING` (Owner session inspection required).
+  - Trusted Client IP: Trusted `x-appwrite-client-ip` runtime value verified; value redacted from documentation.
+  - Delivery Contract & Inbox: `VERIFIED` (Confirmed by owner inbox receipt).
+  - Owner In-App Notification: `VERIFIED` (Confirmed by owner notification tray inspection and persistence).
 * **P1-1 Public Portfolio Contact Form & Routing Isolation:**
   - Dedicated Public Route: Created isolated action `send-portfolio-contact-email` routed to public `email-service` hub (`execute: ["any"]`), invoked exclusively from `PortfolioContactForm`. Action override guard in `src/lib/appwrite-functions.ts` spreads `action: 'send-portfolio-contact-email'` after `...finalPayload` to prevent caller payload override.
   - Preserved Generic Routing: Restored `send-contact-email` inside `AI_HUB_FUNCTIONS` in `src/lib/appwrite-bridge.ts`, ensuring generic feedback, bug reports, auto-crash reports (`src/lib/sendFeedback.ts`), and username requests (`UsernameRequestDialog.tsx`) continue routing through `ai-gateway` with full crash deduplication and persistence.

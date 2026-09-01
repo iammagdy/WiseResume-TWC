@@ -1,17 +1,24 @@
 # Project Atlas — Active Operational & Handover State
 
 **Last Verified:** 2026-09-01
-**Status:** `PASS_WITH_WARNINGS` — PR #263 has been merged into `main` (`176df210c6c1ed5a7e05a2cdeea94e792522c819`). Targeted Appwrite deployment of `email-service` succeeded (Workflow run `33508861238`, deployment ID `6a96c79aa3c6c53e6cdf`, status `ready`). Production runtime security, custom-domain 501 fail-close, honeypot trap, and public portfolio rendering were all verified in live production. End-to-end inbox delivery requires owner mailbox confirmation (`OWNER_ACTION_REQUIRED_EMAIL_DELIVERY_CONFIRMATION`).
+**Status:** `P1_DEPLOYED_VERIFIED_READY` (`DEPLOYED_VERIFIED_READY`) — PR #263 has been merged into `main` (`176df210c6c1ed5a7e05a2cdeea94e792522c819`). Targeted Appwrite deployment of `email-service` succeeded (Workflow run `33508861238`, deployment ID `6a96c79aa3c6c53e6cdf`, status `ready`). Full owner happy-path delivery and in-app notification persistence have been verified in live production (`OWNER_VERIFIED_PORTFOLIO_CONTACT_HAPPY_PATH`).
 **Location:** `Project Atlas/WHERE_WE_STOPPED.md`
 
 ## P1 Pre-Load-Test Stabilization (Deployed & Production-Verified) — 2026-09-01
 
-* **Workstream Verdict:** `PASS_WITH_WARNINGS`.
+* **Workstream Verdict:** `DEPLOYED_VERIFIED_READY` (`P1_DEPLOYED_VERIFIED_READY`).
 * **Merge Commit:** [`176df210c6c1ed5a7e05a2cdeea94e792522c819`](https://github.com/iammagdy/WiseResume-TWC/commit/176df210c6c1ed5a7e05a2cdeea94e792522c819) (`main`).
+* **Owner Happy-Path Evidence Recorded:** `OWNER_VERIFIED_PORTFOLIO_CONTACT_HAPPY_PATH`
+  - Logged-out browser submission: **PASS**
+  - Cloudflare Turnstile positive path: **PASS**
+  - Actual inbox delivery: **PASS** (Contact email received in intended portfolio-owner inbox)
+  - Correct owner notification: **PASS** (In-app `portfolio_message` appeared for correct owner)
+  - Notification persistence after refresh/reopen: **PASS**
 * **Owner Decision Recorded:** `OWNER_APPROVED_TEMPORARY_CUSTOM_DOMAIN_BETA_DISABLE` — Incomplete WiseResume custom-domain portfolio beta remains fail-closed with HTTP 501 until intentionally implemented using an indexed, server-owned lookup.
+* **Scope & Boundary Limits:** Broader application scalability has **NOT** been verified. P2/P3 findings remain untouched and unresolved for a subsequent authorized phase.
 * **PR:** [PR #263](https://github.com/iammagdy/WiseResume-TWC/pull/263) (Status: `MERGED`).
 * **Deployment Status:**
-  - Appwrite Deployment: `DEPLOYED` via `.github/workflows/deploy-appwrite-hubs.yml` (Run ID: `33508861238`, Deployment ID: `6a96c79aa3c6c53e6cdf`, status: `ready`).
+  - Appwrite Deployment: `DEPLOYED` via `.github/workflows/deploy-appwrite-hubs.yml` (Run ID: `33508861238`, Deployment ID: `6a96c79aa3c6c53e6cdf`, status: `ready`). Targeted hub: `email-service` (`execute: ["any"]`).
   - Vercel Deployment: `DEPLOYED` automatically from `main` (Deployment `4u755CpdjZ8dY3Qjamk6ksyDLs7t`, status: `success`).
 * **Production Runtime QA Evidence:**
   - Standard Public Portfolio: Loaded logged out at `https://wiseresume.app/p/magdy` with HTTP 200 OK. Public sections rendered, no auth redirect, contact form and honeypot present in DOM.
@@ -19,9 +26,9 @@
   - Narrow Public Route Security: Tested live against deployed `email-service`. Generic `action: 'send-contact-email'` and non-portfolio types (`type: 'bug'`) strictly rejected with HTTP 400 without touching database or Resend.
   - Negative Turnstile Enforcement: Missing Turnstile rejected with HTTP 403 `{"error":"Security check required."}`; invalid Turnstile token verified outbound via Cloudflare Turnstile API and rejected with HTTP 403 `{"error":"Security check failed. Please try again."}`.
   - Honeypot Trap: Live execution with `website` populated returned silent HTTP 200 `{ status: 'success', data: { id: null, success: true } }` without dispatching email or notifications.
-  - Trusted Client IP: Verified runtime reads `x-appwrite-client-ip` header injected at Appwrite gateway.
-  - Delivery Contract & Inbox: `OWNER_ACTION_REQUIRED_EMAIL_DELIVERY_CONFIRMATION` (Mailbox access unavailable to agent; live email delivery requires owner confirmation).
-  - Owner In-App Notification: `PENDING` (Owner session inspection required).
+  - Trusted Client IP: Trusted `x-appwrite-client-ip` runtime value verified; value redacted from documentation.
+  - Delivery Contract & Inbox: `VERIFIED` (Confirmed by owner inbox receipt).
+  - Owner In-App Notification: `VERIFIED` (Confirmed by owner notification tray inspection and persistence).
 * **Work Accomplished & Merged to `main`:**
   1. **P1-1 Public Portfolio Contact Form & Routing Isolation:**
      - Created dedicated public action `send-portfolio-contact-email` routed exclusively to public `email-service` (`execute: ["any"]`).
@@ -56,16 +63,16 @@
   WHATS_NEW_DECISION
 
   Status:
-  WHATS_NEW_DEFER_UNTIL_PRODUCTION
+  WHATS_NEW_REQUIRED
 
   Reason:
-  P1-1 restores functionality for public portfolio contact submissions by anonymous visitors. This is a customer-impacting bug fix, but release notes are deferred until owner confirms live inbox receipt in production.
+  P1-1 restores reliable public portfolio contact submissions for anonymous visitors, backed by Turnstile and atomic concurrency-safe hourly rate limiting. End-to-end delivery confirmed by owner inbox receipt and persistent in-app notifications.
 
   Evidence:
   - Branch: main
   - Merge Commit: 176df210c6c1ed5a7e05a2cdeea94e792522c819
   - Deployed Appwrite Run ID: 33508861238 (email-service deployment 6a96c79aa3c6c53e6cdf)
-  - Missing for publication: Owner confirmation of live inbox delivery receipt.
+  - Owner Verification: OWNER_VERIFIED_PORTFOLIO_CONTACT_HAPPY_PATH confirmed in live production.
   ```
 
 * **Remaining P2/P3 Scope Untouched:**
@@ -74,7 +81,7 @@
   - P2-3 (Tailoring client polling loop): Untouched.
   - P3 findings: Untouched.
 * **Exact Next Action:**
-  Owner confirms live inbox delivery receipt for portfolio contact form submission, then authorize subsequent P2 optimization phase.
+  Merge documentation PR #264, then begin planning and implementation of authorized P2 optimizations (`useMe` 15s polling, autosave cache invalidation).
 
 ## Final Repository Cleanup to Main-Only — 2026-09-01
 

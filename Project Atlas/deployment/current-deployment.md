@@ -69,14 +69,22 @@ Appwrite Functions are deployed independently from the frontend application usin
   - **Narrow Public Route Security:** Tested live against deployed `email-service`. Generic `action: 'send-contact-email'` and non-portfolio types (`type: 'bug'`) strictly rejected with HTTP 400 without touching database or Resend.
   - **Negative Turnstile Enforcement:** Missing Turnstile rejected with HTTP 403 `{"error":"Security check required."}`; invalid Turnstile token verified outbound via Cloudflare Turnstile API and rejected with HTTP 403 `{"error":"Security check failed. Please try again."}`.
   - **Honeypot Trap:** Live execution with `website` populated returned silent HTTP 200 `{ status: 'success', data: { id: null, success: true } }` without dispatching email or notifications.
-  - **Trusted Client IP:** Verified runtime reads `x-appwrite-client-ip` header injected at Appwrite gateway.
+  - **Trusted Client IP:** Trusted `x-appwrite-client-ip` runtime value verified; value redacted from documentation.
+* **Owner Happy-Path Evidence Recorded:** `OWNER_VERIFIED_PORTFOLIO_CONTACT_HAPPY_PATH`
+  - Logged-out browser submission: **PASS**
+  - Cloudflare Turnstile positive path: **PASS**
+  - Actual inbox delivery: **PASS** (Contact email received in intended portfolio-owner inbox)
+  - Correct owner notification: **PASS** (In-app `portfolio_message` appeared for correct owner)
+  - Notification persistence after refresh/reopen: **PASS**
 * **Verification Classification:**
+  - Status: `DEPLOYED_VERIFIED_READY` (`P1_DEPLOYED_VERIFIED_READY`).
   - Appwrite Deployed: `VERIFIED` (`6a96c79aa3c6c53e6cdf`, ready).
   - Browser Page Tested: `VERIFIED` (logged out, no auth redirect).
   - Custom-Domain Fail-Close: `VERIFIED` (HTTP 501).
   - Security Negative Paths: `VERIFIED` (400 on wrong action, 403 on missing/invalid Turnstile, 200 on honeypot).
-  - Inbox Delivery: `OWNER_ACTION_REQUIRED_EMAIL_DELIVERY_CONFIRMATION` (Mailbox access unavailable to agent; live email delivery requires owner inbox confirmation).
-  - Owner In-App Notification: `PENDING` (Owner session inspection required).
+  - Inbox Delivery: `VERIFIED` (Confirmed by owner inbox receipt).
+  - Owner In-App Notification: `VERIFIED` (Confirmed by owner notification tray inspection and persistence).
+* **Scope & Boundary Limits:** Broader application scalability has **NOT** been verified. P2/P3 findings remain untouched and unresolved for a subsequent authorized phase.
 
 ### Phase P1/P2/P3 Production Billing Deployment & Webhook Routing Status — 2026-08-30
 
