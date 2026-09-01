@@ -1,5 +1,54 @@
 # WiseResume Atlas Master Changelog
 
+### 2026-09-01 - WiseResume P1 Pre-Load-Test Stabilization
+
+- **Workstream Verdict:** `TESTED_LOCAL_WITH_WARNINGS` with `OWNER_ACTION_REQUIRED` for production custom domain verification and targeted deployment authorization (runtime QA pending deployment).
+- **Active Branch:** `fix/p1-preload-stabilization` (branched from `main` @ `4a75c96483be4a81ed91f34d4f48415f0ab88857`). Working tree contains uncommitted stabilization diff and tests.
+- **P1-1 Public Portfolio Contact Form Remediation:**
+  - Removed `send-contact-email` from `AI_HUB_FUNCTIONS` in `src/lib/appwrite-bridge.ts`.
+  - Added `send-contact-email` to `ANONYMOUS_PUBLIC_SHARE_FUNCTIONS` and routed to Appwrite Function `email-service` (`action: 'send-contact-email'`) in `src/lib/appwrite-functions.ts`.
+  - Preserved `ai-gateway` execution boundary strictly to `["users"]`.
+  - Implemented `handleSendContactEmail` in `appwrite-hubs/email-service/src/main.js` (`execute: ["any"]`) supporting:
+    - Trusted Client IP: Reads solely `req.headers['x-appwrite-client-ip']` injected at Appwrite Cloud infrastructure gateway; strictly ignores caller-supplied `body?.__headers` and spoofable proxy headers.
+    - Honeypot silent trap (`website` field)
+    - Cloudflare Turnstile token validation (`verifyTurnstileToken`) and fallback to user session JWT
+    - Input validation and string length clamping
+    - Multi-tier rate limiting: in-memory (3 req/hr per IP) and persistent DB checks (`email_rate_limits` collection)
+    - Atomic slot reservation concurrency via `db.incrementDocumentAttribute` up to 3 slots
+    - Portfolio owner resolution via `profiles` collection by `username`
+    - HTML transactional email delivery via Resend with `reply_to: visitorEmail`
+    - In-app notification creation in `notifications` collection with permissions scoped strictly to `Role.user(ownerUserId)`
+  - Added `TURNSTILE_SECRET_KEY` variable propagation to `email-service` in `scripts/deploy_hubs.cjs` without printing secrets.
+  - Recomputed hub source hashes in `src/lib/devkit/sourceHashes.generated.json` for CI deployment gate compliance.
+  - Added comprehensive unit test suite in `tests/hubs/email-service-portfolio-contact.test.cjs` (12/12 pass).
+- **P1-2 Custom Domain Public Scan Remediation:**
+  - Fail-closed `GET /api/public-portfolio?mode=domain` with HTTP `501 Not Implemented` (`custom_domains_not_supported`) in `api/public-portfolio.ts`.
+  - Replaced `findProfileByCustomDomain` with immediate `null` return to prevent unindexed 5,000-doc scan loops.
+  - Preserved normal `/p/:username` path untouched.
+  - Added security contract assertion in `src/lib/security/publicPrivacyHardening.test.ts` (5/5 pass).
+- **Validation Evidence:**
+  - `node --test tests/hubs/email-service-portfolio-contact.test.cjs`: 12/12 passed.
+  - `node --test tests/hubs/email-service-verification.test.cjs`: 1/1 passed.
+  - `node --test tests/hubs/appwrite-function-policy.test.cjs`: 4/4 passed.
+  - `npx vitest run src/lib/security/publicPrivacyHardening.test.ts`: 5/5 passed.
+  - `npx vitest run src/hooks/__tests__/usePublicPortfolio.test.tsx`: 38/38 passed.
+  - `npx vitest run src/pages/__tests__/NotificationsPage.filter.test.ts`: 10/10 passed.
+  - `node --check appwrite-hubs/email-service/src/main.js`: Clean exit code 0.
+  - `npx tsc --noEmit`: Clean exit code 0.
+  - `npm run build`: Clean production build (0 sourcemaps).
+  - `git diff --check`: Clean formatting, 0 errors.
+- **Targeted Deployment Requirement:**
+  - Appwrite: GitHub Actions workflow `.github/workflows/deploy-appwrite-hubs.yml` with input `target: email-service`. No `target=all`.
+  - Frontend Rollback: Repository-controlled only (`git revert on main → normal Vercel deployment from main`). No manual Vercel dashboard actions.
+  - Preview Turnstile Status: `PREVIEW_TURNSTILE_RUNTIME_UNVERIFIED` (backend accepts `*.vercel.app` and `localhost`, but Cloudflare widget sitekey issuance on preview hostnames is unverified until live runtime tested).
+- **What's New Decision Block (Mandatory Gate):**
+  ```text
+  WHATS_NEW_DECISION
+  Status: WHATS_NEW_DEFER_UNTIL_PRODUCTION
+  Reason: P1-1 fixes public portfolio contact submission for anonymous visitors. Customer-impacting fix deferred until production deployment (Appwrite email-service and Vercel) and live verification.
+  Evidence: Branch fix/p1-preload-stabilization, base commit 4a75c96483be4a81ed91f34d4f48415f0ab88857.
+  ```
+
 ## 2026-09-01 - WiseResume Final Repository Cleanup to Main-Only
 
 - **Verdict:** `REPOSITORY_MAIN_ONLY_VERIFIED` (pending PR #262 merge)

@@ -118,29 +118,11 @@ async function findProfileByUsername(db: Databases, username: string) {
   return (res.documents?.[0] as Record<string, unknown> | undefined) ?? null;
 }
 
-async function findProfileByCustomDomain(db: Databases, domain: string) {
-  let offset = 0;
-
-  while (offset < 5000) {
-    const res = await db.listDocuments(DATABASE_ID, PROFILES_COLLECTION, [
-      Query.equal('portfolio_enabled', true),
-      Query.limit(100),
-      Query.offset(offset),
-    ]);
-    if (!res.documents.length) return null;
-
-    for (const doc of res.documents as unknown as Record<string, unknown>[]) {
-      const extras = parseJsonField<Record<string, unknown>>(doc.portfolio_extras, {});
-      const customDomain = asString(extras.customDomain).toLowerCase();
-      if (customDomain && customDomain === domain.toLowerCase()) {
-        return doc;
-      }
-    }
-
-    if (res.documents.length < 100) return null;
-    offset += 100;
-  }
-
+// CUSTOM DOMAINS (P1-2): Custom domain portfolio lookup is not enabled in this
+// environment because customDomain is stored inside the unindexed portfolio_extras
+// JSON blob. To prevent expensive 5,000-document scans, this helper immediately
+// returns null. See handler mode=domain fail-close below.
+async function findProfileByCustomDomain(_db: Databases, _domain: string) {
   return null;
 }
 
@@ -321,13 +303,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if (req.method === 'GET' && mode === 'domain') {
-      const domain = asString(req.query.domain);
-      if (!domain) return res.status(400).json({ error: 'bad_request' });
-      const profile = await findProfileByCustomDomain(db, domain);
-      if (!profile) return res.status(404).json({ error: 'not_found' });
-      return res.status(200).json({
-        profile: { username: asString(profile.username) },
-        resume: { $id: '' },
+      return res.status(501).json({
+        error: 'custom_domains_not_supported',
+        message: 'Custom domain portfolio lookup is not enabled in this environment.',
       });
     }
 

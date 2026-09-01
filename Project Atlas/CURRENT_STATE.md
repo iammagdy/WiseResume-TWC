@@ -1,7 +1,8 @@
 # WiseResume Current Production State Snapshot
 
 **Last Verified:** 2026-09-01
-**Status:** `PADDLE_DOMAIN_REVIEW_SITE_READY` with `WHATS_NEW_VERIFIED_READY` — Production application snapshot preserves active multi-workstream state:
+**Status:** `P1_STABILIZATION_BRANCH_READY` / `PADDLE_DOMAIN_REVIEW_SITE_READY` with `WHATS_NEW_VERIFIED_READY` — Production application snapshot preserves active multi-workstream state:
+* **P1 Pre-Load-Test Stabilization (`fix/p1-preload-stabilization`):** Implemented and verified locally. P1-1 (Public contact form) routed to `email-service` (`execute: ["any"]`) with Turnstile & durable `email_rate_limits` checks. P1-2 (Custom domain scan) fail-closed with 501 `custom_domains_not_supported`. All unit tests, TypeScript compilation, and production build pass.
 * **What's New Remediation (PR #260):** `VERIFIED_READY` — PR #260 (`fix/whats-new-timeline-locale-routing`, HEAD `e9aed13d44f49bde1fe5fffbf7653241208abfba`) merged into `main` at merge SHA `4126c445c6c387057380f3d1279c0973c41b30a4`. Production Vercel deployment `dpl_9T8y4dZqVXoULMCVdLWvWUhvJkcK` completed with status `READY`. Live visual verification confirmed by owner on `https://wiseresume.app/whats-new` and `https://wiseresume.app/ar/whats-new`.
 * **Paddle Domain Review & Legal Accuracy (PR #256):** Preserved as `PADDLE_DOMAIN_REVIEW_SITE_READY` (merged @ `1ee534aeb0fce2844f5d03e2ba1ca755f056491b`; deployment `8Fo4XQe7PLPvQM39xggzPeXUKTYB`; 17/17 live Playwright verification; Paddle website approval status: SUBMITTED / AWAITING REVIEW).
 * **Billing Safety State:** Production billing remains strictly disabled (`BILLING_CHECKOUT_ENABLED=false`). Payment baseline state preserved: `P4_CATALOG_RECONCILIATION_SUCCESS` (run `33376804507`) and `P4_PREFLIGHT_SAFE_BUT_ORIGIN_UNVERIFIED` (run `33376897666`). Zero checkouts/payments created.
@@ -10,6 +11,39 @@
 **Production:** `https://wiseresume.app`
 
 ---
+
+## P1 Pre-Load-Test Stabilization (Branch `fix/p1-preload-stabilization`) — 2026-09-01
+
+* **Workstream Status:** `TESTED_LOCAL_WITH_WARNINGS` with `OWNER_ACTION_REQUIRED` (Pending targeted Appwrite and Vercel deployments; runtime QA pending deployment).
+* **Base Commit:** `4a75c96483be4a81ed91f34d4f48415f0ab88857` (`main`). Working tree contains modified/untracked files on `fix/p1-preload-stabilization`.
+* **P1-1 Public Portfolio Contact Form:**
+  - Decoupled `send-contact-email` from `ai-gateway` to preserve `ai-gateway`'s authenticated-only (`execute: ["users"]`) boundary.
+  - Implemented `handleSendContactEmail` in public `email-service` hub (`execute: ["any"]`).
+  - Trusted client IP: Extracted exclusively from `req.headers['x-appwrite-client-ip']` (injected at Appwrite Cloud infrastructure gateway). Caller-supplied `body?.__headers` and spoofable proxy headers (`x-forwarded-for`, `x-real-ip`) are strictly ignored. Missing platform IP falls back to `unknown`.
+  - Added Cloudflare Turnstile token validation (`verifyTurnstileToken` via native `fetch`), honeypot silent trap (`website`), input sanitization and string length caps.
+  - Preserved existing abuse policy: 3 submissions per IP per hour.
+  - Concurrency & Persistence: Atomic slot reservation up to 3 using Appwrite's `incrementDocumentAttribute` on `email_rate_limits` collection with SHA-256 document IDs bounded to 32 characters.
+  - Added portfolio owner resolution from `profiles` collection, Resend email dispatch with `reply_to: visitorEmail`, and in-app notification insertion in `notifications` collection.
+  - Updated `scripts/deploy_hubs.cjs` to ensure `TURNSTILE_SECRET_KEY` is provided to `email-service` without logging secret values.
+  - Generated updated `src/lib/devkit/sourceHashes.generated.json` for CI deployment gate compliance.
+* **P1-2 Custom Domain Public Scan:**
+  - Fail-closed `GET /api/public-portfolio?mode=domain` with HTTP `501 Not Implemented` (`custom_domains_not_supported`) without scanning unindexed profile documents.
+  - Immediate `null` return in `findProfileByCustomDomain` prevents any 5,000-document offset loops. Standard username portfolio lookups (`/p/:username`) are unaffected.
+* **Validation Evidence:**
+  - 12/12 unit tests passed in `tests/hubs/email-service-portfolio-contact.test.cjs`.
+  - 5/5 security tests passed in `src/lib/security/publicPrivacyHardening.test.ts`.
+  - 38/38 public portfolio tests passed in `src/hooks/__tests__/usePublicPortfolio.test.tsx`.
+  - 1/1 passed in `tests/hubs/email-service-verification.test.cjs`.
+  - 4/4 passed in `tests/hubs/appwrite-function-policy.test.cjs`.
+  - 10/10 passed in `src/pages/__tests__/NotificationsPage.filter.test.ts`.
+  - `node --check appwrite-hubs/email-service/src/main.js` passed.
+  - `npx tsc --noEmit` passed with 0 errors.
+  - `npm run build` passed (0 sourcemaps).
+  - `git diff --check` passed cleanly.
+* **Targeted Deployment Requirement:**
+  - Appwrite: GitHub Actions workflow `.github/workflows/deploy-appwrite-hubs.yml` with input `target: email-service`. No `target=all`.
+  - Frontend Rollback: Repository-controlled only (`git revert on main → normal Vercel deployment from main`). No manual Vercel dashboard rollback.
+  - Preview Turnstile Status: `PREVIEW_TURNSTILE_RUNTIME_UNVERIFIED` (backend accepts `*.vercel.app` and `localhost`, but Cloudflare widget sitekey issuance on preview hostnames is unverified until live runtime tested).
 
 ## What's New Product Updates Hub & Public Locale Routing (PR #260) — 2026-09-01
 

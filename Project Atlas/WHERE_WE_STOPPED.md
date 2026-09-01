@@ -1,8 +1,75 @@
 # Project Atlas — Active Operational & Handover State
 
 **Last Verified:** 2026-09-01
-**Status:** `PADDLE_DOMAIN_REVIEW_SITE_READY` with `REPOSITORY_MAIN_ONLY_READY` — Repository consolidation to main-only completed: All external worktrees removed; all historical reports promoted and archived into Project Atlas; 7 PRs closed without merge (#252, #235, #232, #228, #165, #164, #163); all historical and feature branches deleted locally and remotely; PR #262 is the sole remaining open PR containing final Atlas documentation. Post-merge target: local `main` only, remote `origin/main` only, 0 open PRs, 1 worktree. Active Paddle/payments readiness baseline preserved.
+**Status:** `P1_PRELOAD_STABILIZATION_LOCAL_TESTED` / `TESTED_LOCAL_WITH_WARNINGS` — P1-1 (Public portfolio contact form) and P1-2 (Custom domain public scan) have been implemented and verified locally on branch `fix/p1-preload-stabilization`. All automated tests, typechecks, and builds pass. Working tree contains uncommitted stabilization diff and tests pending owner commit authorization. Runtime QA pending deployment.
 **Location:** `Project Atlas/WHERE_WE_STOPPED.md`
+
+## P1 Pre-Load-Test Stabilization — 2026-09-01
+
+* **Workstream Verdict:** `TESTED_LOCAL_WITH_WARNINGS` with `OWNER_ACTION_REQUIRED` for production custom-domain verification and deployment authorization.
+* **Active Branch:** `fix/p1-preload-stabilization` (branched from `main` @ `4a75c96483be4a81ed91f34d4f48415f0ab88857`)
+* **Working Tree State:** Not clean; contains modified files (`api/public-portfolio.ts`, `appwrite-hubs/email-service/src/main.js`, `scripts/deploy_hubs.cjs`, `src/lib/appwrite-bridge.ts`, `src/lib/appwrite-functions.ts`, `src/lib/devkit/sourceHashes.generated.json`, `src/lib/security/publicPrivacyHardening.test.ts`, and Atlas docs) plus untracked test `tests/hubs/email-service-portfolio-contact.test.cjs`.
+* **Work Accomplished:**
+  1. **P1-1 Public Portfolio Contact Form:**
+     - Removed `send-contact-email` from `AI_HUB_FUNCTIONS` in `src/lib/appwrite-bridge.ts`.
+     - Added `send-contact-email` to `ANONYMOUS_PUBLIC_SHARE_FUNCTIONS` and routed to Appwrite Function `email-service` (`action: 'send-contact-email'`) in `src/lib/appwrite-functions.ts`.
+     - Preserved `ai-gateway` execution boundary strictly to `["users"]`.
+     - Implemented `handleSendContactEmail` in `appwrite-hubs/email-service/src/main.js` (`execute: ["any"]`) supporting:
+       - Trusted Client IP: Reads solely `req.headers['x-appwrite-client-ip']` from Appwrite runtime. Ignores caller-supplied `body?.__headers` and spoofable headers.
+       - Honeypot silent trap (`website` field)
+       - Cloudflare Turnstile token validation (`verifyTurnstileToken`) and fallback to user session JWT
+       - Input validation and string length clamping
+       - Multi-tier rate limiting: in-memory (3 req/hr per IP) and persistent DB checks (`email_rate_limits` collection)
+       - Atomic slot reservation concurrency via `db.incrementDocumentAttribute` up to 3 slots
+       - Portfolio owner resolution via `profiles` collection by `username`
+       - HTML transactional email delivery via Resend with `reply_to: visitorEmail`
+       - In-app notification creation in `notifications` collection with permissions scoped strictly to `Role.user(ownerUserId)`
+     - Added `TURNSTILE_SECRET_KEY` variable propagation to `email-service` in `scripts/deploy_hubs.cjs`.
+     - Recomputed source hashes in `src/lib/devkit/sourceHashes.generated.json`.
+     - Added comprehensive unit test suite in `tests/hubs/email-service-portfolio-contact.test.cjs` (12/12 pass).
+  2. **P1-2 Custom Domain Public Scan:**
+     - Fail-closed `GET /api/public-portfolio?mode=domain` with HTTP `501 Not Implemented` (`custom_domains_not_supported`) in `api/public-portfolio.ts`.
+     - Replaced `findProfileByCustomDomain` with immediate `null` return to prevent any unindexed 5,000-doc scan loops.
+     - Preserved normal `/p/:username` path untouched.
+     - Added security contract assertion in `src/lib/security/publicPrivacyHardening.test.ts` (5/5 pass).
+* **Validation Evidence:**
+  - `node --test tests/hubs/email-service-portfolio-contact.test.cjs`: 12/12 passed.
+  - `node --test tests/hubs/email-service-verification.test.cjs`: 1/1 passed.
+  - `node --test tests/hubs/appwrite-function-policy.test.cjs`: 4/4 passed.
+  - `npx vitest run src/lib/security/publicPrivacyHardening.test.ts`: 5/5 passed.
+  - `npx vitest run src/hooks/__tests__/usePublicPortfolio.test.tsx`: 38/38 passed.
+  - `npx vitest run src/pages/__tests__/NotificationsPage.filter.test.ts`: 10/10 passed.
+  - `node --check appwrite-hubs/email-service/src/main.js`: Clean exit code 0.
+  - `npx tsc --noEmit`: Clean exit code 0.
+  - `npm run build`: Clean production build (0 sourcemaps).
+  - `git diff --check`: Clean formatting, 0 errors.
+* **What's New Decision Block (Mandatory Gate):**
+  ```text
+  WHATS_NEW_DECISION
+
+  Status:
+  WHATS_NEW_DEFER_UNTIL_PRODUCTION
+
+  Reason:
+  P1-1 restores functionality for public portfolio contact submissions by anonymous visitors. This is a customer-impacting bug fix, but release notes are deferred until targeted deployment to production (Appwrite email-service and Vercel) and live production verification are complete.
+
+  Evidence:
+  - Branch: fix/p1-preload-stabilization
+  - Base Commit: 4a75c96483be4a81ed91f34d4f48415f0ab88857
+  - Missing for publication: Targeted deploy of email-service to Appwrite and production browser QA.
+  ```
+
+* **Remaining P2/P3 Scope Untouched:**
+  - P2-1 (`useMe` 15s polling): Untouched.
+  - P2-2 (Autosave invalidation): Untouched.
+  - P2-3 (Tailoring client polling loop): Untouched.
+  - P3 findings: Untouched.
+* **Owner Action Required:**
+  1. Inspect production database to confirm zero custom-domain profiles exist in production.
+  2. Authorize commit and PR creation for branch `fix/p1-preload-stabilization`.
+  3. Authorize targeted deployment of `email-service` hub via GitHub Actions workflow `.github/workflows/deploy-appwrite-hubs.yml` with `target: email-service` (no `target=all`).
+  4. Note that frontend rollback is strictly repository-controlled: `git revert on main → normal Vercel deployment from main` (no manual Vercel dashboard actions).
+  5. Preview Turnstile verification: `PREVIEW_TURNSTILE_RUNTIME_UNVERIFIED` until Cloudflare widget configuration is runtime tested on preview hostnames.
 
 ## Final Repository Cleanup to Main-Only — 2026-09-01
 

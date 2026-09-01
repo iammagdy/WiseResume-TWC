@@ -71,6 +71,7 @@ const ENDPOINT    = (process.env.APPWRITE_ENDPOINT    || process.env.APPWRITE_FU
 const PROJECT_ID  = process.env.APPWRITE_PROJECT_ID   || process.env.APPWRITE_FUNCTION_PROJECT_ID  || '69fd362b001eb325a192';
 const FRONTEND_URL = (process.env.FRONTEND_URL || 'https://wiseresume.app').replace(/\/$/, '');
 const RESEND_BASE  = 'https://api.resend.com';
+const DB_ID        = 'main';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -250,12 +251,22 @@ async function confirmEmailVerification(userId, secret) {
  * @param {string=} opts.fromEmail Override sender email (default: RESEND_FROM_EMAIL env)
  * @param {string=} opts.fromName  Override sender name (default: RESEND_FROM_NAME env)
  */
-async function resendSend({ to, subject, html, fromEmail, fromName }) {
+async function resendSend({ to, subject, html, fromEmail, fromName, replyTo }) {
   const apiKey         = process.env.RESEND_API_KEY    || '';
   const resolvedEmail  = fromEmail || process.env.RESEND_FROM_EMAIL || 'noreply@thewise.cloud';
   const resolvedName   = fromName  || process.env.RESEND_FROM_NAME  || 'WiseResume';
 
   if (!apiKey) throw new Error('RESEND_API_KEY is not configured');
+
+  const payload = {
+    from: `${resolvedName} <${resolvedEmail}>`,
+    to:   Array.isArray(to) ? to : [to],
+    subject,
+    html,
+  };
+  if (replyTo) {
+    payload.reply_to = replyTo;
+  }
 
   const res = await fetch(`${RESEND_BASE}/emails`, {
     method: 'POST',
@@ -263,12 +274,7 @@ async function resendSend({ to, subject, html, fromEmail, fromName }) {
       'Authorization': `Bearer ${apiKey}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({
-      from: `${resolvedName} <${resolvedEmail}>`,
-      to:   [to],
-      subject,
-      html,
-    }),
+    body: JSON.stringify(payload),
   });
 
   const text = await res.text();
@@ -931,7 +937,6 @@ async function handleSendTest({ req, res, log, error, body }) {
 
 // ─── Main handler ─────────────────────────────────────────────────────────────
 
-const DB_ID = 'main';
 const ADMIN_RESET_NONCES_COLLECTION_ID = 'admin_reset_request_nonces';
 const ADMIN_RESET_NONCE_TTL_MS = 5 * 60 * 1000;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -1545,15 +1550,395 @@ async function handleCompletePasswordReset({ res, log, error, body }) {
   }
 }
 
+// ─── Contact Email Handlers (P1-1) ──────────────────────────────────────────
+
+const _contactRateLimits = new Map(); // ip -> { count, resetAt }
+const CONTACT_RATE_WINDOW_MS = 60 * 60 * 1000; // 1 hour
+const CONTACT_RATE_MAX = 3; // 3 emails per IP per hour (strictly preserves ai-gateway policy)
+
+function escapeHtml(str) {
+  return String(str || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+/**
+ * Extract trusted client IP from Appwrite serverless runtime.
+ *
+ * Appwrite Cloud serverless execution environment injects the verified client IP
+ * into `req.headers['x-appwrite-client-ip']` at the infrastructure gateway.
+ * We NEVER trust caller-supplied request body fields, `__headers`, or spoofable
+ * headers like `x-forwarded-for` or `client-ip`.
+ */
+function getTrustedAppwriteClientIp(req) {
+  const headers = (req && req.headers) || {};
+  const platformIp = typeof headers['x-appwrite-client-ip'] === 'string'
+    ? headers['x-appwrite-client-ip'].trim()
+    : '';
+  return platformIp || 'unknown';
+}
+
+async function verifyTurnstileToken(token, clientIp = '', correlationId = '') {
+  const secret = process.env.TURNSTILE_SECRET_KEY;
+  if (!secret) {
+    console.warn(`[turnstile] [${correlationId}] TURNSTILE_SECRET_KEY not set - rejecting request`);
+    return { ok: false, code: 'TURNSTILE_SECRET_MISSING' };
+  }
+  if (!token) {
+    return { ok: false, code: 'TURNSTILE_TOKEN_MISSING' };
+  }
+
+  try {
+    const params = new URLSearchParams({ secret, response: token });
+    if (clientIp && clientIp !== 'unknown' && clientIp !== '127.0.0.1' && clientIp !== '::1') {
+      params.set('remoteip', clientIp);
+    }
+    const response = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: params.toString(),
+    });
+    const result = await response.json();
+    const success = result?.success === true;
+    const hostname = result?.hostname || '';
+
+    if (!success) {
+      console.warn(`[turnstile] [${correlationId}] Verification failed:`, JSON.stringify(result));
+      return { ok: false, code: 'TURNSTILE_SITEVERIFY_FAILED' };
+    }
+
+    const expectedHostnames = ['wiseresume.app', 'www.wiseresume.app'];
+    const isLocalOrVercel = hostname.includes('localhost') || hostname.includes('vercel.app') || hostname.includes('127.0.0.1');
+    if (!expectedHostnames.includes(hostname) && !isLocalOrVercel) {
+      console.warn(`[turnstile] [${correlationId}] Hostname mismatch: got ${hostname}`);
+      return { ok: false, code: 'TURNSTILE_HOSTNAME_MISMATCH' };
+    }
+
+    return { ok: true };
+  } catch (err) {
+    console.warn(`[turnstile] [${correlationId}] verification error:`, err?.message);
+    return { ok: false, code: 'TURNSTILE_SITEVERIFY_FAILED' };
+  }
+}
+
+let _injectedAccount = null;
+async function validateUserSession(req) {
+  const headers = (req && req.headers) || {};
+  const jwt = headers['x-appwrite-jwt'] || headers['x-appwrite-user-jwt'];
+  if (!jwt) return { ok: false };
+  if (_injectedAccount) {
+    try {
+      const user = await _injectedAccount.get();
+      return { ok: true, user };
+    } catch {
+      return { ok: false };
+    }
+  }
+  try {
+    const client = new sdk.Client()
+      .setEndpoint(ENDPOINT)
+      .setProject(PROJECT_ID)
+      .setJWT(jwt);
+    const account = new sdk.Account(client);
+    const user = await account.get();
+    return { ok: true, user };
+  } catch {
+    return { ok: false };
+  }
+}
+
+function checkInMemoryContactRateLimit(ip) {
+  const key = ip && ip !== 'unknown' ? ip : null;
+  if (!key) return { ok: true };
+  const now = Date.now();
+  const entry = _contactRateLimits.get(key);
+  if (!entry || now > entry.resetAt) {
+    _contactRateLimits.set(key, { count: 1, resetAt: now + CONTACT_RATE_WINDOW_MS });
+    return { ok: true };
+  }
+  if (entry.count >= CONTACT_RATE_MAX) {
+    return { ok: false, retryAfterSeconds: Math.ceil((entry.resetAt - now) / 1000) };
+  }
+  entry.count += 1;
+  return { ok: true };
+}
+
+async function checkPersistentContactRateLimit(db, clientIp, senderEmail) {
+  const rateKey = (clientIp && clientIp !== 'unknown')
+    ? clientIp
+    : (senderEmail ? `email:${senderEmail}` : null);
+  if (!rateKey) return { ok: true };
+
+  const id = crypto.createHash('sha256').update(rateKey).digest('hex').slice(0, 32);
+  const now = Date.now();
+
+  try {
+    let doc;
+    try {
+      doc = await db.getDocument(DB_ID, 'email_rate_limits', id);
+    } catch (e) {
+      if (e?.code === 404 || /could not be found/i.test(e?.message || '')) doc = null;
+      else throw e;
+    }
+
+    if (!doc || now > new Date(doc.reset_at).getTime()) {
+      const resetAt = new Date(now + CONTACT_RATE_WINDOW_MS).toISOString();
+      if (!doc) {
+        try {
+          await db.createDocument(DB_ID, 'email_rate_limits', id, { count: 1, reset_at: resetAt });
+          return { ok: true };
+        } catch (createErr) {
+          if (createErr?.code !== 409 && !/already exists|duplicate/i.test(createErr?.message || '')) {
+            throw createErr;
+          }
+          doc = await db.getDocument(DB_ID, 'email_rate_limits', id);
+        }
+      } else {
+        await db.updateDocument(DB_ID, 'email_rate_limits', id, { count: 1, reset_at: resetAt });
+        return { ok: true };
+      }
+    }
+
+    const currentCount = Number(doc?.count || 0);
+    if (currentCount >= CONTACT_RATE_MAX) {
+      return { ok: false, retryAfterSeconds: Math.max(1, Math.ceil((new Date(doc.reset_at).getTime() - now) / 1000)) };
+    }
+
+    try {
+      await db.incrementDocumentAttribute(
+        DB_ID,
+        'email_rate_limits',
+        id,
+        'count',
+        1,
+        CONTACT_RATE_MAX,
+      );
+      return { ok: true };
+    } catch (incErr) {
+      return { ok: false, retryAfterSeconds: Math.max(1, Math.ceil((new Date(doc.reset_at).getTime() - now) / 1000)) };
+    }
+  } catch (err) {
+    // If collection is not ready or fails, fail-open to in-memory check
+    return { ok: true };
+  }
+}
+
+async function createOwnerNotification(db, { user_id, type, title, message, link }) {
+  const baseData = { user_id, type, title, message, is_read: false };
+  const permissions = [
+    sdk.Permission.read(sdk.Role.user(user_id)),
+    sdk.Permission.update(sdk.Role.user(user_id)),
+    sdk.Permission.delete(sdk.Role.user(user_id)),
+  ];
+  if (link) {
+    try {
+      await db.createDocument(DB_ID, 'notifications', sdk.ID.unique(), { ...baseData, link }, permissions);
+      return;
+    } catch (e) {
+      const isUnknownAttr = e?.code === 400 && /unknown attribute|invalid attribute/i.test(e?.message ?? '');
+      if (!isUnknownAttr) return;
+    }
+  }
+  try {
+    await db.createDocument(DB_ID, 'notifications', sdk.ID.unique(), baseData, permissions);
+  } catch (_) {}
+}
+
+function buildPortfolioContactEmailHtml({ senderName, senderEmail, msgBody, portfolioUsername }) {
+  return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>New portfolio message</title>
+</head>
+<body style="margin:0;padding:0;background:#f9fafb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;-webkit-font-smoothing:antialiased;">
+  <div style="max-width:560px;margin:40px auto;background:#ffffff;border-radius:12px;border:1px solid #e5e7eb;overflow:hidden;box-shadow:0 4px 6px -1px rgba(0,0,0,0.05);">
+    <div style="background:#9E1B22;padding:24px 32px;text-align:center;">
+      <span style="color:#ffffff;font-size:22px;font-weight:700;letter-spacing:-0.5px;font-family:-apple-system,BlinkMacSystemFont,sans-serif;">WiseResume</span>
+    </div>
+    <div style="padding:32px;">
+      <h2 style="margin:0 0 8px;font-size:20px;color:#111827;font-weight:700;">New Portfolio Message</h2>
+      <p style="margin:0 0 24px;font-size:14px;color:#6b7280;line-height:1.5;">
+        You received a new message through your public portfolio page${portfolioUsername ? ` (<strong>${escapeHtml(portfolioUsername)}</strong>)` : ''}.
+      </p>
+
+      <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:20px;margin-bottom:24px;">
+        <table style="width:100%;border-collapse:collapse;font-size:14px;margin-bottom:16px;">
+          <tr>
+            <td style="padding:4px 0;font-weight:600;color:#4b5563;width:120px;vertical-align:top;">Sender Name:</td>
+            <td style="padding:4px 0;color:#111827;">${escapeHtml(senderName || 'Anonymous visitor')}</td>
+          </tr>
+          <tr>
+            <td style="padding:4px 0;font-weight:600;color:#4b5563;vertical-align:top;">Sender Email:</td>
+            <td style="padding:4px 0;color:#111827;">
+              <a href="mailto:${escapeHtml(senderEmail)}" style="color:#9E1B22;text-decoration:none;">${escapeHtml(senderEmail)}</a>
+            </td>
+          </tr>
+        </table>
+
+        <div style="border-top:1px solid #e5e7eb;padding-top:16px;">
+          <p style="margin:0 0 8px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:#6b7280;">Message:</p>
+          <div style="color:#374151;line-height:1.6;font-size:14px;white-space:pre-wrap;">${escapeHtml(msgBody)}</div>
+        </div>
+      </div>
+
+      <div style="text-align:center;margin:32px 0 16px;">
+        <a href="${FRONTEND_URL}/notifications" style="display:inline-block;background:#9E1B22;color:#ffffff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px;box-shadow:0 2px 4px rgba(158,27,34,0.2);">
+          View In-App Notifications
+        </a>
+      </div>
+    </div>
+    <div style="padding:20px 32px;background:#f9fafb;border-top:1px solid #e5e7eb;font-size:12px;color:#9ca3af;text-align:center;">
+      This email was sent by WiseResume. You can reply directly to this email to respond to the sender.
+    </div>
+  </div>
+</body>
+</html>
+`.trim();
+}
+
+let _injectedDb = null;
+function getDatabaseClient() {
+  if (_injectedDb) return _injectedDb;
+  const apiKey = appwriteApiKey();
+  const adminClient = new sdk.Client().setEndpoint(ENDPOINT).setProject(PROJECT_ID).setKey(apiKey);
+  return new sdk.Databases(adminClient);
+}
+
+async function handleSendContactEmail({ req, res, log, error, body }) {
+  const turnstileToken = String(body?.turnstileToken || '').trim();
+  const correlationId = String(body?.correlationId || '').trim();
+  const website = String(body?.website || '').trim();
+
+  // 1. Honeypot check — silently succeed without sending
+  if (website) {
+    return json(res, { status: 'success', data: { id: null, success: true } });
+  }
+
+  // 2. Auth / Turnstile check
+  const clientIp = getTrustedAppwriteClientIp(req);
+  if (turnstileToken) {
+    const turnstileResult = await verifyTurnstileToken(turnstileToken, clientIp, correlationId);
+    if (!turnstileResult.ok) {
+      return json(res, { error: 'Security check failed. Please try again.' }, 403);
+    }
+  } else {
+    const sessionAuth = await validateUserSession(req);
+    if (!sessionAuth.ok) {
+      return json(res, { error: 'Security check required.' }, 403);
+    }
+  }
+
+  // 3. Payload validation
+  const metadata = typeof body?.metadata === 'object' && body?.metadata !== null ? body.metadata : {};
+  const senderName = String(body?.name || metadata.visitor_name || '').trim().slice(0, 200);
+  const senderEmail = String(body?.email || '').trim().toLowerCase().slice(0, 254);
+  const msgType = String(body?.type || 'portfolio_contact').trim().slice(0, 100);
+  const msgBody = String(body?.message || '').trim().slice(0, 5000);
+
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!senderName || !senderEmail || !emailRegex.test(senderEmail) || msgBody.length < 4) {
+    return json(res, { error: 'Please provide a valid name, email, and a message of at least 4 characters.' }, 400);
+  }
+
+  // 4. Rate limiting (in-memory + persistent)
+  const memLimit = checkInMemoryContactRateLimit(clientIp);
+  if (!memLimit.ok) {
+    return json(res, { error: `Too many messages sent. Please wait ${Math.ceil(memLimit.retryAfterSeconds / 60)} minute(s) before trying again.` }, 429);
+  }
+
+  const db = getDatabaseClient();
+
+  const persistLimit = await checkPersistentContactRateLimit(db, clientIp, senderEmail);
+  if (!persistLimit.ok) {
+    return json(res, { error: `Too many messages sent. Please wait ${Math.ceil(persistLimit.retryAfterSeconds / 60)} minute(s) before trying again.` }, 429);
+  }
+
+  // 5. Portfolio owner resolution
+  let recipient = process.env.RESEND_FROM_EMAIL || 'contact@thewise.cloud';
+  let replyTo = senderEmail;
+  let ownerUserIdForNotif = '';
+  let portfolioUsername = '';
+
+  if (msgType === 'portfolio_contact') {
+    portfolioUsername = String(metadata.portfolio_username || '').trim().toLowerCase();
+    if (!portfolioUsername) {
+      return json(res, { error: 'Portfolio username is required.' }, 400);
+    }
+
+    let ownerEmail = '';
+    try {
+      const ownerRes = await db.listDocuments(DB_ID, 'profiles', [
+        sdk.Query.equal('username', portfolioUsername),
+        sdk.Query.limit(1),
+      ]);
+      if (ownerRes.total > 0) {
+        const ownerDoc = ownerRes.documents[0];
+        ownerEmail = String(ownerDoc.contact_email || ownerDoc.email || '').trim();
+        ownerUserIdForNotif = String(ownerDoc.user_id || '').trim();
+      }
+    } catch (lookupErr) {
+      error(`[email-service] portfolio owner lookup failed for "${portfolioUsername}": ${lookupErr?.message || lookupErr}`);
+    }
+
+    if (!ownerEmail) {
+      return json(res, {
+        error: "This portfolio owner hasn't set up a contact email yet, so your message can't be delivered.",
+      }, 422);
+    }
+    recipient = ownerEmail;
+  }
+
+  // 6. Build and send HTML email via Resend
+  const subject = String(body?.subject || '').trim().slice(0, 200) || `Portfolio message from ${senderName}`;
+  const html = buildPortfolioContactEmailHtml({
+    senderName,
+    senderEmail,
+    msgBody,
+    portfolioUsername,
+  });
+
+  try {
+    const emailResult = await resendSend({
+      to: recipient,
+      subject,
+      html,
+      replyTo,
+    });
+
+    // 7. In-app notification for portfolio owner
+    if (msgType === 'portfolio_contact' && ownerUserIdForNotif) {
+      await createOwnerNotification(db, {
+        user_id: ownerUserIdForNotif,
+        type: 'portfolio_message',
+        title: 'New portfolio message',
+        message: `${senderName.slice(0, 80)} sent you a message via your portfolio.`,
+        link: '/notifications',
+      });
+    }
+
+    log(`[email-service] Contact email delivered to ${recipient} (correlationId=${correlationId})`);
+    return json(res, { status: 'success', data: { id: emailResult?.id || null, success: true } });
+  } catch (sendErr) {
+    error(`[email-service] Failed to send contact email: ${sendErr?.message || sendErr}`);
+    return json(res, { error: 'Failed to deliver message. Please try again later.' }, 500);
+  }
+}
+
 module.exports = async ({ req, res, log, error }) => {
   if (req.method !== 'POST') {
     return json(res, { error: 'Method not allowed' }, 405);
   }
 
   // Parse body — Appwrite runtime delivers it as an object when Content-Type is JSON
-  const body = typeof req.body === 'string'
-    ? (() => { try { return JSON.parse(req.body); } catch { return {}; } })()
-    : (req.body ?? {});
+  const rawBody = req.body;
+  const body = typeof rawBody === 'string'
+    ? (() => { try { return JSON.parse(rawBody); } catch { return {}; } })()
+    : (rawBody ?? {});
 
   const action = body?.action;
 
@@ -1603,6 +1988,10 @@ module.exports = async ({ req, res, log, error }) => {
     case 'get-verification-status':
       return handleGetVerificationStatus({ req, res, log, error, body });
 
+    case 'send-contact-email':
+    case 'portfolio-contact':
+      return handleSendContactEmail({ req, res, log, error, body });
+
     default:
       error(`Unknown action: ${action}`);
       return json(res, { error: 'Unsupported email request.' }, 400);
@@ -1619,4 +2008,12 @@ module.exports._test = {
   handleInternalSendAdminPasswordResetLink,
   requestUserEmailVerification,
   resendSend,
+  verifyTurnstileToken,
+  handleSendContactEmail,
+  checkInMemoryContactRateLimit,
+  checkPersistentContactRateLimit,
+  getTrustedAppwriteClientIp,
+  validateUserSession,
+  setInjectedDb: (db) => { _injectedDb = db; },
+  setInjectedAccount: (acc) => { _injectedAccount = acc; },
 };

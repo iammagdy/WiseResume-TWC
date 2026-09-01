@@ -51,4 +51,13 @@ describe('public privacy hardening', () => {
       expect(source).not.toContain("error: 'config_error'");
     }
   });
+
+  it('fail-closes custom domain mode in public-portfolio without performing unindexed scans (P1-2)', () => {
+    expect(publicPortfolio).toContain("error: 'custom_domains_not_supported'");
+    expect(publicPortfolio).toContain('status(501)');
+    expect(publicPortfolio).not.toMatch(/offset\s*<\s*5000/);
+    // Preserves standard username lookup paths
+    expect(publicPortfolio).toContain('findProfileByUsername(db, username)');
+    expect(publicPortfolio).toContain("mode === 'gate'");
+  });
 });

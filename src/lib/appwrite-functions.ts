@@ -196,7 +196,12 @@ const ANONYMOUS_PUBLIC_SHARE_FUNCTIONS = new Set([
   'create-portfolio-chat-session',
   'ask-portfolio',
   'portfolio-interest',
+  'send-contact-email',
 ]);
+
+function isEmailServiceFunction(fnName: string): boolean {
+  return fnName === 'email-service' || fnName === 'send-contact-email';
+}
 
 function isCouponFunction(fnName: string): boolean {
   return COUPON_FUNCTIONS.has(fnName);
@@ -385,6 +390,7 @@ export const appwriteFunctions = {
       const routeToCoupons = isCouponFunction(fnName);
       const routeToWiseHire = isWiseHireFunction(fnName);
       const routeToPublicShare = isPublicShareFunction(fnName);
+      const routeToEmailService = isEmailServiceFunction(fnName);
       const functionId = routeToAiGateway
         ? 'ai-gateway'
         : routeToCoupons
@@ -393,6 +399,8 @@ export const appwriteFunctions = {
             ? 'wisehire-gateway'
             : routeToPublicShare
               ? 'public-share'
+              : routeToEmailService
+                ? 'email-service'
             : fnName;
       if (functionId.startsWith('admin-') || functionId === 'inspect-ai-keys') {
         const devKitHeaders = devKitAuthHeaders();
@@ -421,6 +429,11 @@ export const appwriteFunctions = {
               })
             : routeToPublicShare
               ? JSON.stringify({ ...finalPayload, action: fnName })
+              : routeToEmailService
+                ? JSON.stringify({
+                    action: fnName === 'send-contact-email' ? 'send-contact-email' : ((bodyPayload as Record<string, unknown>).action || fnName),
+                    ...finalPayload,
+                  })
         : JSON.stringify(finalPayload);
 
       let execution: Models.Execution;

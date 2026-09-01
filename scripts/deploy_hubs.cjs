@@ -898,6 +898,7 @@ async function ensureEmailServiceVariables() {
         ['RESEND_FROM_NAME', process.env.RESEND_FROM_NAME || await firstExistingVariableValue(emailVarSources, 'RESEND_FROM_NAME') || 'WiseResume'],
         ['FRONTEND_URL', process.env.FRONTEND_URL || 'https://wiseresume.app'],
         ['PASSWORD_RESET_OTP_SECRET', otpSecret],
+        ['TURNSTILE_SECRET_KEY', process.env.TURNSTILE_SECRET_KEY || await firstExistingVariableValue(['ai-gateway'], 'TURNSTILE_SECRET_KEY')],
     ];
     for (const [key, value] of emailServiceVars) {
         await ensureVariable('email-service', key, value);

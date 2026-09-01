@@ -17,9 +17,6 @@ export const AI_HUB_FUNCTIONS = new Set([
 
   // Career & Portfolio
   'career-assessment', 'company-briefing', 'detect-and-humanize',
-
-  // Ops routed through ai-gateway
-  'send-contact-email',
 ]);
 
 export function shouldRouteToAppwrite(fnName: string): boolean {
