@@ -164,13 +164,13 @@ export function useMe() {
     },
     enabled: authReady && !!user && isAuthenticated,
     placeholderData: (previous) => previous,
-    // Keep staleTime short so admin-driven plan changes (via DevKit) are
-    // visible to the target user within ~1 minute instead of the previous
-    // 5-minute window. refetchOnWindowFocus ensures that when a user returns
-    // to the browser tab after an admin changes their plan, the new plan
-    // is fetched immediately rather than waiting for the stale timer.
+    // Keep staleTime at 1 minute so active within-session navigations do not
+    // re-query, while refetchOnWindowFocus ensures that returning to the tab
+    // refreshes stale data. refetchInterval is set to 5 minutes as a fallback
+    // safety net for provider-only lifecycle changes (e.g. RevenueCat) where
+    // client Realtime only listens to Appwrite subscriptions.
     staleTime: 60 * 1000,
-    refetchInterval: 15 * 1000,
+    refetchInterval: 5 * 60 * 1000,
     refetchOnWindowFocus: true,
     retry: 1,
   });

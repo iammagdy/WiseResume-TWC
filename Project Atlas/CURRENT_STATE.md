@@ -12,9 +12,18 @@
 
 ---
 
+## P2-1 useMe Polling Optimization (Branch fix/p2-1-useme-polling) — 2026-09-01
+
+* **Workstream Status:** `IMPLEMENTED_VALIDATED_READY_FOR_PR` (Branch `fix/p2-1-useme-polling`).
+* **Change Summary:**
+  - In `src/hooks/useMe.ts`: Relaxed `refetchInterval: 15 * 1000` to `refetchInterval: 5 * 60 * 1000` (5 minutes = 300,000ms).
+  - Preserved 5-minute interval as safety net for provider-only lifecycle changes (e.g. RevenueCat in `revenuecat_subscription_state` while client Realtime listens to `subscriptions`).
+  - Preserved `staleTime: 60 * 1000`, `refetchOnWindowFocus: true`, and Realtime WebSocket listener on `subscriptions.documents`.
+  - Added dedicated unit test suite `src/hooks/__tests__/useMe.test.tsx` (5/5 passing).
+
 ## P1 Pre-Load-Test Stabilization (Deployed & Production-Verified) — 2026-09-01
 
-* **Workstream Status:** `DEPLOYED_VERIFIED_READY` (`P1_DEPLOYED_VERIFIED_READY`) — PR #263 merged into `main` at `176df210c6c1ed5a7e05a2cdeea94e792522c819`; targeted Appwrite `email-service` deployed; production runtime security, custom-domain 501 fail-close, and full owner happy-path delivery verified in live production.
+* **Workstream Status:** `DEPLOYED_VERIFIED_READY` (`P1_DEPLOYED_VERIFIED_READY`) — PR #263 merged into `main` at `176df210c6c1ed5a7e05a2cdeea94e792522c819`; documentation PR #264 merged into `main` at `ff8eee9633cc9bcfbaa91741e1e627586745d2bf`; targeted Appwrite `email-service` deployed; production runtime security, custom-domain 501 fail-close, and full owner happy-path delivery verified in live production.
 * **Owner Confirmation Recorded:** `OWNER_VERIFIED_PORTFOLIO_CONTACT_HAPPY_PATH`
   - Logged-out browser submission: **PASS**
   - Cloudflare Turnstile positive path: **PASS**
