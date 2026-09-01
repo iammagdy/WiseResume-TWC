@@ -18,6 +18,7 @@
 | **Writing or Fixing Vitest / Playwright Tests** | [`qa-validation.md`](./qa-validation.md) | [`new-code-quality.md`](./new-code-quality.md) |
 | **Auditing Auth, OTP, or Security** | [`security-review.md`](./security-review.md) | [`appwrite-safe-change.md`](./appwrite-safe-change.md) |
 | **Closing Out a Task & Handover** | [`documentation-closeout.md`](./documentation-closeout.md) | N/A |
+| **Maintaining What's New / Evaluating Customer Releases** | [`whats-new-maintenance.md`](./whats-new-maintenance.md) | [`documentation-closeout.md`](./documentation-closeout.md) |
 | **Optional Tooling Configuration** | [`skillkit-optional-setup.md`](./skillkit-optional-setup.md) | N/A |
 
 ---
@@ -26,4 +27,5 @@
 
 1. **Bootstrap Mandatory**: Always run `agent-bootstrap.md` first.
 2. **Follow Safeguards**: Respect forbidden paths, deployment restrictions, and zero-data-loss rules.
-3. **Atlas Updated Last**: Always run `documentation-closeout.md` before reporting completion to the owner.
+3. **Evaluate What's New Eligibility**: Customer-facing task closeouts must invoke `whats-new-maintenance.md` to evaluate release eligibility before final documentation closeout.
+4. **Atlas Updated Last**: Always run `documentation-closeout.md` before reporting completion to the owner.
