@@ -36,7 +36,7 @@ type SerializedFile = {
 };
 
 const TAILOR_EXECUTION_TIMEOUT_MS = 75_000;
-const TAILOR_EXECUTION_POLL_MS = 750;
+const TAILOR_EXECUTION_POLL_MS = 1_500;
 const TAILOR_RESULT_WAIT_MS = 8_000;
 const TERMINAL_EXECUTION_STATUSES = new Set(['completed', 'failed']);
 
