@@ -1,9 +1,12 @@
 # WiseResume Atlas Master Changelog
 
-### 2026-09-02 - WiseResume P2-2 Autosave Cache Invalidation Optimization (Implemented)
+### 2026-09-02 - WiseResume P2-2 Autosave Cache Invalidation Optimization (Merged & Deployed)
 
-- **Workstream Status:** `PR_READY_FOR_MERGE_REVIEW` (Branch `fix/p2-2-autosave-cache-invalidation`).
-- **Baseline SHA:** [`c9bf889fafe1a49b53ec6006a180f4e11917c962`](https://github.com/iammagdy/WiseResume-TWC/commit/c9bf889fafe1a49b53ec6006a180f4e11917c962).
+- **Workstream Verdict:** `P2_2_DEPLOYED_PASS_WITH_BROWSER_QA_PENDING`.
+- **Merge Commit:** [`19f2ea4402bd5ac0ad7d312b9bfbbb163e8531a2`](https://github.com/iammagdy/WiseResume-TWC/commit/19f2ea4402bd5ac0ad7d312b9bfbbb163e8531a2) (`main`). PR #267 merged at `2026-09-02T07:34:15Z` (reviewed head `eb11a5e0236b90c1b3cd83e9c207b4e4e1e321ec`).
+- **Deployment Status:**
+  - Vercel Production: `SUCCESS` (`Deployment has completed`, deployment URL: `https://vercel.com/iam-magdy/wise-resume-twc/A4WFtfvCSnoAeN5K1AaJqCTYA3oF`).
+  - Appwrite Functions: `NOT REQUIRED / NOT PERFORMED` (client-side React Query optimization only).
 - **Problem Solved & Root Cause:** `updateResume.onSuccess` previously called broad query invalidations (`queryClient.invalidateQueries({ queryKey: ['resumes'] })` and `queryClient.invalidateQueries({ queryKey: ['resume', data.$id] })`). Because `CommandPalette` in `DeferredProviders` globally observes `['resumes', user.id]` and `EditorPage` actively observes `['resume', targetId]`, every 3-second debounced cloud save triggered 2 immediate read network requests (`listDocuments` of 50 resumes + `getDocument` of the current resume). This produced a 1:2 write-to-read amplification (3 Appwrite HTTP requests per autosave instead of 1 write).
 - **Optimization & Implementation:**
   - Added pure reconciliation helper `reconcileUpdatedResume(current, updated, options)` in `src/hooks/useResumes.ts`: replaces matching item by `$id`, inserts authoritative document when `$id` is absent, sorts `$updatedAt` descending, and caps list to maximum 50 items (preserving server `Query.limit(50)` contract).
