@@ -12,6 +12,26 @@
 
 ---
 
+## P2-2 Autosave Cache Invalidation Optimization (Branch fix/p2-2-autosave-cache-invalidation) — 2026-09-02
+
+* **Workstream Status:** `PR_READY_FOR_MERGE_REVIEW` (Branch `fix/p2-2-autosave-cache-invalidation`).
+* **Baseline `main` SHA:** [`c9bf889fafe1a49b53ec6006a180f4e11917c962`](https://github.com/iammagdy/WiseResume-TWC/commit/c9bf889fafe1a49b53ec6006a180f4e11917c962).
+* **Problem Solved & Root Cause:**
+  - `updateResume.onSuccess` previously called broad query invalidations (`['resumes']` and `['resume', data.$id]`).
+  - Active global observer `<CommandPalette />` (`['resumes', user.id]`) and active editor observer `EditorPage` (`['resume', targetId]`) triggered 2 redundant network read requests (`listDocuments` of 50 resumes + `getDocument` of the active resume) on every 3-second debounced cloud save.
+  - Eliminated the 1:2 write-to-read amplification (3 Appwrite HTTP requests per autosave reduced to 1 write).
+* **Implementation Details:**
+  - `reconcileUpdatedResume`: Pure helper to replace matching document by `$id`, insert authoritative document when `$id` is absent, sort `$updatedAt` descending, and truncate list to maximum 50 items (preserving server `Query.limit(50)` contract).
+  - Detail cache: Reconciles `['resume', updatedDoc.$id]` directly via `queryClient.setQueryData`, eliminating `getDocument` refetches.
+  - List cache: Patches user's exact `['resumes', user.id]` query via `queryClient.setQueryData` (if cache exists), enforces ownership guard (`!exists && updatedDoc.user_id !== user.id` blocks insertion), preserves `$updatedAt` descending order, caps to 50 items, and synchronizes persisted cache via `writePersistedCache(\`resumes:${user.id}`, reconciled)`. Does not fabricate list cache if none exists.
+  - Omitted active refetch invalidations (`invalidateQueries`) as direct authoritative cache reconciliation provides fresh data synchronously.
+* **Validation & Test Coverage:**
+  - `src/hooks/__tests__/useResumes.autosaveOptimization.test.tsx` (8/8 passing).
+  - Existing resume suites: `useResume.editorStartup.test.tsx` (5/5 passing), `useResumes.template.test.ts` (7/7 passing).
+  - `tsc --noEmit`: 0 errors.
+  - Production build: clean (0 sourcemaps).
+* **Runtime QA Status:** `BLOCKED_AUTHENTICATED_RUNTIME_QA` (static proof via automated unit tests and TanStack Query semantics).
+
 ## P2-1 useMe Polling Optimization (Merged & Deployed) — 2026-09-01
 
 * **Workstream Status:** `DEPLOYED_PASS_WITH_BROWSER_QA_PENDING`.

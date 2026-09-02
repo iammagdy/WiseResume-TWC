@@ -219,6 +219,43 @@ export function useSetMasterCV() {
   });
 }
 
+/**
+ * Reconciles an updated resume document into an existing cached resume list:
+ * 1. Replaces the item when $id already exists.
+ * 2. Inserts the authoritative updated document when $id is absent.
+ * 3. Sorts the resulting list by $updatedAt descending.
+ * 4. Truncates the final list to maximum 50 items (matching server Query.limit(50)).
+ * 5. Does not mutate the original array.
+ */
+export function reconcileUpdatedResume(
+  current: DatabaseResume[],
+  updated: DatabaseResume,
+  options: { limit?: number; ownerUserId?: string } | number = 50,
+): DatabaseResume[] {
+  const limit = typeof options === 'number' ? options : (options.limit ?? 50);
+  const ownerUserId = typeof options === 'object' ? options.ownerUserId : undefined;
+
+  const exists = current.some((resume) => resume.$id === updated.$id);
+
+  // Ownership guard: if absent and ownerUserId is specified, only insert if updated.user_id === ownerUserId
+  if (!exists && ownerUserId && updated.user_id && updated.user_id !== ownerUserId) {
+    return current;
+  }
+
+  const next = exists
+    ? current.map((resume) => (resume.$id === updated.$id ? updated : resume))
+    : [updated, ...current];
+
+  return next
+    .slice()
+    .sort(
+      (a, b) =>
+        Date.parse(b.$updatedAt ?? '') -
+        Date.parse(a.$updatedAt ?? ''),
+    )
+    .slice(0, limit);
+}
+
 export function useResumeMutations() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -246,8 +283,31 @@ export function useResumeMutations() {
       return await databases.updateDocument(DATABASE_ID, COLLECTIONS.resumes, resumeId, data);
     },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['resumes'] });
-      queryClient.invalidateQueries({ queryKey: ['resume', data.$id] });
+      const updatedDoc = parseDbResume(data);
+
+      // 1. Direct detail cache reconciliation: populate active single-document query
+      // without triggering an immediate redundant databases.getDocument network refetch.
+      queryClient.setQueryData(['resume', updatedDoc.$id], updatedDoc);
+
+      // 2. Direct list cache reconciliation: patch user's exact ['resumes', user.id] cache,
+      // preserving $updatedAt descending sort order, capping to 50 items, and updating persisted cache.
+      if (user?.id) {
+        queryClient.setQueryData<DatabaseResume[]>(['resumes', user.id], (current) => {
+          if (!current || !Array.isArray(current)) return current;
+
+          const exists = current.some((resume) => resume.$id === updatedDoc.$id);
+          // Ownership guard: before inserting an absent document into the authenticated user's list cache,
+          // confirm updatedDoc.user_id === user.id. If it does not match, do not insert it into that user's list cache.
+          if (!exists && updatedDoc.user_id !== user.id) {
+            return current;
+          }
+
+          const reconciled = reconcileUpdatedResume(current, updatedDoc, { limit: 50, ownerUserId: user.id });
+          writePersistedCache(`resumes:${user.id}`, reconciled);
+          return reconciled;
+        });
+      }
+
       toast.success('Resume saved');
     },
   });
