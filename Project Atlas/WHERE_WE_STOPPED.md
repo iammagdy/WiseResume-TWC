@@ -1,13 +1,16 @@
 # Project Atlas — Active Operational & Handover State
 
 **Last Verified:** 2026-09-02
-**Status:** `P2_2_IMPLEMENTED_PENDING_PR_MERGE_REVIEW` — PR #265 (P2-1 product) and PR #266 (P2-1 docs closeout) are merged in `main` at `c9bf889fafe1a49b53ec6006a180f4e11917c962`. P2-1 remains `DEPLOYED_PASS_WITH_BROWSER_QA_PENDING`. P2-2 (Autosave Cache Invalidation Optimization) is implemented on branch `fix/p2-2-autosave-cache-invalidation` with all tests passing.
+**Status:** `P2_2_DEPLOYED_PASS_WITH_BROWSER_QA_PENDING` — PR #267 (P2-2 product) has been merged into `main` at commit [`19f2ea4402bd5ac0ad7d312b9bfbbb163e8531a2`](https://github.com/iammagdy/WiseResume-TWC/commit/19f2ea4402bd5ac0ad7d312b9bfbbb163e8531a2). Automatic Vercel production deployment has completed successfully (`state: success`). Appwrite deployment was not required and not performed. Authenticated production browser QA remains pending (`P2_2_DEPLOYED_PASS_WITH_BROWSER_QA_PENDING`).
 **Location:** `Project Atlas/WHERE_WE_STOPPED.md`
 
-## P2-2 Autosave Cache Invalidation Optimization (Branch fix/p2-2-autosave-cache-invalidation) — 2026-09-02
+## P2-2 Autosave Cache Invalidation Optimization (Merged & Deployed) — 2026-09-02
 
-* **Workstream Status:** `PR_READY_FOR_MERGE_REVIEW` (Branch `fix/p2-2-autosave-cache-invalidation`).
-* **Baseline `main` SHA:** [`c9bf889fafe1a49b53ec6006a180f4e11917c962`](https://github.com/iammagdy/WiseResume-TWC/commit/c9bf889fafe1a49b53ec6006a180f4e11917c962).
+* **Workstream Status:** `P2_2_DEPLOYED_PASS_WITH_BROWSER_QA_PENDING`.
+* **Merge Commit:** [`19f2ea4402bd5ac0ad7d312b9bfbbb163e8531a2`](https://github.com/iammagdy/WiseResume-TWC/commit/19f2ea4402bd5ac0ad7d312b9bfbbb163e8531a2) (`main`).
+* **Merged PR:** [PR #267](https://github.com/iammagdy/WiseResume-TWC/pull/267) (Merged at `2026-09-02T07:34:15Z`, reviewed head `eb11a5e0236b90c1b3cd83e9c207b4e4e1e321ec`).
+* **Vercel Production Deployment:** **`SUCCESS`** (`Deployment has completed`, deployment URL: `https://vercel.com/iam-magdy/wise-resume-twc/A4WFtfvCSnoAeN5K1AaJqCTYA3oF`).
+* **Appwrite Deployment:** **`NOT REQUIRED / NOT PERFORMED`** (Client-side React Query optimization only).
 * **Problem Solved & Root Cause:**
   - In `src/hooks/useResumes.ts`, `updateResume.onSuccess` previously called `queryClient.invalidateQueries({ queryKey: ['resumes'] })` and `queryClient.invalidateQueries({ queryKey: ['resume', data.$id] })`.
   - Because `CommandPalette` in `DeferredProviders` globally observes `['resumes', user.id]` and `EditorPage` actively observes `['resume', targetId]`, every single 3-second debounced cloud save triggered 2 immediate read network requests (`listDocuments` of 50 resumes + `getDocument` of the current resume).
@@ -37,10 +40,11 @@
 * **Production Runtime QA Status:**
   - `BLOCKED_AUTHENTICATED_RUNTIME_QA` (no non-customer test user credentials in workspace environment; customer credentials not permitted).
 * **Remaining Scope Untouched:**
+  - P2-1 remains accurately classified as `DEPLOYED_PASS_WITH_BROWSER_QA_PENDING`.
   - P2-3 (Tailoring client polling loop): Untouched.
   - P3 findings: Untouched.
 * **Exact Next Action:**
-  Review PR #267 and merge only after owner authorization; production browser verification remains post-merge.
+  Begin P2-3 as `AUDIT ONLY` (measure and inspect tailoring polling lifecycle, durations, stopping conditions, and timeout behavior; do NOT modify product code).
 
 ## P2-1 useMe Polling Optimization (Merged & Deployed) — 2026-09-01
 
