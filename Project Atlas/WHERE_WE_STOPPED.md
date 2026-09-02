@@ -1,13 +1,16 @@
 # Project Atlas — Active Operational & Handover State
 
 **Last Verified:** 2026-09-02
-**Status:** `P2_3A_IMPLEMENTED_PENDING_PR_MERGE_REVIEW` — PR #267 (P2-2 product) and PR #268 (P2-2 docs closeout) are merged into `main` at commit [`74755b507a4891d7ef75ee8ace2717160b89f045`](https://github.com/iammagdy/WiseResume-TWC/commit/74755b507a4891d7ef75ee8ace2717160b89f045). P2-1 and P2-2 remain `DEPLOYED_PASS_WITH_BROWSER_QA_PENDING`. P2-3A (Tailoring Execution Polling Optimization) is implemented on branch `fix/p2-3a-tailoring-poll-interval` with all tests passing. P2-3B (`P2_3B_CALLER_LIFECYCLE_CANCELLATION_AUDIT_REQUIRED`) is documented as a follow-up workstream.
+**Status:** `P2_3A_DEPLOYED_PASS_WITH_BROWSER_QA_PENDING` — PR #269 (P2-3A product & timing tests) has been merged into `main` at commit [`f10ac6064bb834eaf45ddeb049580496cf29bfbd`](https://github.com/iammagdy/WiseResume-TWC/commit/f10ac6064bb834eaf45ddeb049580496cf29bfbd). Automatic Vercel production deployment has completed successfully (`state: success`). Appwrite deployment was not required and not performed. Authenticated production browser QA remains pending (`P2_3A_DEPLOYED_PASS_WITH_BROWSER_QA_PENDING`). P2-1 and P2-2 also remain `DEPLOYED_PASS_WITH_BROWSER_QA_PENDING`. P2-3B caller lifecycle cancellation audit is in progress (`P2_3B_CALLER_LIFECYCLE_CANCELLATION_AUDIT_REQUIRED`).
 **Location:** `Project Atlas/WHERE_WE_STOPPED.md`
 
-## P2-3A Tailoring Execution Polling Optimization (Branch fix/p2-3a-tailoring-poll-interval) — 2026-09-02
+## P2-3A Tailoring Execution Polling Optimization (Merged & Deployed) — 2026-09-02
 
-* **Workstream Status:** `PR_READY_FOR_MERGE_REVIEW` (Branch `fix/p2-3a-tailoring-poll-interval`).
-* **Baseline `main` SHA:** [`74755b507a4891d7ef75ee8ace2717160b89f045`](https://github.com/iammagdy/WiseResume-TWC/commit/74755b507a4891d7ef75ee8ace2717160b89f045).
+* **Workstream Status:** `P2_3A_DEPLOYED_PASS_WITH_BROWSER_QA_PENDING`.
+* **Merge Commit:** [`f10ac6064bb834eaf45ddeb049580496cf29bfbd`](https://github.com/iammagdy/WiseResume-TWC/commit/f10ac6064bb834eaf45ddeb049580496cf29bfbd) (`main`).
+* **Merged PR:** [PR #269](https://github.com/iammagdy/WiseResume-TWC/pull/269) (Merged at `2026-09-02T08:04:41Z`, reviewed head `bda24ae38681eb8378fecd3d9b2fb5b0a7e35e55`).
+* **Vercel Production Deployment:** **`SUCCESS`** (`Deployment has completed`, deployment URL: `https://vercel.com/iam-magdy/wise-resume-twc/FumbCPpW68kSEGZNivKe9MSgJjjf`).
+* **Appwrite Deployment:** **`NOT REQUIRED / NOT PERFORMED`** (Client-side transport constant change only).
 * **Problem Solved & Root Cause:**
   - In `src/lib/appwrite-functions.ts`, `waitForExecution()` previously polled `functions.getExecution(functionId, initialExecution.$id)` every `TAILOR_EXECUTION_POLL_MS = 750` ms.
   - While status polling uses pure REST GET reads and does not create new executions or deduct credits, a 750ms interval generated elevated client-to-Appwrite HTTP chatter: approximately 40 `getExecution` reads for a 30-second illustrative execution, up to 100 reads on timeout.

@@ -12,10 +12,13 @@
 
 ---
 
-## P2-3A Tailoring Execution Polling Optimization (Branch fix/p2-3a-tailoring-poll-interval) — 2026-09-02
+## P2-3A Tailoring Execution Polling Optimization (Merged & Deployed) — 2026-09-02
 
-* **Workstream Status:** `PR_READY_FOR_MERGE_REVIEW` (Branch `fix/p2-3a-tailoring-poll-interval`).
-* **Baseline `main` SHA:** [`74755b507a4891d7ef75ee8ace2717160b89f045`](https://github.com/iammagdy/WiseResume-TWC/commit/74755b507a4891d7ef75ee8ace2717160b89f045).
+* **Workstream Status:** `P2_3A_DEPLOYED_PASS_WITH_BROWSER_QA_PENDING`.
+* **Merge Commit:** [`f10ac6064bb834eaf45ddeb049580496cf29bfbd`](https://github.com/iammagdy/WiseResume-TWC/commit/f10ac6064bb834eaf45ddeb049580496cf29bfbd) (`main`). PR #269 merged at `2026-09-02T08:04:41Z` (reviewed head `bda24ae38681eb8378fecd3d9b2fb5b0a7e35e55`).
+* **Deployment Status:**
+  - Vercel Production: `SUCCESS` (`Deployment has completed`, deployment URL: `https://vercel.com/iam-magdy/wise-resume-twc/FumbCPpW68kSEGZNivKe9MSgJjjf`).
+  - Appwrite Functions: `NOT REQUIRED / NOT PERFORMED` (client-side transport constant change only).
 * **Problem Solved & Root Cause:**
   - `src/lib/appwrite-functions.ts` previously polled `functions.getExecution(functionId, executionId)` every 750ms.
   - Polling at 750ms created elevated client-to-Appwrite HTTP chatter: ~40 reads per 30-second illustrative execution (up to 100 reads on 75s timeout).
