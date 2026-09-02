@@ -78,7 +78,15 @@ export function QuickTailorSheet({ open, onOpenChange }: QuickTailorSheetProps) 
     return resumes.map(dbToResumeData);
   }, [resumes]);
 
-  // Reset state and abort when sheet closes or unmounts
+  // Component unmount cleanup: abort in-flight tailoring regardless of sheet open state
+  useEffect(() => {
+    return () => {
+      abortRef.current?.abort();
+      abortRef.current = null;
+    };
+  }, []);
+
+  // Reset state and abort when sheet closes; reconcile processing step on rapid reopen
   useEffect(() => {
     if (open) {
       setStep((prev) => (prev === 'processing' ? 'select-resume' : prev));

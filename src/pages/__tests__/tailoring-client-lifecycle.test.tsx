@@ -498,6 +498,68 @@ describe('P2-3B Tailoring Client Lifecycle', () => {
       // Must NOT be stuck in processing step; select-resume is displayed
       expect(screen.getByText('Choose Your Resume')).toBeInTheDocument();
     });
+
+    it('aborts active tailoring when component unmounts while open=true and ignores late resolution', async () => {
+      let capturedSignal: AbortSignal | undefined;
+      let resolveTailoring!: (val: unknown) => void;
+      const tailorPromise = new Promise((resolve) => {
+        resolveTailoring = resolve;
+      });
+
+      mocks.tailorResumeWithProgress.mockImplementation(
+        (_r: unknown, _j: unknown, _p: unknown, _i: unknown, signal?: AbortSignal) => {
+          capturedSignal = signal;
+          return tailorPromise;
+        }
+      );
+
+      const { unmount } = render(
+        <QueryClientProvider client={queryClient}>
+          <MemoryRouter>
+            <QuickTailorSheet open={true} onOpenChange={vi.fn()} />
+          </MemoryRouter>
+        </QueryClientProvider>
+      );
+
+      // Step 1: Click on existing resume card
+      const resumeCard = screen.getByText('Master CV');
+      await act(async () => {
+        fireEvent.click(resumeCard);
+      });
+
+      // Step 2: Click sample job
+      const sampleBtn = await screen.findByText('Try a sample job');
+      await act(async () => {
+        fireEvent.click(sampleBtn);
+      });
+
+      // Step 2: Click Tailor Now
+      const tailorBtn = await screen.findByRole('button', { name: /tailor now/i });
+      await act(async () => {
+        fireEvent.click(tailorBtn);
+      });
+
+      expect(capturedSignal).toBeInstanceOf(AbortSignal);
+      expect(capturedSignal?.aborted).toBe(false);
+
+      // Unmount component while sheet is open (open=true)
+      unmount();
+
+      // Controller signal must be aborted upon unmount
+      expect(capturedSignal?.aborted).toBe(true);
+
+      // Resolve late
+      await act(async () => {
+        resolveTailoring({
+          summary: 'Late tailored summary',
+          overallScore: { before: 50, after: 90 },
+        });
+      });
+
+      // No results step repopulation or continuation from abandoned component
+      expect(screen.queryByText(/tailoring complete/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/choose your resume/i)).not.toBeInTheDocument();
+    });
   });
 
   describe('TailorSheet', () => {
