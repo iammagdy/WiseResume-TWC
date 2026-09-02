@@ -1,15 +1,16 @@
 # Project Atlas — Active Operational & Handover State
 
 **Last Verified:** 2026-09-01
-**Status:** `P2_1_IMPLEMENTED_PENDING_PR_MERGE_REVIEW` — PR #263 and documentation PR #264 have both been merged into `main` (commit `ff8eee9633cc9bcfbaa91741e1e627586745d2bf`). P1 stabilization is fully closed (`P1_DEPLOYED_VERIFIED_READY`). P2-1 (`useMe` polling interval relaxed from 15s to 5m) is implemented on branch `fix/p2-1-useme-polling` with 5/5 unit tests passing.
+**Status:** `DEPLOYED_PASS_WITH_BROWSER_QA_PENDING` — PR #265 has been merged into `main` at commit [`541698e675bece621529fc3f7b868fad3a419eb6`](https://github.com/iammagdy/WiseResume-TWC/commit/541698e675bece621529fc3f7b868fad3a419eb6). Automatic Vercel production deployment has completed successfully (`state: success`). Appwrite deployment was not required and not performed. Authenticated production browser QA remains pending (`DEPLOYED_PASS_WITH_BROWSER_QA_PENDING`).
 **Location:** `Project Atlas/WHERE_WE_STOPPED.md`
 
-## P2-1 useMe Polling Optimization (Branch fix/p2-1-useme-polling) — 2026-09-01
+## P2-1 useMe Polling Optimization (Merged & Deployed) — 2026-09-01
 
-* **Workstream Status:** `PR_READY_FOR_MERGE_REVIEW` (PR #265 open on branch `fix/p2-1-useme-polling`).
-* **Baseline `main` SHA:** [`ff8eee9633cc9bcfbaa91741e1e627586745d2bf`](https://github.com/iammagdy/WiseResume-TWC/commit/ff8eee9633cc9bcfbaa91741e1e627586745d2bf).
-* **PR:** [PR #265](https://github.com/iammagdy/WiseResume-TWC/pull/265).
-* **PR Head SHA:** `d1fe15150e4a11c0cfd677657ce4928861b97a98`.
+* **Workstream Verdict:** `DEPLOYED_PASS_WITH_BROWSER_QA_PENDING`.
+* **Merge Commit:** [`541698e675bece621529fc3f7b868fad3a419eb6`](https://github.com/iammagdy/WiseResume-TWC/commit/541698e675bece621529fc3f7b868fad3a419eb6) (`main`).
+* **Merged PR:** [PR #265](https://github.com/iammagdy/WiseResume-TWC/pull/265) (Merged at `2026-09-01T13:48:10Z`, reviewed head `d0441355dcc0919d87cb640ddc0009e0b9727399`).
+* **Vercel Production Deployment:** **`SUCCESS`** (`Deployment has completed`, deployment URL: `https://vercel.com/iam-magdy/wise-resume-twc/H5d3Nf9yV8nDr2ucUECYWQari7ba`).
+* **Appwrite Deployment:** **`NOT REQUIRED / NOT PERFORMED`** (Client-side React Query optimization only).
 * **Problem Solved & Request-Reduction Impact:** Authenticated layout previously polled `useMe` every 15 seconds. Expected static request pattern for a continuously visible active tab: approximately 480 top-level browser Appwrite HTTP requests/hour before the change versus approximately 24/hour after the change, representing an expected theoretical reduction of approximately 95% (`EXPECTED_STATIC_REQUEST_REDUCTION`). Authenticated production runtime traffic was not measured in this phase. Background-tab interval polling is not enabled.
 * **Exact Implementation:**
   - In `src/hooks/useMe.ts`: Changed `refetchInterval: 15 * 1000` to `refetchInterval: 5 * 60 * 1000` (5 minutes).
@@ -27,12 +28,16 @@
   - `npx tsc --noEmit`: Clean (0 errors).
   - `npm run build`: Clean production build (0 sourcemaps).
   - `git diff --check`: Clean formatting.
+* **Production Runtime QA Status:**
+  - Authenticated Browser QA: `BLOCKED_AUTHENTICATED_RUNTIME_QA` (no test user credentials available in workspace; customer credentials not permitted).
+  - AI Credit Runtime QA: `AI_CREDIT_RUNTIME_QA_NOT_PERFORMED`.
+  - Focused fake-timer tests remain the evidence for the exact 300-second interval.
 * **Remaining Scope Untouched:**
   - P2-2 (Autosave invalidation): Untouched.
   - P2-3 (Tailoring client polling loop): Untouched.
   - P3 findings: Untouched.
 * **Exact Next Action:**
-  Review PR #265 and merge only after owner authorization; production browser verification remains post-merge.
+  Owner performs optional authenticated browser QA on production if desired; proceed to P2-2 (Autosave invalidation audit & implementation).
 
 ## P1 Pre-Load-Test Stabilization (Closed & Verified in Production) — 2026-09-01
 
