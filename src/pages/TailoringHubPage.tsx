@@ -212,7 +212,11 @@ export default function JobMatchWorkspacePage() {
 
   useEffect(() => {
     activityTracker.setActiveFeature('Tailoring Hub');
-    return () => activityTracker.setActiveFeature(null);
+    return () => {
+      activityTracker.setActiveFeature(null);
+      abortRef.current?.abort();
+      abortRef.current = null;
+    };
   }, []);
 
   const resumeText = useMemo(() => {
@@ -430,6 +434,7 @@ export default function JobMatchWorkspacePage() {
       const createdAt = new Date().toISOString();
 
       // Save as new resume document
+      if (abort.signal.aborted) return;
       const newTitle = `${originalResume.contactInfo.fullName || 'Resume'} — ${jobTitle}${company ? ` @ ${company}` : ''} (Tailored)`;
       const doc = await databases.createDocument(
         DATABASE_ID,
@@ -461,6 +466,8 @@ export default function JobMatchWorkspacePage() {
           })),
         },
       );
+
+      if (abort.signal.aborted) return;
       const newResumeId = (doc as { $id: string }).$id;
 
       // Persist tailor history with validated change data
@@ -478,8 +485,13 @@ export default function JobMatchWorkspacePage() {
         currentResumeId ?? undefined,
       );
 
+      if (abort.signal.aborted) return;
+
       // Invalidate credits and resumes cache
       await invalidateAiCreditQueries(queryClient);
+
+      if (abort.signal.aborted) return;
+
       queryClient.invalidateQueries({ queryKey: ['resumes'] });
       queryClient.invalidateQueries({ queryKey: ['saved-job-postings'] });
       queryClient.invalidateQueries({ queryKey: ['tailored-resume-ids'] });
@@ -519,8 +531,9 @@ export default function JobMatchWorkspacePage() {
       console.error('[TailoringHub] AI tailoring failed:', err);
     } finally {
       tailorInFlightRef.current = false;
-      if (abortRef.current === abort) abortRef.current = null;
-      if (!abort.signal.aborted) {
+      const ownsCurrentRequest = abortRef.current === abort;
+      if (ownsCurrentRequest) abortRef.current = null;
+      if (ownsCurrentRequest && !abort.signal.aborted) {
         setIsTailoring(false);
         setProgress(null);
       }

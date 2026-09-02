@@ -307,4 +307,53 @@ describe('appwriteFunctions Tailoring execution transport (P2-3A)', () => {
       'X-Tailor-Result-Wait-Ms': '8000',
     });
   });
+
+  it('returns request_cancelled (499) and does not surface result if signal aborts while fallback createExecution is in-flight', async () => {
+    vi.useFakeTimers();
+    const result = { summary: 'Late result that should be dropped' };
+    const controller = new AbortController();
+
+    let resolveFallbackExecution!: (val: unknown) => void;
+    const delayedFallbackPromise = new Promise((resolve) => {
+      resolveFallbackExecution = resolve;
+    });
+
+    createExecution
+      .mockResolvedValueOnce(execution())
+      .mockImplementationOnce(() => delayedFallbackPromise);
+
+    getExecution.mockRejectedValueOnce(new AppwriteException('Execution not accessible.', 401));
+
+    const pending = appwriteFunctions.invoke('tailor-resume', {
+      body: { resume: { summary: 'Original' }, jobDescription: 'A complete role description' },
+      timeoutMs: 20_000,
+      signal: controller.signal,
+    });
+
+    // Advance 1500ms: getExecution is called and rejects with 401
+    await vi.advanceTimersByTimeAsync(1_500);
+
+    // Fallback createExecution is now in flight
+    expect(createExecution).toHaveBeenCalledTimes(2);
+
+    // User cancels while fallback createExecution is in flight
+    controller.abort();
+
+    // Now late response resolves successfully
+    resolveFallbackExecution(execution({
+      $id: 'successful-result-execution',
+      status: 'completed',
+      responseStatusCode: 200,
+      responseBody: JSON.stringify({ status: 'success', data: result }),
+    }));
+
+    const response = await pending;
+
+    // Must return request_cancelled and NOT surface data
+    expect(response.data).toBeNull();
+    expect(response.error).toMatchObject({
+      code: 'request_cancelled',
+      status: 499,
+    });
+  });
 });

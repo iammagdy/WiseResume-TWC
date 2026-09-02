@@ -1,5 +1,42 @@
 # WiseResume Atlas Master Changelog
 
+### 2026-09-02 - WiseResume P2-3B Tailoring Client Lifecycle Reconciliation
+
+- **Workstream Verdict:** `PR_READY_FOR_MERGE` (Branch `fix/p2-3b-tailoring-client-lifecycle`, PR #271).
+- **Baseline Commit:** [`1718fe7704de550fdfc402fbe85ab0331311b384`](https://github.com/iammagdy/WiseResume-TWC/commit/1718fe7704de550fdfc402fbe85ab0331311b384) (`main`, PR #270 merge).
+- **Problem Solved & Scope:**
+  - Standardized client lifecycle cancellation across all 6 production Tailoring callers, preventing orphaned background updates, stale UI repopulation, delayed state clobbering, and unwanted child document persistence after user navigation or drawer close.
+  - Closed fallback transport gap in `src/lib/appwrite-functions.ts`: added `throwIfAborted(signal)` immediately after synchronous `await functions.createExecution(...)` in `waitForTailorResult` so that an abort occurring while the 8-second request is in flight discards late 200 OK responses with `request_cancelled` (499).
+- **Six Production Callers Reconciled & Corrective Race Pass:**
+  1. `src/pages/TailoringHubPage.tsx`: Unmount cleanup and intermediate post-await guards added after `createDocument` (blocking `addTailorHistory`) and after `invalidateAiCreditQueries` (blocking toast/navigation). Stale finally protected via request ownership.
+  2. `src/pages/TailorPage.tsx`: Unmount cleanup added; preserved disabled resume selector (`disabled={isTailoring || isApplying}`) to prevent cross-resume racing during active run; stale `finally` race resolved via request ownership (`ownsCurrentRequest && !abort.signal.aborted`) so early cancel followed by immediate retry cannot have Request A clear Request B's active UI state.
+  3. `src/components/editor/TailorSheet.tsx`: Unmount and close (`!open`) cleanup resets transient active-run state (`setIsTailoring(false); setProgress(null)`), preventing reopened sheet from remaining stuck in tailoring. Stale finally protected via request ownership.
+  4. `src/components/landing/QuickTailorSheet.tsx`: Unmount and close (`!open`) cleanup synchronously resets active `processing` step and progress; rapid reopen within <300ms immediately reconciles step, preventing sheet from reopening stuck on processing.
+  5. `src/pages/RemoteJobsPage.tsx`: Instantiated `AbortController` and passed `signal` to `tailorResumeWithProgress`; unmount aborts; intermediate post-await guards added after `generateCoverLetter` (suppressing cover-letter failure toast when abandoned) and after `invalidateAiCreditQueries` (blocking query invalidation, toast, and navigation). Stale finally protected via request ownership.
+  6. `src/components/dashboard/SetTargetJobSheet.tsx`: Instantiated `AbortController` and passed `signal`; unmount and close (`!open`) resets transient state (`phase` back to `'input'`, `progress` cleared, `isSavingMatch` cleared); nested save `finally` and outer `finally` protected via request ownership (`abortRef.current === abort`).
+- **Concurrency & Ref Ownership Safety:**
+  - Applied ref ownership guard (`const ownsCurrentRequest = abortRef.current === abort; if (ownsCurrentRequest) abortRef.current = null;`) across all callers so earlier aborted runs cannot wipe out newer active controllers or clobber newer transient state.
+- **Authoritative Semantic Boundary & Tag:**
+  - `IN_FLIGHT_APPWRITE_WRITE_NOT_CLIENT_CANCELLABLE`: Client abort prevents new client-side Tailoring side effects from being initiated after cancellation is observed. It stops Tailoring polling/waiting and drops late Tailoring results. It cannot cancel an Appwrite database/function HTTP operation that was already issued before the abort boundary, unless that specific API accepts and honors the AbortSignal.
+- **Tests (34 passing tests across tailoring suites):**
+  - Unit test in `src/lib/__tests__/appwrite-functions.tailoring.test.ts` verifying fallback `waitForTailorResult` drops in-flight late results upon abort (8/8 passing).
+  - Tests in `src/pages/__tests__/TailoringHubPage-recovery.test.tsx` verifying unmount aborts tailoring and suppresses downstream document persistence and navigation, plus deferred-write test (5/5 passing).
+  - Tests in `src/pages/__tests__/RemoteJobsPage.test.tsx` verifying non-null `AbortSignal` is passed, unmount suppresses downstream document persistence and navigation, and intermediate await abort prevents downstream document creation (5/5 passing).
+  - Tests in `src/pages/__tests__/tailoring-client-lifecycle.test.tsx` verifying:
+    * `SetTargetJobSheet`: passes non-null `AbortSignal`, sheet close aborts and suppresses target-job updateDocument.
+    * `SetTargetJobSheet`: unmount aborts and suppresses updateDocument.
+    * `SetTargetJobSheet`: does not remain stuck in analyzing phase when sheet is closed and reopened.
+    * `SetTargetJobSheet`: preserves new request transient state when an old aborted request settles late.
+    * `QuickTailorSheet`: sheet close aborts active tailoring and ignores late resolution.
+    * `QuickTailorSheet`: does not remain stuck on processing when closed and reopened before 300ms timer.
+    * `TailorSheet`: aborts active tailoring on close, does not remain stuck on reopen, and ignores late resolution.
+    * `TailorPage`: unmount aborts active tailoring and preserves disabled selector during active tailoring.
+    * `TailorPage`: prevents stale finally from clearing active run state on cancel followed by immediate retry.
+    (9/9 passing).
+- **Validation:** `tsc --noEmit` (0 errors), `npm run build` (clean production build in 50.30s), `git diff --check` (clean).
+- **Runtime QA Status:** `BLOCKED_AUTHENTICATED_RUNTIME_QA`.
+- **Deployment Status:** Frontend-only change; Appwrite deployment not required / not performed.
+
 ### 2026-09-02 - WiseResume P2-3A Tailoring Execution Polling Optimization (Merged & Deployed)
 
 - **Workstream Verdict:** `P2_3A_DEPLOYED_PASS_WITH_BROWSER_QA_PENDING`.

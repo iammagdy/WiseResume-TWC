@@ -177,4 +177,95 @@ describe('TailoringHubPage bounded failure recovery', () => {
     expect(mocks.createDocument).not.toHaveBeenCalled();
     expect(mocks.navigate).not.toHaveBeenCalled();
   });
+
+  it('aborts active tailoring on unmount and prevents downstream child resume creation and navigation upon late resolution', async () => {
+    let capturedSignal: AbortSignal | undefined;
+    let resolveTailoring!: (val: unknown) => void;
+    const tailorPromise = new Promise((resolve) => {
+      resolveTailoring = resolve;
+    });
+
+    mocks.tailor.mockImplementationOnce((_r, _j, _p, _i, signal: AbortSignal) => {
+      capturedSignal = signal;
+      return tailorPromise;
+    });
+
+    const { unmount } = render(<TailoringHubPage />);
+    fireEvent.click(screen.getByRole('button', { name: 'Tailor now' }));
+
+    expect(await screen.findByTestId('tailoring-loading')).toBeInTheDocument();
+    expect(mocks.tailor).toHaveBeenCalledTimes(1);
+    expect(capturedSignal).toBeDefined();
+    expect(capturedSignal?.aborted).toBe(false);
+
+    // Unmount while tailoring is in-flight
+    unmount();
+
+    // Signal must be aborted immediately upon unmount
+    expect(capturedSignal?.aborted).toBe(true);
+
+    // Resolve late tailoring result after unmount
+    await act(async () => {
+      resolveTailoring({
+        summary: 'Late tailored summary',
+        keyChanges: [],
+        bulletTransformations: [],
+        missingSkills: [],
+        jobParsed: { title: 'Software Engineer', company: 'Acme Inc' },
+      });
+    });
+
+    // Downstream side effects must NOT be triggered
+    expect(mocks.createDocument).not.toHaveBeenCalled();
+    expect(mocks.addTailorHistory).not.toHaveBeenCalled();
+    expect(mocks.navigate).not.toHaveBeenCalled();
+  });
+
+  it('prevents addTailorHistory and navigate when abort occurs while child createDocument is already pending', async () => {
+    let resolveCreateDoc!: (val: unknown) => void;
+    const createDocPromise = new Promise((resolve) => {
+      resolveCreateDoc = resolve;
+    });
+
+    const tailorMerge = await import('@/lib/tailorMerge');
+    vi.mocked(tailorMerge.buildMergedResume).mockReturnValueOnce({
+      ...mocks.resume,
+      summary: 'Tailored summary with changes',
+    } as any);
+    vi.mocked(tailorMerge.hasMeaningfulChanges).mockReturnValueOnce({
+      hasChanges: true,
+      changedSections: ['summary'],
+    } as any);
+
+    mocks.tailor.mockResolvedValueOnce({
+      summary: 'Tailored summary',
+      overallScore: { before: 50, after: 90 },
+      keyChanges: [{ section: 'summary', description: 'Updated' }],
+      bulletTransformations: [],
+      missingSkills: [],
+      jobParsed: { title: 'Software Engineer', company: 'Acme Inc' },
+    });
+
+    mocks.createDocument.mockImplementationOnce(() => createDocPromise);
+
+    const { unmount } = render(<TailoringHubPage />);
+    fireEvent.click(screen.getByRole('button', { name: 'Tailor now' }));
+
+    // Wait for createDocument to be invoked
+    await waitFor(() => {
+      expect(mocks.createDocument).toHaveBeenCalled();
+    });
+
+    // Unmount while createDocument is pending
+    unmount();
+
+    // Now createDocument resolves late
+    await act(async () => {
+      resolveCreateDoc({ $id: 'late_child_resume_doc' });
+    });
+
+    // Neither history nor navigation must execute
+    expect(mocks.addTailorHistory).not.toHaveBeenCalled();
+    expect(mocks.navigate).not.toHaveBeenCalled();
+  });
 });

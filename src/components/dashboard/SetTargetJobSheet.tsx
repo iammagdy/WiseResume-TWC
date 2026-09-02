@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Target, Sparkles, CheckCircle, AlertTriangle, XCircle, ArrowRight } from 'lucide-react';
 import { LoadingButton } from '@/components/ui/LoadingButton';
@@ -63,6 +63,21 @@ export function SetTargetJobSheet({ open, onOpenChange, resume }: SetTargetJobSh
   const [tailorResult, setTailorResult] = useState<SuperTailorResult | null>(null);
   const [isTailoring, setIsTailoring] = useState(false);
   const [isSavingMatch, setIsSavingMatch] = useState(false);
+  const abortRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    if (!open) {
+      abortRef.current?.abort();
+      abortRef.current = null;
+      setProgress(null);
+      setPhase((prev) => (prev === 'analyzing' ? 'input' : prev));
+      setIsSavingMatch(false);
+    }
+    return () => {
+      abortRef.current?.abort();
+      abortRef.current = null;
+    };
+  }, [open]);
 
   const resumeData = useMemo(() => dbToResumeData(resume), [resume]);
   const redactedResume = useRedactedResume(resumeData);
@@ -75,44 +90,62 @@ export function SetTargetJobSheet({ open, onOpenChange, resume }: SetTargetJobSh
     haptics.medium();
     setPhase('analyzing');
 
+    const abort = new AbortController();
+    abortRef.current = abort;
+
     try {
       const result = await executeAI(async () => {
         return await tailorResumeWithProgress(
           redactedResume ?? resumeData,
           jobDescription,
           (p) => setProgress(p as EnhancedTailorProgress),
-          'moderate'
+          'moderate',
+          abort.signal
         );
       });
-      if (!result) {
-        setPhase('input');
+      if (abort.signal.aborted || !result) {
+        if (!abort.signal.aborted) setPhase('input');
         return;
       }
       setTailorResult(result);
       setPhase('results');
 
       // Update resume target job info (background save)
-      if (user) {
+      if (user && !abort.signal.aborted) {
         const title = parsedJob?.title || result.jobParsed?.title || 'Target Job';
         const company = parsedJob?.company || result.jobParsed?.company || '';
         const score = result.overallScore?.after || 0;
 
         setIsSavingMatch(true);
         try {
+          if (abort.signal.aborted) return;
           await databases.updateDocument(DATABASE_ID, COLLECTIONS.resumes, resume.$id, {
             target_job_title: title,
             target_company: company,
             job_match_score: score,
           });
+          if (abort.signal.aborted) return;
           queryClient.invalidateQueries({ queryKey: ['resumes'] });
         } finally {
-          setIsSavingMatch(false);
+          if (abortRef.current === abort) {
+            setIsSavingMatch(false);
+          }
         }
       }
     } catch (error) {
+      if (abort.signal.aborted) return;
       console.error('Analysis error:', error);
       toast.error(t('setTargetJob.toastErrorAnalyze', 'Failed to analyze job. Please try again.'));
       setPhase('input');
+    } finally {
+      const ownsCurrentRequest = abortRef.current === abort;
+      if (ownsCurrentRequest) {
+        abortRef.current = null;
+      }
+      if (ownsCurrentRequest && !abort.signal.aborted) {
+        setProgress(null);
+        setPhase((prev) => (prev === 'analyzing' ? 'input' : prev));
+      }
     }
   };
 
