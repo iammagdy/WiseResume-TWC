@@ -9,7 +9,7 @@
 - **Appwrite Deployment:** **`NOT REQUIRED / NOT PERFORMED`** (Frontend-only lifecycle reconciliation and client-side transport hardening).
 - **Baseline Commit before merge:** [`1718fe7704de550fdfc402fbe85ab0331311b384`](https://github.com/iammagdy/WiseResume-TWC/commit/1718fe7704de550fdfc402fbe85ab0331311b384) (`main`, PR #270 merge).
 - **Problem Solved & Scope:**
-  - Standardized client lifecycle cancellation across all 6 production Tailoring callers, preventing orphaned background updates, stale UI repopulation, delayed state clobbering, and unwanted child document persistence after user navigation or drawer close.
+  - Standardized client lifecycle cancellation across all 6 production Tailoring callers, preventing orphaned browser-side waiting, stale UI repopulation, delayed state clobbering, and initiation of new downstream client side effects after cancellation is observed.
   - Closed fallback transport gap in `src/lib/appwrite-functions.ts`: added `throwIfAborted(signal)` immediately after synchronous `await functions.createExecution(...)` in `waitForTailorResult` so that an abort occurring while the 8-second request is in flight discards late 200 OK responses with `request_cancelled` (499).
 - **Six Production Callers Reconciled & Corrective Race Pass:**
   1. `src/pages/TailoringHubPage.tsx`: Unmount cleanup and intermediate post-await guards added after `createDocument` (blocking `addTailorHistory`) and after `invalidateAiCreditQueries` (blocking toast/navigation). Stale finally protected via request ownership.
