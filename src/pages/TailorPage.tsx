@@ -527,11 +527,14 @@ export default function TailorPage() {
             : 'Failed to tailor resume';
       setTailorError({ message: safeMsg, code: err?.code });
     } finally {
-      if (abortRef.current === abort) {
+      const ownsCurrentRequest = abortRef.current === abort;
+      if (ownsCurrentRequest) {
         abortRef.current = null;
       }
-      setIsTailoring(false);
-      setProgress(null);
+      if (ownsCurrentRequest && !abort.signal.aborted) {
+        setIsTailoring(false);
+        setProgress(null);
+      }
     }
   }, [jobDescription, currentResume, currentResumeId, executeAI, setPendingTailor, enabledSections, intensity, jobUrl, redactedResume, customInstructions, queryClient]);
 

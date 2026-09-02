@@ -80,26 +80,30 @@ export function QuickTailorSheet({ open, onOpenChange }: QuickTailorSheetProps) 
 
   // Reset state and abort when sheet closes or unmounts
   useEffect(() => {
-    if (!open) {
-      abortRef.current?.abort();
-      abortRef.current = null;
-      const timer = setTimeout(() => {
-        setStep('select-resume');
-        setSelectedResume(null);
-        setJobDescription('');
-        setJobMeta(null);
-        setTailorProgress(null);
-        setTailorResult(null);
-        setIsUploading(false);
-        setSavedResumeId(null);
-        setDeleteConfirmId(null);
-      }, 300);
-      return () => clearTimeout(timer);
+    if (open) {
+      setStep((prev) => (prev === 'processing' ? 'select-resume' : prev));
+      setTailorProgress(null);
+      return;
     }
-    return () => {
-      abortRef.current?.abort();
-      abortRef.current = null;
-    };
+
+    abortRef.current?.abort();
+    abortRef.current = null;
+    setStep((prev) => (prev === 'processing' ? 'select-resume' : prev));
+    setTailorProgress(null);
+
+    const timer = setTimeout(() => {
+      setStep('select-resume');
+      setSelectedResume(null);
+      setJobDescription('');
+      setJobMeta(null);
+      setTailorProgress(null);
+      setTailorResult(null);
+      setIsUploading(false);
+      setSavedResumeId(null);
+      setDeleteConfirmId(null);
+    }, 300);
+
+    return () => clearTimeout(timer);
   }, [open]);
 
   const stepIndex = { 'select-resume': 0, 'job-input': 1, 'processing': 2, 'results': 3 }[step];

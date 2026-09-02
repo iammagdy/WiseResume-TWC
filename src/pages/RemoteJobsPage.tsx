@@ -276,9 +276,12 @@ export default function RemoteJobsPage() {
       try {
         coverLetterText = await generateCoverLetter(aiResume, jobDescription, 'professional');
       } catch (clErr) {
+        if (abort.signal.aborted) return;
         console.error('Failed to generate cover letter:', clErr);
         toast.warning('Cover letter generation failed, but tailoring resume succeeded.');
       }
+
+      if (abort.signal.aborted) return;
 
       const merged = buildMergedResume(originalResume, tailorResult, ['summary', 'skills', 'experience']);
 
@@ -436,6 +439,9 @@ export default function RemoteJobsPage() {
 
       // Invalidate queries
       await invalidateAiCreditQueries(queryClient);
+
+      if (abort.signal.aborted) return;
+
       queryClient.invalidateQueries({ queryKey: ['resumes'] });
       queryClient.invalidateQueries({ queryKey: ['cover-letters'] });
       queryClient.invalidateQueries({ queryKey: ['job-applications'] });
@@ -451,11 +457,12 @@ export default function RemoteJobsPage() {
       haptics.error();
       toast.error(err instanceof Error ? err.message : 'Fast Tailor failed.');
     } finally {
-      if (abortRef.current === abort) {
+      const ownsCurrentRequest = abortRef.current === abort;
+      if (ownsCurrentRequest) {
         abortRef.current = null;
       }
       isTailoringRef.current = false;
-      if (!abort.signal.aborted) {
+      if (ownsCurrentRequest && !abort.signal.aborted) {
         setIsTailoring(false);
         setShowResumePickerDialog(false);
         setActiveJobForTailoring(null);

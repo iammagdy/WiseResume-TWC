@@ -267,4 +267,50 @@ describe('RemoteJobsPage Component', () => {
     // Verify downstream database creation calls were aborted and not executed
     expect(createDocSpy).not.toHaveBeenCalled();
   });
+
+  it('aborts during intermediate generateCoverLetter and prevents downstream document creation and navigation', async () => {
+    const queryClient = new QueryClient();
+    const aiTailor = await import('@/lib/aiTailor');
+    const { databases } = await import('@/lib/appwrite');
+    const createDocSpy = databases.createDocument as any;
+    createDocSpy.mockClear();
+
+    let resolveCoverLetter!: (val: unknown) => void;
+    const clPromise = new Promise((resolve) => {
+      resolveCoverLetter = resolve;
+    });
+
+    vi.mocked(aiTailor.generateCoverLetter).mockImplementationOnce(() => clPromise as any);
+
+    const { unmount } = render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <RemoteJobsPage />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    const button = screen.getByText('Fast Tailor');
+    await act(async () => {
+      button.click();
+    });
+
+    // Resolve tailoring so execution reaches generateCoverLetter
+    await act(async () => {
+      if (resolveTailor) resolveTailor();
+    });
+
+    expect(aiTailor.generateCoverLetter).toHaveBeenCalled();
+
+    // Unmount while generateCoverLetter is pending
+    unmount();
+
+    // Now resolve cover letter late
+    await act(async () => {
+      resolveCoverLetter('Late cover letter content');
+    });
+
+    // Downstream resume creation must NOT have been initiated
+    expect(createDocSpy).not.toHaveBeenCalled();
+  });
 });

@@ -69,6 +69,9 @@ export function SetTargetJobSheet({ open, onOpenChange, resume }: SetTargetJobSh
     if (!open) {
       abortRef.current?.abort();
       abortRef.current = null;
+      setProgress(null);
+      setPhase((prev) => (prev === 'analyzing' ? 'input' : prev));
+      setIsSavingMatch(false);
     }
     return () => {
       abortRef.current?.abort();
@@ -124,7 +127,9 @@ export function SetTargetJobSheet({ open, onOpenChange, resume }: SetTargetJobSh
           if (abort.signal.aborted) return;
           queryClient.invalidateQueries({ queryKey: ['resumes'] });
         } finally {
-          setIsSavingMatch(false);
+          if (abortRef.current === abort) {
+            setIsSavingMatch(false);
+          }
         }
       }
     } catch (error) {
@@ -133,8 +138,13 @@ export function SetTargetJobSheet({ open, onOpenChange, resume }: SetTargetJobSh
       toast.error(t('setTargetJob.toastErrorAnalyze', 'Failed to analyze job. Please try again.'));
       setPhase('input');
     } finally {
-      if (abortRef.current === abort) {
+      const ownsCurrentRequest = abortRef.current === abort;
+      if (ownsCurrentRequest) {
         abortRef.current = null;
+      }
+      if (ownsCurrentRequest && !abort.signal.aborted) {
+        setProgress(null);
+        setPhase((prev) => (prev === 'analyzing' ? 'input' : prev));
       }
     }
   };

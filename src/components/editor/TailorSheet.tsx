@@ -311,11 +311,13 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange }: Tai
   const { execute: executeAI } = useAIAction({ operation: 'tailor' });
   const redactedResume = useRedactedResume(currentResume as ResumeData | null);
 
-  // Abort on close or unmount
+  // Abort on close or unmount; reset transient active-run state on close
   useEffect(() => {
     if (!open) {
       abortRef.current?.abort();
       abortRef.current = null;
+      setIsTailoring(false);
+      setProgress(null);
     }
     return () => {
       abortRef.current?.abort();
@@ -451,10 +453,11 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange }: Tai
         setTailorError({ message: safeMsg, code });
       }
     } finally {
-      if (abortRef.current === abort) {
+      const ownsCurrentRequest = abortRef.current === abort;
+      if (ownsCurrentRequest) {
         abortRef.current = null;
       }
-      if (!abort.signal.aborted) {
+      if (ownsCurrentRequest && !abort.signal.aborted) {
         setIsTailoring(false);
         setProgress(null);
       }

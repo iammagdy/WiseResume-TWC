@@ -220,4 +220,52 @@ describe('TailoringHubPage bounded failure recovery', () => {
     expect(mocks.addTailorHistory).not.toHaveBeenCalled();
     expect(mocks.navigate).not.toHaveBeenCalled();
   });
+
+  it('prevents addTailorHistory and navigate when abort occurs while child createDocument is already pending', async () => {
+    let resolveCreateDoc!: (val: unknown) => void;
+    const createDocPromise = new Promise((resolve) => {
+      resolveCreateDoc = resolve;
+    });
+
+    const tailorMerge = await import('@/lib/tailorMerge');
+    vi.mocked(tailorMerge.buildMergedResume).mockReturnValueOnce({
+      ...mocks.resume,
+      summary: 'Tailored summary with changes',
+    } as any);
+    vi.mocked(tailorMerge.hasMeaningfulChanges).mockReturnValueOnce({
+      hasChanges: true,
+      changedSections: ['summary'],
+    } as any);
+
+    mocks.tailor.mockResolvedValueOnce({
+      summary: 'Tailored summary',
+      overallScore: { before: 50, after: 90 },
+      keyChanges: [{ section: 'summary', description: 'Updated' }],
+      bulletTransformations: [],
+      missingSkills: [],
+      jobParsed: { title: 'Software Engineer', company: 'Acme Inc' },
+    });
+
+    mocks.createDocument.mockImplementationOnce(() => createDocPromise);
+
+    const { unmount } = render(<TailoringHubPage />);
+    fireEvent.click(screen.getByRole('button', { name: 'Tailor now' }));
+
+    // Wait for createDocument to be invoked
+    await waitFor(() => {
+      expect(mocks.createDocument).toHaveBeenCalled();
+    });
+
+    // Unmount while createDocument is pending
+    unmount();
+
+    // Now createDocument resolves late
+    await act(async () => {
+      resolveCreateDoc({ $id: 'late_child_resume_doc' });
+    });
+
+    // Neither history nor navigation must execute
+    expect(mocks.addTailorHistory).not.toHaveBeenCalled();
+    expect(mocks.navigate).not.toHaveBeenCalled();
+  });
 });

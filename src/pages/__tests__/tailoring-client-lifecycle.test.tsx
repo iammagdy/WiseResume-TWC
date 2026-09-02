@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('@/lib/appwrite', () => ({
+  client: { subscribe: vi.fn(() => () => {}) },
   databases: {
     updateDocument: mocks.updateDocument,
     createDocument: mocks.createDocument,
@@ -113,6 +114,19 @@ vi.mock('@/store/resumeStore', () => {
   const store = {
     jobDescription: 'A complete job description for a Senior Frontend Engineer with React and TypeScript',
     currentResumeId: 'resume_1',
+    currentResume: {
+      id: 'resume_1',
+      title: 'Master Resume',
+      summary: 'Software Engineer',
+      contactInfo: { fullName: 'John Doe', email: 'john@example.com' },
+      experience: [],
+      education: [],
+      skills: ['React', 'TypeScript'],
+      certifications: [],
+      awards: [],
+      projects: [],
+      templateId: 'modern',
+    },
     tailorHistory: [],
     addTailorHistory: vi.fn(),
     setJobDescription: (d: string) => { store.jobDescription = d; },
@@ -125,6 +139,11 @@ vi.mock('@/store/resumeStore', () => {
     pendingTailorIntensity: 'moderate',
     pendingTailorJobUrl: null,
     pendingTailorSections: [],
+    coverLetterHistory: [],
+    setGeneratedCoverLetter: vi.fn(),
+    addCoverLetterHistory: vi.fn(),
+    deleteCoverLetterHistoryEntry: vi.fn(),
+    clearCoverLetterHistory: vi.fn(),
   };
   return {
     useResumeStore: (fn: any) => fn(store),
@@ -265,6 +284,100 @@ describe('P2-3B Tailoring Client Lifecycle', () => {
 
       expect(mocks.updateDocument).not.toHaveBeenCalled();
     });
+
+    it('does not remain stuck in analyzing phase when sheet is closed and reopened', async () => {
+      mocks.tailorResumeWithProgress.mockImplementation(
+        () => new Promise(() => {}) // never resolves
+      );
+
+      const { rerender } = render(
+        <QueryClientProvider client={queryClient}>
+          <SetTargetJobSheet open={true} onOpenChange={vi.fn()} resume={mockResume} />
+        </QueryClientProvider>
+      );
+
+      fireEvent.click(screen.getByText('Try a sample job'));
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: /analyze/i }));
+      });
+
+      // Sheet is analyzing
+      expect(screen.queryByRole('button', { name: /analyze/i })).not.toBeInTheDocument();
+
+      // Close sheet
+      rerender(
+        <QueryClientProvider client={queryClient}>
+          <SetTargetJobSheet open={false} onOpenChange={vi.fn()} resume={mockResume} />
+        </QueryClientProvider>
+      );
+
+      // Reopen sheet
+      rerender(
+        <QueryClientProvider client={queryClient}>
+          <SetTargetJobSheet open={true} onOpenChange={vi.fn()} resume={mockResume} />
+        </QueryClientProvider>
+      );
+
+      // Must be back in input phase with Analyze button visible
+      expect(screen.getByRole('button', { name: /analyze/i })).toBeInTheDocument();
+    });
+
+    it('preserves new request transient state when an old aborted request settles late', async () => {
+      let resolveRunA!: (val: unknown) => void;
+      const promiseA = new Promise((resolve) => { resolveRunA = resolve; });
+      let resolveRunB!: (val: unknown) => void;
+      const promiseB = new Promise((resolve) => { resolveRunB = resolve; });
+
+      let callCount = 0;
+      mocks.tailorResumeWithProgress.mockImplementation(() => {
+        callCount++;
+        return callCount === 1 ? promiseA : promiseB;
+      });
+
+      const { rerender } = render(
+        <QueryClientProvider client={queryClient}>
+          <SetTargetJobSheet open={true} onOpenChange={vi.fn()} resume={mockResume} />
+        </QueryClientProvider>
+      );
+
+      fireEvent.click(screen.getByText('Try a sample job'));
+      // Run A
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: /analyze/i }));
+      });
+
+      // Abort run A by closing
+      rerender(
+        <QueryClientProvider client={queryClient}>
+          <SetTargetJobSheet open={false} onOpenChange={vi.fn()} resume={mockResume} />
+        </QueryClientProvider>
+      );
+
+      // Reopen and start Run B
+      rerender(
+        <QueryClientProvider client={queryClient}>
+          <SetTargetJobSheet open={true} onOpenChange={vi.fn()} resume={mockResume} />
+        </QueryClientProvider>
+      );
+
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: /analyze/i }));
+      });
+
+      // Run B is analyzing
+      expect(screen.queryByRole('button', { name: /analyze/i })).not.toBeInTheDocument();
+
+      // Now run A settles late
+      await act(async () => {
+        resolveRunA({
+          summary: 'A summary',
+          overallScore: { before: 50, after: 70 },
+        });
+      });
+
+      // Run B must remain active (analyzing), not reset by run A's finally
+      expect(screen.queryByRole('button', { name: /analyze/i })).not.toBeInTheDocument();
+    });
   });
 
   describe('QuickTailorSheet', () => {
@@ -333,6 +446,128 @@ describe('P2-3B Tailoring Client Lifecycle', () => {
       // No results step repopulation
       expect(screen.queryByText(/tailoring complete/i)).not.toBeInTheDocument();
     });
+
+    it('does not remain stuck on processing when closed and reopened before 300ms timer', async () => {
+      mocks.tailorResumeWithProgress.mockImplementation(
+        () => new Promise(() => {}) // never resolves
+      );
+
+      const { rerender } = render(
+        <QueryClientProvider client={queryClient}>
+          <MemoryRouter>
+            <QuickTailorSheet open={true} onOpenChange={vi.fn()} />
+          </MemoryRouter>
+        </QueryClientProvider>
+      );
+
+      // Step 1: select resume
+      await act(async () => {
+        fireEvent.click(screen.getByText('Master CV'));
+      });
+
+      // Step 2: sample job
+      const sampleBtn = await screen.findByText('Try a sample job');
+      await act(async () => {
+        fireEvent.click(sampleBtn);
+      });
+
+      // Step 2: Tailor Now -> enters processing
+      const tailorBtn = await screen.findByRole('button', { name: /tailor now/i });
+      await act(async () => {
+        fireEvent.click(tailorBtn);
+      });
+
+      // Close sheet (open -> false)
+      rerender(
+        <QueryClientProvider client={queryClient}>
+          <MemoryRouter>
+            <QuickTailorSheet open={false} onOpenChange={vi.fn()} />
+          </MemoryRouter>
+        </QueryClientProvider>
+      );
+
+      // Immediately reopen BEFORE 300ms timer elapses (no timer advance)
+      rerender(
+        <QueryClientProvider client={queryClient}>
+          <MemoryRouter>
+            <QuickTailorSheet open={true} onOpenChange={vi.fn()} />
+          </MemoryRouter>
+        </QueryClientProvider>
+      );
+
+      // Must NOT be stuck in processing step; select-resume is displayed
+      expect(screen.getByText('Choose Your Resume')).toBeInTheDocument();
+    });
+  });
+
+  describe('TailorSheet', () => {
+    it('aborts active tailoring on close, does not remain stuck on reopen, and ignores late resolution', async () => {
+      let capturedSignal: AbortSignal | undefined;
+      let resolveTailoring!: (val: unknown) => void;
+      const tailorPromise = new Promise((resolve) => {
+        resolveTailoring = resolve;
+      });
+
+      mocks.tailorResumeWithProgress.mockImplementation(
+        (_r: unknown, _j: unknown, _p: unknown, _i: unknown, signal?: AbortSignal) => {
+          capturedSignal = signal;
+          return tailorPromise;
+        }
+      );
+
+      const TailorSheet = (await import('@/components/editor/TailorSheet')).TailorSheet;
+
+      const { rerender } = render(
+        <QueryClientProvider client={queryClient}>
+          <MemoryRouter>
+            <TailorSheet open={true} onOpenChange={vi.fn()} currentResumeId="resume_1" />
+          </MemoryRouter>
+        </QueryClientProvider>
+      );
+
+      const tailorBtn = screen.getByRole('button', { name: /tailor my resume/i });
+      await act(async () => {
+        fireEvent.click(tailorBtn);
+      });
+
+      expect(capturedSignal).toBeInstanceOf(AbortSignal);
+      expect(capturedSignal?.aborted).toBe(false);
+
+      // Close sheet
+      rerender(
+        <QueryClientProvider client={queryClient}>
+          <MemoryRouter>
+            <TailorSheet open={false} onOpenChange={vi.fn()} currentResumeId="resume_1" />
+          </MemoryRouter>
+        </QueryClientProvider>
+      );
+
+      expect(capturedSignal?.aborted).toBe(true);
+
+      // Reopen sheet
+      rerender(
+        <QueryClientProvider client={queryClient}>
+          <MemoryRouter>
+            <TailorSheet open={true} onOpenChange={vi.fn()} currentResumeId="resume_1" />
+          </MemoryRouter>
+        </QueryClientProvider>
+      );
+
+      // Must not be stuck in Tailoring Resume... state
+      expect(screen.getByRole('button', { name: /tailor my resume/i })).toBeInTheDocument();
+      expect(screen.queryByText(/tailoring resume\.\.\./i)).not.toBeInTheDocument();
+
+      // Resolve late
+      await act(async () => {
+        resolveTailoring({
+          summary: 'Late tailored summary',
+          overallScore: { before: 50, after: 90 },
+        });
+      });
+
+      // No results shown for abandoned run
+      expect(screen.queryByText(/resume tailored!/i)).not.toBeInTheDocument();
+    }, 15000);
   });
 
   describe('TailorPage', () => {
@@ -404,5 +639,98 @@ describe('P2-3B Tailoring Client Lifecycle', () => {
         });
       });
     });
+
+    it('prevents stale finally from clearing active run state on cancel followed by immediate retry', async () => {
+      let resolveRunA!: (val: unknown) => void;
+      const promiseA = new Promise((resolve) => { resolveRunA = resolve; });
+      let capturedSignalA: AbortSignal | undefined;
+      let capturedSignalB: AbortSignal | undefined;
+
+      let runCount = 0;
+      mocks.tailorResumeWithProgress.mockImplementation(
+        (_r: unknown, _j: unknown, onProgress: any, _i: unknown, signal?: AbortSignal) => {
+          runCount++;
+          if (runCount === 1) {
+            capturedSignalA = signal;
+            onProgress({ progress: 20, message: 'Analyzing job...', step: 'analyzing' });
+            return promiseA;
+          } else {
+            capturedSignalB = signal;
+            onProgress({ progress: 40, message: 'Optimizing skills...', step: 'optimizing_skills' });
+            return new Promise(() => {}); // keeps running
+          }
+        }
+      );
+
+      const realDateNow = Date.now;
+      let mockedTime = realDateNow();
+      const dateSpy = vi.spyOn(Date, 'now').mockImplementation(() => mockedTime);
+
+      const TailorPage = (await import('@/pages/TailorPage')).default;
+
+      render(
+        <QueryClientProvider client={queryClient}>
+          <MemoryRouter>
+            <TailorPage />
+          </MemoryRouter>
+        </QueryClientProvider>
+      );
+
+      // Step 1 -> Continue
+      await act(async () => {
+        fireEvent.click(await screen.findByRole('button', { name: /continue/i }));
+      });
+      // Step 2 -> Continue
+      await act(async () => {
+        fireEvent.click(await screen.findByRole('button', { name: /continue/i }));
+      });
+      // Step 3 -> Continue
+      await act(async () => {
+        fireEvent.click(await screen.findByRole('button', { name: /continue/i }));
+      });
+
+      // Step 4 -> Run optimizer (Run A)
+      const tailorBtnA = await screen.findByRole('button', { name: /run optimizer/i });
+      await act(async () => {
+        fireEvent.click(tailorBtnA);
+      });
+
+      expect(capturedSignalA).toBeInstanceOf(AbortSignal);
+      expect(capturedSignalA?.aborted).toBe(false);
+
+      // Advance mock time by 6 seconds so Cancel button renders
+      mockedTime += 6000;
+
+      // Find and click Cancel button (pick first of responsive instances)
+      const cancelBtns = await screen.findAllByRole('button', { name: /cancel/i });
+      await act(async () => {
+        fireEvent.click(cancelBtns[0]);
+      });
+
+      expect(capturedSignalA?.aborted).toBe(true);
+
+      // Immediately start Run B
+      const tailorBtnB = await screen.findByRole('button', { name: /run optimizer/i });
+      await act(async () => {
+        fireEvent.click(tailorBtnB);
+      });
+
+      expect(capturedSignalB).toBeInstanceOf(AbortSignal);
+      expect(capturedSignalB?.aborted).toBe(false);
+
+      // Now Run A settles late
+      await act(async () => {
+        resolveRunA({
+          summary: 'A summary',
+          overallScore: { before: 50, after: 70 },
+        });
+      });
+
+      // Run B must remain active (isTailoring=true), NOT cleared by Run A's finally
+      expect(capturedSignalB?.aborted).toBe(false);
+      expect(screen.queryByRole('button', { name: /run optimizer/i })).not.toBeInTheDocument();
+
+      dateSpy.mockRestore();
+    }, 15000);
   });
 });
