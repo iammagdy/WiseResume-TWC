@@ -1,5 +1,22 @@
 # WiseResume Atlas Master Changelog
 
+### 2026-09-02 - WiseResume Global Atlas State Reconciliation After P2 Closeout
+
+- **Workstream Verdict:** `ATLAS_GLOBAL_STATE_RECONCILED_PR_READY`.
+- **Scope:** Documentation-only global operational state reconciliation across living Project Atlas documents.
+- **Top-Level Status Updates:**
+  - `CURRENT_STATE.md`: Reconciled top-level header from stale P1/Paddle states to current verified operational status:
+    - Phase 2 Optimizations (P2-1, P2-2, P2-3A, P2-3B) deployed to production on Vercel (`DEPLOYED_PASS_WITH_BROWSER_QA_PENDING`).
+    - P1 Pre-Load-Test Stabilization verified deployed in production (`P1_DEPLOYED_VERIFIED_READY`).
+    - What's New Remediation verified ready (`VERIFIED_READY`).
+    - Production billing safety strictly preserved (`BILLING_CHECKOUT_ENABLED=false`).
+  - Paddle Classification Reconciled:
+    - Historical site-readiness state: `PADDLE_DOMAIN_REVIEW_SITE_READY` (PR #256 merged @ `1ee534aeb0fce2844f5d03e2ba1ca755f056491b`, 17/17 live Playwright verification).
+    - Current provider application outcome: `PADDLE_APPLICATION_REJECTED_CATEGORY_AUP`. On 2026-08-31, Paddle notified the owner that wiseresume.app was categorized as "Other/Resume/CV Builders", which is not supported under Paddle's Acceptable Use Policy. Paddle offered an appeal option. Production checkout remains strictly disabled; appeal or alternative provider evaluation is an owner decision.
+  - Historical Findings & Next Actions Reconciled:
+    - Qualified historical finding `P2_3B_CALLER_LIFECYCLE_CANCELLATION_AUDIT_REQUIRED` across `CURRENT_STATE.md`, `WHERE_WE_STOPPED.md`, and `CHANGELOG.md` as resolved by P2-3B (PR #271).
+    - Qualified historical "Exact Next Action" statements in P2-1, P2-2, and P2-3A sections of `WHERE_WE_STOPPED.md` to prevent confusion with active workstreams.
+
 ### 2026-09-02 - WiseResume P2-3B Tailoring Client Lifecycle Reconciliation (Merged & Deployed)
 
 - **Workstream Verdict:** `P2_3B_DEPLOYED_PASS_WITH_BROWSER_QA_PENDING`.
@@ -58,7 +75,7 @@
   - Fallback `waitForTailorResult()` traffic is a separate path and is not reduced by this change.
   - Expected small completion-detection latency increase; production user-perceived impact remains unverified because authenticated runtime/browser QA was not available.
 - **Cancellation & Caller Lifecycle Finding:**
-  - `P2_3B_CALLER_LIFECYCLE_CANCELLATION_AUDIT_REQUIRED` documented: caller lifecycle across multiple entry points requires separate audit/reconciliation.
+  - `P2_3B_CALLER_LIFECYCLE_CANCELLATION_AUDIT_REQUIRED` documented (Historical finding — subsequently resolved by P2-3B, merged/deployed via PR #271): caller lifecycle across multiple entry points required separate audit/reconciliation.
   - Aborting client signal stops browser polling; does not stop running serverless function on Appwrite.
 - **Tests Added/Updated:** Updated `src/lib/__tests__/appwrite-functions.tailoring.test.ts` (7/7 passing) proving:
   1. No `getExecution` call occurs before 1500ms.
@@ -271,7 +288,7 @@
 - **Real Production Browser QA Evidence (Playwright Chromium):** Tested all 8 required public routes (`/`, `/pricing`, `/terms`, `/privacy`, `/refund-policy`, `/ar/terms`, `/ar/privacy`, `/ar/refund-policy`) on desktop 1280x800, mobile ~390x844, English LTR, Arabic RTL (`dir="rtl"`), light mode, dark mode, persistent legal footer links, direct public access, and contact dialog modal trigger (`[role="dialog"]`). Passed 17/17 tests with zero horizontal scroll overflow.
 - **Paddle Reviewer Matrix Verification:** All 10 requirements (Product description, Pricing, Features, Terms, Privacy, Refund, Footer links, Brand, HTTPS, Logged-out access) PASSED on live production site.
 - **GitHub Check Evidence for PR #256:** PR Validation PASSED (Job `99468908403`), Security Validation correctly UNVERIFIED as a standalone check context, TestSprite pre-check status `fail` / `No tests detected`.
-- **Paddle Website Approval Status:** `SUBMITTED / AWAITING REVIEW` (Pending manual Paddle domain review).
+- **Paddle Website Approval Status (Historical):** `SUBMITTED / AWAITING REVIEW` on 2026-08-27 (subsequently resolved 2026-08-31: Paddle rejected account activation citing "Other/Resume/CV Builders" category under Acceptable Use Policy; classified as `PADDLE_APPLICATION_REJECTED_CATEGORY_AUP`). Site readiness remains `PADDLE_DOMAIN_REVIEW_SITE_READY`.
 - **Billing Safety State:** `BILLING_CHECKOUT_ENABLED=false` preserved. Production Paddle Default payment link is NOT configured yet. Zero checkouts/payments created. Preserved catalog baseline `P4_CATALOG_RECONCILIATION_SUCCESS` (run `33376804507`) and preflight audit `P4_PREFLIGHT_SAFE_BUT_ORIGIN_UNVERIFIED` (run `33376897666`).
 
 ## 2026-08-31 - Phase P4 Production catalog reconciliation & preflight hardening

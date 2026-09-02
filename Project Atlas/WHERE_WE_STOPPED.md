@@ -1,7 +1,7 @@
 # Project Atlas — Active Operational & Handover State
 
 **Last Verified:** 2026-09-02
-**Status:** `P2_3B_DEPLOYED_PASS_WITH_BROWSER_QA_PENDING` — PR #271 for P2-3B client lifecycle reconciliation merged into `main` at commit [`9ce48abb90e51decc56cd754ca9d52a1f267b050`](https://github.com/iammagdy/WiseResume-TWC/commit/9ce48abb90e51decc56cd754ca9d52a1f267b050) (reviewed head `f6c2976374e7424792a22b1c68c0b973b319d227`). Vercel production deployment `5FH2EX8T5EVgPf4mNg5ZDsm8VgH8` completed with status `SUCCESS`. Authenticated runtime QA remains `BLOCKED_AUTHENTICATED_RUNTIME_QA`. All 6 callers reconciled, shared fallback transport hardened, 35/35 tests passing across tailoring suites. P2-1, P2-2, and P2-3A remain `DEPLOYED_PASS_WITH_BROWSER_QA_PENDING`.
+**Status:** `P2_OPTIMIZATIONS_DEPLOYED_WITH_BROWSER_QA_PENDING / PADDLE_APPLICATION_REJECTED_CATEGORY_AUP` — All Phase 2 performance optimizations (P2-1, P2-2, P2-3A, P2-3B) merged and deployed to production; documentation reconciled via PR #272 at baseline `main` commit [`13a7996a348e08b0faf4f15a191f08ea9c0cc29e`](https://github.com/iammagdy/WiseResume-TWC/commit/13a7996a348e08b0faf4f15a191f08ea9c0cc29e). Authenticated runtime browser QA remains `BLOCKED_AUTHENTICATED_RUNTIME_QA`. Paddle domain review site readiness was completed (`PADDLE_DOMAIN_REVIEW_SITE_READY`), but Paddle rejected account activation on 2026-08-31 due to the Resume/CV Builder category under its Acceptable Use Policy (`PADDLE_APPLICATION_REJECTED_CATEGORY_AUP`). Billing checkout remains strictly disabled (`BILLING_CHECKOUT_ENABLED=false`).
 **Location:** `Project Atlas/WHERE_WE_STOPPED.md`
 
 ## P2-3B Tailoring Client Lifecycle Reconciliation (Merged & Deployed) — 2026-09-02
@@ -65,8 +65,8 @@
   - Production latency distribution remains unverified.
   - Hidden-tab behavior classified as `BROWSER_DEPENDENT_UNVERIFIED` (browser-dependent timer throttling).
 * **Cancellation & Caller Lifecycle Finding:**
-  - `P2_3B_CALLER_LIFECYCLE_CANCELLATION_AUDIT_REQUIRED`: Multiple Tailoring entry points exist (`TailoringHubPage`, `TailorPage`, `TailorSheet`, `QuickTailorSheet`, `RemoteJobsPage`, `SetTargetJobSheet`). Unmount/close abort behavior is inconsistent across callers.
-  - Critical semantic boundary: Aborting the client `AbortSignal` stops browser-side polling/waiting; it does **not** cancel an already-running async Appwrite `ai-gateway` execution or guarantee that server-side provider work stops.
+  - `P2_3B_CALLER_LIFECYCLE_CANCELLATION_AUDIT_REQUIRED` (Historical finding — subsequently resolved by P2-3B, merged/deployed via PR #271): Multiple Tailoring entry points exist (`TailoringHubPage`, `TailorPage`, `TailorSheet`, `QuickTailorSheet`, `RemoteJobsPage`, `SetTargetJobSheet`). Unmount/close abort behavior was reconciled across callers.
+  - Critical semantic boundary: Aborting the client `AbortSignal` stops browser-side polling/waiting; it does **not** cancel an already-running async Appwrite `ai-gateway` execution or guarantee that server-side provider work stops (`IN_FLIGHT_APPWRITE_WRITE_NOT_CLIENT_CANCELLABLE`).
 * **Validation Evidence:**
   - `src/lib/__tests__/appwrite-functions.tailoring.test.ts` (7/7 pass):
     1. No `getExecution` call occurs before 1500ms.
@@ -88,8 +88,8 @@
   - `BLOCKED_AUTHENTICATED_RUNTIME_QA` (no non-customer test user credentials in workspace environment; customer credentials not permitted).
 * **Appwrite Deployment:**
   - `NOT REQUIRED / NOT PERFORMED` (client-side transport configuration only).
-* **Exact Next Action:**
-  Review PR for P2-3A and merge only after owner authorization; address P2-3B caller cancellation lifecycle in subsequent phase.
+* **Historical Next Action (Resolved):**
+  Review PR for P2-3A and merge only after owner authorization; subsequently addressed in P2-3B (merged/deployed via PR #271).
 * **Merge Commit:** [`19f2ea4402bd5ac0ad7d312b9bfbbb163e8531a2`](https://github.com/iammagdy/WiseResume-TWC/commit/19f2ea4402bd5ac0ad7d312b9bfbbb163e8531a2) (`main`).
 * **Merged PR:** [PR #267](https://github.com/iammagdy/WiseResume-TWC/pull/267) (Merged at `2026-09-02T07:34:15Z`, reviewed head `eb11a5e0236b90c1b3cd83e9c207b4e4e1e321ec`).
 * **Vercel Production Deployment:** **`SUCCESS`** (`Deployment has completed`, deployment URL: `https://vercel.com/iam-magdy/wise-resume-twc/A4WFtfvCSnoAeN5K1AaJqCTYA3oF`).
@@ -126,8 +126,8 @@
   - P2-1 remains accurately classified as `DEPLOYED_PASS_WITH_BROWSER_QA_PENDING`.
   - P2-3 (Tailoring client polling loop): Untouched.
   - P3 findings: Untouched.
-* **Exact Next Action:**
-  Begin P2-3 as `AUDIT ONLY` (measure and inspect tailoring polling lifecycle, durations, stopping conditions, and timeout behavior; do NOT modify product code).
+* **Historical Next Action (Resolved):**
+  Begin P2-3 as AUDIT ONLY; subsequently completed via P2-3A (PR #269) and P2-3B (PR #271).
 
 ## P2-1 useMe Polling Optimization (Merged & Deployed) — 2026-09-01
 
@@ -161,8 +161,8 @@
   - P2-2 (Autosave invalidation): Untouched.
   - P2-3 (Tailoring client polling loop): Untouched.
   - P3 findings: Untouched.
-* **Exact Next Action:**
-  Owner performs optional authenticated browser QA on production if desired; proceed to P2-2 (Autosave invalidation audit & implementation).
+* **Historical Next Action (Resolved):**
+  Owner performs optional authenticated browser QA on production if desired; subsequently proceeded to P2-2 (completed via PR #267).
 
 ## P1 Pre-Load-Test Stabilization (Closed & Verified in Production) — 2026-09-01
 
@@ -410,7 +410,7 @@
   - PR Validation: `PASS` (Job `99468908403`)
   - Security Validation: `UNVERIFIED` as a standalone status check context
   - TestSprite Current State: `fail` / `No tests detected` (standard pre-check state)
-* **Paddle Website Approval Status:** `SUBMITTED / AWAITING REVIEW` (Approval pending manual Paddle review).
+* **Paddle Application Outcome:** `PADDLE_APPLICATION_REJECTED_CATEGORY_AUP` (Decision received 2026-08-31: Paddle rejected account activation citing "Other/Resume/CV Builders" category under Acceptable Use Policy. Site readiness remains `PADDLE_DOMAIN_REVIEW_SITE_READY`. Appeal is an owner option; no provider migration decision made; production checkout remains strictly disabled).
 * **Billing Safety State:** `BILLING_CHECKOUT_ENABLED=false` preserved. Production billing remains strictly disabled. Production Paddle Default payment link is NOT configured yet. Zero checkouts/payments created.
 * **Preserved Payment Baseline State:** Live catalog reconciliation run `33376804507` (`P4_CATALOG_RECONCILIATION_SUCCESS`) and read-only preflight audit run `33376897666` (`P4_PREFLIGHT_SAFE_BUT_ORIGIN_UNVERIFIED`).
 

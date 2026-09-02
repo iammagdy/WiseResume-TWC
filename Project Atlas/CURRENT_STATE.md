@@ -1,10 +1,17 @@
 # WiseResume Current Production State Snapshot
 
-**Last Verified:** 2026-09-01
-**Status:** `P1_STABILIZATION_BRANCH_READY` / `PADDLE_DOMAIN_REVIEW_SITE_READY` with `WHATS_NEW_VERIFIED_READY` — Production application snapshot preserves active multi-workstream state:
-* **P1 Pre-Load-Test Stabilization (`fix/p1-preload-stabilization`):** Implemented and verified locally. P1-1 (Public contact form) routed to `email-service` (`execute: ["any"]`) with Turnstile & durable `email_rate_limits` checks. P1-2 (Custom domain scan) fail-closed with 501 `custom_domains_not_supported`. All unit tests, TypeScript compilation, and production build pass.
+**Last Verified:** 2026-09-02
+**Status:** `P2_OPTIMIZATIONS_DEPLOYED_WITH_BROWSER_QA_PENDING / PADDLE_APPLICATION_REJECTED_CATEGORY_AUP` with `WHATS_NEW_VERIFIED_READY` and `BILLING_CHECKOUT_DISABLED` — Production application snapshot preserves verified multi-workstream state:
+* **Phase 2 Optimizations (P2-1, P2-2, P2-3A, P2-3B):** `DEPLOYED_PASS_WITH_BROWSER_QA_PENDING` — All four planned Phase 2 optimization workstreams merged to `main` and deployed to production on Vercel:
+  - P2-1 (`useMe` 15s -> 5m poll interval) merged in PR #265 (`541698e`).
+  - P2-2 (Autosave cache direct reconciliation / deduplication) merged in PR #267 (`19f2ea4`).
+  - P2-3A (Shared Tailoring execution poll interval 750ms -> 1500ms) merged in PR #269 (`f10ac60`).
+  - P2-3B (Tailoring client lifecycle cancellation across all 6 entry points & fallback abort hardening) merged in PR #271 (`9ce48abb`), documentation reconciled in PR #272 (`13a7996a`). All 35 tests pass across suites. In-flight boundary: `IN_FLIGHT_APPWRITE_WRITE_NOT_CLIENT_CANCELLABLE`. Authenticated browser QA remains `BLOCKED_AUTHENTICATED_RUNTIME_QA`.
+* **P1 Pre-Load-Test Stabilization:** `P1_DEPLOYED_VERIFIED_READY` — Product PR #263 merged into `main` at `176df210c6c1ed5a7e05a2cdeea94e792522c819`; documentation closeout PR #264 merged at `ff8eee9633cc9bcfbaa91741e1e627586745d2bf`. Targeted `email-service` deployment and production runtime verification were completed successfully. P1-1 (Public contact form) routed to `email-service` (`execute: ["any"]`) with Turnstile & durable `email_rate_limits` checks. P1-2 (Custom domain scan) fail-closed with 501 `custom_domains_not_supported`.
 * **What's New Remediation (PR #260):** `VERIFIED_READY` — PR #260 (`fix/whats-new-timeline-locale-routing`, HEAD `e9aed13d44f49bde1fe5fffbf7653241208abfba`) merged into `main` at merge SHA `4126c445c6c387057380f3d1279c0973c41b30a4`. Production Vercel deployment `dpl_9T8y4dZqVXoULMCVdLWvWUhvJkcK` completed with status `READY`. Live visual verification confirmed by owner on `https://wiseresume.app/whats-new` and `https://wiseresume.app/ar/whats-new`.
-* **Paddle Domain Review & Legal Accuracy (PR #256):** Preserved as `PADDLE_DOMAIN_REVIEW_SITE_READY` (merged @ `1ee534aeb0fce2844f5d03e2ba1ca755f056491b`; deployment `8Fo4XQe7PLPvQM39xggzPeXUKTYB`; 17/17 live Playwright verification; Paddle website approval status: SUBMITTED / AWAITING REVIEW).
+* **Paddle Domain Review & Activation Outcome:**
+  - Historical site-readiness state: `PADDLE_DOMAIN_REVIEW_SITE_READY` (PR #256 merged @ `1ee534aeb0fce2844f5d03e2ba1ca755f056491b`; deployment `8Fo4XQe7PLPvQM39xggzPeXUKTYB`; 17/17 live Playwright verification).
+  - Current provider-review outcome: `PADDLE_APPLICATION_REJECTED_CATEGORY_AUP`. On 2026-08-31, Paddle notified owner that wiseresume.app was categorized as "Other/Resume/CV Builders", which is not supported under Paddle's Acceptable Use Policy. Paddle offered an appeal option. Production checkout remains strictly disabled; appeal or alternative provider evaluation is an owner decision.
 * **Billing Safety State:** Production billing remains strictly disabled (`BILLING_CHECKOUT_ENABLED=false`). Payment baseline state preserved: `P4_CATALOG_RECONCILIATION_SUCCESS` (run `33376804507`) and `P4_PREFLIGHT_SAFE_BUT_ORIGIN_UNVERIFIED` (run `33376897666`). Zero checkouts/payments created.
 
 **Repository:** `iammagdy/WiseResume-TWC`
@@ -62,7 +69,7 @@
   - Fallback `waitForTailorResult` traffic is a separate path and is not reduced by this change.
   - Expected small completion-detection latency increase; production user-perceived impact remains unverified because authenticated runtime/browser QA was not available.
 * **Cancellation Finding:**
-  - `P2_3B_CALLER_LIFECYCLE_CANCELLATION_AUDIT_REQUIRED` logged: caller lifecycle across multiple entry points (`TailoringHubPage`, `TailorSheet`, `TailorPage`, `QuickTailorSheet`, etc.) requires separate reconciliation.
+  - `P2_3B_CALLER_LIFECYCLE_CANCELLATION_AUDIT_REQUIRED` (Historical finding — subsequently resolved by P2-3B, merged/deployed via PR #271): caller lifecycle across multiple entry points (`TailoringHubPage`, `TailorSheet`, `TailorPage`, `QuickTailorSheet`, etc.) required separate reconciliation.
   - Semantic boundary: Aborting client signal stops browser polling; does not stop running serverless function on Appwrite.
 * **Validation & Test Coverage:**
   - `src/lib/__tests__/appwrite-functions.tailoring.test.ts` (7/7 passing).
@@ -218,7 +225,7 @@
   - PR Validation: `PASS` (Job `99468908403`)
   - Security Validation: `UNVERIFIED` as a standalone status check context
   - TestSprite Current State: `fail` / `No tests detected` (standard pre-check state)
-* **Paddle Website Approval Status:** `SUBMITTED / AWAITING REVIEW` (Approval pending manual Paddle review).
+* **Paddle Application Outcome:** `PADDLE_APPLICATION_REJECTED_CATEGORY_AUP` (Decision received 2026-08-31: Paddle rejected account activation citing "Other/Resume/CV Builders" category under Acceptable Use Policy. Site readiness remains `PADDLE_DOMAIN_REVIEW_SITE_READY`. Appeal is an owner option; no provider migration decision made; production checkout remains strictly disabled).
 * **Billing Safety State:** `BILLING_CHECKOUT_ENABLED=false` preserved. Production billing remains strictly disabled. Production Paddle Default payment link is NOT configured yet. Zero checkouts/payments created.
 * **Preserved Payment Baseline State:** Live catalog reconciliation run `33376804507` (`P4_CATALOG_RECONCILIATION_SUCCESS`) and read-only preflight audit run `33376897666` (`P4_PREFLIGHT_SAFE_BUT_ORIGIN_UNVERIFIED`).
 
