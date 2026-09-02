@@ -10,6 +10,37 @@
 **Repository:** `iammagdy/WiseResume-TWC`
 **Production:** `https://wiseresume.app`
 
+## P2-3B Tailoring Client Lifecycle Reconciliation (Branch fix/p2-3b-tailoring-client-lifecycle) — 2026-09-02
+
+* **Workstream Status:** `PR_READY_FOR_MERGE_REVIEW` (Branch `fix/p2-3b-tailoring-client-lifecycle`).
+* **Baseline SHA:** [`1718fe7704de550fdfc402fbe85ab0331311b384`](https://github.com/iammagdy/WiseResume-TWC/commit/1718fe7704de550fdfc402fbe85ab0331311b384).
+* **Six-Caller Production Inventory:**
+  1. `src/pages/TailoringHubPage.tsx`: Full-page route; unmount cleanup added; downstream guards prevent child resume creation, history writes, query invalidation, and navigation after abandonment.
+  2. `src/pages/TailorPage.tsx`: Full-page workspace; unmount cleanup added; resume selector is disabled during active tailoring (`isTailoring || isApplying`), preserving safe single-resume context.
+  3. `src/components/editor/TailorSheet.tsx`: Editor drawer; unmount and close (`open=false`) cleanup added; late results cannot repopulate state, Zustand, or local cache.
+  4. `src/components/landing/QuickTailorSheet.tsx`: Landing sheet; unmount and close (`open=false`) cleanup added; prevents late results from clobbering 300ms delayed close/reset.
+  5. `src/pages/RemoteJobsPage.tsx`: Fast Tailor action; `AbortController` instantiated and `signal` passed; unmount aborts; downstream guards prevent cover letter, resume, application tracking, and navigation.
+  6. `src/components/dashboard/SetTargetJobSheet.tsx`: Target job sheet; `AbortController` instantiated and `signal` passed; unmount and close (`open=false`) abort; downstream guard prevents `databases.updateDocument`.
+* **Shared Fallback Transport Hardening:**
+  - In `src/lib/appwrite-functions.ts`: Added `throwIfAborted(signal)` immediately after `await functions.createExecution(...)` in `waitForTailorResult`.
+  - Proves: In-flight abort while fallback request is resolving now cleanly throws `request_cancelled` (499) and discards the late result rather than surfacing it.
+* **Concurrency & Ref Ownership Safety:**
+  - Callers clear `abortRef.current` only when it still owns the active controller (`if (abortRef.current === abort) abortRef.current = null;`), preventing stale finally blocks from clearing newer runs.
+* **Semantic Boundary:**
+  - Client abort stops browser waiting, timers, and `getExecution` HTTP polling.
+  - Appwrite serverless execution and provider inference continue independently server-side; backend idempotency cache absorbs duplicate restarts.
+* **Validation & Test Coverage:**
+  - `src/lib/__tests__/appwrite-functions.tailoring.test.ts` (8/8 passing).
+  - `src/lib/__tests__/aiTailor-D1.test.ts` (7/7 passing).
+  - `src/pages/__tests__/TailoringHubPage-recovery.test.tsx` (4/4 passing).
+  - `src/pages/__tests__/RemoteJobsPage.test.tsx` (4/4 passing).
+  - `src/pages/__tests__/tailoring-client-lifecycle.test.tsx` (4/4 passing).
+  - Total: 27/27 passing across 5 suites.
+  - `tsc --noEmit`: 0 errors.
+  - Production build: clean in 48.67s.
+* **Runtime QA Status:** `BLOCKED_AUTHENTICATED_RUNTIME_QA`.
+* **Deployment Impact:** Frontend-only release; Appwrite deployment not required / not performed.
+
 ---
 
 ## P2-3A Tailoring Execution Polling Optimization (Merged & Deployed) — 2026-09-02

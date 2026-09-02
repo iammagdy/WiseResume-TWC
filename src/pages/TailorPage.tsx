@@ -254,6 +254,8 @@ export default function TailorPage() {
     return () => {
       activityTracker.setActiveFeature(null);
       if (copiedTextTimerRef.current) clearTimeout(copiedTextTimerRef.current);
+      abortRef.current?.abort();
+      abortRef.current = null;
     };
   }, []);
 
@@ -435,7 +437,8 @@ export default function TailorPage() {
     preValidateAbortRef.current?.abort();
     preValidateAbortRef.current = null;
 
-    abortRef.current = new AbortController();
+    const abort = new AbortController();
+    abortRef.current = abort;
 
     try {
       const result = await executeAI(async () => {
@@ -444,12 +447,12 @@ export default function TailorPage() {
           jobDescription,
           (p) => setProgress(p),
           intensity,
-          abortRef.current!.signal,
+          abort.signal,
           customInstructions || undefined
         );
       });
 
-      if (!result) return;
+      if (!result || abort.signal.aborted) return;
 
       const superResult = result as SuperTailorResult;
       setTailorResult(superResult);
@@ -513,6 +516,7 @@ export default function TailorPage() {
         }
       })();
     } catch (error) {
+      if (abort.signal.aborted) return;
       const err = error as TailorError;
       const rawMsg = err?.message;
       const safeMsg =
@@ -523,6 +527,9 @@ export default function TailorPage() {
             : 'Failed to tailor resume';
       setTailorError({ message: safeMsg, code: err?.code });
     } finally {
+      if (abortRef.current === abort) {
+        abortRef.current = null;
+      }
       setIsTailoring(false);
       setProgress(null);
     }

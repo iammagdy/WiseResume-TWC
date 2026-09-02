@@ -1,5 +1,36 @@
 # WiseResume Atlas Master Changelog
 
+### 2026-09-02 - WiseResume P2-3B Tailoring Client Lifecycle Reconciliation
+
+- **Workstream Verdict:** `PR_READY_FOR_MERGE_REVIEW` (Branch `fix/p2-3b-tailoring-client-lifecycle`).
+- **Baseline Commit:** [`1718fe7704de550fdfc402fbe85ab0331311b384`](https://github.com/iammagdy/WiseResume-TWC/commit/1718fe7704de550fdfc402fbe85ab0331311b384) (`main`, PR #270 merge).
+- **Problem Solved & Scope:**
+  - Standardized client lifecycle cancellation across all 6 production Tailoring callers, preventing orphaned background updates, stale UI repopulation, delayed state clobbering, and unwanted child document persistence after user navigation or drawer close.
+  - Closed fallback transport gap in `src/lib/appwrite-functions.ts`: added `throwIfAborted(signal)` immediately after synchronous `await functions.createExecution(...)` in `waitForTailorResult` so that an abort occurring while the 8-second request is in flight discards late 200 OK responses with `request_cancelled` (499).
+- **Six Production Callers Reconciled:**
+  1. `src/pages/TailoringHubPage.tsx`: Unmount cleanup aborts active controller; downstream guards prevent child resume creation, history writes, query invalidation, and navigation after abandonment.
+  2. `src/pages/TailorPage.tsx`: Unmount cleanup aborts active controller; preserved disabled resume selector (`disabled={isTailoring || isApplying}`) to prevent cross-resume racing during active run; ref ownership safety in finally block.
+  3. `src/components/editor/TailorSheet.tsx`: Unmount and close (`!open`) cleanup aborts controller; downstream guards prevent late results from populating local state, Zustand, or localStorage cache.
+  4. `src/components/landing/QuickTailorSheet.tsx`: Unmount and close (`!open`) cleanup aborts controller; 300ms delayed reset timer wrapped in cleanup; downstream guards prevent late overwrite of reset state.
+  5. `src/pages/RemoteJobsPage.tsx`: Instantiated `AbortController` and passed `signal` to `tailorResumeWithProgress`; unmount aborts; downstream guards prevent cover letter generation, resume creation, cover letter creation, application tracking, and navigation.
+  6. `src/components/dashboard/SetTargetJobSheet.tsx`: Instantiated `AbortController` and passed `signal`; unmount and close (`!open`) abort; downstream guards prevent `databases.updateDocument` and query invalidation.
+- **Concurrency & Ref Ownership Safety:**
+  - Applied ref ownership guard (`if (abortRef.current === abort) abortRef.current = null;`) across all callers so earlier aborted runs cannot wipe out newer active controllers.
+- **Semantic Boundary:**
+  - Aborting client signal cancels browser timers, status reads, and drops results; it does not terminate already-running serverless executions or provider inference on Appwrite.
+- **Tests (27/27 passing across 5 suites):**
+  - Added unit test in `src/lib/__tests__/appwrite-functions.tailoring.test.ts` verifying fallback `waitForTailorResult` drops in-flight late results upon abort.
+  - Added tests in `src/pages/__tests__/TailoringHubPage-recovery.test.tsx` verifying unmount aborts tailoring and suppresses downstream document persistence and navigation.
+  - Added tests in `src/pages/__tests__/RemoteJobsPage.test.tsx` verifying non-null `AbortSignal` is passed and unmount suppresses downstream document persistence and navigation.
+  - Created `src/pages/__tests__/tailoring-client-lifecycle.test.tsx` verifying:
+    * `SetTargetJobSheet`: passes non-null `AbortSignal`, sheet close aborts and suppresses target-job updateDocument.
+    * `SetTargetJobSheet`: unmount aborts and suppresses updateDocument.
+    * `QuickTailorSheet`: sheet close aborts active tailoring and ignores late resolution.
+    * `TailorPage`: unmount aborts active tailoring and preserves disabled selector during active tailoring.
+- **Validation:** `tsc --noEmit` (0 errors), `npm run build` (clean production build in 48.67s), `git diff --check` (clean).
+- **Runtime QA Status:** `BLOCKED_AUTHENTICATED_RUNTIME_QA`.
+- **Deployment Status:** Frontend-only change; Appwrite deployment not required / not performed.
+
 ### 2026-09-02 - WiseResume P2-3A Tailoring Execution Polling Optimization (Merged & Deployed)
 
 - **Workstream Verdict:** `P2_3A_DEPLOYED_PASS_WITH_BROWSER_QA_PENDING`.

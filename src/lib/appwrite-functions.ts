@@ -148,6 +148,7 @@ async function waitForTailorResult(
       '/',
       'POST' as ExecutionMethod,
     );
+    throwIfAborted(signal);
     if (
       execution.responseStatusCode !== 409 ||
       executionResponseCode(execution) !== 'request_in_progress'

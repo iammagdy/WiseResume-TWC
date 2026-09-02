@@ -311,6 +311,18 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange }: Tai
   const { execute: executeAI } = useAIAction({ operation: 'tailor' });
   const redactedResume = useRedactedResume(currentResume as ResumeData | null);
 
+  // Abort on close or unmount
+  useEffect(() => {
+    if (!open) {
+      abortRef.current?.abort();
+      abortRef.current = null;
+    }
+    return () => {
+      abortRef.current?.abort();
+      abortRef.current = null;
+    };
+  }, [open]);
+
   // Hydrate from Zustand or localStorage on open
   useEffect(() => {
     if (!open) return;
@@ -369,7 +381,8 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange }: Tai
     setAppliedMergedResume(null);
     setAppliedResumeTitle(null);
 
-    abortRef.current = new AbortController();
+    const abort = new AbortController();
+    abortRef.current = abort;
 
     try {
       const result = await executeAI(async () => {
@@ -378,13 +391,12 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange }: Tai
           jobDescription,
           (p) => setProgress(p),
           intensity,
-          abortRef.current!.signal,
+          abort.signal,
           customInstructions || undefined
         );
       });
 
-      if (abortRef.current?.signal.aborted) return;
-      if (!result) return;
+      if (abort.signal.aborted || !result) return;
 
       const superResult = result as SuperTailorResult;
       setTailorResult(superResult);
@@ -417,6 +429,7 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange }: Tai
       });
 
     } catch (error) {
+      if (abort.signal.aborted) return;
       editorLogger.error('Tailor error:', error);
       const err = error as TailorError;
       const code = err.code || 'generic';
@@ -438,8 +451,13 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange }: Tai
         setTailorError({ message: safeMsg, code });
       }
     } finally {
-      setIsTailoring(false);
-      setProgress(null);
+      if (abortRef.current === abort) {
+        abortRef.current = null;
+      }
+      if (!abort.signal.aborted) {
+        setIsTailoring(false);
+        setProgress(null);
+      }
     }
   }, [jobDescription, currentResume, executeAI, setPendingTailor, enabledSections, intensity, jobUrl, currentResumeId, redactedResume, customInstructions]);
 

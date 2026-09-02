@@ -1,10 +1,40 @@
 # Project Atlas — Active Operational & Handover State
 
 **Last Verified:** 2026-09-02
-**Status:** `P2_3A_DEPLOYED_PASS_WITH_BROWSER_QA_PENDING` — PR #269 (P2-3A product & timing tests) has been merged into `main` at commit [`f10ac6064bb834eaf45ddeb049580496cf29bfbd`](https://github.com/iammagdy/WiseResume-TWC/commit/f10ac6064bb834eaf45ddeb049580496cf29bfbd). Automatic Vercel production deployment has completed successfully (`state: success`). Appwrite deployment was not required and not performed. Authenticated production browser QA remains pending (`P2_3A_DEPLOYED_PASS_WITH_BROWSER_QA_PENDING`). P2-1 and P2-2 also remain `DEPLOYED_PASS_WITH_BROWSER_QA_PENDING`. P2-3B caller lifecycle cancellation audit is in progress (`P2_3B_CALLER_LIFECYCLE_CANCELLATION_AUDIT_REQUIRED`).
+**Status:** `P2_3B_PRODUCT_READY_FOR_MERGE_REVIEW` — PR for P2-3B client lifecycle reconciliation prepared on branch `fix/p2-3b-tailoring-client-lifecycle`. Baseline `main` is commit [`1718fe7704de550fdfc402fbe85ab0331311b384`](https://github.com/iammagdy/WiseResume-TWC/commit/1718fe7704de550fdfc402fbe85ab0331311b384) (PR #270 merge). All 6 production callers reconciled, shared fallback transport hardened, concurrency ref ownership verified, 27/27 tests pass across 5 suites, production build clean. P2-1, P2-2, and P2-3A remain `DEPLOYED_PASS_WITH_BROWSER_QA_PENDING`.
 **Location:** `Project Atlas/WHERE_WE_STOPPED.md`
 
-## P2-3A Tailoring Execution Polling Optimization (Merged & Deployed) — 2026-09-02
+## P2-3B Tailoring Client Lifecycle Reconciliation (Branch fix/p2-3b-tailoring-client-lifecycle) — 2026-09-02
+
+* **Workstream Status:** `PR_READY_FOR_MERGE_REVIEW` (Branch `fix/p2-3b-tailoring-client-lifecycle`).
+* **Baseline SHA:** [`1718fe7704de550fdfc402fbe85ab0331311b384`](https://github.com/iammagdy/WiseResume-TWC/commit/1718fe7704de550fdfc402fbe85ab0331311b384).
+* **Six-Caller Production Inventory:**
+  1. `src/pages/TailoringHubPage.tsx`: Full-page route; unmount cleanup added; downstream guards prevent child resume creation, history writes, query invalidation, and navigation after abandonment.
+  2. `src/pages/TailorPage.tsx`: Full-page workspace; unmount cleanup added; resume selector is disabled during active tailoring (`isTailoring || isApplying`), preserving safe single-resume context.
+  3. `src/components/editor/TailorSheet.tsx`: Editor drawer; unmount and close (`open=false`) cleanup added; late results cannot repopulate state, Zustand, or local cache.
+  4. `src/components/landing/QuickTailorSheet.tsx`: Landing sheet; unmount and close (`open=false`) cleanup added; prevents late results from clobbering 300ms delayed close/reset.
+  5. `src/pages/RemoteJobsPage.tsx`: Fast Tailor action; `AbortController` instantiated and `signal` passed; unmount aborts; downstream guards prevent cover letter, resume, application tracking, and navigation.
+  6. `src/components/dashboard/SetTargetJobSheet.tsx`: Target job sheet; `AbortController` instantiated and `signal` passed; unmount and close (`open=false`) abort; downstream guard prevents `databases.updateDocument`.
+* **Shared Fallback Transport Hardening:**
+  - In `src/lib/appwrite-functions.ts`: Added `throwIfAborted(signal)` immediately after `await functions.createExecution(...)` in `waitForTailorResult`.
+  - Proves: In-flight abort while fallback request is resolving now cleanly throws `request_cancelled` (499) and discards the late result rather than surfacing it.
+* **Concurrency & Ref Ownership Safety:**
+  - Callers clear `abortRef.current` only when it still owns the active controller (`if (abortRef.current === abort) abortRef.current = null;`), preventing stale finally blocks from clearing newer runs.
+* **Semantic Boundary:**
+  - Client abort stops browser waiting, timers, and `getExecution` HTTP polling.
+  - Appwrite serverless execution and provider inference continue independently server-side; backend idempotency cache absorbs duplicate restarts.
+* **Validation Evidence (27/27 tests passing across 5 suites):**
+  - `src/lib/__tests__/appwrite-functions.tailoring.test.ts` (8/8 passing).
+  - `src/lib/__tests__/aiTailor-D1.test.ts` (7/7 passing).
+  - `src/pages/__tests__/TailoringHubPage-recovery.test.tsx` (4/4 passing).
+  - `src/pages/__tests__/RemoteJobsPage.test.tsx` (4/4 passing).
+  - `src/pages/__tests__/tailoring-client-lifecycle.test.tsx` (4/4 passing).
+  - `tsc --noEmit`: 0 errors.
+  - Production build: clean in 48.67s.
+* **Runtime QA Status:** `BLOCKED_AUTHENTICATED_RUNTIME_QA`.
+* **Deployment Impact:** Frontend-only release; Appwrite deployment not required / not performed.
+
+---
 
 * **Workstream Status:** `P2_3A_DEPLOYED_PASS_WITH_BROWSER_QA_PENDING`.
 * **Merge Commit:** [`f10ac6064bb834eaf45ddeb049580496cf29bfbd`](https://github.com/iammagdy/WiseResume-TWC/commit/f10ac6064bb834eaf45ddeb049580496cf29bfbd) (`main`).

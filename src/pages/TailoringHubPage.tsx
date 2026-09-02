@@ -212,7 +212,11 @@ export default function JobMatchWorkspacePage() {
 
   useEffect(() => {
     activityTracker.setActiveFeature('Tailoring Hub');
-    return () => activityTracker.setActiveFeature(null);
+    return () => {
+      activityTracker.setActiveFeature(null);
+      abortRef.current?.abort();
+      abortRef.current = null;
+    };
   }, []);
 
   const resumeText = useMemo(() => {
@@ -430,6 +434,7 @@ export default function JobMatchWorkspacePage() {
       const createdAt = new Date().toISOString();
 
       // Save as new resume document
+      if (abort.signal.aborted) return;
       const newTitle = `${originalResume.contactInfo.fullName || 'Resume'} — ${jobTitle}${company ? ` @ ${company}` : ''} (Tailored)`;
       const doc = await databases.createDocument(
         DATABASE_ID,
@@ -477,6 +482,8 @@ export default function JobMatchWorkspacePage() {
         },
         currentResumeId ?? undefined,
       );
+
+      if (abort.signal.aborted) return;
 
       // Invalidate credits and resumes cache
       await invalidateAiCreditQueries(queryClient);

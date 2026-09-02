@@ -177,4 +177,47 @@ describe('TailoringHubPage bounded failure recovery', () => {
     expect(mocks.createDocument).not.toHaveBeenCalled();
     expect(mocks.navigate).not.toHaveBeenCalled();
   });
+
+  it('aborts active tailoring on unmount and prevents downstream child resume creation and navigation upon late resolution', async () => {
+    let capturedSignal: AbortSignal | undefined;
+    let resolveTailoring!: (val: unknown) => void;
+    const tailorPromise = new Promise((resolve) => {
+      resolveTailoring = resolve;
+    });
+
+    mocks.tailor.mockImplementationOnce((_r, _j, _p, _i, signal: AbortSignal) => {
+      capturedSignal = signal;
+      return tailorPromise;
+    });
+
+    const { unmount } = render(<TailoringHubPage />);
+    fireEvent.click(screen.getByRole('button', { name: 'Tailor now' }));
+
+    expect(await screen.findByTestId('tailoring-loading')).toBeInTheDocument();
+    expect(mocks.tailor).toHaveBeenCalledTimes(1);
+    expect(capturedSignal).toBeDefined();
+    expect(capturedSignal?.aborted).toBe(false);
+
+    // Unmount while tailoring is in-flight
+    unmount();
+
+    // Signal must be aborted immediately upon unmount
+    expect(capturedSignal?.aborted).toBe(true);
+
+    // Resolve late tailoring result after unmount
+    await act(async () => {
+      resolveTailoring({
+        summary: 'Late tailored summary',
+        keyChanges: [],
+        bulletTransformations: [],
+        missingSkills: [],
+        jobParsed: { title: 'Software Engineer', company: 'Acme Inc' },
+      });
+    });
+
+    // Downstream side effects must NOT be triggered
+    expect(mocks.createDocument).not.toHaveBeenCalled();
+    expect(mocks.addTailorHistory).not.toHaveBeenCalled();
+    expect(mocks.navigate).not.toHaveBeenCalled();
+  });
 });

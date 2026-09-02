@@ -78,10 +78,12 @@ export function QuickTailorSheet({ open, onOpenChange }: QuickTailorSheetProps) 
     return resumes.map(dbToResumeData);
   }, [resumes]);
 
-  // Reset state when sheet closes
+  // Reset state and abort when sheet closes or unmounts
   useEffect(() => {
     if (!open) {
-      setTimeout(() => {
+      abortRef.current?.abort();
+      abortRef.current = null;
+      const timer = setTimeout(() => {
         setStep('select-resume');
         setSelectedResume(null);
         setJobDescription('');
@@ -92,7 +94,12 @@ export function QuickTailorSheet({ open, onOpenChange }: QuickTailorSheetProps) 
         setSavedResumeId(null);
         setDeleteConfirmId(null);
       }, 300);
+      return () => clearTimeout(timer);
     }
+    return () => {
+      abortRef.current?.abort();
+      abortRef.current = null;
+    };
   }, [open]);
 
   const stepIndex = { 'select-resume': 0, 'job-input': 1, 'processing': 2, 'results': 3 }[step];
@@ -184,28 +191,40 @@ export function QuickTailorSheet({ open, onOpenChange }: QuickTailorSheetProps) 
     const controller = new AbortController();
     abortRef.current = controller;
 
-    const result = await execute(async () => {
-      return await tailorResumeWithProgress(
-        redactedResume ?? selectedResume,
-        jobDescription,
-        (p) => setTailorProgress(p),
-        'moderate' as TailorIntensity,
-        controller.signal
-      );
-    });
+    try {
+      const result = await execute(async () => {
+        return await tailorResumeWithProgress(
+          redactedResume ?? selectedResume,
+          jobDescription,
+          (p) => setTailorProgress(p),
+          'moderate' as TailorIntensity,
+          controller.signal
+        );
+      });
 
-    if (result) {
-      setTailorResult(result);
-      setStep('results');
-      triggerHaptic.success();
-    } else {
-      // credits issue or cancelled
+      if (controller.signal.aborted) return;
+
+      if (result) {
+        setTailorResult(result);
+        setStep('results');
+        triggerHaptic.success();
+      } else {
+        // credits issue or cancelled
+        setStep('job-input');
+      }
+    } catch {
+      if (controller.signal.aborted) return;
       setStep('job-input');
+    } finally {
+      if (abortRef.current === controller) {
+        abortRef.current = null;
+      }
     }
   }, [selectedResume, redactedResume, jobDescription, execute]);
 
   const handleCancel = useCallback(() => {
     abortRef.current?.abort();
+    abortRef.current = null;
     setStep('job-input');
   }, []);
 

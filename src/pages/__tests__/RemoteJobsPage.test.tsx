@@ -6,8 +6,10 @@ import RemoteJobsPage from '../RemoteJobsPage';
 
 // Mock @/lib/aiTailor
 let resolveTailor: (() => void) | null = null;
+let capturedSignal: AbortSignal | undefined;
 vi.mock('@/lib/aiTailor', () => ({
-  tailorResumeWithProgress: vi.fn().mockImplementation(async (r, j, onProgress) => {
+  tailorResumeWithProgress: vi.fn().mockImplementation(async (r, j, onProgress, intensity, signal) => {
+    capturedSignal = signal;
     onProgress({ progress: 50 });
     return new Promise((resolve) => {
       resolveTailor = () => {
@@ -228,5 +230,41 @@ describe('RemoteJobsPage Component', () => {
 
     // Restore original mock
     aiTailor.tailorResumeWithProgress = originalTailor;
+  });
+
+  it('passes a non-null AbortSignal and aborts on unmount, preventing downstream creation/navigation', async () => {
+    const queryClient = new QueryClient();
+    const { databases } = await import('@/lib/appwrite');
+    const createDocSpy = databases.createDocument as any;
+    createDocSpy.mockClear();
+
+    const { unmount } = render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <RemoteJobsPage />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    const button = screen.getByText('Fast Tailor');
+    await act(async () => {
+      button.click();
+    });
+
+    expect(capturedSignal).toBeInstanceOf(AbortSignal);
+    expect(capturedSignal?.aborted).toBe(false);
+
+    // Unmount while tailoring is in-flight
+    unmount();
+
+    expect(capturedSignal?.aborted).toBe(true);
+
+    // Now resolve tailoring late
+    await act(async () => {
+      if (resolveTailor) resolveTailor();
+    });
+
+    // Verify downstream database creation calls were aborted and not executed
+    expect(createDocSpy).not.toHaveBeenCalled();
   });
 });

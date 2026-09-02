@@ -116,9 +116,17 @@ export default function RemoteJobsPage() {
   const [isTailoring, setIsTailoring] = useState(false);
   const [tailorProgress, setTailorProgress] = useState<string>('');
   const isTailoringRef = useRef(false);
+  const abortRef = useRef<AbortController | null>(null);
   const { checkCredits } = useAICreditsMutations();
   const { requestDisclosure } = useAIPrivacyDisclosure();
   const redactPiiBeforeAI = useSettingsStore(state => state.redactPiiBeforeAI);
+
+  useEffect(() => {
+    return () => {
+      abortRef.current?.abort();
+      abortRef.current = null;
+    };
+  }, []);
 
   // Resumes and mutations
   const { data: resumes = [] } = useResumes();
@@ -224,6 +232,9 @@ export default function RemoteJobsPage() {
     // Close dialog immediately if open
     setShowResumePickerDialog(false);
 
+    const abort = new AbortController();
+    abortRef.current = abort;
+
     try {
       const hasCredits = await checkCredits();
       if (!hasCredits) {
@@ -233,9 +244,13 @@ export default function RemoteJobsPage() {
         return;
       }
 
+      if (abort.signal.aborted) return;
+
       if (makeDefaultResume) {
         await setMasterCV.mutateAsync(selectedDbResume.$id);
       }
+
+      if (abort.signal.aborted) return;
 
       const originalResume = dbToResumeData(selectedDbResume);
       const aiResume = redactResumeForAI(originalResume, redactPiiBeforeAI);
@@ -249,8 +264,11 @@ export default function RemoteJobsPage() {
         (p) => {
           setTailorProgress(`Tailoring CV... ${Math.round(p.progress)}%`);
         },
-        'aggressive'
+        'aggressive',
+        abort.signal
       );
+
+      if (abort.signal.aborted) return;
 
       // Step 2: Generate Cover Letter
       setTailorProgress('Generating personalized cover letter...');
@@ -302,6 +320,7 @@ export default function RemoteJobsPage() {
       }
 
       // Step 3: Save Tailored Resume
+      if (abort.signal.aborted) return;
       setTailorProgress('Saving tailored resume...');
       const newTitle = `${job.company} - ${job.title} - Tailored CV`;
       const doc = await databases.createDocument(
@@ -340,11 +359,13 @@ export default function RemoteJobsPage() {
         }
       );
 
+      if (abort.signal.aborted) return;
+
       const tailoredResumeId = doc.$id;
 
       // Save Cover Letter if generated
       let generatedCoverLetterId = '';
-      if (coverLetterText) {
+      if (coverLetterText && !abort.signal.aborted) {
         setTailorProgress('Saving cover letter...');
         const clDoc = await databases.createDocument(
           DATABASE_ID,
@@ -363,6 +384,8 @@ export default function RemoteJobsPage() {
         );
         generatedCoverLetterId = clDoc.$id;
       }
+
+      if (abort.signal.aborted) return;
 
       // Step 4: Track in Application Tracker (job_applications)
       setTailorProgress('Tracking application...');
@@ -387,8 +410,12 @@ export default function RemoteJobsPage() {
         ownerDocumentPermissions(user.id),
       );
 
+      if (abort.signal.aborted) return;
+
       // Track in remote job feed specific actions (user_job_actions)
       await trackAction(job, 'mark_ready_to_apply', undefined, selectedDbResume.$id, tailoredResumeId, generatedCoverLetterId);
+
+      if (abort.signal.aborted) return;
 
       // Add to store history
       addTailorHistory(
@@ -405,6 +432,8 @@ export default function RemoteJobsPage() {
         selectedDbResume.$id
       );
 
+      if (abort.signal.aborted) return;
+
       // Invalidate queries
       await invalidateAiCreditQueries(queryClient);
       queryClient.invalidateQueries({ queryKey: ['resumes'] });
@@ -417,14 +446,20 @@ export default function RemoteJobsPage() {
       // Navigate to results page
       navigate(`/tailoring-hub/result/${tailoredResumeId}`);
     } catch (err: unknown) {
+      if (abort.signal.aborted) return;
       console.error(err);
       haptics.error();
       toast.error(err instanceof Error ? err.message : 'Fast Tailor failed.');
     } finally {
+      if (abortRef.current === abort) {
+        abortRef.current = null;
+      }
       isTailoringRef.current = false;
-      setIsTailoring(false);
-      setShowResumePickerDialog(false);
-      setActiveJobForTailoring(null);
+      if (!abort.signal.aborted) {
+        setIsTailoring(false);
+        setShowResumePickerDialog(false);
+        setActiveJobForTailoring(null);
+      }
     }
   };
 
