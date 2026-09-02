@@ -10,19 +10,23 @@
 **Repository:** `iammagdy/WiseResume-TWC`
 **Production:** `https://wiseresume.app`
 
-## P2-3B Tailoring Client Lifecycle Reconciliation (Branch fix/p2-3b-tailoring-client-lifecycle) — 2026-09-02
+## P2-3B Tailoring Client Lifecycle Reconciliation (Merged & Deployed) — 2026-09-02
 
-* **Workstream Status:** `PR_READY_FOR_MERGE` (Branch `fix/p2-3b-tailoring-client-lifecycle`, PR #271).
-* **Baseline SHA:** [`1718fe7704de550fdfc402fbe85ab0331311b384`](https://github.com/iammagdy/WiseResume-TWC/commit/1718fe7704de550fdfc402fbe85ab0331311b384).
-* **Six-Caller Production Inventory & Corrective Race Pass:**
+* **Workstream Status:** `P2_3B_DEPLOYED_PASS_WITH_BROWSER_QA_PENDING`.
+* **Merge Commit:** [`9ce48abb90e51decc56cd754ca9d52a1f267b050`](https://github.com/iammagdy/WiseResume-TWC/commit/9ce48abb90e51decc56cd754ca9d52a1f267b050) (`main`).
+* **Merged PR:** [PR #271](https://github.com/iammagdy/WiseResume-TWC/pull/271) (Merged at `2026-09-02T09:09:08Z`, reviewed head `f6c2976374e7424792a22b1c68c0b973b319d227`).
+* **Vercel Production Deployment:** **`SUCCESS`** (`Deployment has completed`, deployment URL: `https://vercel.com/iam-magdy/wise-resume-twc/5FH2EX8T5EVgPf4mNg5ZDsm8VgH8`).
+* **Appwrite Deployment:** **`NOT REQUIRED / NOT PERFORMED`** (Frontend-only lifecycle reconciliation and client-side transport hardening).
+* **Baseline SHA before merge:** [`1718fe7704de550fdfc402fbe85ab0331311b384`](https://github.com/iammagdy/WiseResume-TWC/commit/1718fe7704de550fdfc402fbe85ab0331311b384).
+* **Six-Caller Production Inventory & Corrective Pass:**
   1. `src/pages/TailoringHubPage.tsx`: Full-page route; unmount cleanup and intermediate post-await guards added after `createDocument` (blocking `addTailorHistory`) and after `invalidateAiCreditQueries` (blocking toast/navigation). Stale finally protected via request ownership.
   2. `src/pages/TailorPage.tsx`: Full-page workspace; unmount cleanup added; resume selector is disabled during active tailoring (`isTailoring || isApplying`). Stale `finally` race resolved via request ownership (`ownsCurrentRequest && !abort.signal.aborted`) so early cancel followed by immediate retry cannot have Request A clear Request B's active UI state.
   3. `src/components/editor/TailorSheet.tsx`: Editor drawer; unmount and close (`open=false`) cleanup resets transient active-run state (`setIsTailoring(false); setProgress(null)`), preventing reopened sheet from remaining stuck in tailoring. Stale finally protected via request ownership.
-  4. `src/components/landing/QuickTailorSheet.tsx`: Landing sheet; unmount and close (`open=false`) cleanup synchronously resets active `processing` step and progress; rapid reopen within <300ms immediately reconciles step, preventing sheet from reopening stuck on processing.
+  4. `src/components/landing/QuickTailorSheet.tsx`: Landing sheet; dedicated component unmount cleanup (`useEffect(() => () => { abortRef.current?.abort(); abortRef.current = null; }, [])`) guarantees in-flight requests abort if the component unmounts while `open=true`. Synchronously resets active `processing` step and progress on close; rapid reopen within <300ms immediately reconciles step, preventing sheet from reopening stuck on processing.
   5. `src/pages/RemoteJobsPage.tsx`: Fast Tailor action; `AbortController` instantiated and `signal` passed; unmount aborts; intermediate post-await guards added after `generateCoverLetter` (suppressing cover-letter failure toast when abandoned) and after `invalidateAiCreditQueries` (blocking query invalidation, toast, and navigation). Stale finally protected via request ownership.
   6. `src/components/dashboard/SetTargetJobSheet.tsx`: Target job sheet; `AbortController` instantiated and `signal` passed; unmount and close (`open=false`) resets transient state (`phase` back to `'input'`, `progress` cleared, `isSavingMatch` cleared); nested save `finally` and outer `finally` protected via request ownership (`abortRef.current === abort`).
 * **Shared Fallback Transport Hardening:**
-  - In `src/lib/appwrite-functions.ts`: Added `throwIfAborted(signal)` immediately after `await functions.createExecution(...)` in `waitForTailorResult`.
+  - In `src/lib/appwrite-functions.ts`: Added `throwIfAborted(signal)` immediately after synchronous `await functions.createExecution(...)` in `waitForTailorResult`.
   - Proves: In-flight abort while fallback request is resolving cleanly throws `request_cancelled` (499) and discards the late result rather than surfacing it.
 * **Authoritative Semantic Boundary & Classification Tag:**
   - `IN_FLIGHT_APPWRITE_WRITE_NOT_CLIENT_CANCELLABLE`: Client abort prevents new client-side Tailoring side effects from being initiated after cancellation is observed. It stops Tailoring polling/waiting and drops late Tailoring results. It cannot cancel an Appwrite database/function HTTP operation that was already issued before the abort boundary, unless that specific API accepts and honors the AbortSignal.
@@ -30,11 +34,11 @@
   - `src/lib/__tests__/appwrite-functions.tailoring.test.ts` (8/8 passing).
   - `src/pages/__tests__/RemoteJobsPage.test.tsx` (5/5 passing).
   - `src/pages/__tests__/TailoringHubPage-recovery.test.tsx` (5/5 passing).
-  - `src/pages/__tests__/tailoring-client-lifecycle.test.tsx` (9/9 passing).
+  - `src/pages/__tests__/tailoring-client-lifecycle.test.tsx` (10/10 passing).
   - `src/lib/__tests__/aiTailor-D1.test.ts` (7/7 passing).
-  - Total: 34 passing tests across tailoring test suites.
+  - Total: 35 passing tests across tailoring test suites.
   - `tsc --noEmit`: 0 errors.
-  - Production build: clean in 50.30s.
+  - Production build: clean in 38.72s.
 * **Runtime QA Status:** `BLOCKED_AUTHENTICATED_RUNTIME_QA`.
 * **Deployment Impact:** Frontend-only release; Appwrite deployment not required / not performed.
 
