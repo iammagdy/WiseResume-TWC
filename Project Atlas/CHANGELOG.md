@@ -1,5 +1,34 @@
 # WiseResume Atlas Master Changelog
 
+### 2026-09-02 - WiseResume P2-3A Tailoring Execution Polling Optimization (Implemented)
+
+- **Workstream Status:** `PR_READY_FOR_MERGE_REVIEW` (Branch `fix/p2-3a-tailoring-poll-interval`).
+- **Baseline SHA:** [`74755b507a4891d7ef75ee8ace2717160b89f045`](https://github.com/iammagdy/WiseResume-TWC/commit/74755b507a4891d7ef75ee8ace2717160b89f045).
+- **Problem Solved & Root Cause:** `src/lib/appwrite-functions.ts` previously polled `functions.getExecution(functionId, executionId)` every 750ms. Polling at 750ms created elevated client-to-Appwrite HTTP chatter: ~40 reads per 30s typical AI generation run (up to 100 reads on timeout).
+- **Optimization & Implementation:**
+  - In `src/lib/appwrite-functions.ts`: Changed `TAILOR_EXECUTION_POLL_MS` from `750` to `1_500` (1.5 seconds).
+  - Preserved unchanged: 75-second frontend timeout, 8-second result-only wait, initial async execution creation, terminal status handling, synchronous result-only recovery (`X-Tailor-Result-Only: true`), and 401/403/404 fallback recovery (`waitForTailorResult`).
+- **Request Impact (`THEORETICAL_STATIC_REQUEST_COUNT`):**
+  - Expected normal status-read reduction: ~50% (30s run ~40 reads -> ~20 reads; 75s timeout ~100 reads -> ~50 reads).
+  - Fallback `waitForTailorResult()` traffic is a separate path and is not reduced by this change.
+- **Cancellation & Caller Lifecycle Finding:**
+  - `P2_3B_CALLER_LIFECYCLE_CANCELLATION_AUDIT_REQUIRED` documented: caller lifecycle across multiple entry points requires separate audit/reconciliation.
+  - Aborting client signal stops browser polling; does not stop running serverless function on Appwrite.
+- **Tests Added/Updated:** Updated `src/lib/__tests__/appwrite-functions.tailoring.test.ts` (7/7 passing) proving:
+  1. No `getExecution` call occurs before 1500ms.
+  2. First status poll occurs at 1500ms.
+  3. Successful terminal execution completes correctly.
+  4. Repeated non-terminal states continue polling at 1500ms intervals.
+  5. Failed terminal execution remains handled correctly.
+  6. Timeout remains bounded at configured timeout (504 `request_timeout`).
+  7. Abort signal stops client polling promptly (499 `request_cancelled`).
+  8. 401/403/404 execution-status failure still switches to result-only recovery (`waitForTailorResult`).
+  9. Result-only recovery behavior remains unchanged.
+  10. Normal polling never calls `createExecution` for each status poll.
+- **Validation:** `aiTailor-D1.test.ts` (7/7 pass), `TailoringHubPage-recovery.test.tsx` (3/3 pass), `tsc --noEmit` (0 errors), `npm run build` (clean production build).
+- **Runtime QA Status:** `BLOCKED_AUTHENTICATED_RUNTIME_QA`.
+- **Deployment Status:** Appwrite not required / not performed.
+
 ### 2026-09-02 - WiseResume P2-2 Autosave Cache Invalidation Optimization (Merged & Deployed)
 
 - **Workstream Verdict:** `P2_2_DEPLOYED_PASS_WITH_BROWSER_QA_PENDING`.

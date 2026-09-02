@@ -1,12 +1,56 @@
 # Project Atlas — Active Operational & Handover State
 
 **Last Verified:** 2026-09-02
-**Status:** `P2_2_DEPLOYED_PASS_WITH_BROWSER_QA_PENDING` — PR #267 (P2-2 product) has been merged into `main` at commit [`19f2ea4402bd5ac0ad7d312b9bfbbb163e8531a2`](https://github.com/iammagdy/WiseResume-TWC/commit/19f2ea4402bd5ac0ad7d312b9bfbbb163e8531a2). Automatic Vercel production deployment has completed successfully (`state: success`). Appwrite deployment was not required and not performed. Authenticated production browser QA remains pending (`P2_2_DEPLOYED_PASS_WITH_BROWSER_QA_PENDING`).
+**Status:** `P2_3A_IMPLEMENTED_PENDING_PR_MERGE_REVIEW` — PR #267 (P2-2 product) and PR #268 (P2-2 docs closeout) are merged into `main` at commit [`74755b507a4891d7ef75ee8ace2717160b89f045`](https://github.com/iammagdy/WiseResume-TWC/commit/74755b507a4891d7ef75ee8ace2717160b89f045). P2-1 and P2-2 remain `DEPLOYED_PASS_WITH_BROWSER_QA_PENDING`. P2-3A (Tailoring Execution Polling Optimization) is implemented on branch `fix/p2-3a-tailoring-poll-interval` with all tests passing. P2-3B (`P2_3B_CALLER_LIFECYCLE_CANCELLATION_AUDIT_REQUIRED`) is documented as a follow-up workstream.
 **Location:** `Project Atlas/WHERE_WE_STOPPED.md`
 
-## P2-2 Autosave Cache Invalidation Optimization (Merged & Deployed) — 2026-09-02
+## P2-3A Tailoring Execution Polling Optimization (Branch fix/p2-3a-tailoring-poll-interval) — 2026-09-02
 
-* **Workstream Status:** `P2_2_DEPLOYED_PASS_WITH_BROWSER_QA_PENDING`.
+* **Workstream Status:** `PR_READY_FOR_MERGE_REVIEW` (Branch `fix/p2-3a-tailoring-poll-interval`).
+* **Baseline `main` SHA:** [`74755b507a4891d7ef75ee8ace2717160b89f045`](https://github.com/iammagdy/WiseResume-TWC/commit/74755b507a4891d7ef75ee8ace2717160b89f045).
+* **Problem Solved & Root Cause:**
+  - In `src/lib/appwrite-functions.ts`, `waitForExecution()` previously polled `functions.getExecution(functionId, initialExecution.$id)` every `TAILOR_EXECUTION_POLL_MS = 750` ms.
+  - While status polling uses pure REST GET reads and does not create new executions or deduct credits, a 750ms interval generated elevated client-to-Appwrite HTTP chatter: approximately 40 `getExecution` reads for a 30-second AI generation run, up to 100 reads on timeout.
+* **Exact Implementation:**
+  - In `src/lib/appwrite-functions.ts`: Changed `TAILOR_EXECUTION_POLL_MS` from `750` to `1_500` (1.5 seconds).
+  - Preserved unchanged: 75-second frontend timeout (`TAILOR_EXECUTION_TIMEOUT_MS = 75_000`), 8-second result-only wait (`TAILOR_RESULT_WAIT_MS = 8_000`), initial async execution creation (`createExecution(..., true)`), terminal status set (`['completed', 'failed']`), synchronous result-only recovery (`X-Tailor-Result-Only: true`), and 401/403/404 fallback to `waitForTailorResult()`.
+* **Request Impact & Theoretical Reductions (`THEORETICAL_STATIC_REQUEST_COUNT` / `THEORETICAL_UPPER_BOUND`):**
+  - At 750ms: 3s ~4 reads, 10s ~14 reads, 30s ~40 reads, 60s ~80 reads, 75s ~100 reads.
+  - At 1500ms: 3s ~2 reads, 10s ~7 reads, 30s ~20 reads, 60s ~40 reads, 75s ~50 reads.
+  - Expected normal-path status-read reduction: approximately **50%**.
+  - Fallback `waitForTailorResult()` traffic is a separate path and is not reduced by this interval change.
+  - Actual production execution durations and request counts have not been measured in this phase.
+* **Risk & Performance Assessment:**
+  - Low implementation complexity.
+  - Expected small completion-detection latency increase: worst-case additional detection latency is approximately 750ms (average 375ms), which is imperceptible to users observing the animated progress bar.
+  - Production latency distribution remains unverified.
+  - Hidden-tab behavior classified as `BROWSER_DEPENDENT_UNVERIFIED` (browser-dependent timer throttling).
+* **Cancellation & Caller Lifecycle Finding:**
+  - `P2_3B_CALLER_LIFECYCLE_CANCELLATION_AUDIT_REQUIRED`: Multiple Tailoring entry points exist (`TailoringHubPage`, `TailorPage`, `TailorSheet`, `QuickTailorSheet`, `RemoteJobsPage`, `SetTargetJobSheet`). Unmount/close abort behavior is inconsistent across callers.
+  - Critical semantic boundary: Aborting the client `AbortSignal` stops browser-side polling/waiting; it does **not** cancel an already-running async Appwrite `ai-gateway` execution or guarantee that server-side provider work stops.
+* **Validation Evidence:**
+  - `src/lib/__tests__/appwrite-functions.tailoring.test.ts` (7/7 pass):
+    1. No `getExecution` call occurs before 1500ms.
+    2. First status poll occurs at 1500ms.
+    3. Successful terminal execution completes correctly.
+    4. Repeated non-terminal states continue polling at 1500ms intervals.
+    5. Failed terminal execution remains handled correctly.
+    6. Timeout remains bounded at configured timeout (504 `request_timeout`).
+    7. Abort signal stops client polling promptly (499 `request_cancelled`).
+    8. 401/403/404 execution-status failure still switches to result-only recovery (`waitForTailorResult`).
+    9. Result-only recovery behavior remains unchanged.
+    10. Normal polling never calls `createExecution` for each status poll.
+  - `src/lib/__tests__/aiTailor-D1.test.ts` (7/7 pass).
+  - `src/pages/__tests__/TailoringHubPage-recovery.test.tsx` (3/3 pass).
+  - `npx tsc --noEmit`: Clean (0 errors).
+  - `npm run build`: Clean production build (0 sourcemaps).
+  - `git diff --check`: Clean formatting.
+* **Production Runtime QA Status:**
+  - `BLOCKED_AUTHENTICATED_RUNTIME_QA` (no non-customer test user credentials in workspace environment; customer credentials not permitted).
+* **Appwrite Deployment:**
+  - `NOT REQUIRED / NOT PERFORMED` (client-side transport configuration only).
+* **Exact Next Action:**
+  Review PR for P2-3A and merge only after owner authorization; address P2-3B caller cancellation lifecycle in subsequent phase.
 * **Merge Commit:** [`19f2ea4402bd5ac0ad7d312b9bfbbb163e8531a2`](https://github.com/iammagdy/WiseResume-TWC/commit/19f2ea4402bd5ac0ad7d312b9bfbbb163e8531a2) (`main`).
 * **Merged PR:** [PR #267](https://github.com/iammagdy/WiseResume-TWC/pull/267) (Merged at `2026-09-02T07:34:15Z`, reviewed head `eb11a5e0236b90c1b3cd83e9c207b4e4e1e321ec`).
 * **Vercel Production Deployment:** **`SUCCESS`** (`Deployment has completed`, deployment URL: `https://vercel.com/iam-magdy/wise-resume-twc/A4WFtfvCSnoAeN5K1AaJqCTYA3oF`).

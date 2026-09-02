@@ -40,7 +40,7 @@ function execution(overrides: Record<string, unknown> = {}) {
   };
 }
 
-describe('appwriteFunctions Tailoring execution transport', () => {
+describe('appwriteFunctions Tailoring execution transport (P2-3A)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -49,7 +49,7 @@ describe('appwriteFunctions Tailoring execution transport', () => {
     vi.useRealTimers();
   });
 
-  it('runs Tailoring asynchronously, polls to completion, then retrieves the cached result', async () => {
+  it('1, 2, 3 & 10. does not poll before 1500ms, polls at 1500ms, completes successfully, and never calls createExecution for status polls', async () => {
     vi.useFakeTimers();
     const result = { summary: 'Tailored summary' };
     createExecution
@@ -67,16 +67,26 @@ describe('appwriteFunctions Tailoring execution transport', () => {
 
     const pending = appwriteFunctions.invoke('tailor-resume', {
       body: { resume: { summary: 'Original' }, jobDescription: 'A complete role description' },
-      timeoutMs: 5_000,
+      timeoutMs: 10_000,
     });
-    await vi.advanceTimersByTimeAsync(750);
-    const response = await pending;
 
-    expect(response).toEqual({ data: result, error: null });
-    expect(createExecution).toHaveBeenCalledTimes(2);
+    // Advance 1499ms: getExecution must NOT have been called
+    await vi.advanceTimersByTimeAsync(1_499);
+    expect(createExecution).toHaveBeenCalledTimes(1);
     expect(createExecution.mock.calls[0][0]).toBe('ai-gateway');
     expect(createExecution.mock.calls[0][2]).toBe(true);
+    expect(getExecution).not.toHaveBeenCalled();
+
+    // Advance remaining 1ms to 1500ms: first poll occurs
+    await vi.advanceTimersByTimeAsync(1);
+    expect(getExecution).toHaveBeenCalledTimes(1);
     expect(getExecution).toHaveBeenCalledWith('ai-gateway', 'tailor-execution');
+
+    const response = await pending;
+    expect(response).toEqual({ data: result, error: null });
+
+    // Status poll uses getExecution, NOT createExecution
+    expect(createExecution).toHaveBeenCalledTimes(2);
     expect(createExecution.mock.calls[1][2]).toBe(false);
 
     const initialBody = JSON.parse(createExecution.mock.calls[0][1]);
@@ -92,15 +102,114 @@ describe('appwriteFunctions Tailoring execution transport', () => {
     });
   });
 
-  it('returns a classified timeout and does not start a second provider execution', async () => {
+  it('4. repeated non-terminal states continue polling at 1500ms intervals', async () => {
+    vi.useFakeTimers();
+    const result = { summary: 'Multi-poll summary' };
+    createExecution
+      .mockResolvedValueOnce(execution())
+      .mockResolvedValueOnce(execution({
+        $id: 'result-execution',
+        status: 'completed',
+        responseStatusCode: 200,
+        responseBody: JSON.stringify({ status: 'success', data: result }),
+      }));
+
+    getExecution
+      .mockResolvedValueOnce(execution({ status: 'processing' }))
+      .mockResolvedValueOnce(execution({ status: 'processing' }))
+      .mockResolvedValueOnce(execution({ status: 'completed', responseStatusCode: 200 }));
+
+    const pending = appwriteFunctions.invoke('tailor-resume', {
+      body: { resume: {}, jobDescription: 'A complete role description' },
+      timeoutMs: 10_000,
+    });
+
+    // Before 1500ms: 0 polls
+    await vi.advanceTimersByTimeAsync(1_499);
+    expect(getExecution).toHaveBeenCalledTimes(0);
+
+    // Poll 1 at 1500ms
+    await vi.advanceTimersByTimeAsync(1);
+    expect(getExecution).toHaveBeenCalledTimes(1);
+
+    // Before 3000ms: still 1 poll
+    await vi.advanceTimersByTimeAsync(1_499);
+    expect(getExecution).toHaveBeenCalledTimes(1);
+
+    // Poll 2 at 3000ms
+    await vi.advanceTimersByTimeAsync(1);
+    expect(getExecution).toHaveBeenCalledTimes(2);
+
+    // Before 4500ms: still 2 polls
+    await vi.advanceTimersByTimeAsync(1_499);
+    expect(getExecution).toHaveBeenCalledTimes(2);
+
+    // Poll 3 at 4500ms
+    await vi.advanceTimersByTimeAsync(1);
+    expect(getExecution).toHaveBeenCalledTimes(3);
+
+    const response = await pending;
+    expect(response).toEqual({ data: result, error: null });
+    expect(createExecution).toHaveBeenCalledTimes(2);
+  });
+
+  it('5. failed terminal execution remains handled correctly without starting another provider call', async () => {
+    vi.useFakeTimers();
+    createExecution
+      .mockResolvedValueOnce(execution())
+      .mockResolvedValueOnce(execution({
+        $id: 'failed-result-execution',
+        status: 'completed',
+        responseStatusCode: 503,
+        responseBody: JSON.stringify({
+          status: 'error',
+          code: 'function_runtime_failed',
+          message: 'Tailoring stopped before producing a usable result. Please retry.',
+        }),
+      }));
+    getExecution.mockResolvedValueOnce(execution({
+      status: 'failed',
+      responseStatusCode: 500,
+      errors: 'Provider rate limit exceeded',
+    }));
+
+    const pending = appwriteFunctions.invoke('tailor-resume', {
+      body: { resume: {}, jobDescription: 'A complete role description' },
+      timeoutMs: 10_000,
+    });
+
+    await vi.advanceTimersByTimeAsync(1_500);
+    const response = await pending;
+
+    expect(response.data).toBeNull();
+    expect(response.error).toMatchObject({
+      code: 'timeout',
+      status: 503,
+    });
+    expect(createExecution).toHaveBeenCalledTimes(2);
+    expect(createExecution.mock.calls[1][2]).toBe(false);
+    expect(getExecution).toHaveBeenCalledTimes(1);
+  });
+
+  it('6. returns a classified timeout bounded at configured timeout', async () => {
     vi.useFakeTimers();
     createExecution.mockResolvedValueOnce(execution());
     getExecution.mockResolvedValue(execution({ status: 'processing' }));
 
     const pending = appwriteFunctions.invoke('tailor-resume', {
       body: { resume: {}, jobDescription: 'A complete role description' },
-      timeoutMs: 1_000,
+      timeoutMs: 3_000,
     });
+
+    // Advance 1500ms: 1st poll
+    await vi.advanceTimersByTimeAsync(1_500);
+    expect(getExecution).toHaveBeenCalledTimes(1);
+
+    // Advance another 1500ms (total 3000ms): 2nd poll
+    await vi.advanceTimersByTimeAsync(1_500);
+    expect(getExecution).toHaveBeenCalledTimes(2);
+
+    // Advance to 3rd poll boundary (4500ms >= 3000ms timeout)
     await vi.advanceTimersByTimeAsync(1_500);
     const response = await pending;
 
@@ -109,7 +218,7 @@ describe('appwriteFunctions Tailoring execution transport', () => {
     expect(createExecution).toHaveBeenCalledTimes(1);
   });
 
-  it('stops polling on cancellation without creating a result retrieval execution', async () => {
+  it('7. stops polling on cancellation promptly without creating a result retrieval execution', async () => {
     const controller = new AbortController();
     createExecution.mockResolvedValueOnce(execution());
     getExecution.mockResolvedValue(execution({ status: 'processing' }));
@@ -151,7 +260,7 @@ describe('appwriteFunctions Tailoring execution transport', () => {
       body: { resume: {}, jobDescription: 'A complete role description' },
       timeoutMs: 5_000,
     });
-    await vi.advanceTimersByTimeAsync(750);
+    await vi.advanceTimersByTimeAsync(1_500);
     const response = await pending;
 
     expect(response.data).toBeNull();
@@ -159,7 +268,8 @@ describe('appwriteFunctions Tailoring execution transport', () => {
     expect(createExecution).toHaveBeenCalledTimes(2);
   });
 
-  it('retrieves the cached result when Appwrite denies browser execution-status polling', async () => {
+  it('8 & 9. retrieves the cached result when Appwrite denies browser execution-status polling (401/403/404)', async () => {
+    vi.useFakeTimers();
     const result = { summary: 'Recovered tailored summary' };
     createExecution
       .mockResolvedValueOnce(execution())
@@ -177,10 +287,14 @@ describe('appwriteFunctions Tailoring execution transport', () => {
       }));
     getExecution.mockRejectedValueOnce(new AppwriteException('Execution not accessible.', 401));
 
-    const response = await appwriteFunctions.invoke('tailor-resume', {
+    const pending = appwriteFunctions.invoke('tailor-resume', {
       body: { resume: { summary: 'Original' }, jobDescription: 'A complete role description' },
       timeoutMs: 20_000,
     });
+
+    // Advance 1500ms: getExecution called and rejects with 401
+    await vi.advanceTimersByTimeAsync(1_500);
+    const response = await pending;
 
     expect(response).toEqual({ data: result, error: null });
     expect(getExecution).toHaveBeenCalledTimes(1);
