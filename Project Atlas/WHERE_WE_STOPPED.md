@@ -13,18 +13,22 @@
   - Because `CommandPalette` in `DeferredProviders` globally observes `['resumes', user.id]` and `EditorPage` actively observes `['resume', targetId]`, every single 3-second debounced cloud save triggered 2 immediate read network requests (`listDocuments` of 50 resumes + `getDocument` of the current resume).
   - This created a 1:2 write-to-read amplification (3 Appwrite HTTP requests per autosave instead of 1 write).
 * **Exact Implementation:**
-  - Added pure reconciliation helper `reconcileUpdatedResume(current, updated)`: replaces updated item by `$id`, preserves all other items, and sorts by `$updatedAt` descending.
+  - Added pure reconciliation helper `reconcileUpdatedResume(current, updated, options)`: replaces matching item when `$id` exists, inserts authoritative document when `$id` is absent, sorts by `$updatedAt` descending, and truncates to 50 items (preserving server `Query.limit(50)` contract).
   - In `useResumeMutations.updateResume.onSuccess`:
     1. Detail Cache: Reconciles `['resume', updatedDoc.$id]` directly using `queryClient.setQueryData`, completely eliminating immediate `databases.getDocument` refetches.
-    2. List Cache: Reconciles user's exact query `['resumes', user.id]` using `queryClient.setQueryData` (if cache exists), preserving `$updatedAt` descending ordering, and synchronizes the persisted cache via `writePersistedCache(\`resumes:${user.id}`, reconciled)`. Does not fabricate a fake list if no cache existed. Completely eliminates immediate `databases.listDocuments` refetches.
+    2. List Cache: Patches user's exact query `['resumes', user.id]` using `queryClient.setQueryData` (if cache exists), enforcing the ownership guard (`!exists && updatedDoc.user_id !== user.id` blocks insertion), preserving `$updatedAt` descending ordering, capping to 50 items, and synchronizes the persisted cache via `writePersistedCache(\`resumes:${user.id}`, reconciled)`. Does not fabricate a fake list if no cache existed. Completely eliminates immediate `databases.listDocuments` refetches.
     3. Omitted active refetch invalidations (`invalidateQueries`) as direct authoritative cache reconciliation provides fresh data synchronously.
     4. Maintained `toast.success('Resume saved')` and mutation return value (`$updatedAt`) for `useEditorAutosave` conflict/baseline tracking.
 * **Validation Evidence:**
-  - Added unit test suite `src/hooks/__tests__/useResumes.autosaveOptimization.test.tsx` (4/4 pass):
+  - Added unit test suite `src/hooks/__tests__/useResumes.autosaveOptimization.test.tsx` (8/8 pass):
     1. `reconcileUpdatedResume`: pure helper replaces matching resume, preserves others, and sorts `$updatedAt` descending without array mutation.
-    2. `reconcileUpdatedResume`: preserves ordering if updated item does not match.
-    3. `updateResume`: calls `updateDocument` once and directly updates detail + list caches with 0 `getDocument` / `listDocuments` reads; verifies `writePersistedCache` call and `$updatedAt` return.
-    4. `updateResume`: does not fabricate list cache if no list query existed prior to mutation.
+    2. `reconcileUpdatedResume`: inserts absent same-user updated item and sorts by authoritative `$updatedAt`.
+    3. `reconcileUpdatedResume`: caps list to 50 items and drops oldest when inserting a 51st item.
+    4. `reconcileUpdatedResume`: does not insert absent cross-user document when `ownerUserId` is specified.
+    5. `updateResume`: calls `updateDocument` once and directly updates detail + list caches with 0 `getDocument` / `listDocuments` reads; verifies `writePersistedCache` call and `$updatedAt` return.
+    6. `updateResume`: inserts absent user-owned resume into list cache when edited outside top-50.
+    7. `updateResume`: ownership guard blocks inserting absent cross-user document into list cache.
+    8. `updateResume`: does not fabricate list cache if no list query existed prior to mutation.
   - Existing resume test suites verified: `useResume.editorStartup.test.tsx` (5/5 pass), `useResumes.template.test.ts` (7/7 pass).
   - P2-1 hook test suite verified: `useMe.test.tsx` (5/5 pass).
   - `npx tsc --noEmit`: Clean (0 errors).
@@ -36,7 +40,7 @@
   - P2-3 (Tailoring client polling loop): Untouched.
   - P3 findings: Untouched.
 * **Exact Next Action:**
-  Commit and push `fix/p2-2-autosave-cache-invalidation`, open Pull Request against `main`, inspect CI, and stop for owner merge review.
+  Review PR #267 and merge only after owner authorization; production browser verification remains post-merge.
 
 ## P2-1 useMe Polling Optimization (Merged & Deployed) — 2026-09-01
 

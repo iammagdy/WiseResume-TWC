@@ -21,12 +21,12 @@
   - Active global observer `<CommandPalette />` (`['resumes', user.id]`) and active editor observer `EditorPage` (`['resume', targetId]`) triggered 2 redundant network read requests (`listDocuments` of 50 resumes + `getDocument` of the active resume) on every 3-second debounced cloud save.
   - Eliminated the 1:2 write-to-read amplification (3 Appwrite HTTP requests per autosave reduced to 1 write).
 * **Implementation Details:**
-  - `reconcileUpdatedResume`: Pure helper to replace matching document by `$id`, preserve all others, and sort `$updatedAt` descending.
+  - `reconcileUpdatedResume`: Pure helper to replace matching document by `$id`, insert authoritative document when `$id` is absent, sort `$updatedAt` descending, and truncate list to maximum 50 items (preserving server `Query.limit(50)` contract).
   - Detail cache: Reconciles `['resume', updatedDoc.$id]` directly via `queryClient.setQueryData`, eliminating `getDocument` refetches.
-  - List cache: Patches user's exact `['resumes', user.id]` query via `queryClient.setQueryData` (if cache exists), preserves `$updatedAt` descending order, and synchronizes persisted cache via `writePersistedCache(\`resumes:${user.id}`, reconciled)`. Does not fabricate list cache if none exists.
+  - List cache: Patches user's exact `['resumes', user.id]` query via `queryClient.setQueryData` (if cache exists), enforces ownership guard (`!exists && updatedDoc.user_id !== user.id` blocks insertion), preserves `$updatedAt` descending order, caps to 50 items, and synchronizes persisted cache via `writePersistedCache(\`resumes:${user.id}`, reconciled)`. Does not fabricate list cache if none exists.
   - Omitted active refetch invalidations (`invalidateQueries`) as direct authoritative cache reconciliation provides fresh data synchronously.
 * **Validation & Test Coverage:**
-  - `src/hooks/__tests__/useResumes.autosaveOptimization.test.tsx` (4/4 passing).
+  - `src/hooks/__tests__/useResumes.autosaveOptimization.test.tsx` (8/8 passing).
   - Existing resume suites: `useResume.editorStartup.test.tsx` (5/5 passing), `useResumes.template.test.ts` (7/7 passing).
   - `tsc --noEmit`: 0 errors.
   - Production build: clean (0 sourcemaps).
