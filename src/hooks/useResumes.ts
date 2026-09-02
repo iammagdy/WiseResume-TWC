@@ -219,6 +219,28 @@ export function useSetMasterCV() {
   });
 }
 
+/**
+ * Reconciles an updated resume document into an existing cached resume list:
+ * 1. Replaces the matching document by $id with the authoritative updated record.
+ * 2. Preserves all other cached documents.
+ * 3. Preserves server ordering contract ($updatedAt descending).
+ * Does not mutate the input array.
+ */
+export function reconcileUpdatedResume(
+  current: DatabaseResume[],
+  updated: DatabaseResume,
+): DatabaseResume[] {
+  const next = current.map((resume) =>
+    resume.$id === updated.$id ? updated : resume,
+  );
+
+  return next.sort(
+    (a, b) =>
+      Date.parse(b.$updatedAt ?? '') -
+      Date.parse(a.$updatedAt ?? ''),
+  );
+}
+
 export function useResumeMutations() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -246,8 +268,23 @@ export function useResumeMutations() {
       return await databases.updateDocument(DATABASE_ID, COLLECTIONS.resumes, resumeId, data);
     },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['resumes'] });
-      queryClient.invalidateQueries({ queryKey: ['resume', data.$id] });
+      const updatedDoc = parseDbResume(data);
+
+      // 1. Direct detail cache reconciliation: populate active single-document query
+      // without triggering an immediate redundant databases.getDocument network refetch.
+      queryClient.setQueryData(['resume', updatedDoc.$id], updatedDoc);
+
+      // 2. Direct list cache reconciliation: patch user's exact ['resumes', user.id] cache,
+      // preserving $updatedAt descending sort order and updating the persisted cache.
+      if (user?.id) {
+        queryClient.setQueryData<DatabaseResume[]>(['resumes', user.id], (current) => {
+          if (!current || !Array.isArray(current)) return current;
+          const reconciled = reconcileUpdatedResume(current, updatedDoc);
+          writePersistedCache(`resumes:${user.id}`, reconciled);
+          return reconciled;
+        });
+      }
+
       toast.success('Resume saved');
     },
   });

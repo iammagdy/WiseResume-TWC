@@ -1,8 +1,42 @@
 # Project Atlas — Active Operational & Handover State
 
-**Last Verified:** 2026-09-01
-**Status:** `DEPLOYED_PASS_WITH_BROWSER_QA_PENDING` — PR #265 has been merged into `main` at commit [`541698e675bece621529fc3f7b868fad3a419eb6`](https://github.com/iammagdy/WiseResume-TWC/commit/541698e675bece621529fc3f7b868fad3a419eb6). Automatic Vercel production deployment has completed successfully (`state: success`). Appwrite deployment was not required and not performed. Authenticated production browser QA remains pending (`DEPLOYED_PASS_WITH_BROWSER_QA_PENDING`).
+**Last Verified:** 2026-09-02
+**Status:** `P2_2_IMPLEMENTED_PENDING_PR_MERGE_REVIEW` — PR #265 (P2-1 product) and PR #266 (P2-1 docs closeout) are merged in `main` at `c9bf889fafe1a49b53ec6006a180f4e11917c962`. P2-1 remains `DEPLOYED_PASS_WITH_BROWSER_QA_PENDING`. P2-2 (Autosave Cache Invalidation Optimization) is implemented on branch `fix/p2-2-autosave-cache-invalidation` with all tests passing.
 **Location:** `Project Atlas/WHERE_WE_STOPPED.md`
+
+## P2-2 Autosave Cache Invalidation Optimization (Branch fix/p2-2-autosave-cache-invalidation) — 2026-09-02
+
+* **Workstream Status:** `PR_READY_FOR_MERGE_REVIEW` (Branch `fix/p2-2-autosave-cache-invalidation`).
+* **Baseline `main` SHA:** [`c9bf889fafe1a49b53ec6006a180f4e11917c962`](https://github.com/iammagdy/WiseResume-TWC/commit/c9bf889fafe1a49b53ec6006a180f4e11917c962).
+* **Problem Solved & Root Cause:**
+  - In `src/hooks/useResumes.ts`, `updateResume.onSuccess` previously called `queryClient.invalidateQueries({ queryKey: ['resumes'] })` and `queryClient.invalidateQueries({ queryKey: ['resume', data.$id] })`.
+  - Because `CommandPalette` in `DeferredProviders` globally observes `['resumes', user.id]` and `EditorPage` actively observes `['resume', targetId]`, every single 3-second debounced cloud save triggered 2 immediate read network requests (`listDocuments` of 50 resumes + `getDocument` of the current resume).
+  - This created a 1:2 write-to-read amplification (3 Appwrite HTTP requests per autosave instead of 1 write).
+* **Exact Implementation:**
+  - Added pure reconciliation helper `reconcileUpdatedResume(current, updated)`: replaces updated item by `$id`, preserves all other items, and sorts by `$updatedAt` descending.
+  - In `useResumeMutations.updateResume.onSuccess`:
+    1. Detail Cache: Reconciles `['resume', updatedDoc.$id]` directly using `queryClient.setQueryData`, completely eliminating immediate `databases.getDocument` refetches.
+    2. List Cache: Reconciles user's exact query `['resumes', user.id]` using `queryClient.setQueryData` (if cache exists), preserving `$updatedAt` descending ordering, and synchronizes the persisted cache via `writePersistedCache(\`resumes:${user.id}`, reconciled)`. Does not fabricate a fake list if no cache existed. Completely eliminates immediate `databases.listDocuments` refetches.
+    3. Omitted active refetch invalidations (`invalidateQueries`) as direct authoritative cache reconciliation provides fresh data synchronously.
+    4. Maintained `toast.success('Resume saved')` and mutation return value (`$updatedAt`) for `useEditorAutosave` conflict/baseline tracking.
+* **Validation Evidence:**
+  - Added unit test suite `src/hooks/__tests__/useResumes.autosaveOptimization.test.tsx` (4/4 pass):
+    1. `reconcileUpdatedResume`: pure helper replaces matching resume, preserves others, and sorts `$updatedAt` descending without array mutation.
+    2. `reconcileUpdatedResume`: preserves ordering if updated item does not match.
+    3. `updateResume`: calls `updateDocument` once and directly updates detail + list caches with 0 `getDocument` / `listDocuments` reads; verifies `writePersistedCache` call and `$updatedAt` return.
+    4. `updateResume`: does not fabricate list cache if no list query existed prior to mutation.
+  - Existing resume test suites verified: `useResume.editorStartup.test.tsx` (5/5 pass), `useResumes.template.test.ts` (7/7 pass).
+  - P2-1 hook test suite verified: `useMe.test.tsx` (5/5 pass).
+  - `npx tsc --noEmit`: Clean (0 errors).
+  - `npm run build`: Clean production build (0 sourcemaps).
+  - `git diff --check`: Clean formatting.
+* **Production Runtime QA Status:**
+  - `BLOCKED_AUTHENTICATED_RUNTIME_QA` (no non-customer test user credentials in workspace environment; customer credentials not permitted).
+* **Remaining Scope Untouched:**
+  - P2-3 (Tailoring client polling loop): Untouched.
+  - P3 findings: Untouched.
+* **Exact Next Action:**
+  Commit and push `fix/p2-2-autosave-cache-invalidation`, open Pull Request against `main`, inspect CI, and stop for owner merge review.
 
 ## P2-1 useMe Polling Optimization (Merged & Deployed) — 2026-09-01
 

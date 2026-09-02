@@ -1,5 +1,28 @@
 # WiseResume Atlas Master Changelog
 
+### 2026-09-02 - WiseResume P2-2 Autosave Cache Invalidation Optimization (Implemented)
+
+- **Workstream Status:** `PR_READY_FOR_MERGE_REVIEW` (Branch `fix/p2-2-autosave-cache-invalidation`).
+- **Baseline SHA:** [`c9bf889fafe1a49b53ec6006a180f4e11917c962`](https://github.com/iammagdy/WiseResume-TWC/commit/c9bf889fafe1a49b53ec6006a180f4e11917c962).
+- **Problem Solved & Root Cause:** `updateResume.onSuccess` previously called broad query invalidations (`queryClient.invalidateQueries({ queryKey: ['resumes'] })` and `queryClient.invalidateQueries({ queryKey: ['resume', data.$id] })`). Because `CommandPalette` in `DeferredProviders` globally observes `['resumes', user.id]` and `EditorPage` actively observes `['resume', targetId]`, every 3-second debounced cloud save triggered 2 immediate read network requests (`listDocuments` of 50 resumes + `getDocument` of the current resume). This produced a 1:2 write-to-read amplification (3 Appwrite HTTP requests per autosave instead of 1 write).
+- **Optimization & Implementation:**
+  - Added pure reconciliation helper `reconcileUpdatedResume(current, updated)` in `src/hooks/useResumes.ts`: replaces the updated document by `$id`, preserves all other items, and sorts `$updatedAt` descending.
+  - In `useResumeMutations.updateResume.onSuccess`:
+    1. Detail Cache: Reconciles `['resume', updatedDoc.$id]` directly via `queryClient.setQueryData`, eliminating `getDocument` refetches.
+    2. List Cache: Patches user's exact `['resumes', user.id]` query via `queryClient.setQueryData` (if cache exists), preserving `$updatedAt` descending order, and synchronizes the persisted cache via `writePersistedCache(\`resumes:${user.id}`, reconciled)`. Does not fabricate list cache if none exists.
+    3. Omitted active refetch invalidations (`invalidateQueries`) as direct authoritative cache reconciliation provides fresh data synchronously.
+    4. Maintained `toast.success('Resume saved')` and mutation return value (`$updatedAt`) for `useEditorAutosave` conflict/baseline tracking.
+- **Tests Added:** Added `src/hooks/__tests__/useResumes.autosaveOptimization.test.tsx` (4/4 passing) proving:
+  1. `updateResume` calls `updateDocument` exactly once.
+  2. Direct reconciliation of detail cache `['resume', resumeId]` with server document; 0 `getDocument` reads.
+  3. Direct reconciliation of list cache `['resumes', user.id]` with 0 `listDocuments` reads.
+  4. Preservation of other resume list items and correct `$updatedAt` descending sort order.
+  5. Correct synchronization of persisted cache via `writePersistedCache`.
+  6. No list cache fabrication when no list query existed prior to mutation.
+  7. Mutation result `$updatedAt` availability for `useEditorAutosave`.
+- **Validation:** `useResume.editorStartup.test.tsx` (5/5 pass), `useResumes.template.test.ts` (7/7 pass), `useMe.test.tsx` (5/5 pass), `tsc --noEmit` (0 errors), `npm run build` (clean production build).
+- **Runtime QA Status:** `BLOCKED_AUTHENTICATED_RUNTIME_QA` (static proof via automated unit tests and TanStack Query semantics).
+
 ### 2026-09-01 - WiseResume P2-1 useMe Polling Optimization (Merged & Deployed)
 
 - **Workstream Verdict:** `DEPLOYED_PASS_WITH_BROWSER_QA_PENDING`.
