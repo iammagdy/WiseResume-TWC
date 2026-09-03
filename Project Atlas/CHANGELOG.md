@@ -1,5 +1,26 @@
 # WiseResume Atlas Master Changelog
 
+### 2026-09-03 - Native PDF Export P1 Production Verification & Remediation Closeout
+
+- **Workstream Verdict:** `PDF_EXPORT_P1_DEPLOYED_PRODUCTION_VERIFIED`.
+- **What's New Eligibility:** `WHATS_NEW_READY_PENDING_PAGE_UPDATE` (Qualifies as a critical customer-facing export fix; ready for timeline inclusion upon dedicated What's New content release).
+- **Scope:** PR #276 merged to `main` (`45c48145bd99509a4101e49a458ec07673d97b85`) and deployed via Vercel Production deployment `3rZbgn2aGhWC739Bu4UgBMh2ni11` (`READY` at `2026-09-03T08:21:41Z`).
+- **Production Verification Evidence:**
+  1. **Bootstrap Probe:**
+     - `GET https://wiseresume.app/api/export/pdf-native` -> `HTTP 405 Method Not Allowed` (`{"error":"method_not_allowed"}`).
+     - `POST (Unauth) https://wiseresume.app/api/export/pdf-native` -> `HTTP 401 Unauthorized` (`{"error":"unauthorized"}`).
+     - Status: `PDF_NATIVE_HANDLER_BOOT_VERIFIED`.
+  2. **Live Browser PDF Downloads Verified (QA User):**
+     - **Designed PDF (Editor):** `HTTP 200 (application/pdf)`, 30,349 bytes, `%PDF-`, 1 page, valid.
+     - **ATS-Focused PDF (Editor):** `HTTP 200 (application/pdf)`, 31,560 bytes, `%PDF-`, 1 page, valid.
+     - **Preview Page PDF:** `HTTP 200 (application/pdf)`, 119,994 bytes, `%PDF-`, 1 page, valid.
+     - **Cover Letter PDF:** `HTTP 200 (application/pdf)`, 23,901 bytes, `%PDF-`, 1 page, valid.
+     - **Tailoring Hub Result PDF:** `HTTP 200 (application/pdf)`, 23,447 bytes, `%PDF-`, 1 page, valid.
+  3. **Remaining PDF Call-Sites:**
+     - 1-Page PDF wizard, Combined Application PDF, Share drawer PDF: `TRANSPORT_PATH_RESTORED / UI_SURFACE_NOT_INDIVIDUALLY_REVERIFIED` (underlying serverless transport restored; distinct UI flows not individually executed in this session).
+- **Root Cause Resolution:** `ROOT_CAUSE_PRODUCTION_CONFIRMED_BY_REMEDIATION` — The confirmed production bootstrap blocker was the ESM relative-import failure (`../_lib/appwriteDocumentId` lacking `.js`). Chromium package inclusion and lazy loading remain part of the successfully deployed runtime configuration in Vercel Production Node 24.x ESM runtime.
+- **Remaining Open Workstream:** `AI_STUDIO_LINKEDIN_408_P1` (Separate AI Studio LinkedIn Optimizer 408 timeout issue).
+
 ### 2026-09-03 - Native PDF Export P1 ESM Relative Import Remediation
 
 - **Workstream Verdict:** `PDF_EXPORT_ESM_IMPORT_REMEDIATED_LOCAL_VERIFIED`.
