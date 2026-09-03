@@ -24,7 +24,7 @@ import {
   formatPdfPageNumber,
   validatePdfExportRequestBody,
 } from '../../src/lib/security/pdfExportPolicy.js';
-import { createAppwriteDocumentId } from '../_lib/appwriteDocumentId';
+import { createAppwriteDocumentId } from '../_lib/appwriteDocumentId.js';
 // Keep heavy browser dependencies lazy so top-level bootstrapping and simple
 // validation or error responses do not crash during module startup.
 // vercel.json includeFiles ensures the ESM and browser binary files ship with the function bundle.

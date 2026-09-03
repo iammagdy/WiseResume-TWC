@@ -1,5 +1,23 @@
 # WiseResume Atlas Master Changelog
 
+### 2026-09-03 - Native PDF Export P1 ESM Relative Import Remediation
+
+- **Workstream Verdict:** `PDF_EXPORT_ESM_IMPORT_REMEDIATED_LOCAL_VERIFIED`.
+- **What's New Eligibility:** `WHATS_NEW_DEFER_UNTIL_PRODUCTION` (Qualifies as a critical user-facing fix; deferred until live production deployment verification).
+- **Scope:** Repaired production serverless bootstrap failure on `POST /api/export/pdf-native` following PR #275 deployment.
+- **Root Cause Classification:** `ROOT_CAUSE_CONFIRMED_ESM_RELATIVE_IMPORT`.
+  - **Evidence:** Vercel production container runtime exception confirmed:
+    `Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/var/task/api/_lib/appwriteDocumentId' imported from /var/task/api/export/pdf-native.js`
+  - **Context:** PR #275 deployed successfully (`dpl_BF39bwHg4dFnqB3zpcNyddvtYgrx`), preserving Chromium `includeFiles` packaging and lazy loading. However, Node ESM requires explicit `.js` extensions for runtime relative imports. The import `../_lib/appwriteDocumentId` lacked the `.js` extension, preventing the serverless container from bootstrapping before `handler()` could execute.
+- **Fixes Applied:**
+  - `api/export/pdf-native.ts`: Updated import specifier to `import { createAppwriteDocumentId } from '../_lib/appwriteDocumentId.js';`.
+  - `src/lib/security/pdfNativeRuntimeImports.test.ts`: Fixed test assertion logic so all runtime relative imports are individually verified to contain explicit `.js` extensions.
+- **Validation:**
+  - TypeScript: 0 errors (`tsc --noEmit`).
+  - Vitest: 9/9 focused tests passed across `pdfNativeRuntimeImports.test.ts`, `exportResumePdf.test.ts`, and `nativePdfGenerator.test.ts`.
+  - Build: Clean Vite production build in 52.22s (`0 *.map files in dist/`).
+  - ESM Runtime Simulation: Unbundled Node 22 native ESM import simulation evaluated cleanly with 0 errors.
+
 ### 2026-09-03 - Native PDF Export P1 Remediation (Vercel Serverless Chromium Restoration)
 
 - **Workstream Verdict:** `PDF_EXPORT_P1_REMEDIATED_LOCAL_VERIFIED`.
