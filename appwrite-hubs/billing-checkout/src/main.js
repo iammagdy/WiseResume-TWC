@@ -504,11 +504,18 @@ class AppwriteCheckoutStore {
   }
 
   async getEffectivePlan(userId) {
-    const [subscription, providerState] = await Promise.all([
+    const [subscription, providerState, paypalProviderState] = await Promise.all([
       this.findOptional('subscriptions', userId),
       this.findOptional('revenuecat_subscription_state', userId),
+      this.findOptional('paypal_subscription_state', userId),
     ]);
-    return resolveEffectivePlan({ subscription, providerState, providerEnvironment: this.providerEnvironment }).plan;
+    return resolveEffectivePlan({
+      subscription,
+      providerState,
+      paypalProviderState,
+      providerEnvironment: this.providerEnvironment,
+      userId,
+    }).plan;
   }
 
   async findOptional(collection, userId) {

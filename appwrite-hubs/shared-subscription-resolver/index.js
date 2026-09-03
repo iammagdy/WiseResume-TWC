@@ -21,6 +21,14 @@ function configuredProviderEnvironment(env = process.env) {
   return normalizeProviderEnvironment(env.BILLING_ACCESS_ENVIRONMENT || env.BILLING_CHECKOUT_ENVIRONMENT);
 }
 
+function configuredPaypalProviderEnvironment(env = process.env) {
+  return normalizeProviderEnvironment(env.PAYPAL_ACCESS_ENVIRONMENT);
+}
+
+function configuredQaUserId(env = process.env) {
+  return String(env.BILLING_CHECKOUT_QA_USER_ID || '').trim();
+}
+
 function isFutureTimestamp(value, nowMs = Date.now()) {
   const timestamp = new Date(value || 0).getTime();
   return Number.isFinite(timestamp) && timestamp > nowMs;
@@ -32,7 +40,16 @@ function candidate(plan, source, metadata = {}) {
   return { plan: normalized, source, ...metadata };
 }
 
-function buildPlanCandidates({ subscription = null, providerState = null, providerEnvironment = '', nowMs = Date.now() } = {}) {
+function buildPlanCandidates({
+  subscription = null,
+  providerState = null,
+  paypalProviderState = null,
+  providerEnvironment = '',
+  paypalProviderEnvironment = '',
+  qaUserId = '',
+  userId = '',
+  nowMs = Date.now(),
+} = {}) {
   const candidates = [candidate('free', 'free')];
 
   // The legacy plan field is the durable manual/admin or coupon entitlement.
@@ -47,24 +64,65 @@ function buildPlanCandidates({ subscription = null, providerState = null, provid
     candidates.push(candidate(trialPlan, 'active trial', { expiresAt: subscription.trial_expires_at }));
   }
 
-  // Provider state is accepted only when a trusted caller supplies an explicit
+  // Provider state is accepted only when a caller supplies an explicit
   // mode and the persisted provider state carries the same mode. Unknown mode
   // is deliberately fail-closed so Sandbox state cannot grant future Production access.
-  const selectedEnvironment = normalizeProviderEnvironment(providerEnvironment);
-  const stateEnvironment = normalizeProviderEnvironment(providerState?.environment);
-  const providerPlan = normalizePlan(providerState?.plan);
+  const selectedRcEnvironment = normalizeProviderEnvironment(providerEnvironment);
+
+  // RevenueCat Provider Candidate (decoupled from PayPal environment)
+  const rcStateEnvironment = normalizeProviderEnvironment(providerState?.environment);
+  const rcPlan = normalizePlan(providerState?.plan);
+  const rcStatus = String(providerState?.status || '').trim().toLowerCase();
   if (
-    selectedEnvironment &&
-    stateEnvironment === selectedEnvironment &&
-    providerPlan &&
-    VALID_PAID_PLANS.has(providerPlan) &&
-    VALID_PROVIDER_STATUSES.has(String(providerState?.status || '').toLowerCase()) &&
+    selectedRcEnvironment &&
+    rcStateEnvironment === selectedRcEnvironment &&
+    rcPlan &&
+    VALID_PAID_PLANS.has(rcPlan) &&
+    VALID_PROVIDER_STATUSES.has(rcStatus) &&
     isFutureTimestamp(providerState?.expires_at, nowMs)
   ) {
-    candidates.push(candidate(providerPlan, 'revenuecat', {
+    candidates.push(candidate(rcPlan, 'revenuecat', {
       expiresAt: providerState.expires_at,
-      providerEnvironment: selectedEnvironment,
+      providerEnvironment: selectedRcEnvironment,
+      status: rcStatus,
     }));
+  }
+
+  // PayPal Provider Candidate: isolated provider-specific environment evaluation
+  const selectedPaypalEnvironment = normalizeProviderEnvironment(paypalProviderEnvironment || configuredPaypalProviderEnvironment());
+  const paypalStateEnvironment = normalizeProviderEnvironment(paypalProviderState?.environment);
+  const paypalPlan = normalizePlan(paypalProviderState?.plan);
+  const paypalStatus = String(paypalProviderState?.status || '').trim().toLowerCase();
+  if (
+    selectedPaypalEnvironment &&
+    paypalStateEnvironment === selectedPaypalEnvironment &&
+    paypalPlan &&
+    VALID_PAID_PLANS.has(paypalPlan) &&
+    VALID_PROVIDER_STATUSES.has(paypalStatus) &&
+    isFutureTimestamp(paypalProviderState?.expires_at, nowMs)
+  ) {
+    const isSandbox = paypalStateEnvironment === 'sandbox';
+    const effectiveQaUser = String(qaUserId || configuredQaUserId()).trim();
+    const currentCanonicalUserId = String(userId || '').trim();
+    const stateUserId = String(paypalProviderState?.user_id || '').trim();
+
+    // Canonical QA ownership rule: Current user MUST be the configured QA user
+    // AND the persisted PayPal state MUST belong to that exact canonical user.
+    const qaAllowed = !isSandbox || (
+      Boolean(effectiveQaUser) &&
+      Boolean(currentCanonicalUserId) &&
+      Boolean(stateUserId) &&
+      currentCanonicalUserId === effectiveQaUser &&
+      stateUserId === currentCanonicalUserId
+    );
+
+    if (qaAllowed) {
+      candidates.push(candidate(paypalPlan, 'paypal', {
+        expiresAt: paypalProviderState.expires_at,
+        providerEnvironment: selectedPaypalEnvironment,
+        status: paypalStatus,
+      }));
+    }
   }
 
   return candidates;
@@ -85,6 +143,8 @@ module.exports = {
   normalizePlan,
   normalizeProviderEnvironment,
   configuredProviderEnvironment,
+  configuredPaypalProviderEnvironment,
+  configuredQaUserId,
   isFutureTimestamp,
   buildPlanCandidates,
   resolveEffectivePlan,

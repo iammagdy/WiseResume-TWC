@@ -107,6 +107,18 @@ async function findProviderState(databases, userId) {
   }
 }
 
+async function findPaypalProviderState(databases, userId) {
+  try {
+    const existing = await databases.listDocuments(DB_ID, 'paypal_subscription_state', [
+      sdk.Query.equal('user_id', userId),
+      sdk.Query.limit(1),
+    ]);
+    return existing.documents?.[0] || null;
+  } catch {
+    return null;
+  }
+}
+
 async function writeSubscription(databases, userId, patch, transactionId) {
   const existing = await findSubscription(databases, userId, transactionId);
   const payloads = [
@@ -300,21 +312,27 @@ async function getMySubscription(body, res) {
   }
 
   const sub = await findSubscription(databases, user.$id);
-  const providerState = await findProviderState(databases, user.$id);
+  const [providerState, paypalProviderState] = await Promise.all([
+    findProviderState(databases, user.$id),
+    findPaypalProviderState(databases, user.$id),
+  ]);
   const trialPlan = sub?.trial_plan ?? null;
   const trialExpiresAt = sub?.trial_expires_at ?? null;
-  const effectivePlan = resolveEffectivePlan({
+  const effectiveCandidate = resolveEffectivePlan({
     subscription: sub,
     providerState,
+    paypalProviderState,
     providerEnvironment: configuredProviderEnvironment(),
-  }).plan;
+    userId: user.$id,
+  });
+  const effectivePlan = effectiveCandidate.plan;
 
   return json(res, {
     status: 'success',
     data: {
       plan: sub?.plan ?? 'free',
       effective_plan: effectivePlan,
-      status: sub?.status ?? providerState?.status ?? null,
+      status: sub?.status ?? effectiveCandidate.status ?? providerState?.status ?? paypalProviderState?.status ?? null,
       trial_plan: trialPlan,
       trial_expires_at: trialExpiresAt,
       coupon_code: sub?.coupon_code ?? null,

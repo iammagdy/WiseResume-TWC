@@ -1,10 +1,28 @@
 # Project Atlas — Active Operational & Handover State
 
 **Last Verified:** 2026-09-03
-**Status:** `WHATS_NEW_REVAMP_DEPLOYED_PRODUCTION_VERIFIED` (Audit Baseline: `FULL_FUNCTIONALITY_AUDIT_P1_CLOSEOUT_COMPLETE`, Billing: `BILLING_CHECKOUT_DISABLED`) — Redesigned customer-facing `/whats-new` and `/ar/whats-new` experiences merged to `main` via PR #280 (`59d38309dbd2bb68ee14cf913cf3d9192eb2b013`) and deployed to production on Vercel (`Hc26exYbknDjyKee7TZH3qDbRsJw`). Real production browser QA verified across all 8 matrix combinations on `https://wiseresume.app`.
+**Status:** `IMPLEMENTED_UNVERIFIED_PAYPAL_PHASE2` (Branch: `feat/paypal-sandbox-phase2`, Commit: UNCOMMITTED, Push: UNPUSHED, Billing: `BILLING_CHECKOUT_DISABLED`) — PayPal Sandbox data layer, idempotent Appwrite schema script, multi-provider subscription resolution, and server-side Sandbox QA-user entitlement isolation implemented and verified locally via 48 automated test cases. Zero files committed, zero pushed, zero deployed, zero Appwrite changes applied, zero webhooks created.
 **Location:** `Project Atlas/WHERE_WE_STOPPED.md`
 
-## What's New Page Full Revamp & Shipped-History Reconciliation — 2026-09-03
+## PayPal Sandbox Integration Phase 2 (Data Layer & Entitlement Resolution) — 2026-09-03
+
+* **Workstream Verdict:** `IMPLEMENTED_UNVERIFIED_PAYPAL_PHASE2`.
+* **Git Branch:** `feat/paypal-sandbox-phase2` (based on clean `main` at `1f6fdcc46e10eacc60b0022cefb9908bb148e6a1`).
+* **Commit Status:** **NOT COMMITTED**.
+* **Push Status:** **NOT PUSHED**.
+* **Deployment Status:** **NOT DEPLOYED**.
+* **Appwrite Live Schema Status:** **NOT APPLIED**.
+* **PayPal Webhook Status:** **NOT CREATED**.
+* **Production Boundary:** Production PayPal remains disabled; live billing checkout remains disabled (`BILLING_CHECKOUT_DISABLED`).
+* **What's New Eligibility Decision:** `WHATS_NEW_NOT_REQUIRED` (Internal data layer, multi-provider subscription resolver extension, and QA allowlist boundary for PayPal Sandbox QA. No customer-facing UI changes, no live billing enabled, and no production releases).
+* **Completed Phase 2 Scope & Pre-Commit Corrections:**
+  1. `scripts/setup_paypal_schema.cjs`: Idempotent repository-controlled schema provisioner for server-only collections `paypal_subscription_state` and `paypal_event_ledger`.
+  2. `appwrite-hubs/shared-subscription-resolver/index.js`: Extended additively with PayPal candidate evaluation, dedicated provider environment isolation (`PAYPAL_ACCESS_ENVIRONMENT`), canonical QA ownership boundary (`currentCanonicalUserId === QA_USER_ID && state.user_id === currentCanonicalUserId`), original same-rank precedence preservation (strict `>` rank comparison), and strict status gates (`active`, `billing_issue`, `canceled` allowed; `pending_initial_payment`, `suspended`, `expired` disallowed).
+  3. Server-side consumers (`coupons/getMySubscription`, `ai-gateway/getEffectivePlan`, `admin-devkit-data/resolvedPlan`, `billing-checkout/getEffectivePlan`) updated with safe try/catch queries against `paypal_subscription_state`.
+  4. Verified PayPal Sandbox Catalog: Product `PROD-8XE5253028560521H`, Pro `P-3A193536YV1432359NKM36QY` ($5/mo -> `pro`), Ultimate `P-17M39010JR353545NNKM36RA` ($10/mo -> `premium`).
+  5. Source hashes: Recomputed DevKit manifest `src/lib/devkit/sourceHashes.generated.json` via `node scripts/compute-source-hashes.mjs`.
+  6. Test suite: 50/50 tests passed (19 resolver cases, 3 PayPal schema cases, 3 AI gateway PayPal cases, 11 RevenueCat webhook cases, 3 RevenueCat schema cases, 8 checkout cases, 2 coupon cases, 1 admin query case).
+  7. Validation: `node --check` clean across all modified/schema files, `tsc --noEmit` clean, `npm run build` clean.
 
 * **Workstream Verdict:** `WHATS_NEW_REVAMP_DEPLOYED_PRODUCTION_VERIFIED`.
 * **PR #280 Merge Commit:** `59d38309dbd2bb68ee14cf913cf3d9192eb2b013`

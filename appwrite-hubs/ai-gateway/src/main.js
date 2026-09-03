@@ -35,6 +35,7 @@ const DB_ID = 'main';
 const AI_CREDITS_COLLECTION_ID = 'ai_credits';
 const SUBSCRIPTIONS_COLLECTION_ID = 'subscriptions';
 const PROVIDER_STATE_COLLECTION_ID = 'revenuecat_subscription_state';
+const PAYPAL_STATE_COLLECTION_ID = 'paypal_subscription_state';
 const SERVER_RATE_LIMIT_WINDOW_MS = 60_000;
 const SERVER_RATE_LIMIT_MAX_REQUESTS = 20;
 const PLAN_DAILY_LIMITS = {
@@ -1095,6 +1096,7 @@ function isTrialActive(subscription) {
 async function getEffectivePlan(db, userId) {
   let subscription = null;
   let providerState = null;
+  let paypalProviderState = null;
   try {
     const res = await db.listDocuments(DB_ID, SUBSCRIPTIONS_COLLECTION_ID, [
       sdk.Query.equal('user_id', userId),
@@ -1115,10 +1117,23 @@ async function getEffectivePlan(db, userId) {
     // is applied; preserve the legacy subscription path in that state.
     providerState = null;
   }
+  try {
+    const paypalRes = await db.listDocuments(DB_ID, PAYPAL_STATE_COLLECTION_ID, [
+      sdk.Query.equal('user_id', userId),
+      sdk.Query.limit(1),
+    ]);
+    paypalProviderState = paypalRes.documents?.[0] || null;
+  } catch {
+    // The additive PayPal collection may not exist until its approved setup
+    // is applied; preserve existing paths in that state.
+    paypalProviderState = null;
+  }
   const plan = resolveEffectivePlan({
     subscription,
     providerState,
+    paypalProviderState,
     providerEnvironment: configuredProviderEnvironment(),
+    userId,
   }).plan;
   return Object.prototype.hasOwnProperty.call(PLAN_DAILY_LIMITS, plan) ? plan : 'free';
 }
