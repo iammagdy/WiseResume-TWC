@@ -38,6 +38,7 @@ type SerializedFile = {
 const TAILOR_EXECUTION_TIMEOUT_MS = 75_000;
 const TAILOR_EXECUTION_POLL_MS = 1_500;
 const TAILOR_RESULT_WAIT_MS = 8_000;
+const LINKEDIN_EXECUTION_TIMEOUT_MS = 75_000;
 const TERMINAL_EXECUTION_STATUSES = new Set(['completed', 'failed']);
 
 class FunctionWaitError extends Error {
@@ -52,14 +53,14 @@ class FunctionWaitError extends Error {
   }
 }
 
-function throwIfAborted(signal?: AbortSignal): void {
+function throwIfAborted(signal?: AbortSignal, operation = 'Tailoring'): void {
   if (signal?.aborted) {
-    throw new FunctionWaitError('request_cancelled', 'Tailoring wait cancelled.', 499);
+    throw new FunctionWaitError('request_cancelled', `${operation} wait cancelled.`, 499);
   }
 }
 
-async function waitForPoll(signal?: AbortSignal): Promise<void> {
-  throwIfAborted(signal);
+async function waitForPoll(signal?: AbortSignal, operation = 'Tailoring'): Promise<void> {
+  throwIfAborted(signal, operation);
   await new Promise<void>((resolve, reject) => {
     const finish = () => {
       signal?.removeEventListener('abort', onAbort);
@@ -69,7 +70,7 @@ async function waitForPoll(signal?: AbortSignal): Promise<void> {
     const onAbort = () => {
       clearTimeout(timer);
       signal?.removeEventListener('abort', onAbort);
-      reject(new FunctionWaitError('request_cancelled', 'Tailoring wait cancelled.', 499));
+      reject(new FunctionWaitError('request_cancelled', `${operation} wait cancelled.`, 499));
     };
     signal?.addEventListener('abort', onAbort, { once: true });
   });
@@ -80,20 +81,24 @@ async function waitForExecution(
   initialExecution: Models.Execution,
   timeoutMs: number,
   signal?: AbortSignal,
+  operation = 'Tailoring',
 ): Promise<Models.Execution> {
   const startedAt = Date.now();
   let execution = initialExecution;
 
   while (!TERMINAL_EXECUTION_STATUSES.has(execution.status)) {
-    throwIfAborted(signal);
+    throwIfAborted(signal, operation);
     if (Date.now() - startedAt >= timeoutMs) {
+      const timeoutMessage = operation === 'Tailoring'
+        ? 'Tailoring took too long to finish. Your resume was not changed. Please retry.'
+        : `${operation} took too long to finish. Please retry.`;
       throw new FunctionWaitError(
         'request_timeout',
-        'Tailoring took too long to finish. Your resume was not changed. Please retry.',
+        timeoutMessage,
         504,
       );
     }
-    await waitForPoll(signal);
+    await waitForPoll(signal, operation);
     execution = await functions.getExecution(functionId, initialExecution.$id);
   }
 
@@ -155,6 +160,42 @@ async function waitForTailorResult(
     ) {
       return execution;
     }
+  }
+}
+
+async function retrieveCachedLinkedInResult(
+  functionId: string,
+  executionBody: string,
+  startedAt: number,
+  timeoutMs: number,
+  signal?: AbortSignal,
+): Promise<Models.Execution> {
+  while (true) {
+    throwIfAborted(signal, 'LinkedIn optimization');
+    const remainingMs = timeoutMs - (Date.now() - startedAt);
+    if (remainingMs <= 0) {
+      throw new FunctionWaitError(
+        'request_timeout',
+        'LinkedIn optimization took too long to finish. Please retry.',
+        504,
+      );
+    }
+
+    const execution = await functions.createExecution(
+      functionId,
+      executionBody,
+      false,
+      '/',
+      'POST' as ExecutionMethod,
+    );
+    throwIfAborted(signal, 'LinkedIn optimization');
+    if (
+      execution.responseStatusCode !== 409 ||
+      executionResponseCode(execution) !== 'request_in_progress'
+    ) {
+      return execution;
+    }
+    await waitForPoll(signal, 'LinkedIn optimization');
   }
 }
 
@@ -484,6 +525,52 @@ export const appwriteFunctions = {
             headers,
             tailorStartedAt,
             tailorTimeoutMs,
+            options?.signal,
+          );
+        }
+      } else if (routeToAiGateway && fnName === 'optimize-for-linkedin') {
+        const linkedinStartedAt = Date.now();
+        const linkedinTimeoutMs = options?.timeoutMs ?? LINKEDIN_EXECUTION_TIMEOUT_MS;
+        throwIfAborted(options?.signal, 'LinkedIn optimization');
+        const backgroundExecution = await functions.createExecution(
+          functionId,
+          executionBody,
+          true,
+          '/',
+          'POST' as ExecutionMethod,
+        );
+        try {
+          const terminalExecution = await waitForExecution(
+            functionId,
+            backgroundExecution,
+            linkedinTimeoutMs,
+            options?.signal,
+            'LinkedIn optimization',
+          );
+          throwIfAborted(options?.signal, 'LinkedIn optimization');
+
+          if (terminalExecution.status === 'failed') {
+            throw new FunctionWaitError(
+              'function_runtime_failed',
+              'LinkedIn optimization stopped before producing a usable result. Please retry.',
+              503,
+            );
+          }
+
+          execution = await retrieveCachedLinkedInResult(
+            functionId,
+            executionBody,
+            linkedinStartedAt,
+            linkedinTimeoutMs,
+            options?.signal,
+          );
+        } catch (error) {
+          if (!isExecutionStatusUnavailable(error)) throw error;
+          execution = await retrieveCachedLinkedInResult(
+            functionId,
+            executionBody,
+            linkedinStartedAt,
+            linkedinTimeoutMs,
             options?.signal,
           );
         }

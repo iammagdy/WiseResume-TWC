@@ -1,8 +1,26 @@
 # Project Atlas — Active Operational & Handover State
 
 **Last Verified:** 2026-09-03
-**Status:** `PDF_EXPORT_P1_DEPLOYED_PRODUCTION_VERIFIED / FUNCTIONALITY_GAPS_FOUND_AI_STUDIO_LINKEDIN_408_P1` — PR #276 merged into `main` (`45c48145`) and deployed via Vercel Production deployment `3rZbgn2aGhWC739Bu4UgBMh2ni11` (`READY` at `2026-09-03T08:21:41Z`, Vercel Production Node 24.x ESM runtime). Bootstrap probes verified: `GET /api/export/pdf-native` returns HTTP 405 (`{"error":"method_not_allowed"}`), unauthenticated POST returns HTTP 401 (`{"error":"unauthorized"}`). Authenticated production browser QA verified real downloaded PDF files across 5 distinct surfaces: Designed PDF (30,349 bytes), ATS-Focused PDF (31,560 bytes), Preview Page PDF (119,994 bytes), Cover Letter PDF (23,901 bytes), and Tailoring Hub Result PDF (23,447 bytes) — all valid `%PDF-` files. Other PDF paths (1-Page wizard, Combined PDF, Share drawer) are `TRANSPORT_PATH_RESTORED / UI_SURFACE_NOT_INDIVIDUALLY_REVERIFIED`. Root cause status: `ROOT_CAUSE_PRODUCTION_CONFIRMED_BY_REMEDIATION`. Next workstream: `AI_STUDIO_LINKEDIN_408_P1`. Full application audit status remains `FUNCTIONALITY_GAPS_FOUND`. Billing checkout remains strictly disabled (`BILLING_CHECKOUT_ENABLED=false`).
+**Status:** `PDF_EXPORT_P1_DEPLOYED_PRODUCTION_VERIFIED / AI_STUDIO_LINKEDIN_ASYNC_PR_READY / FUNCTIONALITY_GAPS_FOUND` — PR created on branch `fix/ai-studio-linkedin-async-execution` to resolve `AI_STUDIO_LINKEDIN_408_P1`. Full application audit remains `FUNCTIONALITY_GAPS_FOUND` pending PR merge, deployment, and live production QA. Billing checkout remains strictly disabled (`BILLING_CHECKOUT_ENABLED=false`).
 **Location:** `Project Atlas/WHERE_WE_STOPPED.md`
+
+## AI Studio LinkedIn Optimizer Async Execution Remediation (PR Ready) — 2026-09-03
+
+* **Workstream Verdict:** `LINKEDIN_ASYNC_FIX_PR_READY / PRODUCTION_UNVERIFIED`.
+* **What's New Eligibility Decision:** `WHATS_NEW_DEFER_UNTIL_PRODUCTION` (Customer-impacting AI optimization tool fix; deferred until merged and verified in production).
+* **Defect Being Repaired:** `optimize-for-linkedin` previously failed with `HTTP 408 Request Timeout` on production after ~15s due to synchronous HTTP execution (`async: false`) on a long-running AI workload (>20s).
+* **Defect Classification:** `SYNCHRONOUS_EXECUTION_TRANSPORT_TIMEOUT`.
+* **Implementation Summary:**
+  - Branch: `fix/ai-studio-linkedin-async-execution`.
+  - In `src/lib/appwrite-functions.ts`: Switched `optimize-for-linkedin` to `functions.createExecution(..., true)` + 1.5s polling loop (`waitForExecution`) with 75s bounded timeout + generic idempotency cache result retrieval (`retrieveCachedLinkedInResult`).
+  - Terminal failure handling: Immediately throws `FunctionWaitError('function_runtime_failed')` on failed background execution without sending secondary execution requests (duplicate provider prevention).
+  - In `src/components/editor/ai/LinkedInOptimizerSheet.tsx`: Attached `AbortController` cancellation for client polling (`CLIENT_POLL_ABORTED / SERVER_EXECUTION_MAY_CONTINUE`), preventing unmount memory leaks and stale state updates.
+  - Dedicated unit tests: 7/7 passing in `src/lib/__tests__/appwrite-functions.linkedin.test.ts`.
+* **Zero Backend / Infrastructure Changes:**
+  - `APPWRITE_DEPLOYMENT_IMPACT = NO`: Consumes existing generic idempotency cache in `ai-gateway`.
+  - Database schema: `NO CHANGES`.
+  - Provider / model routing: `NO CHANGES` (DeepSeek primary preserved).
+* **Next Step:** Owner review and merge of PR, followed by live authenticated production verification.
 
 ## Native PDF Export P1 Production Verification & Remediation Closeout — 2026-09-03
 

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Linkedin, Copy, Check, Briefcase, User, Hash, Lightbulb, Globe, FileDown, ClipboardList } from 'lucide-react';
@@ -107,12 +107,28 @@ export function LinkedInOptimizerSheet({ open, onOpenChange }: LinkedInOptimizer
   const [selectedRegion, setSelectedRegion] = useState<RegionOption>('global');
   const [result, setResult] = useState<LinkedInResult | null>(null);
   const [copiedItem, setCopiedItem] = useState<string | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
   const { execute: executeAI } = useAIAction({ operation: 'linkedin' });
 
   useEffect(() => {
-    if (open) { activityTracker.setActiveFeature('LinkedIn Optimizer'); }
-    return () => { activityTracker.setActiveFeature(null); };
+    if (open) {
+      activityTracker.setActiveFeature('LinkedIn Optimizer');
+    } else {
+      abortRef.current?.abort();
+      abortRef.current = null;
+      setIsLoading(false);
+    }
+    return () => {
+      activityTracker.setActiveFeature(null);
+    };
   }, [open]);
+
+  useEffect(() => {
+    return () => {
+      abortRef.current?.abort();
+      abortRef.current = null;
+    };
+  }, []);
 
   const userName = currentResume?.contactInfo?.fullName || 'User';
 
@@ -122,30 +138,42 @@ export function LinkedInOptimizerSheet({ open, onOpenChange }: LinkedInOptimizer
       return;
     }
 
+    abortRef.current?.abort();
+    const abort = new AbortController();
+    abortRef.current = abort;
+
     haptics.medium();
     setIsLoading(true);
 
     try {
       const data = await executeAI(async () => {
-        const { data, error } = await appwriteFunctions.invoke('optimize-for-linkedin', {
+        const { data, error } = await appwriteFunctions.invoke<LinkedInResult>('optimize-for-linkedin', {
           body: {
             resume: redactedResume,
             region: selectedRegion,
           },
+          signal: abort.signal,
         });
 
         if (error) throw error;
-        if (!data.success) throw new Error(data.error || 'Optimization failed');
+        if (!data) throw new Error('Optimization failed');
         return data;
       });
 
+      if (abort.signal.aborted || abortRef.current !== abort) return;
       if (!data) return;
       setResult(data);
     } catch (err) {
+      if (abort.signal.aborted || (err as { code?: string })?.code === 'request_cancelled') {
+        return;
+      }
       editorLogger.error('LinkedIn optimization error:', err);
       toast.error('Failed to optimize. Please try again.');
     } finally {
-      setIsLoading(false);
+      if (abortRef.current === abort) {
+        setIsLoading(false);
+        abortRef.current = null;
+      }
     }
   };
 

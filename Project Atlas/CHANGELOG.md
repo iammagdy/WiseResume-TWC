@@ -1,5 +1,41 @@
 # WiseResume Atlas Master Changelog
 
+### 2026-09-03 - AI Studio LinkedIn Optimizer Async Execution Remediation (PR Ready)
+
+- **Workstream Verdict:** `LINKEDIN_ASYNC_FIX_PR_READY / PRODUCTION_UNVERIFIED`.
+- **What's New Eligibility:** `WHATS_NEW_DEFER_UNTIL_PRODUCTION` (Customer-impacting AI optimization tool fix; deferred until merged and verified in production).
+- **Scope:** Remediated production HTTP 408 Request Timeout on `optimize-for-linkedin` by converting the tool from synchronous HTTP execution to asynchronous worker execution with client-side polling and generic idempotency cache result retrieval.
+- **Defect Repaired:**
+  - `POST https://fra.cloud.appwrite.io/v1/functions/ai-gateway/executions` for `optimize-for-linkedin` previously executed synchronously (`async: false`), exceeding Appwrite Cloud's ~15s synchronous socket timeout window while model generation required 20–35s.
+  - Defect Classification: `SYNCHRONOUS_EXECUTION_TRANSPORT_TIMEOUT`.
+- **Implementation Highlights:**
+  - `src/lib/appwrite-functions.ts`:
+    - Added scoped asynchronous execution path for `optimize-for-linkedin` invoking `functions.createExecution(..., true)`.
+    - Integrated with proven 1.5s polling loop (`waitForExecution`) with 75s bounded timeout and `AbortSignal` cancellation.
+    - Implemented generic cached-result retrieval helper (`retrieveCachedLinkedInResult`) that issues a synchronous read against the existing generic idempotency cache, returning completed structured JSON in <100ms with 0 additional credit deductions.
+    - Terminal `failed` background execution immediately throws typed `FunctionWaitError` without issuing secondary execution requests, completely preventing duplicate provider invocations.
+  - `src/components/editor/ai/LinkedInOptimizerSheet.tsx`:
+    - Integrated lifecycle-safe `AbortController` cancellation for client polling (`CLIENT_POLL_ABORTED / SERVER_EXECUTION_MAY_CONTINUE`).
+    - Unmount and drawer close tear down polling and prevent stale state updates.
+    - Preserved existing output contracts, copy actions, Word download, and regional styling options.
+  - `src/lib/__tests__/appwrite-functions.linkedin.test.ts`:
+    - Added 7-test suite covering async creation (`async = true`), polling across states, terminal failure handling without duplicate execution, 409 pending retry, timeout bounds (504), abort cancellation (499), and synchronous feature regression.
+- **Credit & Deduplication Semantics:**
+  - 1 initial async request initiates 1 background generation.
+  - Server-side credit deduction commits strictly upon successful model completion.
+  - Second synchronous read hits generic idempotency cache and logs `credits: 0`.
+  - Terminal failure charges 0 credits and does not trigger secondary provider calls.
+  - Pro / Metered live verification status: `NOT_LIVE_METERED_VERIFIED` (Unlimited QA account baseline).
+- **Protected Boundaries:**
+  - `APPWRITE_DEPLOYMENT_IMPACT = NO` (Reuses existing server-side `ai-gateway` generic idempotency cache).
+  - Schema impact: `NO`.
+  - Model routing impact: `NO` (DeepSeek primary preserved).
+  - Other AI features (Enhance, Briefing, Cover Letters, Chat, Career Plan) remain synchronous and untouched.
+- **Validation:**
+  - TypeScript: 0 errors (`tsc --noEmit`).
+  - Vitest: 15/15 tests passing across `appwrite-functions.linkedin.test.ts` (7/7) and `appwrite-functions.tailoring.test.ts` (8/8).
+  - Build: Clean Vite production build in 1m 15s (`0 *.map files in dist/`).
+
 ### 2026-09-03 - Native PDF Export P1 Production Verification & Remediation Closeout
 
 - **Workstream Verdict:** `PDF_EXPORT_P1_DEPLOYED_PRODUCTION_VERIFIED`.
