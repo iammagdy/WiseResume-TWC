@@ -1,13 +1,14 @@
 # WiseResume Atlas Master Changelog
 
-### 2026-09-03 - AI Studio LinkedIn Optimizer Async Execution Remediation & Safety Hardening (PR #278)
+### 2026-09-03 - AI Studio LinkedIn Optimizer Async Execution Remediation & Production Verification (PR #278)
 
-- **Workstream Verdict:** `LINKEDIN_ASYNC_FIX_PR_APPROVED_TO_MERGE / PRODUCTION_UNVERIFIED`.
-- **What's New Eligibility:** `WHATS_NEW_DEFER_UNTIL_PRODUCTION` (Customer-impacting AI optimization tool fix; deferred until merged and verified in production).
-- **Scope:** Remediated production HTTP 408 Request Timeout on `optimize-for-linkedin` by converting the tool from synchronous HTTP execution to asynchronous background worker execution with client-side polling, server-owned result-only cache retrieval (`X-AI-Result-Only: true`), lifecycle-safe cancellation, and server-side durable-result-before-credit guarantees.
-- **Defect Repaired:**
+- **Workstream Verdict:** `AI_STUDIO_LINKEDIN_408_P1_DEPLOYED_PRODUCTION_VERIFIED`.
+- **What's New Eligibility:** `WHATS_NEW_READY_PENDING_PAGE_UPDATE` (High-impact customer-facing fix in AI Studio; ready for timeline inclusion upon dedicated release).
+- **Scope:** Remediated production HTTP 408 Request Timeout on `optimize-for-linkedin` via backend-first rollout: deployed hardened `ai-gateway` with server-owned result-only contract (`X-AI-Result-Only: true`), merged PR #278 into `main` (`ba32c3bfbd9514db2f5dd9c44ec8770f47d36e16`), verified automatic Vercel Production deployment `8JwoQdtnRGsJ6KV7rnqDVg6xgM3G`, and completed live authenticated production QA.
+- **Defect Repaired & Verified:**
   - Production observed `HTTP 408 Request Timeout` at approximately 15 seconds while the long-running LinkedIn generation was invoked synchronously (`async: false`).
   - Defect Classification: `SYNCHRONOUS_EXECUTION_TRANSPORT_TIMEOUT`. (Note: Appwrite platform documentation states synchronous executions have a 30-second hard timeout; empirical timeout on this path occurred at ~15s).
+  - Production Verification: Initial execution created asynchronously (`async: true`), seamlessly routed through server-owned `X-AI-Result-Only: true` fallback polling with 409 `request_in_progress` handling, completed in 9.1s with 0 HTTP 408 timeouts. Complete contract verified (4 headlines, 3 about sections, experience rewrites, 10 skills, 10 keywords, 5 tips, DOCX download). Credit deduction verified (+1 credit charged: 10 -> 11). Client cancellation verified clean. Pro metered verification status preserved as `NOT_LIVE_METERED_VERIFIED`.
 - **Implementation & Safety Hardening Highlights:**
   - `src/lib/appwrite-functions.ts`:
     - Added scoped asynchronous execution path for `optimize-for-linkedin` invoking `functions.createExecution(..., true)`.
