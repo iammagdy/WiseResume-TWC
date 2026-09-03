@@ -354,7 +354,7 @@ export default function WhatsNewPage() {
           <div>
             <div className="flex items-center gap-2 mb-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
               <Filter className="w-3.5 h-3.5" />
-              <span>{lang === 'ar' ? 'التصنيف' : 'Category'}</span>
+              <span>{lang === 'ar' ? 'القسم' : 'Product Area'}</span>
             </div>
             <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none snap-x">
               {CATEGORY_FILTERS.map((cat) => {

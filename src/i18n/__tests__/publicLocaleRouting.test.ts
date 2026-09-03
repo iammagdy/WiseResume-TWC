@@ -152,5 +152,38 @@ describe('Public Locale Routing & WhatsNew Data Reconciliation', () => {
       expect(febGroup?.label.en).toBe('February 2026');
       expect(febGroup?.label.ar).toBe('فبراير 2026');
     });
+
+    it('enforces that every release has an explicit updateType', () => {
+      expect(whatsNewReleases.length).toBe(40);
+      for (const release of whatsNewReleases) {
+        expect(['new', 'improved', 'fixed']).toContain(release.updateType);
+      }
+    });
+
+    it('verifies type-filter counts and representative known entries in recent and historical data', () => {
+      const newItems = whatsNewReleases.filter((r) => r.updateType === 'new');
+      const improvedItems = whatsNewReleases.filter((r) => r.updateType === 'improved');
+      const fixedItems = whatsNewReleases.filter((r) => r.updateType === 'fixed');
+
+      expect(newItems.length).toBe(19);
+      expect(improvedItems.length).toBe(16);
+      expect(fixedItems.length).toBe(5);
+
+      // Representative recent entries (September 2026)
+      const recentNew = whatsNewReleases.find((r) => r.id === 'sep-2026-portfolio-turnstile-contact');
+      expect(recentNew?.updateType).toBe('new');
+      const recentImproved = whatsNewReleases.find((r) => r.id === 'sep-2026-autosave-deduplication');
+      expect(recentImproved?.updateType).toBe('improved');
+      const recentFixed = whatsNewReleases.find((r) => r.id === 'sep-2026-native-pdf-export');
+      expect(recentFixed?.updateType).toBe('fixed');
+
+      // Representative historical entries (2025/early 2026)
+      const historicalNew = whatsNewReleases.find((r) => r.id === 'oct-2025-launch');
+      expect(historicalNew?.updateType).toBe('new');
+      const historicalImproved = whatsNewReleases.find((r) => r.id === 'mar-2026-resume-parsing');
+      expect(historicalImproved?.updateType).toBe('improved');
+      const historicalFixed = whatsNewReleases.find((r) => r.id === 'apr-2026-pdf-export-layout');
+      expect(historicalFixed?.updateType).toBe('fixed');
+    });
   });
 });
