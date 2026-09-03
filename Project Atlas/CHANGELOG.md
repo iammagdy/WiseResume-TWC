@@ -1,5 +1,54 @@
 # WiseResume Atlas Master Changelog
 
+### 2026-09-03 - AI Studio LinkedIn Optimizer Async Execution Remediation & Safety Hardening (PR #278)
+
+- **Workstream Verdict:** `LINKEDIN_ASYNC_FIX_PR_APPROVED_TO_MERGE / PRODUCTION_UNVERIFIED`.
+- **What's New Eligibility:** `WHATS_NEW_DEFER_UNTIL_PRODUCTION` (Customer-impacting AI optimization tool fix; deferred until merged and verified in production).
+- **Scope:** Remediated production HTTP 408 Request Timeout on `optimize-for-linkedin` by converting the tool from synchronous HTTP execution to asynchronous background worker execution with client-side polling, server-owned result-only cache retrieval (`X-AI-Result-Only: true`), lifecycle-safe cancellation, and server-side durable-result-before-credit guarantees.
+- **Defect Repaired:**
+  - Production observed `HTTP 408 Request Timeout` at approximately 15 seconds while the long-running LinkedIn generation was invoked synchronously (`async: false`).
+  - Defect Classification: `SYNCHRONOUS_EXECUTION_TRANSPORT_TIMEOUT`. (Note: Appwrite platform documentation states synchronous executions have a 30-second hard timeout; empirical timeout on this path occurred at ~15s).
+- **Implementation & Safety Hardening Highlights:**
+  - `src/lib/appwrite-functions.ts`:
+    - Added scoped asynchronous execution path for `optimize-for-linkedin` invoking `functions.createExecution(..., true)`.
+    - Integrated with proven 1.5s polling loop (`waitForExecution`) with 75s bounded timeout and `AbortSignal` cancellation.
+    - Implemented server-owned result-only retrieval helper (`retrieveCachedLinkedInResult`) that attaches `X-AI-Result-Only: true` in `__headers`, guaranteeing zero secondary provider executions on cache misses or terminal failures.
+    - Added resilient fallback: when `getExecution()` returns 401, 403, or 404 (status unavailable in browser), the transport seamlessly falls back to `retrieveCachedLinkedInResult()` with 409 backoff retry.
+    - Terminal `failed` background execution immediately throws typed `FunctionWaitError` without issuing secondary execution requests, completely preventing duplicate provider invocations.
+  - `src/components/editor/ai/LinkedInOptimizerSheet.tsx`:
+    - Updated `executeAI(action, { silent: true })` so cancellation errors do not emit unintended global error toasts.
+    - Integrated lifecycle-safe `AbortController` cancellation for client polling (`CLIENT_POLL_ABORTED / SERVER_EXECUTION_MAY_CONTINUE`).
+    - Unmount and drawer close tear down polling and prevent stale state updates without showing toasts; genuine failures display exactly one toast.
+    - Preserved existing output contracts, copy actions, Word download, and regional styling options.
+  - `appwrite-hubs/ai-gateway/src/main.js`:
+    - Added server-owned `isLinkedInResultOnly` handler: when `X-AI-Result-Only: true` is provided for `optimize-for-linkedin`, computes content keys and reads idempotency state without ever calling AI providers.
+      - Cached success -> returns stored result (0 provider calls, 0 credits).
+      - Pending -> returns 409 `request_in_progress` (0 provider calls, 0 credits).
+      - Cached failed -> returns stored typed failure and cleans up doc (0 provider calls, 0 credits).
+      - Missing/unavailable -> returns 503 `result_unavailable` (0 provider calls, 0 credits).
+    - Preserved failure state for `optimize-for-linkedin` in `finalizeIdempotencyFailure()` so result-only readers distinguish failed from missing without triggering re-execution.
+    - Fail-closed reservation check: if a durable pending document cannot be created in `idempotency_cache`, returns 503 `idempotency_unavailable` before provider invocation (0 credits charged, 0 AI calls).
+    - Enforced durable-result-before-credit ordering: structured LinkedIn result is written and verified in `idempotency_cache` via `updateIdempotencySuccess()` *before* `recordSuccessUsage()` commits credit deduction.
+  - `src/lib/devkit/sourceHashes.generated.json`:
+    - Regenerated via `node scripts/compute-source-hashes.mjs` to reflect the hardened `ai-gateway` source hash (`125595493336fffe46e8c5739832ccd793a94babfa12c97c74232e28ad281ff1`).
+- **Credit & Deduplication Semantics:**
+  - 1 initial async request initiates 1 background generation.
+  - Server-side credit deduction commits strictly upon successful structured result persistence.
+  - Idempotency reservation failure, model failure, or cache update failure all fail closed with 0 credits charged.
+  - Result-only read hits generic idempotency cache and logs `credits: 0, isIdempotencyHit: true`.
+  - Pro / Metered live verification status: `NOT_LIVE_METERED_VERIFIED` (Unlimited QA account baseline).
+- **Deployment & Architecture Boundaries:**
+  - `APPWRITE_DEPLOYMENT_IMPACT = YES_TARGETED_AI_GATEWAY` (Targeted `ai-gateway` deployment required after PR review/merge).
+  - Schema impact: `NO`.
+  - Model routing impact: `NO` (DeepSeek primary preserved).
+  - Other AI features (Enhance, Briefing, Cover Letters, Chat, Career Plan) remain synchronous and untouched.
+- **Validation:**
+  - TypeScript: 0 errors (`tsc --noEmit`).
+  - Node Syntax: `node --check appwrite-hubs/ai-gateway/src/main.js` passed.
+  - Vitest: 19/19 tests passing across `appwrite-functions.linkedin.test.ts` (9/9), `appwrite-functions.tailoring.test.ts` (8/8), and `LinkedInOptimizerSheet.cancellation.test.tsx` (2/2).
+  - Hub Tests: `ai-gateway-linkedin-durability.test.cjs` (10/10 tests), `ai-gateway-routing.test.cjs`, and `ai-gateway-tailoring-recovery.test.cjs` all passed.
+  - Build: Clean Vite production build (`0 *.map files in dist/`).
+
 ### 2026-09-03 - Native PDF Export P1 Production Verification & Remediation Closeout
 
 - **Workstream Verdict:** `PDF_EXPORT_P1_DEPLOYED_PRODUCTION_VERIFIED`.
