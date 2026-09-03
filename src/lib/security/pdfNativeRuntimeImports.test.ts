@@ -10,12 +10,10 @@ describe('pdf-native Vercel runtime imports', () => {
       /import\s+(?!type\b)[\s\S]*?\sfrom\s+['"](\.{1,2}\/[^'"]+)['"]/g,
     )].map((match) => match[1]);
 
-    expect(relativeRuntimeImports).not.toEqual([]);
-    expect(relativeRuntimeImports).toEqual(
-      expect.arrayContaining(relativeRuntimeImports.map(() =>
-        expect.stringMatching(/\.(?:c|m)?js$/),
-      )),
-    );
+    expect(relativeRuntimeImports.length).toBeGreaterThan(0);
+    for (const specifier of relativeRuntimeImports) {
+      expect(specifier).toMatch(/\.(?:c|m)?js$/);
+    }
   });
 
   it('configures vercel.json includeFiles and lazy dynamic Chromium import for serverless boot safety', () => {

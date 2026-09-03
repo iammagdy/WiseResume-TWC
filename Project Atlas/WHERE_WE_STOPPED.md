@@ -1,26 +1,27 @@
 # Project Atlas — Active Operational & Handover State
 
 **Last Verified:** 2026-09-03
-**Status:** `PDF_EXPORT_P1_REMEDIATED_LOCAL_VERIFIED / AWAITING_PRODUCTION_DEPLOYMENT` — Repaired Native PDF Export P1 defect (`POST /api/export/pdf-native` failing with HTTP 500). Restored `vercel.json` functions configuration with `includeFiles: "node_modules/@sparticuz/chromium/**"` and converted static import to lazy dynamic import in `api/export/pdf-native.ts`. All unit, build, and bundle simulation tests passed locally. Billing checkout remains strictly disabled (`BILLING_CHECKOUT_ENABLED=false`) due to Paddle AUP category rejection.
+**Status:** `PDF_EXPORT_ESM_IMPORT_REMEDIATED_LOCAL_VERIFIED / AWAITING_PRODUCTION_DEPLOYMENT` — PR #275 merged and deployed to production (`dpl_BF39bwHg4dFnqB3zpcNyddvtYgrx`). Production runtime logs revealed `ERR_MODULE_NOT_FOUND` for `/var/task/api/_lib/appwriteDocumentId` imported from `api/export/pdf-native.js`. Root cause confirmed as `ROOT_CAUSE_CONFIRMED_ESM_RELATIVE_IMPORT` (Node ESM requires explicit `.js` extensions for relative imports). Added `.js` extension in `api/export/pdf-native.ts` and strengthened regression test loop in `src/lib/security/pdfNativeRuntimeImports.test.ts`. Verified locally: 0 TypeScript errors, 9/9 passing Vitest export tests, clean production build in 52.22s, and unbundled Node 22 native ESM import evaluation. Billing checkout remains strictly disabled (`BILLING_CHECKOUT_ENABLED=false`).
 **Location:** `Project Atlas/WHERE_WE_STOPPED.md`
 
-## Native PDF Export P1 Remediation (Local Verified) — 2026-09-03
+## Native PDF Export P1 ESM Relative Import Remediation — 2026-09-03
 
-* **Workstream Verdict:** `PDF_EXPORT_P1_REMEDIATED_LOCAL_VERIFIED`.
+* **Workstream Verdict:** `PDF_EXPORT_ESM_IMPORT_REMEDIATED_LOCAL_VERIFIED`.
 * **What's New Eligibility Decision:** `WHATS_NEW_DEFER_UNTIL_PRODUCTION` (Qualifies as a critical user-facing fix; deferred until live production deployment verification).
-* **Defect Repaired:** `POST https://wiseresume.app/api/export/pdf-native` returned `HTTP 500 FUNCTION_INVOCATION_FAILED` for Designed PDF and ATS PDF.
-* **Root Cause Classification:** `ROOT_CAUSE_HIGH_CONFIDENCE_NOT_PRODUCTION_PROVEN`. Production evidence proves the function crashes during container bootstrapping before handler execution (GET returns 500 rather than 405). Git history proves commit `4829c791` deleted `vercel.json`'s `functions` configuration (`includeFiles: "node_modules/@sparticuz/chromium/**"`), and commit `eb9059cf` restored a static top-level import. Local package analysis strongly supports missing runtime Chromium packaging/bootstrap as the cause, as `@vercel/nft` cannot trace the 64MB `chromium.br` binary without `includeFiles`. Exact Vercel container stderr/stack was not available via CLI/API, so production deployment verification is required.
+* **Defect Repaired:** `POST https://wiseresume.app/api/export/pdf-native` returned `HTTP 500 FUNCTION_INVOCATION_FAILED`.
+* **Confirmed Root Cause:** `ROOT_CAUSE_CONFIRMED_ESM_RELATIVE_IMPORT`. Vercel container runtime exception proved:
+  `Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/var/task/api/_lib/appwriteDocumentId' imported from /var/task/api/export/pdf-native.js`
+  Node ESM emitted for Vercel functions requires explicit `.js` extensions on relative runtime imports. The import `../_lib/appwriteDocumentId` lacked `.js`, causing Node to throw during module resolution before `handler()` could execute.
 * **Changes Applied:**
-  1. `vercel.json`: Restored `"functions"` block with `includeFiles: "node_modules/@sparticuz/chromium/**"` and `maxDuration: 60`.
-  2. `api/export/pdf-native.ts`: Converted static `import chromium from '@sparticuz/chromium'` to lazy dynamic import inside handler (`if (!_chromium) _chromium = (await import('@sparticuz/chromium')).default;`).
-  3. `src/lib/security/pdfNativeRuntimeImports.test.ts`: Updated test suite to verify `vercel.json` includeFiles and lazy dynamic loading.
+  1. `api/export/pdf-native.ts`: Updated import specifier to `import { createAppwriteDocumentId } from '../_lib/appwriteDocumentId.js';`.
+  2. `src/lib/security/pdfNativeRuntimeImports.test.ts`: Fixed test assertion logic so all runtime relative imports are individually asserted to contain explicit `.js` extensions.
 * **Verification Completed:**
   - `tsc --noEmit`: 0 errors.
   - `src/lib/security/pdfNativeRuntimeImports.test.ts`: 2/2 passed.
   - `src/lib/exportResumePdf.test.ts`: 2/2 passed.
   - `src/lib/nativePdfGenerator.test.ts`: 5/5 passed.
-  - `npm run build`: Clean production build in 55.85s (0 sourcemaps).
-  - Bundled Serverless Function evaluation simulation: 0 module resolution errors.
+  - `npm run build`: Clean production build in 52.22s (0 sourcemaps).
+  - Unbundled Node 22 native ESM import simulation: 0 module resolution errors.
 * **Next Action:** Push branch / create PR, merge to `main`, trigger Vercel deployment, and verify live PDF downloads in production using the approved non-customer QA session.
 
 ## Full Application End-to-End Functionality & Production Audit — 2026-09-02
