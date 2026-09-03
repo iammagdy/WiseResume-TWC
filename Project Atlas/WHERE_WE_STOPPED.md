@@ -1,10 +1,47 @@
 # Project Atlas — Active Operational & Handover State
 
 **Last Verified:** 2026-09-03
-**Status:** `PDF_EXPORT_P1_DEPLOYED_PRODUCTION_VERIFIED / AI_STUDIO_LINKEDIN_408_P1_DEPLOYED_PRODUCTION_VERIFIED / FULL_FUNCTIONALITY_AUDIT_P1S_RESOLVED` — Both critical P1 functional blockers from the 2026-09-02 full application audit are now deployed and verified in live production. PR #278 merged into `main` (`ba32c3bfbd9514db2f5dd9c44ec8770f47d36e16`). Billing checkout remains strictly disabled (`BILLING_CHECKOUT_ENABLED=false`).
+**Status:** `WHATS_NEW_IMPLEMENTED_LOCAL_BROWSER_VERIFIED / VERCEL_PREVIEW_READY_REMOTE_QA_PENDING` (Audit Baseline: `FULL_FUNCTIONALITY_AUDIT_P1_CLOSEOUT_COMPLETE`, Billing: `BILLING_CHECKOUT_DISABLED`) — Redesigned customer-facing `/whats-new` and `/ar/whats-new` experiences implemented on branch `feat/whats-new-revamp`. Public claims strictly qualified against production evidence. Explicit `updateType` reconciled across all 40 releases. Product area categories streamlined. Vercel Preview deployment ready for remote QA.
 **Location:** `Project Atlas/WHERE_WE_STOPPED.md`
 
-## AI Studio LinkedIn Optimizer Async Execution Remediation & Production Verification (PR #278) — 2026-09-03
+## What's New Page Full Revamp & Shipped-History Reconciliation — 2026-09-03
+
+* **Workstream Verdict:** `WHATS_NEW_IMPLEMENTED_LOCAL_BROWSER_VERIFIED / VERCEL_PREVIEW_READY_REMOTE_QA_PENDING`.
+* **Branch:** `feat/whats-new-revamp`
+* **Target Verdict:** `WHATS_NEW_REVAMP_OWNER_VISUAL_REVIEW_READY / REMOTE_PREVIEW_QA_PENDING` (STOP BEFORE MERGE).
+* **Core UX Density & Initial Scroll Height Solved:**
+  - Original production page: ~9,427px Desktop.
+  - Prior un-collapsed redesign build: ~11,531px Desktop EN, ~17,397px Mobile EN.
+  - **New Materially Reduced Initial Height (Browser Measured):**
+    - Desktop EN (1440px): **`5,011px`** (56.5% reduction vs prior redesign; 46.8% shorter than original production)
+    - Desktop AR (1440px): **`4,857px`** (57.1% reduction vs prior redesign)
+    - Mobile EN (390px): **`7,174px`** (58.8% reduction vs prior redesign)
+    - Mobile AR (390px): **`6,459px`** (58.3% reduction vs prior redesign)
+    - Zero horizontal overflow (0px across all 8 matrix viewports).
+* **Monthly Progressive Disclosure Architecture:**
+  - **Latest Highlights (Feed De-duplication):** Curated top 3 September 2026 releases (PDF Export, LinkedIn Async, Tailoring Cancel) rendered once in a 3-column featured grid. In the default unfiltered September feed, full duplicate cards are omitted in favor of a compact highlight reference banner and the 3 remaining September releases, eliminating redundant vertical scrolling. When any filter is active, matching releases are surfaced dynamically in full.
+  - **Recent Months Expanded:** September 2026 and August 2026 remain expanded by default.
+  - **Older Months Collapsed by Default:** July 2026 down through October 2025 collapsed by default into slim, accessible month section bars.
+  - **Accessible Expand/Collapse Controls:** Real semantic `<button>` with `aria-expanded`, `aria-controls`, `aria-label`, keyboard interaction (Enter/Space), and visible focus rings (`focus-visible:ring-2`). Bilingual labels: EN (`Show [Month] updates` / `Hide [Month] updates`), AR (`عرض تحديثات [الشهر]` / `إخفاء تحديثات [الشهر]`).
+  - **Filter Dynamic Auto-Expansion:** When a Type (`New`, `Improved`, `Fixed`), Product Area, or Month filter is applied, matching months automatically expand so the user never has to manually expand multiple months to find filter results.
+  - **Month Jump Navigation:** Selecting a month in the month selector automatically expands that month and exposes its releases.
+* **Strict Public Claims Qualification:**
+  - **Native PDF:** Removed unsupported claims (`Across All Templates`, `pixel-perfect`, `isolated serverless Chromium`). Qualified to verified downloads across main resume, preview, cover letter, and tailored result workflows (`More Reliable Native PDF Exports`).
+  - **Polling Efficiency:** Removed theoretical percentage claims (`over 90% network bandwidth reduction`) and direct battery claims. Qualified to factual background account synchronization checks reduction while preserving realtime updates and focus triggers (`Optimized Background Account Synchronization`).
+  - **Autosave:** Removed subjective claims (`noticeably smoother`, `completely interruption-free writing`). Qualified to factual Appwrite read deduplication and direct cache reconciliation (`Efficient Cloud Autosave & Cache Synchronization`).
+  - **Tailoring Cancellation:** Clarified client lifecycle clearing boundary and protection from late-arriving stale results (`Instant Tailoring Cancellation & Workspace Protection`).
+  - **Portfolio Contact:** Framed strictly around public portfolio visitor contact inquiries with spam prevention and owner email notifications (`Protected Visitor Inquiries for Public Portfolios`).
+* **Explicit `updateType` Reconciliation:**
+  - Reconciled all 40 releases with explicit `updateType`: 19 `new`, 16 `improved`, 5 `fixed`, 0 undefined.
+  - Automated tests guarantee every release has an explicit `updateType` and verify type counts and representative entries.
+* **Validation & Test Coverage:**
+  - TypeScript: 0 errors (`tsc --noEmit`).
+  - Vitest: 55/55 passing tests across 7 test suites (including 6 new dedicated tests for monthly progressive disclosure).
+  - i18n Audits: `npm run test:i18n` (11 namespaces) and `npm run test:i18n:coverage` (13 critical surfaces) passed.
+  - Build: Clean production build in 44.9s (`0 *.map files in dist/`).
+* **Local Browser QA (Playwright Preview Server):**
+  - Verified all 8 matrix combinations passed with 0px horizontal overflow and 0 console errors (Desktop 1440px / Mobile 390px x EN LTR / AR RTL x Light / Dark).
+* **Remote Vercel Preview QA Status:** `BLOCKED_EXTERNAL_ACCESS` (Vercel Deployment Protection SSO login redirects unauthenticated probes to `https://vercel.com/sso-api?...`; owner authenticated browser session, share link, or bypass token required for remote preview access; stopping before merge per governance rules).
 
 * **Workstream Verdict:** `AI_STUDIO_LINKEDIN_408_P1_DEPLOYED_PRODUCTION_VERIFIED`.
 * **What's New Eligibility Decision:** `WHATS_NEW_READY_PENDING_PAGE_UPDATE` (Qualifies as a high-impact AI Studio customer-facing fix; ready for timeline inclusion upon dedicated What's New content release).

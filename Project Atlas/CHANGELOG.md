@@ -1,5 +1,34 @@
 # WiseResume Atlas Master Changelog
 
+### 2026-09-03 - What's New Page Full Revamp & Shipped-History Reconciliation (feat/whats-new-revamp)
+
+- **Workstream Verdict:** `WHATS_NEW_IMPLEMENTED_LOCAL_BROWSER_VERIFIED / VERCEL_PREVIEW_READY_REMOTE_QA_PENDING`.
+- **Branch:** `feat/whats-new-revamp`
+- **Scope:** Full customer-facing redesign of `/whats-new` and `/ar/whats-new`, progressive disclosure architecture, and shipped-history reconciliation through 2026-09-03.
+- **Problem Solved & Page Density Reduction:**
+  - Resolved the 9,427px tall un-scannable chronological wall of 28 articles with giant card padding (`p-6 sm:p-8`) and repetitive layouts.
+  - Materially reduced initial page height: Desktop EN from 11,531px to **5,011px** (46.8% shorter than original 9,427px production baseline; 56.5% reduction vs prior redesign build). Desktop AR: **4,857px**. Mobile EN from 17,397px to **7,174px**. Mobile AR: **6,459px**.
+  - Reconciled the missing September 2026 releases: none were displayed on the live production page.
+  - Eliminated feed duplication: top 3 Latest Highlights are rendered prominently above; September feed displays a compact reference banner and non-featured releases in default view.
+  - Monthly progressive disclosure keeps recent months (September and August 2026) expanded by default while collapsing older months (July 2026 down through October 2025) behind accessible semantic button controls (`aria-expanded`, `aria-controls`, `aria-label`, visible focus).
+  - Dynamic filter expansion: applying Type, Product Area, or Month filters automatically exposes matching monthly groups without forcing manual expansion.
+- **Strict Public Claims Qualification:**
+  - **Native PDF:** Removed unsupported claims (`Across All Templates`, `pixel-perfect`, `serverless Chromium`). Qualified to verified PDF generation across main resume, preview, cover letter, and tailored result workflows (`More Reliable Native PDF Exports`).
+  - **Polling Efficiency:** Removed theoretical percentage claims (`over 90% network bandwidth reduction`) and direct battery claims. Qualified to factual background account synchronization checks reduction while preserving realtime updates and focus triggers (`Optimized Background Account Synchronization`).
+  - **Autosave:** Removed subjective claims (`noticeably smoother`, `completely interruption-free`). Qualified to factual Appwrite read deduplication and direct cache reconciliation (`Efficient Cloud Autosave & Cache Synchronization`).
+  - **Tailoring Cancellation:** Clarified client lifecycle clearing boundary and protection from late-arriving stale results (`Instant Tailoring Cancellation & Workspace Protection`).
+  - **Portfolio Contact:** Framed strictly around public portfolio visitor contact inquiries with spam prevention and owner email notifications (`Protected Visitor Inquiries for Public Portfolios`).
+- **Data Model & Classification Architecture:**
+  - Assigned explicit `updateType: 'new' | 'improved' | 'fixed'` on ALL 40 releases (19 new, 16 improved, 5 fixed).
+  - Streamlined categories to represent distinct **Product Areas** (`Resume & Portfolio`, `AI & Tailoring`, `Jobs & Career`, `Platform`, `Security & Legal`), eliminating duplication with Type filters.
+- **Validation:**
+  - TypeScript: 0 errors (`tsc --noEmit`).
+  - Vitest: 55/55 passing tests across 7 test suites, including dedicated monthly progressive disclosure and deduplication test suites.
+  - i18n Audits: `npm run test:i18n` and `npm run test:i18n:coverage` passed.
+  - Build: Clean production build in 44.9s (`0 *.map files in dist/`).
+  - Local Browser QA: All 8 matrix permutations passed with 0px overflow and 0 console errors (Desktop 1440px / Mobile 390px x EN LTR / AR RTL x Light / Dark).
+  - Remote QA Status: Vercel Preview deployment ready; remote QA pending.
+
 ### 2026-09-03 - AI Studio LinkedIn Optimizer Async Execution Remediation & Production Verification (PR #278)
 
 - **Workstream Verdict:** `AI_STUDIO_LINKEDIN_408_P1_DEPLOYED_PRODUCTION_VERIFIED`.

@@ -30,22 +30,28 @@ import {
   Languages,
   FileSpreadsheet,
   Workflow,
+  FileDown,
+  Linkedin,
+  History,
 } from 'lucide-react';
 import React from 'react';
 
 export type ReleaseCategory =
   | 'all'
-  | 'features'
+  | 'resume'
   | 'ai'
   | 'jobs'
-  | 'resume'
+  | 'platform'
   | 'security'
+  | 'features'
   | 'improvements';
+
+export type UpdateType = 'all' | 'new' | 'improved' | 'fixed';
 
 export interface ReleaseUpdate {
   id: string;
   date: string;
-  monthKey: string; // Canonical YYYY-MM format e.g. "2026-08"
+  monthKey: string; // Canonical YYYY-MM format e.g. "2026-09"
   year: number;
   category: ReleaseCategory;
   categoryLabel: {
@@ -69,6 +75,11 @@ export interface ReleaseUpdate {
     ar: string[];
   };
   featured?: boolean;
+  updateType: 'new' | 'improved' | 'fixed';
+  featureArea?: {
+    en: string;
+    ar: string;
+  };
 }
 
 export interface MonthGroup {
@@ -81,15 +92,25 @@ export interface MonthGroup {
   };
 }
 
-export const CATEGORY_FILTERS: { id: ReleaseCategory; label: { en: string; ar: string } }[] = [
+export const TYPE_FILTERS: { id: UpdateType; label: { en: string; ar: string } }[] = [
   { id: 'all', label: { en: 'All Updates', ar: 'جميع التحديثات' } },
-  { id: 'features', label: { en: 'New Features', ar: 'ميزات جديدة' } },
+  { id: 'new', label: { en: 'New Features', ar: 'ميزات جديدة' } },
+  { id: 'improved', label: { en: 'Improvements', ar: 'تحسينات' } },
+  { id: 'fixed', label: { en: 'Fixes', ar: 'إصلاحات' } },
+];
+
+export const CATEGORY_FILTERS: { id: ReleaseCategory; label: { en: string; ar: string } }[] = [
+  { id: 'all', label: { en: 'All Areas', ar: 'جميع الأقسام' } },
+  { id: 'resume', label: { en: 'Resume & Portfolio', ar: 'السيرة والملف الشخصي' } },
   { id: 'ai', label: { en: 'AI & Tailoring', ar: 'الذكاء الاصطناعي والتخصيص' } },
   { id: 'jobs', label: { en: 'Jobs & Career', ar: 'الوظائف والمهنة' } },
-  { id: 'resume', label: { en: 'Resume & Portfolio', ar: 'السيرة والملف الشخصي' } },
+  { id: 'platform', label: { en: 'Platform', ar: 'المنصة' } },
   { id: 'security', label: { en: 'Security & Legal', ar: 'الأمان والقوانين' } },
-  { id: 'improvements', label: { en: 'Improvements & Fixes', ar: 'تحسينات وإصلاحات' } },
 ];
+
+export function getUpdateType(release: ReleaseUpdate): 'new' | 'improved' | 'fixed' {
+  return release.updateType;
+}
 
 const MONTH_NAMES_EN: Record<number, string> = {
   1: 'January',
@@ -153,6 +174,215 @@ export function getAvailableMonthGroups(releases: ReleaseUpdate[]): MonthGroup[]
 }
 
 export const whatsNewReleases: ReleaseUpdate[] = [
+  // ── September 2026 ──────────────────────────────────────────
+  {
+    id: 'sep-2026-native-pdf-export',
+    date: 'September 2026',
+    monthKey: '2026-09',
+    year: 2026,
+    category: 'resume',
+    updateType: 'fixed',
+    featureArea: { en: 'PDF Export', ar: 'تصدير PDF' },
+    categoryLabel: { en: 'Resume & Portfolio', ar: 'السيرة والملف الشخصي' },
+    categoryBg: 'bg-cyan-500/10',
+    categoryText: 'text-cyan-600 dark:text-cyan-400',
+    iconBg: 'bg-cyan-500/15',
+    icon: FileDown,
+    featured: true,
+    title: {
+      en: 'More Reliable Native PDF Exports',
+      ar: 'تصدير ملفات PDF موثوق ومحسّن',
+    },
+    description: {
+      en: 'PDF exports are working reliably again across the main resume, preview, cover letter, and tailoring result workflows.',
+      ar: 'تعمل عمليات تصدير PDF الآن بموثوقية عالية عبر المسارات الرئيسية للسيرة الذاتية والمعاينة وخطاب التقديم ونتائج التخصيص.',
+    },
+    highlights: {
+      en: [
+        'Restored reliable PDF generation for Designed and ATS resume formats',
+        'Verified downloads across resume preview, cover letters, and tailored results',
+        'Reliable downloads across the main resume, preview, cover letter, and tailoring result workflows',
+      ],
+      ar: [
+        'استعادة تصدير ملفات PDF بموثوقية لكلا النمطين المصمم وATS',
+        'تحميل معتمد وموثوق عبر معاينة السيرة وخطابات التقديم ونتائج التخصيص',
+        'تنزيل موثوق عبر المسارات الرئيسية للسيرة الذاتية والمعاينة وخطاب التقديم ونتائج التخصيص',
+      ],
+    },
+  },
+  {
+    id: 'sep-2026-linkedin-optimizer-async',
+    date: 'September 2026',
+    monthKey: '2026-09',
+    year: 2026,
+    category: 'ai',
+    updateType: 'fixed',
+    featureArea: { en: 'AI Studio', ar: 'استوديو الذكاء الاصطناعي' },
+    categoryLabel: { en: 'AI & Tailoring', ar: 'الذكاء الاصطناعي والتخصيص' },
+    categoryBg: 'bg-blue-500/10',
+    categoryText: 'text-blue-600 dark:text-blue-400',
+    iconBg: 'bg-blue-500/15',
+    icon: Linkedin,
+    featured: true,
+    title: {
+      en: 'Asynchronous LinkedIn Profile Optimization & Word Export',
+      ar: 'تحسين الملف الشخصي على LinkedIn في الخلفية وتصدير Word',
+    },
+    description: {
+      en: 'The AI Studio LinkedIn Optimizer now runs in the background, generating tailored headlines, multi-length About summaries, experience rewrites, and downloadable Word documents without timeout interruptions.',
+      ar: 'يعمل مُحسّن لينكد إن في استوديو الذكاء الاصطناعي في الخلفية، حيث يُنشئ عناوين احترافية، وموجزات نبذة متنوعة، وصياغات للخبرات، مع تصدير لمستند Word دون انقطاع المهلة.',
+    },
+    highlights: {
+      en: [
+        'Reliable background profile generation without timeout interruptions',
+        'Tailored headlines, 3 About summary lengths, experience rewrites, and skill suggestions',
+        'One-click Word (.docx) profile download and clipboard copying',
+      ],
+      ar: [
+        'توليد موثوق للملف الشخصي في الخلفية دون انقطاع بسبب مهلة الطلب',
+        'عناوين مخصصة، و3 خيارات لطول النبذة المهنية، وصياغة للخبرات، واقتراحات للمهارات',
+        'تصدير بنقرة واحدة لمستند Word (.docx) ونسخ المحتوى للحافظة',
+      ],
+    },
+  },
+  {
+    id: 'sep-2026-tailoring-cancellation',
+    date: 'September 2026',
+    monthKey: '2026-09',
+    year: 2026,
+    category: 'ai',
+    updateType: 'improved',
+    featureArea: { en: 'Tailoring Hub', ar: 'مركز التخصيص' },
+    categoryLabel: { en: 'AI & Tailoring', ar: 'الذكاء الاصطناعي والتخصيص' },
+    categoryBg: 'bg-amber-500/10',
+    categoryText: 'text-amber-600 dark:text-amber-400',
+    iconBg: 'bg-amber-500/15',
+    icon: History,
+    featured: true,
+    title: {
+      en: 'Instant Tailoring Cancellation & Workspace Protection',
+      ar: 'إلغاء فوري لعمليات التخصيص وحماية مساحة العمل',
+    },
+    description: {
+      en: 'Closing or cancelling a tailoring flow now clears active client state and drops late results so abandoned runs do not overwrite the current workspace.',
+      ar: 'إغلاق أو إلغاء مسار التخصيص يقوم الآن بمسح الحالة النشطة وإهمال النتائج المتأخرة لمنع الكتابة فوق مساحة العمل الحالية.',
+    },
+    highlights: {
+      en: [
+        'Instant client cancellation across Tailoring Hub, Editor sheets, and Fast Tailor',
+        'Immediate recovery of active editor controls when abandoning a run',
+        'Prevents stale late-arriving results from overwriting your active workspace',
+      ],
+      ar: [
+        'إلغاء فوري عبر مركز التخصيص، ونوافذ المحرر، وخاصية التخصيص السريع',
+        'استعادة فورية لعناصر التحكم في المحرر عند التراجع عن العملية',
+        'منع النتائج المتأخرة من الكتابة فوق مساحة العمل النشطة',
+      ],
+    },
+  },
+  {
+    id: 'sep-2026-autosave-deduplication',
+    date: 'September 2026',
+    monthKey: '2026-09',
+    year: 2026,
+    category: 'resume',
+    updateType: 'improved',
+    featureArea: { en: 'Resume Editor', ar: 'محرر السيرة الذاتية' },
+    categoryLabel: { en: 'Resume & Portfolio', ar: 'السيرة والملف الشخصي' },
+    categoryBg: 'bg-violet-500/10',
+    categoryText: 'text-violet-600 dark:text-violet-400',
+    iconBg: 'bg-violet-500/15',
+    icon: Zap,
+    title: {
+      en: 'Efficient Cloud Autosave & Cache Synchronization',
+      ar: 'حفظ تلقائي سحابي فعال ومزامنة مباشرة للبيانات',
+    },
+    description: {
+      en: 'Autosave now avoids redundant document reads after successful saves, reducing unnecessary background network work while keeping resume data synchronized.',
+      ar: 'يتجنب الحفظ التلقائي الآن عمليات قراءة المستندات المتكررة بعد نجاح الحفظ، مما يقلل العمل الشبكي غير الضروري مع الحفاظ على تزامن بيانات السيرة الذاتية.',
+    },
+    highlights: {
+      en: [
+        'Avoids redundant document reads after background cloud saves',
+        'Direct cache reconciliation keeps resume content accurately synchronized',
+        'Keeps active resume data synchronized without triggering redundant post-save document reads',
+      ],
+      ar: [
+        'تجنب قراءة المستندات المتكررة بعد الحفظ السحابي في الخلفية',
+        'مزامنة مباشرة لذاكرة التخزين المؤقت للحفاظ على دقة محتوى السيرة الذاتية',
+        'الحفاظ على تزامن بيانات السيرة الذاتية دون تكرار عمليات القراءة بعد الحفظ',
+      ],
+    },
+  },
+  {
+    id: 'sep-2026-portfolio-turnstile-contact',
+    date: 'September 2026',
+    monthKey: '2026-09',
+    year: 2026,
+    category: 'resume',
+    updateType: 'new',
+    featureArea: { en: 'Public Portfolio', ar: 'الملف المهني العام' },
+    categoryLabel: { en: 'Resume & Portfolio', ar: 'السيرة والملف الشخصي' },
+    categoryBg: 'bg-emerald-500/10',
+    categoryText: 'text-emerald-600 dark:text-emerald-400',
+    iconBg: 'bg-emerald-500/15',
+    icon: Shield,
+    title: {
+      en: 'Protected Visitor Inquiries for Public Portfolios',
+      ar: 'رسائل تواصل محمية للملف المهني العام',
+    },
+    description: {
+      en: 'Visitors can contact you through your public portfolio with spam protection and owner notifications.',
+      ar: 'يمكن للزوار التواصل معك عبر ملفك المهني العام مع حماية مدمجة من الرسائل غير المرغوبة وإشعارات لصاحب الملف.',
+    },
+    highlights: {
+      en: [
+        'Direct visitor contact form on public portfolio profiles',
+        'Built-in spam prevention on incoming message submissions',
+        'Email notifications when a visitor sends a portfolio inquiry',
+      ],
+      ar: [
+        'نموذج تواصل مباشر للزوار في الملفات المهنية العامة',
+        'حماية مدمجة من الرسائل العشوائية عند إرسال الاستفسارات',
+        'إشعارات بريد إلكتروني فورية عند إرسال أي زائر استفساراً عبر الملف',
+      ],
+    },
+  },
+  {
+    id: 'sep-2026-client-polling-efficiency',
+    date: 'September 2026',
+    monthKey: '2026-09',
+    year: 2026,
+    category: 'platform',
+    updateType: 'improved',
+    featureArea: { en: 'Platform', ar: 'المنصة' },
+    categoryLabel: { en: 'Platform', ar: 'المنصة' },
+    categoryBg: 'bg-indigo-500/10',
+    categoryText: 'text-indigo-600 dark:text-indigo-400',
+    iconBg: 'bg-indigo-500/15',
+    icon: Gauge,
+    title: {
+      en: 'Optimized Background Account Synchronization',
+      ar: 'تحسين وتنسيق التحقق من الحساب في الخلفية',
+    },
+    description: {
+      en: 'Reduced unnecessary background account checks while preserving realtime updates and refresh-on-focus behavior.',
+      ar: 'تقليل عمليات التحقق غير الضرورية من الحساب في الخلفية مع الحفاظ على التحديثات الفورية وإعادة التحقق عند التركيز على النافذة.',
+    },
+    highlights: {
+      en: [
+        'Optimized account polling interval for open browser tabs',
+        'Immediate refresh on window focus and critical user actions',
+        'Realtime workspace updates and refresh-on-focus behavior remain preserved',
+      ],
+      ar: [
+        'فترات فحص محسّنة للحساب في علامات التبويب المفتوحة',
+        'تحديث فوري عند العودة إلى نافذة المتصفح وعند الإجراءات المهمة',
+        'استمرار التحديثات الفورية في مساحة العمل والتحديث عند التركيز على النافذة',
+      ],
+    },
+  },
+
   // ── August 2026 ─────────────────────────────────────────────
   {
     id: 'aug-2026-remote-jobs',
@@ -160,6 +390,8 @@ export const whatsNewReleases: ReleaseUpdate[] = [
     monthKey: '2026-08',
     year: 2026,
     category: 'jobs',
+    updateType: 'new',
+    featureArea: { en: 'Jobs Feed', ar: 'خلاصة الوظائف' },
     categoryLabel: { en: 'Jobs & Career', ar: 'الوظائف والمهنة' },
     categoryBg: 'bg-blue-500/10',
     categoryText: 'text-blue-600 dark:text-blue-400',
@@ -192,8 +424,10 @@ export const whatsNewReleases: ReleaseUpdate[] = [
     date: 'August 2026',
     monthKey: '2026-08',
     year: 2026,
-    category: 'features',
-    categoryLabel: { en: 'New Features', ar: 'ميزات جديدة' },
+    category: 'platform',
+    updateType: 'improved',
+    featureArea: { en: 'Workspace', ar: 'مساحة العمل' },
+    categoryLabel: { en: 'Platform', ar: 'المنصة' },
     categoryBg: 'bg-violet-500/10',
     categoryText: 'text-violet-600 dark:text-violet-400',
     iconBg: 'bg-violet-500/15',
@@ -225,6 +459,8 @@ export const whatsNewReleases: ReleaseUpdate[] = [
     monthKey: '2026-08',
     year: 2026,
     category: 'security',
+    updateType: 'improved',
+    featureArea: { en: 'Compliance', ar: 'الامتثال القانوني' },
     categoryLabel: { en: 'Security & Legal', ar: 'الأمان والقوانين' },
     categoryBg: 'bg-emerald-500/10',
     categoryText: 'text-emerald-600 dark:text-emerald-400',
@@ -257,6 +493,8 @@ export const whatsNewReleases: ReleaseUpdate[] = [
     monthKey: '2026-08',
     year: 2026,
     category: 'ai',
+    updateType: 'improved',
+    featureArea: { en: 'Fact Integrity', ar: 'نزاهة الحقائق' },
     categoryLabel: { en: 'AI & Tailoring', ar: 'الذكاء الاصطناعي والتخصيص' },
     categoryBg: 'bg-amber-500/10',
     categoryText: 'text-amber-600 dark:text-amber-400',
@@ -288,8 +526,10 @@ export const whatsNewReleases: ReleaseUpdate[] = [
     date: 'August 2026',
     monthKey: '2026-08',
     year: 2026,
-    category: 'improvements',
-    categoryLabel: { en: 'Improvements & Fixes', ar: 'تحسينات وإصلاحات' },
+    category: 'resume',
+    updateType: 'improved',
+    featureArea: { en: 'PDF Export', ar: 'تصدير PDF' },
+    categoryLabel: { en: 'Resume & Portfolio', ar: 'السيرة والملف الشخصي' },
     categoryBg: 'bg-cyan-500/10',
     categoryText: 'text-cyan-600 dark:text-cyan-400',
     iconBg: 'bg-cyan-500/15',
@@ -320,8 +560,10 @@ export const whatsNewReleases: ReleaseUpdate[] = [
     date: 'August 2026',
     monthKey: '2026-08',
     year: 2026,
-    category: 'improvements',
-    categoryLabel: { en: 'Improvements & Fixes', ar: 'تحسينات وإصلاحات' },
+    category: 'platform',
+    updateType: 'fixed',
+    featureArea: { en: 'Stability', ar: 'الاستقرار' },
+    categoryLabel: { en: 'Platform', ar: 'المنصة' },
     categoryBg: 'bg-indigo-500/10',
     categoryText: 'text-indigo-600 dark:text-indigo-400',
     iconBg: 'bg-indigo-500/15',
@@ -354,8 +596,10 @@ export const whatsNewReleases: ReleaseUpdate[] = [
     date: 'July 2026',
     monthKey: '2026-07',
     year: 2026,
-    category: 'features',
-    categoryLabel: { en: 'New Features', ar: 'ميزات جديدة' },
+    category: 'platform',
+    updateType: 'new',
+    featureArea: { en: 'Workspace', ar: 'مساحة العمل' },
+    categoryLabel: { en: 'Platform', ar: 'المنصة' },
     categoryBg: 'bg-violet-500/10',
     categoryText: 'text-violet-600 dark:text-violet-400',
     iconBg: 'bg-violet-500/15',
@@ -387,6 +631,8 @@ export const whatsNewReleases: ReleaseUpdate[] = [
     monthKey: '2026-07',
     year: 2026,
     category: 'ai',
+    updateType: 'improved',
+    featureArea: { en: 'Tailoring Hub', ar: 'مركز التخصيص' },
     categoryLabel: { en: 'AI & Tailoring', ar: 'الذكاء الاصطناعي والتخصيص' },
     categoryBg: 'bg-amber-500/10',
     categoryText: 'text-amber-600 dark:text-amber-400',
@@ -419,6 +665,8 @@ export const whatsNewReleases: ReleaseUpdate[] = [
     monthKey: '2026-07',
     year: 2026,
     category: 'resume',
+    updateType: 'improved',
+    featureArea: { en: 'Public Portfolio', ar: 'الملف المهني العام' },
     categoryLabel: { en: 'Resume & Portfolio', ar: 'السيرة والملف الشخصي' },
     categoryBg: 'bg-teal-500/10',
     categoryText: 'text-teal-600 dark:text-teal-400',
@@ -450,8 +698,10 @@ export const whatsNewReleases: ReleaseUpdate[] = [
     date: 'July 2026',
     monthKey: '2026-07',
     year: 2026,
-    category: 'improvements',
-    categoryLabel: { en: 'Improvements & Fixes', ar: 'تحسينات وإصلاحات' },
+    category: 'resume',
+    updateType: 'fixed',
+    featureArea: { en: 'Resume Editor', ar: 'محرر السيرة الذاتية' },
+    categoryLabel: { en: 'Resume & Portfolio', ar: 'السيرة والملف الشخصي' },
     categoryBg: 'bg-purple-500/10',
     categoryText: 'text-purple-600 dark:text-purple-400',
     iconBg: 'bg-purple-500/15',
@@ -484,8 +734,10 @@ export const whatsNewReleases: ReleaseUpdate[] = [
     date: 'June 2026',
     monthKey: '2026-06',
     year: 2026,
-    category: 'features',
-    categoryLabel: { en: 'New Features', ar: 'ميزات جديدة' },
+    category: 'platform',
+    updateType: 'new',
+    featureArea: { en: 'Localization', ar: 'اللغة والتعريب' },
+    categoryLabel: { en: 'Platform', ar: 'المنصة' },
     categoryBg: 'bg-indigo-500/10',
     categoryText: 'text-indigo-600 dark:text-indigo-400',
     iconBg: 'bg-indigo-500/15',
@@ -517,6 +769,8 @@ export const whatsNewReleases: ReleaseUpdate[] = [
     monthKey: '2026-06',
     year: 2026,
     category: 'resume',
+    updateType: 'improved',
+    featureArea: { en: 'ATS Export', ar: 'تصدير ATS' },
     categoryLabel: { en: 'Resume & Portfolio', ar: 'السيرة والملف الشخصي' },
     categoryBg: 'bg-emerald-500/10',
     categoryText: 'text-emerald-600 dark:text-emerald-400',
@@ -551,6 +805,8 @@ export const whatsNewReleases: ReleaseUpdate[] = [
     monthKey: '2026-05',
     year: 2026,
     category: 'ai',
+    updateType: 'new',
+    featureArea: { en: 'Cover Letters', ar: 'رسائل التغطية' },
     categoryLabel: { en: 'AI & Tailoring', ar: 'الذكاء الاصطناعي والتخصيص' },
     categoryBg: 'bg-rose-500/10',
     categoryText: 'text-rose-600 dark:text-rose-400',
@@ -585,6 +841,8 @@ export const whatsNewReleases: ReleaseUpdate[] = [
     monthKey: '2026-04',
     year: 2026,
     category: 'security',
+    updateType: 'improved',
+    featureArea: { en: 'Portfolio Security', ar: 'أمان الملف المهني' },
     categoryLabel: { en: 'Security & Legal', ar: 'الأمان والقوانين' },
     categoryBg: 'bg-emerald-500/10',
     categoryText: 'text-emerald-600 dark:text-emerald-400',
@@ -616,8 +874,10 @@ export const whatsNewReleases: ReleaseUpdate[] = [
     date: 'April 2026',
     monthKey: '2026-04',
     year: 2026,
-    category: 'improvements',
-    categoryLabel: { en: 'Improvements & Fixes', ar: 'تحسينات وإصلاحات' },
+    category: 'resume',
+    updateType: 'fixed',
+    featureArea: { en: 'PDF Export', ar: 'تصدير PDF' },
+    categoryLabel: { en: 'Resume & Portfolio', ar: 'السيرة والملف الشخصي' },
     categoryBg: 'bg-cyan-500/10',
     categoryText: 'text-cyan-600 dark:text-cyan-400',
     iconBg: 'bg-cyan-500/15',
@@ -648,8 +908,10 @@ export const whatsNewReleases: ReleaseUpdate[] = [
     date: 'April 2026',
     monthKey: '2026-04',
     year: 2026,
-    category: 'improvements',
-    categoryLabel: { en: 'Improvements & Fixes', ar: 'تحسينات وإصلاحات' },
+    category: 'platform',
+    updateType: 'improved',
+    featureArea: { en: 'Performance', ar: 'الأداء' },
+    categoryLabel: { en: 'Platform', ar: 'المنصة' },
     categoryBg: 'bg-cyan-500/10',
     categoryText: 'text-cyan-600 dark:text-cyan-400',
     iconBg: 'bg-cyan-500/15',
@@ -680,8 +942,10 @@ export const whatsNewReleases: ReleaseUpdate[] = [
     date: 'April 2026',
     monthKey: '2026-04',
     year: 2026,
-    category: 'features',
-    categoryLabel: { en: 'New Features', ar: 'ميزات جديدة' },
+    category: 'resume',
+    updateType: 'new',
+    featureArea: { en: 'Examples Gallery', ar: 'معرض النماذج' },
+    categoryLabel: { en: 'Resume & Portfolio', ar: 'السيرة والملف الشخصي' },
     categoryBg: 'bg-violet-500/10',
     categoryText: 'text-violet-600 dark:text-violet-400',
     iconBg: 'bg-violet-500/15',
@@ -714,8 +978,10 @@ export const whatsNewReleases: ReleaseUpdate[] = [
     date: 'March 2026',
     monthKey: '2026-03',
     year: 2026,
-    category: 'improvements',
-    categoryLabel: { en: 'Improvements & Fixes', ar: 'تحسينات وإصلاحات' },
+    category: 'resume',
+    updateType: 'improved',
+    featureArea: { en: 'Resume Import', ar: 'استيراد السيرة' },
+    categoryLabel: { en: 'Resume & Portfolio', ar: 'السيرة والملف الشخصي' },
     categoryBg: 'bg-rose-500/10',
     categoryText: 'text-rose-600 dark:text-rose-400',
     iconBg: 'bg-rose-500/15',
@@ -747,6 +1013,8 @@ export const whatsNewReleases: ReleaseUpdate[] = [
     monthKey: '2026-03',
     year: 2026,
     category: 'security',
+    updateType: 'improved',
+    featureArea: { en: 'Account Security', ar: 'أمان الحساب' },
     categoryLabel: { en: 'Security & Legal', ar: 'الأمان والقوانين' },
     categoryBg: 'bg-emerald-500/10',
     categoryText: 'text-emerald-600 dark:text-emerald-400',
@@ -779,6 +1047,8 @@ export const whatsNewReleases: ReleaseUpdate[] = [
     monthKey: '2026-03',
     year: 2026,
     category: 'ai',
+    updateType: 'improved',
+    featureArea: { en: 'AI Routing', ar: 'مسارات الذكاء الاصطناعي' },
     categoryLabel: { en: 'AI & Tailoring', ar: 'الذكاء الاصطناعي والتخصيص' },
     categoryBg: 'bg-blue-500/10',
     categoryText: 'text-blue-600 dark:text-blue-400',
@@ -810,8 +1080,10 @@ export const whatsNewReleases: ReleaseUpdate[] = [
     date: 'March 2026',
     monthKey: '2026-03',
     year: 2026,
-    category: 'improvements',
-    categoryLabel: { en: 'Improvements & Fixes', ar: 'تحسينات وإصلاحات' },
+    category: 'platform',
+    updateType: 'improved',
+    featureArea: { en: 'Visual Design', ar: 'التصميم المرئي' },
+    categoryLabel: { en: 'Platform', ar: 'المنصة' },
     categoryBg: 'bg-purple-500/10',
     categoryText: 'text-purple-600 dark:text-purple-400',
     iconBg: 'bg-purple-500/15',
@@ -843,6 +1115,8 @@ export const whatsNewReleases: ReleaseUpdate[] = [
     monthKey: '2026-03',
     year: 2026,
     category: 'resume',
+    updateType: 'new',
+    featureArea: { en: 'Public Portfolio', ar: 'الملف المهني العام' },
     categoryLabel: { en: 'Resume & Portfolio', ar: 'السيرة والملف الشخصي' },
     categoryBg: 'bg-teal-500/10',
     categoryText: 'text-teal-600 dark:text-teal-400',
@@ -875,6 +1149,8 @@ export const whatsNewReleases: ReleaseUpdate[] = [
     monthKey: '2026-03',
     year: 2026,
     category: 'ai',
+    updateType: 'new',
+    featureArea: { en: 'Interview Prep', ar: 'الاستعداد للمقابلات' },
     categoryLabel: { en: 'AI & Tailoring', ar: 'الذكاء الاصطناعي والتخصيص' },
     categoryBg: 'bg-amber-500/10',
     categoryText: 'text-amber-600 dark:text-amber-400',
@@ -907,6 +1183,8 @@ export const whatsNewReleases: ReleaseUpdate[] = [
     monthKey: '2026-03',
     year: 2026,
     category: 'ai',
+    updateType: 'new',
+    featureArea: { en: 'AI Tailoring', ar: 'التخصيص بالذكاء الاصطناعي' },
     categoryLabel: { en: 'AI & Tailoring', ar: 'الذكاء الاصطناعي والتخصيص' },
     categoryBg: 'bg-amber-500/10',
     categoryText: 'text-amber-600 dark:text-amber-400',
@@ -939,6 +1217,8 @@ export const whatsNewReleases: ReleaseUpdate[] = [
     monthKey: '2026-03',
     year: 2026,
     category: 'ai',
+    updateType: 'new',
+    featureArea: { en: 'Interview Prep', ar: 'الاستعداد للمقابلات' },
     categoryLabel: { en: 'AI & Tailoring', ar: 'الذكاء الاصطناعي والتخصيص' },
     categoryBg: 'bg-orange-500/10',
     categoryText: 'text-orange-600 dark:text-orange-400',
@@ -971,6 +1251,8 @@ export const whatsNewReleases: ReleaseUpdate[] = [
     monthKey: '2026-03',
     year: 2026,
     category: 'jobs',
+    updateType: 'new',
+    featureArea: { en: 'Job Tracker', ar: 'متابعة الطلبات' },
     categoryLabel: { en: 'Jobs & Career', ar: 'الوظائف والمهنة' },
     categoryBg: 'bg-indigo-500/10',
     categoryText: 'text-indigo-600 dark:text-indigo-400',
@@ -1004,8 +1286,10 @@ export const whatsNewReleases: ReleaseUpdate[] = [
     date: 'February 2026',
     monthKey: '2026-02',
     year: 2026,
-    category: 'improvements',
-    categoryLabel: { en: 'Improvements & Fixes', ar: 'تحسينات وإصلاحات' },
+    category: 'platform',
+    updateType: 'new',
+    featureArea: { en: 'Authentication', ar: 'تسجيل الدخول' },
+    categoryLabel: { en: 'Platform', ar: 'المنصة' },
     categoryBg: 'bg-sky-500/10',
     categoryText: 'text-sky-600 dark:text-sky-400',
     iconBg: 'bg-sky-500/15',
@@ -1039,6 +1323,8 @@ export const whatsNewReleases: ReleaseUpdate[] = [
     monthKey: '2026-01',
     year: 2026,
     category: 'resume',
+    updateType: 'new',
+    featureArea: { en: 'Resume Sharing', ar: 'مشاركة السيرة' },
     categoryLabel: { en: 'Resume & Portfolio', ar: 'السيرة والملف الشخصي' },
     categoryBg: 'bg-amber-500/10',
     categoryText: 'text-amber-600 dark:text-amber-400',
@@ -1070,8 +1356,10 @@ export const whatsNewReleases: ReleaseUpdate[] = [
     date: 'January 2026',
     monthKey: '2026-01',
     year: 2026,
-    category: 'features',
-    categoryLabel: { en: 'New Features', ar: 'ميزات جديدة' },
+    category: 'resume',
+    updateType: 'new',
+    featureArea: { en: 'Milestones', ar: 'شاشات الإنجاز' },
+    categoryLabel: { en: 'Resume & Portfolio', ar: 'السيرة والملف الشخصي' },
     categoryBg: 'bg-amber-500/10',
     categoryText: 'text-amber-600 dark:text-amber-400',
     iconBg: 'bg-amber-500/15',
@@ -1105,6 +1393,8 @@ export const whatsNewReleases: ReleaseUpdate[] = [
     monthKey: '2025-12',
     year: 2025,
     category: 'resume',
+    updateType: 'new',
+    featureArea: { en: 'Public Portfolio', ar: 'الملف المهني العام' },
     categoryLabel: { en: 'Resume & Portfolio', ar: 'السيرة والملف الشخصي' },
     categoryBg: 'bg-teal-500/10',
     categoryText: 'text-teal-600 dark:text-teal-400',
@@ -1137,6 +1427,8 @@ export const whatsNewReleases: ReleaseUpdate[] = [
     monthKey: '2025-12',
     year: 2025,
     category: 'resume',
+    updateType: 'new',
+    featureArea: { en: 'Resume Templates', ar: 'قوالب السيرة' },
     categoryLabel: { en: 'Resume & Portfolio', ar: 'السيرة والملف الشخصي' },
     categoryBg: 'bg-purple-500/10',
     categoryText: 'text-purple-600 dark:text-purple-400',
@@ -1171,6 +1463,8 @@ export const whatsNewReleases: ReleaseUpdate[] = [
     monthKey: '2025-11',
     year: 2025,
     category: 'ai',
+    updateType: 'new',
+    featureArea: { en: 'Cover Letters', ar: 'رسائل التغطية' },
     categoryLabel: { en: 'AI & Tailoring', ar: 'الذكاء الاصطناعي والتخصيص' },
     categoryBg: 'bg-rose-500/10',
     categoryText: 'text-rose-600 dark:text-rose-400',
@@ -1202,8 +1496,10 @@ export const whatsNewReleases: ReleaseUpdate[] = [
     date: 'November 2025',
     monthKey: '2025-11',
     year: 2025,
-    category: 'improvements',
-    categoryLabel: { en: 'Improvements & Fixes', ar: 'تحسينات وإصلاحات' },
+    category: 'platform',
+    updateType: 'new',
+    featureArea: { en: 'Workspace Themes', ar: 'سمات مساحة العمل' },
+    categoryLabel: { en: 'Platform', ar: 'المنصة' },
     categoryBg: 'bg-purple-500/10',
     categoryText: 'text-purple-600 dark:text-purple-400',
     iconBg: 'bg-purple-500/15',
@@ -1236,8 +1532,10 @@ export const whatsNewReleases: ReleaseUpdate[] = [
     date: 'October 2025',
     monthKey: '2025-10',
     year: 2025,
-    category: 'features',
-    categoryLabel: { en: 'New Features', ar: 'ميزات جديدة' },
+    category: 'platform',
+    updateType: 'new',
+    featureArea: { en: 'Core Platform', ar: 'المنصة الأساسية' },
+    categoryLabel: { en: 'Platform', ar: 'المنصة' },
     categoryBg: 'bg-primary/10',
     categoryText: 'text-primary',
     iconBg: 'bg-primary/15',
