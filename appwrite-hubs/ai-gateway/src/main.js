@@ -4417,11 +4417,11 @@ module.exports = async ({ req, res, log, error }) => {
         }, 409);
       }
 
-      // Public portfolio AI must not proceed without a durable deduplication
-      // reservation. This is a fail-closed guard for missing schema or a
-      // transient Appwrite write failure; other AI features retain legacy
+      // Public portfolio AI and asynchronous AI features (tailor-resume, optimize-for-linkedin)
+      // must not proceed without a durable deduplication reservation. This is a fail-closed guard
+      // for missing schema or a transient Appwrite write failure; other AI features retain legacy
       // behavior while their existing compatibility path is preserved.
-      if (featureName === 'ask-portfolio' && !idempotencyDocId) {
+      if ((featureName === 'ask-portfolio' || featureName === 'optimize-for-linkedin') && !idempotencyDocId) {
         await flushDD();
         return res.json({
           status: 'error',
@@ -4794,21 +4794,25 @@ module.exports = async ({ req, res, log, error }) => {
             const structuredData = normalizeStructuredFeatureData(featureName, result.content, aiOpts);
             const meta = { feature: featureName, provider: providerUsed, model: modelUsed, latencyMs: Date.now() - requestStartTime, fallback: !routedBy, requestId: runtimeRequestId, startedAt: runtimeStartedAt };
             const responsePayload = { status: 'success', data: structuredData, meta };
-            if (featureName === 'tailor-resume') {
+            const isDurableAsyncFeature = featureName === 'tailor-resume' || featureName === 'optimize-for-linkedin';
+            if (isDurableAsyncFeature) {
               const cached = await updateIdempotencySuccess(db, idempotencyDocId, responsePayload);
               if (!cached) {
                 if (creditLockAcquired) { await releaseCreditLock(db, effectiveUserId); activeCreditLockUserId = null; }
                 await deleteIdempotencyDoc(db, idempotencyDocId);
                 await flushDD();
+                const failureMessage = featureName === 'tailor-resume'
+                  ? 'Tailoring finished but the result could not be saved safely. Your credit was not charged. Please retry.'
+                  : 'LinkedIn optimization finished but the result could not be saved safely. Your credit was not charged. Please retry.';
                 return res.json({
                   status: 'error',
                   code: 'result_unavailable',
-                  message: 'Tailoring finished but the result could not be saved safely. Your credit was not charged. Please retry.',
+                  message: failureMessage,
                 }, 503);
               }
             }
             const creditsCharged = await recordSuccessUsage();
-            if (featureName !== 'tailor-resume') {
+            if (!isDurableAsyncFeature) {
               await updateIdempotencySuccess(db, idempotencyDocId, responsePayload);
             }
             await safeLogAiRequest(db, { ...meta, credits: creditsCharged, idempotencyKey: contentKey }, effectiveUserId);
@@ -4829,21 +4833,25 @@ module.exports = async ({ req, res, log, error }) => {
                 repaired: true,
               };
               const responsePayload = { status: 'success', data: repaired.structuredData, meta };
-              if (featureName === 'tailor-resume') {
+              const isDurableAsyncFeature = featureName === 'tailor-resume' || featureName === 'optimize-for-linkedin';
+              if (isDurableAsyncFeature) {
                 const cached = await updateIdempotencySuccess(db, idempotencyDocId, responsePayload);
                 if (!cached) {
                   if (creditLockAcquired) { await releaseCreditLock(db, effectiveUserId); activeCreditLockUserId = null; }
                   await deleteIdempotencyDoc(db, idempotencyDocId);
                   await flushDD();
+                  const failureMessage = featureName === 'tailor-resume'
+                    ? 'Tailoring finished but the result could not be saved safely. Your credit was not charged. Please retry.'
+                    : 'LinkedIn optimization finished but the result could not be saved safely. Your credit was not charged. Please retry.';
                   return res.json({
                     status: 'error',
                     code: 'result_unavailable',
-                    message: 'Tailoring finished but the result could not be saved safely. Your credit was not charged. Please retry.',
+                    message: failureMessage,
                   }, 503);
                 }
               }
               const creditsCharged = await recordSuccessUsage();
-              if (featureName !== 'tailor-resume') {
+              if (!isDurableAsyncFeature) {
                 await updateIdempotencySuccess(db, idempotencyDocId, responsePayload);
               }
               await safeLogAiRequest(db, { ...meta, credits: creditsCharged, idempotencyKey: contentKey }, effectiveUserId);

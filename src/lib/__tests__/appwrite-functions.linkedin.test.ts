@@ -282,5 +282,60 @@ describe('appwriteFunctions LinkedIn Optimizer async execution transport', () =>
     expect(createExecution.mock.calls[0][2]).toBe(false);
     expect(getExecution).not.toHaveBeenCalled();
   });
-});
 
+  it('8. falls back to cached-result retrieval when getExecution throws AppwriteException (401, 403, or 404)', async () => {
+    vi.useFakeTimers();
+    const mockLinkedInData = {
+      headlines: ['Lead Architect | Resilient Fallback'],
+      aboutSections: {
+        short: 'Short about.',
+        medium: 'Medium about.',
+        long: 'Long detailed about.',
+      },
+      experienceRewrites: [],
+      suggestedSkills: ['Cloud Architecture'],
+      keywords: ['Resilience'],
+      tips: ['Update profile headline.'],
+    };
+
+    createExecution
+      .mockResolvedValueOnce(execution()) // initial async=true execution
+      .mockResolvedValueOnce(execution({
+        $id: 'pending-result-execution',
+        status: 'completed',
+        responseStatusCode: 409,
+        responseBody: JSON.stringify({ status: 'error', code: 'request_in_progress' }),
+      })) // first retrieveCachedLinkedInResult call: 409 in progress
+      .mockResolvedValueOnce(execution({
+        $id: 'success-result-execution',
+        status: 'completed',
+        responseStatusCode: 200,
+        responseBody: JSON.stringify({ status: 'success', data: mockLinkedInData }),
+      })); // second retrieveCachedLinkedInResult call: 200 success
+
+    getExecution.mockRejectedValueOnce(
+      new AppwriteException('Execution not accessible or missing read permissions.', 401),
+    );
+
+    const pending = appwriteFunctions.invoke('optimize-for-linkedin', {
+      body: { resume: { summary: 'Fallback test resume' }, region: 'global' },
+      timeoutMs: 10_000,
+    });
+
+    // Advance to trigger getExecution polling
+    await vi.advanceTimersByTimeAsync(1_500);
+    expect(getExecution).toHaveBeenCalledTimes(1);
+    // Proves client immediately fell back to retrieveCachedLinkedInResult
+    expect(createExecution).toHaveBeenCalledTimes(2);
+    expect(createExecution.mock.calls[0][2]).toBe(true);  // async trigger
+    expect(createExecution.mock.calls[1][2]).toBe(false); // cached result read
+
+    // Advance timer for 409 retry
+    await vi.advanceTimersByTimeAsync(1_500);
+
+    const response = await pending;
+    expect(response).toEqual({ data: mockLinkedInData, error: null });
+    expect(createExecution).toHaveBeenCalledTimes(3);
+    expect(createExecution.mock.calls[2][2]).toBe(false);
+  });
+});

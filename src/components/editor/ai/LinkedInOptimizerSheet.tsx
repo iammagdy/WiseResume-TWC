@@ -158,7 +158,7 @@ export function LinkedInOptimizerSheet({ open, onOpenChange }: LinkedInOptimizer
         if (error) throw error;
         if (!data) throw new Error('Optimization failed');
         return data;
-      });
+      }, { silent: true });
 
       if (abort.signal.aborted || abortRef.current !== abort) return;
       if (!data) return;

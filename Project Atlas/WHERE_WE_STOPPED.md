@@ -4,23 +4,25 @@
 **Status:** `PDF_EXPORT_P1_DEPLOYED_PRODUCTION_VERIFIED / AI_STUDIO_LINKEDIN_ASYNC_PR_READY / FUNCTIONALITY_GAPS_FOUND` — PR created on branch `fix/ai-studio-linkedin-async-execution` to resolve `AI_STUDIO_LINKEDIN_408_P1`. Full application audit remains `FUNCTIONALITY_GAPS_FOUND` pending PR merge, deployment, and live production QA. Billing checkout remains strictly disabled (`BILLING_CHECKOUT_ENABLED=false`).
 **Location:** `Project Atlas/WHERE_WE_STOPPED.md`
 
-## AI Studio LinkedIn Optimizer Async Execution Remediation (PR Ready) — 2026-09-03
+## AI Studio LinkedIn Optimizer Async Execution Remediation & Safety Hardening (PR #278) — 2026-09-03
 
 * **Workstream Verdict:** `LINKEDIN_ASYNC_FIX_PR_READY / PRODUCTION_UNVERIFIED`.
 * **What's New Eligibility Decision:** `WHATS_NEW_DEFER_UNTIL_PRODUCTION` (Customer-impacting AI optimization tool fix; deferred until merged and verified in production).
-* **Defect Being Repaired:** `optimize-for-linkedin` previously failed with `HTTP 408 Request Timeout` on production after ~15s due to synchronous HTTP execution (`async: false`) on a long-running AI workload (>20s).
-* **Defect Classification:** `SYNCHRONOUS_EXECUTION_TRANSPORT_TIMEOUT`.
-* **Implementation Summary:**
-  - Branch: `fix/ai-studio-linkedin-async-execution`.
-  - In `src/lib/appwrite-functions.ts`: Switched `optimize-for-linkedin` to `functions.createExecution(..., true)` + 1.5s polling loop (`waitForExecution`) with 75s bounded timeout + generic idempotency cache result retrieval (`retrieveCachedLinkedInResult`).
+* **Defect Repaired:** `optimize-for-linkedin` previously failed with `HTTP 408 Request Timeout` on production after ~15s due to synchronous HTTP execution (`async: false`) on a long-running AI workload (>20s).
+* **Defect Classification:** `SYNCHRONOUS_EXECUTION_TRANSPORT_TIMEOUT`. (Appwrite documentation specifies 30-second hard timeout; empirical timeout occurred at ~15s).
+* **Implementation & Safety Hardening Summary:**
+  - Branch: `fix/ai-studio-linkedin-async-execution` (PR #278).
+  - In `src/lib/appwrite-functions.ts`: Switched `optimize-for-linkedin` to `functions.createExecution(..., true)` + 1.5s polling loop (`waitForExecution`) with 75s bounded timeout + generic idempotency cache result retrieval (`retrieveCachedLinkedInResult`) + browser `getExecution` unavailable fallback (401/403/404) with 409 retry.
   - Terminal failure handling: Immediately throws `FunctionWaitError('function_runtime_failed')` on failed background execution without sending secondary execution requests (duplicate provider prevention).
-  - In `src/components/editor/ai/LinkedInOptimizerSheet.tsx`: Attached `AbortController` cancellation for client polling (`CLIENT_POLL_ABORTED / SERVER_EXECUTION_MAY_CONTINUE`), preventing unmount memory leaks and stale state updates.
-  - Dedicated unit tests: 7/7 passing in `src/lib/__tests__/appwrite-functions.linkedin.test.ts`.
-* **Zero Backend / Infrastructure Changes:**
-  - `APPWRITE_DEPLOYMENT_IMPACT = NO`: Consumes existing generic idempotency cache in `ai-gateway`.
+  - In `src/components/editor/ai/LinkedInOptimizerSheet.tsx`: Handled `executeAI(action, { silent: true })` and attached `AbortController` cancellation for client polling (`CLIENT_POLL_ABORTED / SERVER_EXECUTION_MAY_CONTINUE`), preventing unmount memory leaks, stale state updates, and unintended error toasts.
+  - In `appwrite-hubs/ai-gateway/src/main.js`: Added fail-closed reservation check (503 `idempotency_unavailable`) before provider invocation and enforced durable-result-before-credit ordering.
+  - Regenerated `src/lib/devkit/sourceHashes.generated.json` via `node scripts/compute-source-hashes.mjs`.
+  - Dedicated tests: 8/8 unit tests in `src/lib/__tests__/appwrite-functions.linkedin.test.ts`, 2/2 cancellation tests in `src/components/editor/ai/__tests__/LinkedInOptimizerSheet.cancellation.test.tsx`, and full suite in `tests/hubs/ai-gateway-linkedin-durability.test.cjs`.
+* **Deployment & Architecture Boundaries:**
+  - `APPWRITE_DEPLOYMENT_IMPACT = YES_TARGETED_AI_GATEWAY` (Targeted `ai-gateway` deployment required after PR review/merge).
   - Database schema: `NO CHANGES`.
   - Provider / model routing: `NO CHANGES` (DeepSeek primary preserved).
-* **Next Step:** Owner review and merge of PR, followed by live authenticated production verification.
+* **Next Step:** Owner review and merge of PR #278, targeted deployment of `ai-gateway`, followed by live authenticated production verification.
 
 ## Native PDF Export P1 Production Verification & Remediation Closeout — 2026-09-03
 
