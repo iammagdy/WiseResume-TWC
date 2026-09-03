@@ -1,18 +1,19 @@
 # Project Atlas — Active Operational & Handover State
 
 **Last Verified:** 2026-09-03
-**Status:** `PDF_EXPORT_P1_DEPLOYED_PRODUCTION_VERIFIED / FULL_AUDIT_VERIFIED_EXCEPT_AI_408` — PR #276 merged into `main` (`45c48145`) and deployed via Vercel Production deployment `3rZbgn2aGhWC739Bu4UgBMh2ni11` (`READY` at `2026-09-03T08:21:41Z`). Bootstrap probes verified: `GET /api/export/pdf-native` returns HTTP 405 (`{"error":"method_not_allowed"}`), unauthenticated POST returns HTTP 401 (`{"error":"unauthorized"}`). Authenticated production browser QA verified real downloaded PDF files: Designed PDF (30,349 bytes), ATS-Focused PDF (31,560 bytes), Preview Page PDF (119,994 bytes), Cover Letter PDF (23,901 bytes), and Tailoring Hub Result PDF (23,447 bytes) — all valid `%PDF-` files. Root cause status: `ROOT_CAUSE_PRODUCTION_CONFIRMED_BY_REMEDIATION`. Next workstream: `AI_STUDIO_LINKEDIN_408_P1`. Billing checkout remains strictly disabled (`BILLING_CHECKOUT_ENABLED=false`).
+**Status:** `PDF_EXPORT_P1_DEPLOYED_PRODUCTION_VERIFIED / FUNCTIONALITY_GAPS_FOUND_AI_STUDIO_LINKEDIN_408_P1` — PR #276 merged into `main` (`45c48145`) and deployed via Vercel Production deployment `3rZbgn2aGhWC739Bu4UgBMh2ni11` (`READY` at `2026-09-03T08:21:41Z`, Vercel Production Node 24.x ESM runtime). Bootstrap probes verified: `GET /api/export/pdf-native` returns HTTP 405 (`{"error":"method_not_allowed"}`), unauthenticated POST returns HTTP 401 (`{"error":"unauthorized"}`). Authenticated production browser QA verified real downloaded PDF files across 5 distinct surfaces: Designed PDF (30,349 bytes), ATS-Focused PDF (31,560 bytes), Preview Page PDF (119,994 bytes), Cover Letter PDF (23,901 bytes), and Tailoring Hub Result PDF (23,447 bytes) — all valid `%PDF-` files. Other PDF paths (1-Page wizard, Combined PDF, Share drawer) are `TRANSPORT_PATH_RESTORED / UI_SURFACE_NOT_INDIVIDUALLY_REVERIFIED`. Root cause status: `ROOT_CAUSE_PRODUCTION_CONFIRMED_BY_REMEDIATION`. Next workstream: `AI_STUDIO_LINKEDIN_408_P1`. Full application audit status remains `FUNCTIONALITY_GAPS_FOUND`. Billing checkout remains strictly disabled (`BILLING_CHECKOUT_ENABLED=false`).
 **Location:** `Project Atlas/WHERE_WE_STOPPED.md`
 
 ## Native PDF Export P1 Production Verification & Remediation Closeout — 2026-09-03
 
 * **Workstream Verdict:** `PDF_EXPORT_P1_DEPLOYED_PRODUCTION_VERIFIED`.
-* **What's New Eligibility Decision:** `WHATS_NEW_VERIFIED_PUBLISHED` (Critical customer-facing export fix deployed to production and 100% verified with live browser downloads).
-* **Defect Repaired & Verified:** `POST https://wiseresume.app/api/export/pdf-native` returns HTTP 200 (`application/pdf`) and successfully produces valid binary PDFs across all customer export surfaces.
+* **What's New Eligibility Decision:** `WHATS_NEW_READY_PENDING_PAGE_UPDATE` (Qualifies as a critical customer-facing export fix; ready for timeline inclusion upon dedicated What's New content release).
+* **Defect Repaired & Verified:** `POST https://wiseresume.app/api/export/pdf-native` returns HTTP 200 (`application/pdf`) and successfully produces valid binary PDFs across tested export surfaces.
 * **Production Deployment Details:**
   - Merge Commit SHA: `45c48145bd99509a4101e49a458ec07673d97b85` (PR #276)
   - Vercel Deployment ID: `3rZbgn2aGhWC739Bu4UgBMh2ni11`
   - Vercel Deployment Target: `Production` (`https://wiseresume.app`)
+  - Runtime: Vercel Production Node 24.x ESM runtime
   - Deployment State: `READY` (`Deployment has completed` at `2026-09-03T08:21:41Z`)
 * **Verified Production Downloads (Non-Customer QA Account):**
   1. **Designed PDF (Editor):** 30,349 bytes, `%PDF-`, 1 page, opens/parses cleanly.
@@ -20,7 +21,8 @@
   3. **Preview Page PDF:** 119,994 bytes, `%PDF-`, 1 page, opens/parses cleanly.
   4. **Cover Letter PDF:** 23,901 bytes, `%PDF-`, 1 page, opens/parses cleanly.
   5. **Tailoring Hub Result PDF:** 23,447 bytes, `%PDF-`, 1 page, opens/parses cleanly.
-* **Root Cause Resolution:** `ROOT_CAUSE_PRODUCTION_CONFIRMED_BY_REMEDIATION`.
+  6. **Other PDF Call-Sites:** 1-Page wizard, Combined PDF, Share drawer classified as `TRANSPORT_PATH_RESTORED / UI_SURFACE_NOT_INDIVIDUALLY_REVERIFIED`.
+* **Root Cause Resolution:** `ROOT_CAUSE_PRODUCTION_CONFIRMED_BY_REMEDIATION` — The confirmed production bootstrap blocker was the ESM relative-import failure (`../_lib/appwriteDocumentId` lacking `.js`). Chromium package inclusion and lazy loading remain part of the successfully deployed runtime configuration in Vercel Production Node 24.x ESM runtime.
 * **Remaining Open Workstream:** `AI_STUDIO_LINKEDIN_408_P1` (AI Studio LinkedIn Optimizer 408 timeout issue).
 
 ## Full Application End-to-End Functionality & Production Audit — 2026-09-02

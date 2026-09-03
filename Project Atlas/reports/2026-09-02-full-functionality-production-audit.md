@@ -4,25 +4,25 @@
 **Repository:** `iammagdy/WiseResume-TWC`
 **Production Target:** [https://wiseresume.app](https://wiseresume.app)
 **Baseline Git Commit:** `d293437bc54032c08329c99f6f527e1a6574c499` (`main`, synchronized with `origin/main`)
-**Environment:** Windows (PowerShell), Node.js v22.22.0, Vite 6.4.3, Playwright Chromium, Appwrite Cloud Europe Frankfurt (`fra.cloud.appwrite.io`), Vercel Production (`fra1`)
+**Environment:** Windows (PowerShell), Local Node.js v22.22.0, Vite 6.4.3, Playwright Chromium, Appwrite Cloud Europe Frankfurt (`fra.cloud.appwrite.io`), Vercel Production Node 24.x ESM runtime (`fra1` PoP)
 **Authenticated QA Identity:** Approved WiseResume non-customer QA account (`Ultimate` tier, unlimited workspace access)
 **Author:** Antigravity AI
 
 ---
 
-> ### **FINAL AUDIT VERDICT: PASS_WITH_WARNINGS (PDF EXPORT RESOLVED & PRODUCTION VERIFIED)**
+> ### **FINAL AUDIT VERDICT: FUNCTIONALITY_GAPS_FOUND**
 >
 > **Core Assessment:**
 > The WiseResume production deployment at `https://wiseresume.app` has completed a full, multi-phase functionality audit covering public surfaces, protected routes, security boundaries, authenticated browser lifecycles, and real file downloads.
 >
-> Following the deployment and production verification of PR #275 and PR #276 (Deployment `3rZbgn2aGhWC739Bu4UgBMh2ni11`), **all Native PDF exports are 100% operational in production** across Editor, Preview, Tailoring Hub, and Cover Letters.
+> Following the deployment and production verification of PR #275 and PR #276 (Deployment `3rZbgn2aGhWC739Bu4UgBMh2ni11`, Vercel Production Node 24.x ESM runtime), **Native PDF export functionality has been fully restored and verified** across 5 distinct surfaces (Designed PDF, ATS-Focused PDF, Preview Page PDF, Cover Letter PDF, and Tailoring Hub Result PDF).
 >
-> The overall audit verdict is classified as **`PASS_WITH_WARNINGS`**:
+> However, **the canonical overall audit verdict must remain `FUNCTIONALITY_GAPS_FOUND`** because a core user-facing AI Studio feature remains confirmed broken in production:
 >
-> 1. **Native PDF Export Fully Restored & Verified (`PDF_EXPORT_P1_DEPLOYED_PRODUCTION_VERIFIED`):**
->    Both **Designed PDF** and **ATS-Focused PDF**, as well as **Preview Page PDF**, **Cover Letter PDF**, and **Tailoring Hub Result PDF**, succeed with **HTTP 200 `application/pdf`** and generate real, valid, non-zero `%PDF-` files. Root cause resolution: `ROOT_CAUSE_PRODUCTION_CONFIRMED_BY_REMEDIATION`.
-> 2. **Remaining Warning — AI Studio Synchronous Function Timeout (HTTP 408) (SEPARATE P1 WORKSTREAM):**
->    Synchronous AI Studio tools (e.g. `executeLinkedInOptimizer`) hit **HTTP 408 Request Timeout** from Appwrite Cloud because model execution (>25s) exceeds Appwrite's 15-second synchronous function limit. Tracked as the next dedicated P1 remediation workstream (`AI_STUDIO_LINKEDIN_408_P1`).
+> 1. **Resolved — Native PDF Export Verified (`PDF_EXPORT_P1_DEPLOYED_PRODUCTION_VERIFIED`):**
+>    Designed PDF, ATS-Focused PDF, Preview Page PDF, Cover Letter PDF, and Tailoring Hub Result PDF succeed with **HTTP 200 `application/pdf`** and generate real, valid, non-zero `%PDF-` files. Remaining entry points (1-Page wizard, Combined PDF, Share drawer) are classified `TRANSPORT_PATH_RESTORED / UI_SURFACE_NOT_INDIVIDUALLY_REVERIFIED`.
+> 2. **Confirmed Product Defect — AI Studio LinkedIn Optimizer Timeout (HTTP 408) (`AI_STUDIO_LINKEDIN_408_P1`):**
+>    Synchronous AI Studio tool `executeLinkedInOptimizer` hits **HTTP 408 Request Timeout** from Appwrite Cloud because model execution (>25s) exceeds Appwrite's 15-second synchronous function limit. Tracked as the next dedicated P1 remediation workstream (`AI_STUDIO_LINKEDIN_408_P1`).
 > 3. **Billing System Correctly Disabled (`BILLING_CHECKOUT_ENABLED=false`):**
 >    Paddle rejected merchant onboarding on 2026-08-31 due to AUP category restrictions. The production system correctly fails closed with disabled checkouts until an alternative provider (e.g., Stripe) is integrated.
 > 4. **Arabic Guides Editorial Review Notice:**
@@ -163,7 +163,9 @@ All downloads were captured via real browser events and inspected on disk:
 4. **PR #276 (ESM Runtime Import Fix):** Added explicit `.js` extension to `import { createAppwriteDocumentId } from '../_lib/appwriteDocumentId.js';` and strengthened test suite assertion loop.
 5. **Live Production Deployment `3rZbgn2aGhWC739Bu4UgBMh2ni11` Verification:**
    - Bootstrap probes: `GET /api/export/pdf-native` -> `HTTP 405`, `POST (Unauth)` -> `HTTP 401`.
-   - All 5 PDF download consumers (Designed, ATS, Preview, Cover Letter, Tailoring Result) succeeded with `HTTP 200 (application/pdf)` and produced valid `%PDF-` binary files.
+   - Verified 5 PDF download consumers (Designed, ATS, Preview, Cover Letter, Tailoring Result) with `HTTP 200 (application/pdf)` and produced valid `%PDF-` binary files.
+   - Other PDF call-sites (1-Page wizard, Combined Application PDF, Share drawer) are classified `TRANSPORT_PATH_RESTORED / UI_SURFACE_NOT_INDIVIDUALLY_REVERIFIED`.
+   - The confirmed production bootstrap blocker was the ESM relative-import failure. Chromium package inclusion and lazy loading remain part of the successfully deployed runtime configuration in Vercel Production Node 24.x ESM runtime.
 
 ---
 
@@ -172,11 +174,10 @@ All downloads were captured via real browser events and inspected on disk:
 WiseResume exhibits world-class UI craftsmanship, strict privacy controls, responsive mobile layouts, clean RTL localization, robust database persistence, and fully operational multi-format document exports (`.pdf`, `.docx`, `.json`, `.png`).
 
 ### Action Items:
-1. **P0 — Native PDF Serverless Runtime:** **`RESOLVED & PRODUCTION VERIFIED`** (PR #275 & PR #276 merged and verified on `https://wiseresume.app`).
+1. **P1 — Native PDF Serverless Runtime:** **`RESOLVED & PRODUCTION VERIFIED`** (PR #275 & PR #276 merged and verified on `https://wiseresume.app`).
 2. **P1 — Migrate AI Studio Tools to Asynchronous Polling (`AI_STUDIO_LINKEDIN_408_P1`):**
    Refactor `appwriteFunctions.invoke()` to use asynchronous execution (`async: true`) and polling for long-running AI Studio tools (`linkedin`, `enhance`) exactly as done for `tailor-resume` to eliminate HTTP 408 timeouts.
 3. **P1 — Onboard Replacement Merchant of Record:**
-   Complete merchant integration (e.g., Stripe) to re-enable self-serve billing checkouts.
    Complete merchant integration (e.g., Stripe) to re-enable self-serve billing checkouts.
 
 *Report finalized on 2026-09-03 following authenticated production lifecycle QA by Antigravity AI.*
