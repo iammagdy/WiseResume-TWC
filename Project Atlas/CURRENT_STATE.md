@@ -261,12 +261,24 @@
 * **Historical Warning:** [RESOLVED BY P3] RevenueCat Production webhook configuration and official TEST transport verified; genuine Production lifecycle delivery remains unproven until P4.
 * **Next action:** [COMPLETED / SUPERSEDED BY P3] Outbound RevenueCat webhook environment scope updated to Both Production and Sandbox; verified via official TEST transport.
 
-## PayPal Sandbox Integration Phase 2 (Data Layer & Entitlement Resolution) — 2026-09-03
+## PayPal Sandbox Integration Phase 3 (Final Pre-Commit Gate) — 2026-09-03
 
-* **Verdict:** `IMPLEMENTED_UNVERIFIED_PAYPAL_PHASE2` (Pre-commit correction pass complete). Additive data layer, idempotent Appwrite schema script, provider environment isolation (`PAYPAL_ACCESS_ENVIRONMENT`), canonical QA-user ownership boundary, and same-rank precedence preservation implemented and verified locally via 50 automated test cases.
-* **Git & Deployment Status:** Branch `feat/paypal-sandbox-phase2`, **NOT COMMITTED**, **NOT PUSHED**, **NOT DEPLOYED**. Zero Appwrite changes applied, zero PayPal webhooks created, zero PayPal transactions executed.
+* **Verdict:** `PAYPAL_PHASE3_FINAL_TESTED_LOCAL_READY_TO_COMMIT`. Dedicated server-only Appwrite Function `appwrite-hubs/paypal-webhook` registered in canonical Appwrite deployment contract (`appwrite.json`, `appwrite-function-policy.cjs`, `deploy_hubs.cjs`, `deploy-appwrite-hubs.yml`), deployment workflow secrets wired, non-mutating preflight validation before schema mutation (`scripts/validate_paypal_bootstrap.cjs`), explicit fail-closed environment contract (zero implicit sandbox default; missing/empty/invalid/production fail closed), safe two-stage bootstrap contract implemented (`REQUIRED_FOR_BOOTSTRAP` vs `REQUIRED_FOR_WEBHOOK_ACTIVATION`), webhook-ID anti-downgrade rule verified, lockfile committed, preflight validated, cryptographic webhook signature verification via PayPal REST API, canonical user correlation with checkout session bridge, atomic concurrency reservation with hard-crash/timeout recovery, Sandbox QA mutation boundary, equal-timestamp ordering, UPDATED non-elevation policy, hard Sandbox-only runtime gate, deterministic state machine, and 48-hour failed payment grace period implemented and verified locally via 103 automated test cases across 12 test suites.
+* **Git & Deployment Status:** Branch `feat/paypal-sandbox-phase3`, **NOT COMMITTED**, **NOT PUSHED**, **NOT DEPLOYED**. Zero Appwrite changes applied, conditional workflow schema hook added but NOT executed, zero PayPal webhooks registered, zero PayPal webhook IDs created, zero PayPal transactions executed.
+* **Explicitly Unverified External Boundaries:** Actual Appwrite Function runtime, real PayPal webhook signature delivery, actual PayPal OAuth token requests from deployed function, live Appwrite database collection writes, real Sandbox lifecycle events.
 * **Contracts Preserved:** Internal plans remain `free`, `pro`, `premium` (Ultimate maps strictly to `premium`). AI credits remain 5/day (Free), 50/day (Pro), unlimited (Premium). RevenueCat/Paddle subscriptions and legacy manual/coupon records remain untouched.
-* **Safety Boundary:** PayPal Sandbox entitlements strictly restricted to `BILLING_CHECKOUT_QA_USER_ID` with canonical ownership check (`currentCanonicalUserId === QA_USER_ID && state.user_id === currentCanonicalUserId`). Unconfigured or mismatched QA users fail closed to Free. Production PayPal remains disabled; live billing checkout remains disabled (`BILLING_CHECKOUT_DISABLED`).
+* **Safety Boundary:** PayPal Sandbox entitlements and state mutations strictly restricted to `BILLING_CHECKOUT_QA_USER_ID` with canonical ownership check (`currentCanonicalUserId === QA_USER_ID && state.user_id === currentCanonicalUserId`). Unconfigured or mismatched QA users fail closed to Free without state mutation. Production PayPal remains strictly disabled; live billing checkout remains disabled (`BILLING_CHECKOUT_DISABLED`).
+* **OWNER_ACTION_REQUIRED:** Provision Sandbox secrets (`PAYPAL_SANDBOX_CLIENT_ID`, `PAYPAL_SANDBOX_CLIENT_SECRET`, `BILLING_CHECKOUT_QA_USER_ID`) before initial bootstrap deployment (Stage A); register Appwrite HTTPS URL in PayPal Developer Dashboard and provision `PAYPAL_SANDBOX_WEBHOOK_ID` after initial deployment for webhook activation (Stage B).
+
+
+
+
+
+
+## PayPal Sandbox Integration Phase 2 (Data Layer & Entitlement Resolution) — 2026-09-03 (PR #285 MERGED @ 420429d0)
+
+* **Verdict:** `MERGED_TO_MAIN`. Additive data layer, idempotent Appwrite schema script, provider environment isolation (`PAYPAL_ACCESS_ENVIRONMENT`), canonical QA-user ownership boundary, and same-rank precedence preservation merged to `main` via PR #285 (`420429d034c50fddc3eba2677a64dfabb28702cb`).
+
 
 
 ## Payments Phase P2 Appwrite source hash manifest recovery (PR #248 MERGED @ ba5a785e) — 2026-08-30

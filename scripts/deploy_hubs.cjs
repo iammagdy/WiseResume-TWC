@@ -10,6 +10,7 @@ const {
     parseExplicitHubTargets,
 } = require('./appwrite-function-policy.cjs');
 const { readManagedAuthTemplates } = require('./auth-template-contract.cjs');
+const { validatePaypalBootstrapEnv } = require('./validate_paypal_bootstrap.cjs');
 
 function loadEnvFile(fileName) {
     const filePath = path.join(process.cwd(), fileName);
@@ -79,6 +80,7 @@ const HUBS = [
     { id: 'coupons', name: 'Coupons Hub', file: 'coupons.tar.gz' },
     { id: 'billing-checkout', name: 'Billing Checkout', file: 'billing-checkout.tar.gz' },
     { id: 'revenuecat-webhook', name: 'RevenueCat Subscription Webhook', file: 'revenuecat-webhook.tar.gz' },
+    { id: 'paypal-webhook', name: 'PayPal Subscription Webhook', file: 'paypal-webhook.tar.gz' },
     { id: 'wisehire-gateway', name: 'WiseHire Gateway Hub', file: 'wisehire-gateway.tar.gz' },
     { id: 'public-share', name: 'Public Share Hub', file: 'public-share.tar.gz' },
     { id: 'ai-health', name: 'AI Health Hub', file: 'ai-health.tar.gz' },
@@ -129,6 +131,8 @@ const SAFE_SMOKE_CHECKS = new Map([
     // job-feed-sync is schedule/internal-service only. An anonymous platform
     // execution must be rejected before the handler runs.
     ['job-feed-sync', { auth: 'anonymous-platform', body: { action: 'permission-probe' }, okStatuses: [401, 403] }],
+    // paypal-webhook is fail-closed: an unsigned request must be REJECTED with 400 or 401.
+    ['paypal-webhook', { auth: 'none', body: {}, okStatuses: [400, 401] }],
 ]);
 
 function selectedHubIds() {
@@ -789,6 +793,59 @@ async function ensureRevenueCatWebhookVariables() {
     await ensureVariable('revenuecat-webhook', 'REVENUECAT_WEBHOOK_AUTH_SECRET', process.env.REVENUECAT_WEBHOOK_AUTH_SECRET);
 }
 
+async function ensurePaypalWebhookVariables() {
+    await ensureVariable('paypal-webhook', 'APPWRITE_API_KEY', process.env.APPWRITE_API_KEY);
+    await ensureVariable('paypal-webhook', 'APPWRITE_ENDPOINT', process.env.APPWRITE_ENDPOINT || 'https://fra.cloud.appwrite.io/v1');
+    await ensureVariable('paypal-webhook', 'APPWRITE_PROJECT_ID', process.env.APPWRITE_PROJECT_ID || '69fd362b001eb325a192');
+
+    // Resolve environment values from process.env or existing deployed function variables
+    const accessEnv = (
+        process.env.PAYPAL_ACCESS_ENVIRONMENT ||
+        await existingVariableValue('paypal-webhook', 'PAYPAL_ACCESS_ENVIRONMENT') ||
+        ''
+    ).trim().toLowerCase();
+
+    const clientId = process.env.PAYPAL_CLIENT_ID ||
+        await existingVariableValue('paypal-webhook', 'PAYPAL_CLIENT_ID');
+
+    const clientSecret = process.env.PAYPAL_CLIENT_SECRET ||
+        await existingVariableValue('paypal-webhook', 'PAYPAL_CLIENT_SECRET');
+
+    const qaUserId = process.env.BILLING_CHECKOUT_QA_USER_ID ||
+        await existingVariableValue('paypal-webhook', 'BILLING_CHECKOUT_QA_USER_ID');
+
+    const incomingWebhookId = String(process.env.PAYPAL_WEBHOOK_ID || '').trim();
+    const existingWebhookId = await existingVariableValue('paypal-webhook', 'PAYPAL_WEBHOOK_ID');
+
+    // Non-mutating validation using shared validator
+    validatePaypalBootstrapEnv({
+        PAYPAL_ACCESS_ENVIRONMENT: accessEnv,
+        PAYPAL_CLIENT_ID: clientId,
+        PAYPAL_CLIENT_SECRET: clientSecret,
+        BILLING_CHECKOUT_QA_USER_ID: qaUserId,
+        PAYPAL_WEBHOOK_ID: incomingWebhookId || existingWebhookId || '',
+    });
+
+    await ensureVariable('paypal-webhook', 'PAYPAL_ACCESS_ENVIRONMENT', 'sandbox');
+    await ensureVariable('paypal-webhook', 'PAYPAL_CLIENT_ID', clientId);
+    await ensureVariable('paypal-webhook', 'PAYPAL_CLIENT_SECRET', clientSecret);
+    await ensureVariable('paypal-webhook', 'BILLING_CHECKOUT_QA_USER_ID', qaUserId);
+
+    // REQUIRED_FOR_WEBHOOK_ACTIVATION (Stage B) & Anti-downgrade rule:
+    // Once PAYPAL_WEBHOOK_ID is configured for an existing function, a later deployment
+    // with missing incoming webhook ID must NOT clear the existing ID or downgrade to bootstrap.
+    if (incomingWebhookId) {
+        await ensureVariable('paypal-webhook', 'PAYPAL_WEBHOOK_ID', incomingWebhookId);
+        console.log('  [paypal-webhook] PAYPAL_WEBHOOK_ID synchronized from incoming configuration (Stage B active).');
+    } else if (existingWebhookId) {
+        // Anti-downgrade rule: preserve existing webhook ID from the deployed function
+        await ensureVariable('paypal-webhook', 'PAYPAL_WEBHOOK_ID', existingWebhookId);
+        console.log('  [paypal-webhook] PAYPAL_WEBHOOK_ID preserved from existing deployed function (anti-downgrade rule applied; Stage B preserved).');
+    } else {
+        console.log('  [paypal-webhook] PAYPAL_WEBHOOK_ID absent; function deployed in initial bootstrap mode (Stage A). Signature verification will fail closed until Stage B webhook registration.');
+    }
+}
+
 async function isProductionBillingConfigured() {
     const targetEnvironment = (
         process.env.BILLING_CHECKOUT_ENVIRONMENT ||
@@ -1003,6 +1060,12 @@ async function syncVariablesForHubs(hubIds) {
         execSync('node scripts/setup_revenuecat_schema.cjs', { cwd: ROOT, stdio: 'inherit' });
     }
 
+    if (selected.has('paypal-webhook')) {
+        await ensurePaypalWebhookVariables();
+        console.log('\nEnsuring PayPal subscription schemas...');
+        execSync('node scripts/setup_paypal_schema.cjs', { cwd: ROOT, stdio: 'inherit' });
+    }
+
     if (selected.has('billing-checkout')) {
         await ensureBillingCheckoutVariables();
         console.log('\nEnsuring billing checkout schemas...');
@@ -1161,8 +1224,10 @@ if (require.main === module) {
 
 module.exports = {
     ensureBillingCheckoutVariables,
+    ensurePaypalWebhookVariables,
     ensureVariable,
     existingVariableValue,
     syncVariablesForHubs,
+    validatePaypalBootstrapEnv,
     run,
 };

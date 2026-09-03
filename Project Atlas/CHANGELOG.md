@@ -1,20 +1,111 @@
 # WiseResume Atlas Master Changelog
 
-### 2026-09-03 - PayPal Sandbox Integration Phase 2: Data Layer & Entitlement Resolution
+### 2026-09-04 - PayPal Sandbox Integration Phase 3: Final Fail-Closed Concurrency & Unsafe Fallback Removal
 
-- **Workstream Verdict:** `IMPLEMENTED_UNVERIFIED_PAYPAL_PHASE2`.
-- **Git Branch:** `feat/paypal-sandbox-phase2` (based on `1f6fdcc4`).
-- **Scope:** Additive schema setup script, multi-provider subscription resolver extension, server-side Sandbox QA user isolation, and consumer queries for PayPal provider state.
+- **Workstream Verdict:** `PAYPAL_PHASE3_FINAL_FAILCLOSED_CONCURRENCY_CI_PASS_READY_TO_MERGE`.
+- **Git Branch:** `feat/paypal-sandbox-phase3` (PR #286).
+- **Scope:** Completely removed the unsafe non-transactional `updateDocument` fallback from `reclaimLedgerReservation`, enforced strict fail-closed retry-safe behavior when transaction primitives are unavailable or transaction creation fails, verified HTTP 503 retry semantics, and added 3 focused regression tests (66 tests in `paypal-webhook.test.cjs`).
+- **Core Improvements & Fixes:**
+  - **Removed Unsafe Non-Transactional Fallback:** Eliminated the fallback `updateDocument` path that executed when `createTransaction` was unavailable or failed. Reclamation strictly requires an Appwrite database transaction (`createTransaction`).
+  - **Fail-Closed Infrastructure Errors:** If `createTransaction` is not supported, throws `transaction_unavailable` (`status = 503, isTransient = true`). If transaction creation fails, throws `transaction_creation_failed` (`status = 503, isTransient = true`). If transaction object is invalid, throws `invalid_transaction` (`status = 503, isTransient = true`).
+  - **Zero Ledger or State Mutation on Failure:** When transaction infrastructure fails, neither the ledger document nor `paypal_subscription_state` is updated, ensuring PayPal can retry the webhook delivery safely.
+  - **Retry-Safe HTTP 503 Handler:** Webhook HTTP layer returns HTTP 503 with error payload preserving specific code, signaling PayPal webhook delivery infrastructure to retry.
+  - **Tests:** 66/66 tests pass in `paypal-webhook.test.cjs` (added Concurrency tests 9, 10, 11); 112/112 tests pass across all billing contract suites; full PR validation matrix (15 Vitest files, 83 tests), TypeScript compilation, and production build pass cleanly.
+
+### 2026-09-04 - PayPal Sandbox Integration Phase 3: Final Stale-Recovery Concurrency Safety Gate
+
+- **Workstream Verdict:** `PAYPAL_PHASE3_CONCURRENCY_PROVEN_CI_PASS_READY_FOR_FINAL_MERGE_REVIEW`.
+- **Git Branch:** `feat/paypal-sandbox-phase3` (PR #286).
+- **Scope:** Replaced un-versioned delete-then-create reservation recovery with conflict-aware conditional transaction isolation (`reclaimLedgerReservation` via Appwrite native `createTransaction`), proved old flaw via adversarial barrier reproduction, verified exactly-one-winner guarantee, crash recovery, and anti-stealing invariants via 8 new dedicated concurrency tests (63 tests in `paypal-webhook.test.cjs`).
+- **Core Improvements & Fixes:**
+  - **Adversarial Bug Reproduction:** Proved with an explicit synchronization barrier test that un-versioned `deleteDocument` followed by `createDocument` allows Processor B to delete Processor A's newly acquired replacement lease and proceed concurrently, causing dual provider-state mutations.
+  - **Conflict-Aware Transactional Reclaim:** Replaced `atomicReclaimLedgerReservation` with `reclaimLedgerReservation`. Recovery deliveries execute inside an Appwrite transaction session (`createTransaction(60)`), read the ledger document within transaction isolation, verify eligibility (stale processing or failed), update the document in-place, and commit via `updateTransaction(txId, true, false)`.
+  - **Single-Winner Concurrency Guarantee:** If two recovery deliveries race to reclaim the same reservation, Appwrite detects the document conflict and throws HTTP 409 Conflict to the losing transaction; the loser aborts with `mutated: false, code: 'concurrent_processing'` without modifying state or deleting the winner's lease.
+  - **In-Memory Mock Support:** Enhanced `createMockDatabases` with native transaction simulation, document-level read/write version tracking (`docVersions`), and conflict detection matching Appwrite Cloud transaction semantics.
+  - **Comprehensive 8-Scenario Concurrency Suite:** Added Section 12 to `paypal-webhook.test.cjs` verifying: (1) adversarial race reproduction, (2) safe transaction single-winner guarantee, (3) loser never mutates provider state, (4) winner crash permits later generation recovery, (5) fresh lease cannot be stolen, (6) completed event cannot be reclaimed, (7) failed event can safely recover, and (8) PAYMENT.FAILED recovered once does not extend grace.
+  - **Tests:** 63/63 tests pass in `paypal-webhook.test.cjs`; 125/125 tests pass across all billing contract suites; full PR validation matrix (15 Vitest files, 83 tests), TypeScript compilation, and production build pass cleanly.
+
+### 2026-09-04 - PayPal Sandbox Integration Phase 3: Final Failed-Payment Grace Invariant & Terminal Event Preservation
+
+- **Workstream Verdict:** `PAYPAL_PHASE3_GRACE_INVARIANT_TESTED_LOCAL_PASS`.
+- **Git Branch:** `feat/paypal-sandbox-phase3` (PR #286).
+- **Scope:** Strict failed-payment grace invariant enforcement (no paid grace without prior verified payment), initial payment failure zero-grace handling (`expires_at: null`, Free), preservation of existing 48-hour app grace against provider terminal events (`SUSPENDED`, `CANCELLED`, `EXPIRED`), single-winner concurrency reservation documentation correction (non-transactional delete-then-create with unique ID constraint), and comprehensive 11-test regression matrix.
+- **Core Improvements & Fixes:**
+  - **No Paid Grace Without Prior Verified Payment:** Initial payment failure on a newly activated subscription (`ACTIVATED` -> `pending_initial_payment` -> `PAYMENT.FAILED`) records that a billing issue occurred (`status: 'billing_issue'`, `latest_event_type: 'BILLING.SUBSCRIPTION.PAYMENT.FAILED'`) but writes `expires_at: null` and `grace_period_expires_at: null`. Zero paid entitlement is granted; resolver outcome is Free.
+  - **48-Hour Grace Requires Prior Verified Paid Access:** Only starts a new 48-hour grace window when previous provider state proves active paid access (`previous.status === 'active'`).
+  - **Grace Extension Prevention:** Subsequent or distinct failure events arriving while already in an active grace window strictly preserve the original grace timestamp `G` and never extend it.
+  - **Terminal Event Grace Preservation:** Provider status events (`SUSPENDED`, `CANCELLED`, `EXPIRED`) arriving during an active 48-hour app grace window must not shorten the user's entitlement. State remains `billing_issue` with original grace `G` until `G` expires, naturally returning Free.
+  - **Terminal Events Outside Grace:** Normal cancellations outside grace retain already-paid expiry only if prior payment was verified; otherwise `expires_at: null`. Suspension or expiration outside grace immediately drops to Free.
+  - **Concurrency Documentation Note:** Initial PR iteration attempted delete-then-create on document ID, but adversarial barrier testing proved delete-create allows race interleavings; superseded by transactional conflict-aware reclamation (`reclaimLedgerReservation`).
+  - **Tests:** 55/55 tests pass in `paypal-webhook.test.cjs` (added Section 11 with 11 dedicated invariant tests); 117/117 tests pass across the entire billing contract test matrix.
+
+### 2026-09-03 - PayPal Sandbox Integration Phase 3: Pre-Merge Real Lifecycle Correction
+
+- **Workstream Verdict:** `PAYPAL_PHASE3_PR_CORRECTED_LOCAL_PASS`.
+- **Git Branch:** `feat/paypal-sandbox-phase3` (PR #286).
+- **Scope:** Real PayPal lifecycle authority corrections, removal of fabricated expiry, memoized trusted subscription snapshot reuse, retry-safe transient error classification (HTTP 503), pre-payment cancellation invariant enforcement, `UPDATED` entitlement-bearing duration freeze, atomic delete-create concurrency reclaim (`atomicReclaimLedgerReservation`), and remote CI PR validation workflow update (`.github/workflows/pr-validation.yml`).
+- **Core Improvements & Fixes:**
+  - **Removed Fabricated Expiry:** Eliminated arbitrary 30-day fallback from `calculateExpiry`. Paid boundary must derive from authoritative PayPal provider state (`subDetails.billing_info.next_billing_time` or event `nextBillingTime`). If absent, fails closed with `missing_authoritative_expiry` with zero state mutation.
+  - **Subscription Snapshot Memoization:** `getSubscriptionSnapshot()` memoizes `fetchSubscriptionDetails(subscriptionId)` so `PAYMENT.SALE.COMPLETED` fetches provider state at most once, reusing the snapshot across canonical user correlation, plan resolution, and authoritative expiry calculation.
+  - **Transient vs Permanent Error Classification:** Classified 5xx, 429, and network failures in PayPal GET requests with `err.isTransient = true`. On transient error, marks ledger `failed` (`transient_paypal_fetch_failure`) and returns HTTP 503 so PayPal retries delivery.
+  - **Pre-Payment Cancellation Invariant:** `ACTIVATED -> pending_initial_payment -> CANCELLED` writes `expires_at: null` and evaluates strictly to Free. Cancellation preserves paid access only when an existing verified paid period exists.
+  - **UPDATED Duration Freeze:** `BILLING.SUBSCRIPTION.UPDATED` freezes `expires_at = previous?.expires_at || null`, ensuring metadata updates cannot advance or manufacture paid entitlement duration without a verified payment.
+  - **Stale Lease Reclaim (Superseded):** Initially introduced `atomicReclaimLedgerReservation` using delete-then-create; later proven unsafe under adversarial interleaving and replaced with transaction isolation in the Concurrency Safety Gate.
+  - **Remote CI PR Validation:** Updated `.github/workflows/pr-validation.yml` step `Run billing contract tests` to execute `paypal-webhook.test.cjs`, `paypal-schema.test.cjs`, `paypal-subscription-resolver.test.cjs`, `billing-checkout-deployment.test.cjs`, and `appwrite-function-policy.test.cjs`.
+  - **Tests:** 104/104 tests pass across 12 test suites; 44/44 tests pass in `paypal-webhook.test.cjs`.
+
+### 2026-09-03 - PayPal Sandbox Integration Phase 3: Final Pre-Commit Gate
+
+- **Workstream Verdict:** `PAYPAL_PHASE3_FINAL_TESTED_LOCAL_READY_TO_COMMIT`.
+- **Git Branch:** `feat/paypal-sandbox-phase3` (based on `420429d0`).
+- **Scope:** Dedicated server-only Appwrite Function `appwrite-hubs/paypal-webhook`, canonical deployment contract registration (`appwrite.json`, `appwrite-function-policy.cjs`, `deploy_hubs.cjs`, `deploy-appwrite-hubs.yml`), deployment workflow secrets wiring, non-mutating preflight validation before schema mutation (`scripts/validate_paypal_bootstrap.cjs`), explicit fail-closed environment contract (zero implicit sandbox default; missing/empty/invalid/production fail closed), safe two-stage bootstrap contract (`REQUIRED_FOR_BOOTSTRAP` vs `REQUIRED_FOR_WEBHOOK_ACTIVATION`), webhook-ID anti-downgrade protection, lockfile materialized, target preflight validated, cryptographic webhook signature verification via PayPal REST API, canonical user correlation with checkout session bridge, atomic concurrency reservation with hard-crash/timeout recovery, Sandbox QA mutation boundary, equal-timestamp ordering, UPDATED non-elevation policy, hard Sandbox-only runtime gate, and 48-hour failed payment grace period.
 - **Commit / Push / Deployment:** **NOT COMMITTED**, **NOT PUSHED**, **NOT DEPLOYED**.
-- **What's New Eligibility:** `WHATS_NEW_NOT_REQUIRED` (Internal data layer, multi-provider subscription resolver extension, and QA allowlist boundary for PayPal Sandbox QA. No customer-facing UI changes, no live billing enabled, and no production releases).
-- **Core Implementation Deliverables & Pre-Commit Corrections:**
-  - `scripts/setup_paypal_schema.cjs`: Server-only idempotent schema provisioner for `paypal_subscription_state` and `paypal_event_ledger`. Omit `payer_id` per privacy rules; enforce empty permissions and `documentSecurity=false`.
-  - `appwrite-hubs/shared-subscription-resolver/index.js`: Extended with PayPal candidate evaluation, isolated provider environment evaluation (`PAYPAL_ACCESS_ENVIRONMENT`), canonical QA user & state ownership boundary (`currentCanonicalUserId === QA_USER_ID && state.user_id === currentCanonicalUserId`), original same-rank precedence preservation (strict `>` comparison), and status enforcement (`active`, `billing_issue`, `canceled` valid; `pending_initial_payment`, `suspended`, `expired` invalid).
-  - Server-side consumers (`coupons`, `ai-gateway`, `admin-devkit-data`, `billing-checkout`): Added safe queries against `paypal_subscription_state` with fail-soft fallback.
-  - Verified PayPal Sandbox Catalog: Product `PROD-8XE5253028560521H`, Pro `P-3A193536YV1432359NKM36QY` ($5/mo -> `pro`), Ultimate `P-17M39010JR353545NNKM36RA` ($10/mo -> `premium`).
-  - Source Hashes: DevKit manifest `src/lib/devkit/sourceHashes.generated.json` regenerated via `node scripts/compute-source-hashes.mjs`.
-  - Tests: 50/50 tests passed across all affected test suites.
-- **Production Safety:** Production PayPal remains disabled; live checkout remains disabled (`BILLING_CHECKOUT_DISABLED`).
+- **What's New Eligibility:** `WHATS_NEW_NOT_REQUIRED` (Internal backend webhook ingress and deployment contract. No customer-facing UI changes, no live billing enabled, and no production releases).
+- **Core Implementation Deliverables & Pre-Commit Security Corrections:**
+  - Non-Mutating Preflight Validation Before Schema Mutation:
+    - `scripts/validate_paypal_bootstrap.cjs`: Standalone, non-mutating validator ensuring `PAYPAL_ACCESS_ENVIRONMENT=sandbox`, `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, and `BILLING_CHECKOUT_QA_USER_ID` are present before any schema mutation or deployment can proceed. Zero network/Appwrite/PayPal calls, zero mutations, zero secret leaks.
+    - Fail-Closed Environment Contract: Removed implicit sandbox default; missing or empty `PAYPAL_ACCESS_ENVIRONMENT` fails closed immediately (`Missing required PayPal Sandbox bootstrap configuration: PAYPAL_ACCESS_ENVIRONMENT`). `production` or any non-`sandbox` value is strictly rejected.
+    - `.github/workflows/deploy-appwrite-hubs.yml`: Step `Validate PayPal Sandbox bootstrap configuration` executes strictly BEFORE `Ensure PayPal subscription schema`.
+  - Webhook-ID Anti-Downgrade Rule:
+    - `scripts/deploy_hubs.cjs`: Once `PAYPAL_WEBHOOK_ID` is configured on an existing deployed function, subsequent deployments lacking an incoming webhook ID preserve the existing ID rather than clearing it or downgrading the function to Stage A bootstrap mode.
+  - Canonical Appwrite Deployment Contract & Secret Wiring:
+    - `appwrite.json`: Registered as `paypal-webhook` (Node 22, `execute: ["any"]`, entrypoint `src/main.js`).
+    - `scripts/appwrite-function-policy.cjs`: Registered under `FUNCTION_EXECUTION_POLICIES` as `anonymous-public` with caller `PayPal HTTPS webhook delivery`.
+    - `scripts/deploy_hubs.cjs`: Added to canonical `HUBS` (`paypal-webhook.tar.gz`), `SAFE_SMOKE_CHECKS` (fails closed with 400/401), and variable preparation `ensurePaypalWebhookVariables()`.
+    - `.github/workflows/deploy-appwrite-hubs.yml`: Added conditional schema preparation hook (`Ensure PayPal subscription schema`) executing `scripts/setup_paypal_schema.cjs` if and only if `paypal-webhook` is an explicit deployment target; wired PayPal Sandbox deployment environment variables (`PAYPAL_ACCESS_ENVIRONMENT: sandbox`, `PAYPAL_CLIENT_ID: secrets.PAYPAL_SANDBOX_CLIENT_ID`, `PAYPAL_CLIENT_SECRET: secrets.PAYPAL_SANDBOX_CLIENT_SECRET`, `PAYPAL_WEBHOOK_ID: secrets/vars.PAYPAL_SANDBOX_WEBHOOK_ID`, `BILLING_CHECKOUT_QA_USER_ID: secrets/vars.BILLING_CHECKOUT_QA_USER_ID`).
+    - `appwrite-hubs/paypal-webhook/package-lock.json`: Deterministic lockfile committed with local `@wiseresume/subscription-resolver` file link.
+  - Safe Two-Stage Bootstrap Contract:
+    - `REQUIRED_FOR_BOOTSTRAP` (Stage A): `PAYPAL_ACCESS_ENVIRONMENT=sandbox`, `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `BILLING_CHECKOUT_QA_USER_ID`. Missing any of these throws fail-closed error before schema mutation.
+    - `REQUIRED_FOR_WEBHOOK_ACTIVATION` (Stage B): `PAYPAL_WEBHOOK_ID`. Absent in Stage A to allow initial function deployment; webhook ingress fails closed (HTTP 401 `unconfigured_paypal_credentials`) with zero state mutation until Stage B registration in PayPal Sandbox.
+  - Deployment Preflight: Validated locally via `node scripts/validate-hub-targets.cjs "paypal-webhook"` (`PASS`).
+  - Hard-Crash & Timeout Recovery: Deterministic reservation lease (`PROCESSING_RESERVATION_TTL_MS = 60s`). Stale abandoned reservations from crashed processes are safely re-claimed by incoming retries without creating duplicate mutations or extending grace periods.
+  - Sandbox QA Mutation Boundary: State mutation in Sandbox is strictly gated to `BILLING_CHECKOUT_QA_USER_ID`. Non-QA users or missing QA configuration are safely ledgered (`sandbox_qa_boundary_rejected` / `missing_qa_user_config`) without mutating provider state.
+  - Hard Sandbox-Only Runtime Gate: During Phase 3, `PAYPAL_ACCESS_ENVIRONMENT=production` fails closed; base URL returns empty; events rejected with `sandbox_only_phase3_gate`. Missing or invalid environments also fail closed.
+  - Canonical user correlation bridge: Hierarchical correlation: (1) local `paypal_subscription_state`, (2) server-owned `billing_checkout_sessions` (checks `provider_transaction_id`, `checkout_reference`, `session_key`), (3) server-side PayPal `GET /v1/billing/subscriptions/{id}` fallback. Validated against Appwrite Users. Payer email is never trusted. Unresolved users are ledgered without mutating state.
+  - Idempotency & atomic concurrency reservation: Event identity is atomically reserved in `paypal_event_ledger` before state mutation. A concurrent delivery receives Appwrite 409 and stops before state mutation (`concurrent_processing`). If a processor crashes after reservation, state is marked `failed`, allowing PayPal's retry to safely recover and complete state mutation.
+  - Equal-timestamp deterministic ordering: Equal-timestamp events cannot regress `active` or elevate `pending_initial_payment`. Only `PAYMENT.SALE.COMPLETED` on an inactive state is permitted to confirm payment at the same timestamp.
+  - UPDATED non-elevation policy: `BILLING.SUBSCRIPTION.UPDATED` refreshes metadata only and **never elevates paid plan** without verified `PAYMENT.SALE.COMPLETED` (e.g. Pro + UPDATED to Ultimate remains Pro).
+  - 48-hour grace model: `BILLING.SUBSCRIPTION.PAYMENT.FAILED` activates `billing_issue` with exactly 48 hours of preserved paid access before dropping to Free; `PAYMENT.SALE.COMPLETED` restores active and clears grace. Duplicate failures cannot extend grace.
+  - Initial payment safety: `BILLING.SUBSCRIPTION.ACTIVATED` sets `pending_initial_payment` (grants zero paid access).
+  - Refund / Reversal: `PAYMENT.SALE.REFUNDED` and `PAYMENT.SALE.REVERSED` are ledgered only with `ledger_only_policy_pending`; zero state mutation.
+  - Source Hashes: `scripts/compute-source-hashes.mjs` updated to track `paypal-webhook` in DevKit manifest `src/lib/devkit/sourceHashes.generated.json`.
+  - Tests: 103/103 tests passed across 12 test suites.
+
+- **OWNER_ACTION_REQUIRED:**
+  - Before Stage A initial deployment: Provision `PAYPAL_SANDBOX_CLIENT_ID`, `PAYPAL_SANDBOX_CLIENT_SECRET`, `BILLING_CHECKOUT_QA_USER_ID` in approved GitHub repository secrets/variables.
+  - After Stage A initial deployment: Register deployed Appwrite HTTPS endpoint URL in PayPal Sandbox Developer Dashboard, then provision the returned `PAYPAL_SANDBOX_WEBHOOK_ID` in GitHub repository secrets/variables for Stage B activation.
+- **Explicitly Unverified External Boundaries:** Actual Appwrite Function runtime, real PayPal webhook signature delivery, actual PayPal OAuth token requests from deployed function, live Appwrite database collection writes, real Sandbox lifecycle events.
+- **Production Safety:** Production PayPal remains strictly disabled; live checkout remains disabled (`BILLING_CHECKOUT_DISABLED`).
+
+
+
+
+
+### 2026-09-03 - PayPal Sandbox Integration Phase 2: Data Layer & Entitlement Resolution (PR #285 MERGED @ 420429d0)
+
+- **Workstream Verdict:** `MERGED_TO_MAIN`.
+- **PR #285 Merge Commit:** `420429d034c50fddc3eba2677a64dfabb28702cb`
+- **Scope:** Additive schema setup script, multi-provider subscription resolver extension, server-side Sandbox QA user isolation, and consumer queries for PayPal provider state.
 
 
 ### 2026-09-03 - What's New Page Full Revamp & Shipped-History Reconciliation (PR #280)
