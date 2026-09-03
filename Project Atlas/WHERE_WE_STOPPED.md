@@ -1,28 +1,27 @@
 # Project Atlas — Active Operational & Handover State
 
 **Last Verified:** 2026-09-03
-**Status:** `PDF_EXPORT_ESM_IMPORT_REMEDIATED_LOCAL_VERIFIED / AWAITING_PRODUCTION_DEPLOYMENT` — PR #275 merged and deployed to production (`dpl_BF39bwHg4dFnqB3zpcNyddvtYgrx`). Production runtime logs revealed `ERR_MODULE_NOT_FOUND` for `/var/task/api/_lib/appwriteDocumentId` imported from `api/export/pdf-native.js`. Root cause confirmed as `ROOT_CAUSE_CONFIRMED_ESM_RELATIVE_IMPORT` (Node ESM requires explicit `.js` extensions for relative imports). Added `.js` extension in `api/export/pdf-native.ts` and strengthened regression test loop in `src/lib/security/pdfNativeRuntimeImports.test.ts`. Verified locally: 0 TypeScript errors, 9/9 passing Vitest export tests, clean production build in 52.22s, and unbundled Node 22 native ESM import evaluation. Billing checkout remains strictly disabled (`BILLING_CHECKOUT_ENABLED=false`).
+**Status:** `PDF_EXPORT_P1_DEPLOYED_PRODUCTION_VERIFIED / FULL_AUDIT_VERIFIED_EXCEPT_AI_408` — PR #276 merged into `main` (`45c48145`) and deployed via Vercel Production deployment `3rZbgn2aGhWC739Bu4UgBMh2ni11` (`READY` at `2026-09-03T08:21:41Z`). Bootstrap probes verified: `GET /api/export/pdf-native` returns HTTP 405 (`{"error":"method_not_allowed"}`), unauthenticated POST returns HTTP 401 (`{"error":"unauthorized"}`). Authenticated production browser QA verified real downloaded PDF files: Designed PDF (30,349 bytes), ATS-Focused PDF (31,560 bytes), Preview Page PDF (119,994 bytes), Cover Letter PDF (23,901 bytes), and Tailoring Hub Result PDF (23,447 bytes) — all valid `%PDF-` files. Root cause status: `ROOT_CAUSE_PRODUCTION_CONFIRMED_BY_REMEDIATION`. Next workstream: `AI_STUDIO_LINKEDIN_408_P1`. Billing checkout remains strictly disabled (`BILLING_CHECKOUT_ENABLED=false`).
 **Location:** `Project Atlas/WHERE_WE_STOPPED.md`
 
-## Native PDF Export P1 ESM Relative Import Remediation — 2026-09-03
+## Native PDF Export P1 Production Verification & Remediation Closeout — 2026-09-03
 
-* **Workstream Verdict:** `PDF_EXPORT_ESM_IMPORT_REMEDIATED_LOCAL_VERIFIED`.
-* **What's New Eligibility Decision:** `WHATS_NEW_DEFER_UNTIL_PRODUCTION` (Qualifies as a critical user-facing fix; deferred until live production deployment verification).
-* **Defect Repaired:** `POST https://wiseresume.app/api/export/pdf-native` returned `HTTP 500 FUNCTION_INVOCATION_FAILED`.
-* **Confirmed Root Cause:** `ROOT_CAUSE_CONFIRMED_ESM_RELATIVE_IMPORT`. Vercel container runtime exception proved:
-  `Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/var/task/api/_lib/appwriteDocumentId' imported from /var/task/api/export/pdf-native.js`
-  Node ESM emitted for Vercel functions requires explicit `.js` extensions on relative runtime imports. The import `../_lib/appwriteDocumentId` lacked `.js`, causing Node to throw during module resolution before `handler()` could execute.
-* **Changes Applied:**
-  1. `api/export/pdf-native.ts`: Updated import specifier to `import { createAppwriteDocumentId } from '../_lib/appwriteDocumentId.js';`.
-  2. `src/lib/security/pdfNativeRuntimeImports.test.ts`: Fixed test assertion logic so all runtime relative imports are individually asserted to contain explicit `.js` extensions.
-* **Verification Completed:**
-  - `tsc --noEmit`: 0 errors.
-  - `src/lib/security/pdfNativeRuntimeImports.test.ts`: 2/2 passed.
-  - `src/lib/exportResumePdf.test.ts`: 2/2 passed.
-  - `src/lib/nativePdfGenerator.test.ts`: 5/5 passed.
-  - `npm run build`: Clean production build in 52.22s (0 sourcemaps).
-  - Unbundled Node 22 native ESM import simulation: 0 module resolution errors.
-* **Next Action:** Push branch / create PR, merge to `main`, trigger Vercel deployment, and verify live PDF downloads in production using the approved non-customer QA session.
+* **Workstream Verdict:** `PDF_EXPORT_P1_DEPLOYED_PRODUCTION_VERIFIED`.
+* **What's New Eligibility Decision:** `WHATS_NEW_VERIFIED_PUBLISHED` (Critical customer-facing export fix deployed to production and 100% verified with live browser downloads).
+* **Defect Repaired & Verified:** `POST https://wiseresume.app/api/export/pdf-native` returns HTTP 200 (`application/pdf`) and successfully produces valid binary PDFs across all customer export surfaces.
+* **Production Deployment Details:**
+  - Merge Commit SHA: `45c48145bd99509a4101e49a458ec07673d97b85` (PR #276)
+  - Vercel Deployment ID: `3rZbgn2aGhWC739Bu4UgBMh2ni11`
+  - Vercel Deployment Target: `Production` (`https://wiseresume.app`)
+  - Deployment State: `READY` (`Deployment has completed` at `2026-09-03T08:21:41Z`)
+* **Verified Production Downloads (Non-Customer QA Account):**
+  1. **Designed PDF (Editor):** 30,349 bytes, `%PDF-`, 1 page, opens/parses cleanly.
+  2. **ATS-Focused PDF (Editor):** 31,560 bytes, `%PDF-`, 1 page, opens/parses cleanly.
+  3. **Preview Page PDF:** 119,994 bytes, `%PDF-`, 1 page, opens/parses cleanly.
+  4. **Cover Letter PDF:** 23,901 bytes, `%PDF-`, 1 page, opens/parses cleanly.
+  5. **Tailoring Hub Result PDF:** 23,447 bytes, `%PDF-`, 1 page, opens/parses cleanly.
+* **Root Cause Resolution:** `ROOT_CAUSE_PRODUCTION_CONFIRMED_BY_REMEDIATION`.
+* **Remaining Open Workstream:** `AI_STUDIO_LINKEDIN_408_P1` (AI Studio LinkedIn Optimizer 408 timeout issue).
 
 ## Full Application End-to-End Functionality & Production Audit — 2026-09-02
 
