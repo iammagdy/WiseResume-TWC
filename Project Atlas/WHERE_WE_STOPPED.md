@@ -1,47 +1,50 @@
 # Project Atlas — Active Operational & Handover State
 
 **Last Verified:** 2026-09-03
-**Status:** `WHATS_NEW_IMPLEMENTED_LOCAL_BROWSER_VERIFIED / VERCEL_PREVIEW_READY_REMOTE_QA_PENDING` (Audit Baseline: `FULL_FUNCTIONALITY_AUDIT_P1_CLOSEOUT_COMPLETE`, Billing: `BILLING_CHECKOUT_DISABLED`) — Redesigned customer-facing `/whats-new` and `/ar/whats-new` experiences implemented on branch `feat/whats-new-revamp`. Public claims strictly qualified against production evidence. Explicit `updateType` reconciled across all 40 releases. Product area categories streamlined. Vercel Preview deployment ready for remote QA.
+**Status:** `WHATS_NEW_REVAMP_DEPLOYED_PRODUCTION_VERIFIED` (Audit Baseline: `FULL_FUNCTIONALITY_AUDIT_P1_CLOSEOUT_COMPLETE`, Billing: `BILLING_CHECKOUT_DISABLED`) — Redesigned customer-facing `/whats-new` and `/ar/whats-new` experiences merged to `main` via PR #280 (`59d38309dbd2bb68ee14cf913cf3d9192eb2b013`) and deployed to production on Vercel (`Hc26exYbknDjyKee7TZH3qDbRsJw`). Real production browser QA verified across all 8 matrix combinations on `https://wiseresume.app`.
 **Location:** `Project Atlas/WHERE_WE_STOPPED.md`
 
 ## What's New Page Full Revamp & Shipped-History Reconciliation — 2026-09-03
 
-* **Workstream Verdict:** `WHATS_NEW_IMPLEMENTED_LOCAL_BROWSER_VERIFIED / VERCEL_PREVIEW_READY_REMOTE_QA_PENDING`.
-* **Branch:** `feat/whats-new-revamp`
-* **Target Verdict:** `WHATS_NEW_REVAMP_OWNER_VISUAL_REVIEW_READY / REMOTE_PREVIEW_QA_PENDING` (STOP BEFORE MERGE).
+* **Workstream Verdict:** `WHATS_NEW_REVAMP_DEPLOYED_PRODUCTION_VERIFIED`.
+* **PR #280 Merge Commit:** `59d38309dbd2bb68ee14cf913cf3d9192eb2b013`
+* **Vercel Production Deployment ID:** `Hc26exYbknDjyKee7TZH3qDbRsJw` (`READY` / `Deployment has completed`)
+* **Production URLs Verified:**
+  - `https://wiseresume.app/whats-new` (English LTR)
+  - `https://wiseresume.app/ar/whats-new` (Arabic RTL)
+* **Real Production Browser QA Matrix (8/8 PASSED):**
+  - Desktop 1440px EN Light: HTTP 200, Dir: LTR, H1: OK, Height: `5,011px`, Overflow: 0px, Errors: 0, **PASS**
+  - Desktop 1440px EN Dark: HTTP 200, Dir: LTR, H1: OK, Height: `5,011px`, Overflow: 0px, Errors: 0, **PASS**
+  - Desktop 1440px AR Light: HTTP 200, Dir: RTL, H1: OK, Height: `4,857px`, Overflow: 0px, Errors: 0, **PASS**
+  - Desktop 1440px AR Dark: HTTP 200, Dir: RTL, H1: OK, Height: `4,857px`, Overflow: 0px, Errors: 0, **PASS**
+  - Mobile 390px EN Light: HTTP 200, Dir: LTR, H1: OK, Height: `7,174px`, Overflow: 0px, Errors: 0, **PASS**
+  - Mobile 390px EN Dark: HTTP 200, Dir: LTR, H1: OK, Height: `7,174px`, Overflow: 0px, Errors: 0, **PASS**
+  - Mobile 390px AR Light: HTTP 200, Dir: RTL, H1: OK, Height: `6,459px`, Overflow: 0px, Errors: 0, **PASS**
+  - Mobile 390px AR Dark: HTTP 200, Dir: RTL, H1: OK, Height: `6,459px`, Overflow: 0px, Errors: 0, **PASS**
 * **Core UX Density & Initial Scroll Height Solved:**
   - Original production page: ~9,427px Desktop.
-  - Prior un-collapsed redesign build: ~11,531px Desktop EN, ~17,397px Mobile EN.
-  - **New Materially Reduced Initial Height (Browser Measured):**
-    - Desktop EN (1440px): **`5,011px`** (56.5% reduction vs prior redesign; 46.8% shorter than original production)
-    - Desktop AR (1440px): **`4,857px`** (57.1% reduction vs prior redesign)
-    - Mobile EN (390px): **`7,174px`** (58.8% reduction vs prior redesign)
-    - Mobile AR (390px): **`6,459px`** (58.3% reduction vs prior redesign)
+  - Initial uncollapsed redesign build: ~11,531px Desktop EN, ~17,397px Mobile EN.
+  - **New Real Production Initial Height:**
+    - Desktop EN (1440px): **`5,011px`** (56.5% reduction vs uncollapsed redesign; 46.8% shorter than original 9,427px production)
+    - Desktop AR (1440px): **`4,857px`** (57.1% reduction vs uncollapsed redesign; 48.5% shorter than original production)
+    - Mobile EN (390px): **`7,174px`** (58.8% reduction vs uncollapsed redesign)
+    - Mobile AR (390px): **`6,459px`** (58.3% reduction vs uncollapsed redesign)
     - Zero horizontal overflow (0px across all 8 matrix viewports).
-* **Monthly Progressive Disclosure Architecture:**
+* **Monthly Progressive Disclosure Architecture (Verified Live in Production):**
   - **Latest Highlights (Feed De-duplication):** Curated top 3 September 2026 releases (PDF Export, LinkedIn Async, Tailoring Cancel) rendered once in a 3-column featured grid. In the default unfiltered September feed, full duplicate cards are omitted in favor of a compact highlight reference banner and the 3 remaining September releases, eliminating redundant vertical scrolling. When any filter is active, matching releases are surfaced dynamically in full.
   - **Recent Months Expanded:** September 2026 and August 2026 remain expanded by default.
   - **Older Months Collapsed by Default:** July 2026 down through October 2025 collapsed by default into slim, accessible month section bars.
-  - **Accessible Expand/Collapse Controls:** Real semantic `<button>` with `aria-expanded`, `aria-controls`, `aria-label`, keyboard interaction (Enter/Space), and visible focus rings (`focus-visible:ring-2`). Bilingual labels: EN (`Show [Month] updates` / `Hide [Month] updates`), AR (`عرض تحديثات [الشهر]` / `إخفاء تحديثات [الشهر]`).
-  - **Filter Dynamic Auto-Expansion:** When a Type (`New`, `Improved`, `Fixed`), Product Area, or Month filter is applied, matching months automatically expand so the user never has to manually expand multiple months to find filter results.
+  - **Accessible Expand/Collapse Controls:** Real semantic `<button>` with `aria-expanded`, `aria-controls`, `aria-label`, keyboard interaction (Enter/Space), and visible focus rings (`focus-visible:ring-2`). Verified live: July 2026 expands on click to reveal 4 articles and collapses on subsequent click.
+  - **Filter Dynamic Auto-Expansion:** Type and Product Area filters automatically expand matching months. Verified live: Fixes filter isolates 5 items, Security & Legal filter isolates 3 items.
   - **Month Jump Navigation:** Selecting a month in the month selector automatically expands that month and exposes its releases.
-* **Strict Public Claims Qualification:**
-  - **Native PDF:** Removed unsupported claims (`Across All Templates`, `pixel-perfect`, `isolated serverless Chromium`). Qualified to verified downloads across main resume, preview, cover letter, and tailored result workflows (`More Reliable Native PDF Exports`).
-  - **Polling Efficiency:** Removed theoretical percentage claims (`over 90% network bandwidth reduction`) and direct battery claims. Qualified to factual background account synchronization checks reduction while preserving realtime updates and focus triggers (`Optimized Background Account Synchronization`).
-  - **Autosave:** Removed subjective claims (`noticeably smoother`, `completely interruption-free writing`). Qualified to factual Appwrite read deduplication and direct cache reconciliation (`Efficient Cloud Autosave & Cache Synchronization`).
-  - **Tailoring Cancellation:** Clarified client lifecycle clearing boundary and protection from late-arriving stale results (`Instant Tailoring Cancellation & Workspace Protection`).
-  - **Portfolio Contact:** Framed strictly around public portfolio visitor contact inquiries with spam prevention and owner email notifications (`Protected Visitor Inquiries for Public Portfolios`).
+* **Strict Public Claims Qualification (Verified Live in Production):**
+  - Verified 0 occurrences of banned overclaims (`Across All Templates`, `pixel-perfect`, `over 90% bandwidth reduction`, `battery`, `Guaranteed protection`, `genuine recruiter`, `Chromium`, `serverless Chromium`).
+  - Qualified copy verified live across all key releases: Native PDF export reliability across main workflows, background account sync interval optimization, autosave Appwrite read deduplication, tailoring cancellation client clearing, and Turnstile-protected portfolio visitor inquiries.
 * **Explicit `updateType` Reconciliation:**
-  - Reconciled all 40 releases with explicit `updateType`: 19 `new`, 16 `improved`, 5 `fixed`, 0 undefined.
-  - Automated tests guarantee every release has an explicit `updateType` and verify type counts and representative entries.
-* **Validation & Test Coverage:**
-  - TypeScript: 0 errors (`tsc --noEmit`).
-  - Vitest: 55/55 passing tests across 7 test suites (including 6 new dedicated tests for monthly progressive disclosure).
-  - i18n Audits: `npm run test:i18n` (11 namespaces) and `npm run test:i18n:coverage` (13 critical surfaces) passed.
-  - Build: Clean production build in 44.9s (`0 *.map files in dist/`).
-* **Local Browser QA (Playwright Preview Server):**
-  - Verified all 8 matrix combinations passed with 0px horizontal overflow and 0 console errors (Desktop 1440px / Mobile 390px x EN LTR / AR RTL x Light / Dark).
-* **Remote Vercel Preview QA Status:** `BLOCKED_EXTERNAL_ACCESS` (Vercel Deployment Protection SSO login redirects unauthenticated probes to `https://vercel.com/sso-api?...`; owner authenticated browser session, share link, or bypass token required for remote preview access; stopping before merge per governance rules).
+  - 40 total releases: 19 `new`, 16 `improved`, 5 `fixed`, 0 undefined.
+* **Backend & Billing Integrity:**
+  - Zero Appwrite backend or schema changes required (`APPWRITE_PRODUCT_SCHEMA_CHANGE = NO`).
+  - Billing checkout remains disabled (`BILLING_CHECKOUT_DISABLED`).
 
 * **Workstream Verdict:** `AI_STUDIO_LINKEDIN_408_P1_DEPLOYED_PRODUCTION_VERIFIED`.
 * **What's New Eligibility Decision:** `WHATS_NEW_READY_PENDING_PAGE_UPDATE` (Qualifies as a high-impact AI Studio customer-facing fix; ready for timeline inclusion upon dedicated What's New content release).
