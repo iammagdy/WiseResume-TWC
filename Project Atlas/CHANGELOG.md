@@ -1,5 +1,22 @@
 # WiseResume Atlas Master Changelog
 
+### 2026-09-03 - PayPal Sandbox Integration Phase 2: Data Layer & Entitlement Resolution
+
+- **Workstream Verdict:** `IMPLEMENTED_UNVERIFIED_PAYPAL_PHASE2`.
+- **Git Branch:** `feat/paypal-sandbox-phase2` (based on `1f6fdcc4`).
+- **Scope:** Additive schema setup script, multi-provider subscription resolver extension, server-side Sandbox QA user isolation, and consumer queries for PayPal provider state.
+- **Commit / Push / Deployment:** **NOT COMMITTED**, **NOT PUSHED**, **NOT DEPLOYED**.
+- **What's New Eligibility:** `WHATS_NEW_NOT_REQUIRED` (Internal data layer, multi-provider subscription resolver extension, and QA allowlist boundary for PayPal Sandbox QA. No customer-facing UI changes, no live billing enabled, and no production releases).
+- **Core Implementation Deliverables & Pre-Commit Corrections:**
+  - `scripts/setup_paypal_schema.cjs`: Server-only idempotent schema provisioner for `paypal_subscription_state` and `paypal_event_ledger`. Omit `payer_id` per privacy rules; enforce empty permissions and `documentSecurity=false`.
+  - `appwrite-hubs/shared-subscription-resolver/index.js`: Extended with PayPal candidate evaluation, isolated provider environment evaluation (`PAYPAL_ACCESS_ENVIRONMENT`), canonical QA user & state ownership boundary (`currentCanonicalUserId === QA_USER_ID && state.user_id === currentCanonicalUserId`), original same-rank precedence preservation (strict `>` comparison), and status enforcement (`active`, `billing_issue`, `canceled` valid; `pending_initial_payment`, `suspended`, `expired` invalid).
+  - Server-side consumers (`coupons`, `ai-gateway`, `admin-devkit-data`, `billing-checkout`): Added safe queries against `paypal_subscription_state` with fail-soft fallback.
+  - Verified PayPal Sandbox Catalog: Product `PROD-8XE5253028560521H`, Pro `P-3A193536YV1432359NKM36QY` ($5/mo -> `pro`), Ultimate `P-17M39010JR353545NNKM36RA` ($10/mo -> `premium`).
+  - Source Hashes: DevKit manifest `src/lib/devkit/sourceHashes.generated.json` regenerated via `node scripts/compute-source-hashes.mjs`.
+  - Tests: 50/50 tests passed across all affected test suites.
+- **Production Safety:** Production PayPal remains disabled; live checkout remains disabled (`BILLING_CHECKOUT_DISABLED`).
+
+
 ### 2026-09-03 - What's New Page Full Revamp & Shipped-History Reconciliation (PR #280)
 
 - **Workstream Verdict:** `WHATS_NEW_REVAMP_DEPLOYED_PRODUCTION_VERIFIED`.

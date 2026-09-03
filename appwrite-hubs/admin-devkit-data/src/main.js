@@ -18,6 +18,7 @@ const PRODUCTION_URL = process.env.PRODUCTION_URL || 'https://wiseresume.app';
 const IMPERSONATION_SESSIONS_COLLECTION = 'admin_impersonation_sessions';
 const BROADCASTS_COLLECTION = 'broadcasts';
 const PROVIDER_STATE_COLLECTION = 'revenuecat_subscription_state';
+const PAYPAL_STATE_COLLECTION = 'paypal_subscription_state';
 const BROADCAST_SEVERITIES = new Set(['info', 'warning', 'critical']);
 // Authoritative admin identity — must be set via ADMIN_EMAIL env variable.
 // No hard-coded fallback: when absent, admin-only paths fail closed.
@@ -1599,11 +1600,18 @@ async function getProviderState(databases, userId) {
   return res.documents[0] || null;
 }
 
-function resolvedPlan(subscription, providerState) {
+async function getPaypalProviderState(databases, userId) {
+  const res = await safeList(databases, PAYPAL_STATE_COLLECTION, [sdk.Query.equal('user_id', userId), sdk.Query.limit(1)]);
+  return res.documents[0] || null;
+}
+
+function resolvedPlan(subscription, providerState, paypalProviderState, userId) {
   return resolveEffectivePlan({
     subscription,
     providerState,
+    paypalProviderState,
     providerEnvironment: configuredProviderEnvironment(),
+    userId,
   }).plan;
 }
 
@@ -1871,8 +1879,11 @@ async function handleSetPlan(body, log) {
   const subRes = await safeList(databases, 'subscriptions', [sdk.Query.equal('user_id', target_user_id), sdk.Query.limit(1)]);
   const subDoc = subRes.documents[0] || null;
   const previousPlan = subDoc?.effective_plan || subDoc?.trial_plan || subDoc?.plan || profile?.plan || 'free';
-  const providerState = await getProviderState(databases, target_user_id);
-  const effectivePlan = resolvedPlan({ ...subDoc, plan, trial_plan: null, trial_expires_at: null }, providerState);
+  const [providerState, paypalProviderState] = await Promise.all([
+    getProviderState(databases, target_user_id),
+    getPaypalProviderState(databases, target_user_id),
+  ]);
+  const effectivePlan = resolvedPlan({ ...subDoc, plan, trial_plan: null, trial_expires_at: null }, providerState, paypalProviderState, target_user_id);
   const changeType = classifyPlanChange(previousPlan, effectivePlan);
   const patch = { plan, effective_plan: effectivePlan, status: 'active', trial_plan: null, trial_expires_at: null };
   const subPerms = [
@@ -1918,8 +1929,11 @@ async function handleGrantTrial(body, log) {
   const subRes = await safeList(databases, 'subscriptions', [sdk.Query.equal('user_id', target_user_id), sdk.Query.limit(1)]);
   const subDoc = subRes.documents[0] || null;
   const previousPlan = subDoc?.effective_plan || subDoc?.trial_plan || subDoc?.plan || 'free';
-  const providerState = await getProviderState(databases, target_user_id);
-  const effectivePlan = resolvedPlan({ ...subDoc, plan: subDoc?.plan || 'free', trial_plan: plan, trial_expires_at: expiresAt }, providerState);
+  const [providerState, paypalProviderState] = await Promise.all([
+    getProviderState(databases, target_user_id),
+    getPaypalProviderState(databases, target_user_id),
+  ]);
+  const effectivePlan = resolvedPlan({ ...subDoc, plan: subDoc?.plan || 'free', trial_plan: plan, trial_expires_at: expiresAt }, providerState, paypalProviderState, target_user_id);
   const trialPerms = [
     sdk.Permission.read(sdk.Role.user(target_user_id)),
     // UPDATE intentionally omitted: written exclusively by server-side admin client.
@@ -1956,8 +1970,11 @@ async function handleRevokeTrial(body, log) {
   const subDoc = subRes.documents[0] || null;
   const previousPlan = subDoc?.effective_plan || subDoc?.trial_plan || subDoc?.plan || 'free';
   const basePlan = subDoc?.plan || 'free';
-  const providerState = await getProviderState(databases, target_user_id);
-  const effectivePlan = resolvedPlan({ ...subDoc, plan: basePlan, trial_plan: null, trial_expires_at: null }, providerState);
+  const [providerState, paypalProviderState] = await Promise.all([
+    getProviderState(databases, target_user_id),
+    getPaypalProviderState(databases, target_user_id),
+  ]);
+  const effectivePlan = resolvedPlan({ ...subDoc, plan: basePlan, trial_plan: null, trial_expires_at: null }, providerState, paypalProviderState, target_user_id);
   if (subDoc) {
     const revokePerms = [
       sdk.Permission.read(sdk.Role.user(target_user_id)),
