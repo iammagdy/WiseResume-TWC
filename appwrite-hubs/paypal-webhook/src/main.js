@@ -472,91 +472,97 @@ function hasActivePaidGrace(previousState, referenceTimeMs = Date.now()) {
 // When an abandoned or failed reservation exists in `paypal_event_ledger`,
 // competing recovery deliveries must NOT use deleteDocument + createDocument,
 // because an interleaving processor could delete a newly-acquired lease.
-// Instead, reclamation executes inside an Appwrite transaction (createTransaction):
-// 1. Reads the existing ledger document within transaction isolation.
-// 2. Verifies the reservation is eligible for recovery (stale processing or failed).
-// 3. Updates the ledger document in-place to 'processing' with fresh received_at.
-// 4. Commits the transaction via updateTransaction(txId, true, false).
-// Appwrite's transaction conflict detection guarantees that if competing recovery
-// deliveries race to reclaim the same reservation, exactly ONE transaction can commit;
-// the losing transaction receives HTTP 409 Conflict, rolls back, and halts safely without mutating state.
+// Conflict-aware reservation reclamation using Appwrite transactions:
+// When an abandoned or failed reservation exists in `paypal_event_ledger`,
+// competing recovery deliveries must NOT use un-versioned delete-create or non-transactional updates,
+// because racing processors could overwrite or steal concurrent leases.
+// Instead, reclamation strictly requires an Appwrite transaction (createTransaction):
+// 1. Starts a database transaction with a 60-second TTL.
+// 2. Reads the existing ledger document within transaction isolation.
+// 3. Verifies the reservation is eligible for recovery (stale processing or failed).
+// 4. Updates the ledger document in-place to 'processing' with fresh received_at inside the transaction.
+// 5. Commits the transaction via updateTransaction(txId, true, false).
+// If transaction primitives are unavailable or transaction creation fails, the processor
+// fails closed with a retry-safe HTTP 503 infrastructure error without mutating ledger or provider state.
+// If competing recovery deliveries race to reclaim the same reservation, Appwrite's transaction
+// conflict detection guarantees that exactly ONE transaction can commit; the losing transaction
+// receives HTTP 409 Conflict, rolls back, and halts safely without mutating state.
 async function reclaimLedgerReservation(databases, ledgerDocId, payload, nowMs) {
-  if (typeof databases?.createTransaction === 'function') {
-    let transaction;
-    try {
-      transaction = await databases.createTransaction(60);
-    } catch {
-      transaction = null;
-    }
-
-    if (transaction?.$id) {
-      let committed = false;
-      try {
-        const existing = await databases.getDocument(
-          DB_ID,
-          LEDGER_COLLECTION_ID,
-          ledgerDocId,
-          [],
-          transaction.$id
-        );
-
-        if (!existing) {
-          await databases.updateTransaction(transaction.$id, false, true);
-          return { ok: false, reason: 'not_found' };
-        }
-
-        // Verify still eligible for reclamation inside the transaction
-        if (existing.processing_status === 'processed' ||
-            existing.processing_status === 'ignored' ||
-            existing.processing_status === 'rejected') {
-          await databases.updateTransaction(transaction.$id, false, true);
-          return { ok: false, reason: 'already_recorded' };
-        }
-
-        if (existing.processing_status === 'processing') {
-          const receivedAtMs = Date.parse(existing.received_at);
-          const reservationAgeMs = Number.isFinite(receivedAtMs) ? Math.max(0, nowMs - receivedAtMs) : 0;
-          if (reservationAgeMs < PROCESSING_RESERVATION_TTL_MS) {
-            await databases.updateTransaction(transaction.$id, false, true);
-            return { ok: false, reason: 'concurrent_processing' };
-          }
-        }
-
-        await databases.updateDocument(
-          DB_ID,
-          LEDGER_COLLECTION_ID,
-          ledgerDocId,
-          payload,
-          serverOnlyPermissions(),
-          transaction.$id
-        );
-
-        await databases.updateTransaction(transaction.$id, true, false);
-        committed = true;
-        return { ok: true };
-      } catch (err) {
-        if (!committed) {
-          try { await databases.updateTransaction(transaction.$id, false, true); } catch (_) {}
-        }
-        if (err?.code === 409 || /conflict/i.test(err?.message || '')) {
-          return { ok: false, reason: 'conflict' };
-        }
-        throw err;
-      }
-    }
+  if (typeof databases?.createTransaction !== 'function') {
+    const err = new Error('Database transaction primitive unavailable for concurrent reservation recovery');
+    err.code = 'transaction_unavailable';
+    err.status = 503;
+    err.isTransient = true;
+    throw err;
   }
 
-  // Fallback if client does not provide createTransaction
+  let transaction;
   try {
+    transaction = await databases.createTransaction(60);
+  } catch (err) {
+    const txErr = new Error(`Database transaction creation failed: ${err?.message || 'unknown error'}`);
+    txErr.code = 'transaction_creation_failed';
+    txErr.status = 503;
+    txErr.isTransient = true;
+    throw txErr;
+  }
+
+  if (!transaction?.$id) {
+    const txErr = new Error('Database transaction creation returned invalid transaction object');
+    txErr.code = 'invalid_transaction';
+    txErr.status = 503;
+    txErr.isTransient = true;
+    throw txErr;
+  }
+
+  let committed = false;
+  try {
+    const existing = await databases.getDocument(
+      DB_ID,
+      LEDGER_COLLECTION_ID,
+      ledgerDocId,
+      [],
+      transaction.$id
+    );
+
+    if (!existing) {
+      await databases.updateTransaction(transaction.$id, false, true);
+      return { ok: false, reason: 'not_found' };
+    }
+
+    // Verify still eligible for reclamation inside the transaction
+    if (existing.processing_status === 'processed' ||
+        existing.processing_status === 'ignored' ||
+        existing.processing_status === 'rejected') {
+      await databases.updateTransaction(transaction.$id, false, true);
+      return { ok: false, reason: 'already_recorded' };
+    }
+
+    if (existing.processing_status === 'processing') {
+      const receivedAtMs = Date.parse(existing.received_at);
+      const reservationAgeMs = Number.isFinite(receivedAtMs) ? Math.max(0, nowMs - receivedAtMs) : 0;
+      if (reservationAgeMs < PROCESSING_RESERVATION_TTL_MS) {
+        await databases.updateTransaction(transaction.$id, false, true);
+        return { ok: false, reason: 'concurrent_processing' };
+      }
+    }
+
     await databases.updateDocument(
       DB_ID,
       LEDGER_COLLECTION_ID,
       ledgerDocId,
       payload,
-      serverOnlyPermissions()
+      serverOnlyPermissions(),
+      transaction.$id
     );
+
+    await databases.updateTransaction(transaction.$id, true, false);
+    committed = true;
     return { ok: true };
   } catch (err) {
+    if (!committed) {
+      try { await databases.updateTransaction(transaction.$id, false, true); } catch (_) {}
+    }
     if (err?.code === 409 || /conflict/i.test(err?.message || '')) {
       return { ok: false, reason: 'conflict' };
     }
@@ -1059,7 +1065,7 @@ module.exports = async ({ req, res, log, error }) => {
   } catch (err) {
     const isTransient = err?.isTransient || err?.status >= 500;
     const statusCode = isTransient ? 503 : 500;
-    const errCode = isTransient ? 'transient_paypal_fetch_failure' : 'processing_failed';
+    const errCode = err?.code || (isTransient ? 'transient_paypal_fetch_failure' : 'processing_failed');
     error?.(`PayPal webhook ${requestId}: ${errCode} (${err.message})`);
     return response(res, { status: 'error', code: errCode, message: err.message || 'Webhook processing failed.' }, statusCode);
   }

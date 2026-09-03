@@ -2733,3 +2733,158 @@ test('Concurrency 8: PAYMENT.FAILED recovered exactly once does not extend grace
   const stateAfter = db.collections.paypal_subscription_state.get(paypalWebhook.__test.stateDocumentId(QA_USER_ID));
   assert.equal(stateAfter.grace_period_expires_at, expectedGraceIso); // Still original G!
 });
+
+test('Concurrency 9: createTransaction unavailable fails closed with zero provider-state mutation', async () => {
+  const db = createMockDatabases();
+  delete db.createTransaction; // simulate client without createTransaction
+  const users = createMockUsers();
+  const eventTimeMs = Date.parse('2026-09-03T12:00:00.000Z');
+  const nowMs = eventTimeMs + 300000;
+  const eventId = 'EVT-TX-UNAVAIL-FAILCLOSED';
+
+  const saleEvent = normalizeEvent({
+    id: eventId,
+    event_type: 'PAYMENT.SALE.COMPLETED',
+    create_time: new Date(eventTimeMs).toISOString(),
+    resource: {
+      id: 'TX-TX-UNAVAIL',
+      billing_agreement_id: 'I-SUB-TX-UNAVAIL',
+      custom_id: QA_USER_ID,
+      plan_id: SANDBOX_PRO_PLAN_ID,
+      billing_info: { next_billing_time: '2026-10-03T12:00:00.000Z' },
+    },
+  });
+
+  const ledgerDocId = paypalWebhook.__test.ledgerDocumentId(eventId);
+  db.collections.paypal_event_ledger.set(ledgerDocId, {
+    $id: ledgerDocId,
+    event_id: eventId,
+    received_at: new Date(eventTimeMs).toISOString(),
+    processing_status: 'processing',
+    outcome_code: 'in_progress',
+  });
+
+  let threw = false;
+  try {
+    await processWebhookEvent({ databases: db, users, event: saleEvent, nowMs, env: TEST_ENV });
+  } catch (err) {
+    threw = true;
+    assert.equal(err.code, 'transaction_unavailable');
+    assert.equal(err.status, 503);
+    assert.equal(err.isTransient, true);
+  }
+  assert.equal(threw, true, 'Must throw when transaction primitive is unavailable');
+  assert.equal(db.collections.paypal_subscription_state.size, 0, 'Zero provider state mutation');
+  const ledger = db.collections.paypal_event_ledger.get(ledgerDocId);
+  assert.equal(ledger.processing_status, 'processing');
+  assert.equal(ledger.outcome_code, 'in_progress');
+});
+
+test('Concurrency 10: createTransaction throws transient error yielding zero state mutation and retry-safe HTTP 503', async () => {
+  const db = createMockDatabases();
+  db.createTransaction = async () => {
+    throw new Error('Database connection pool exhausted');
+  };
+  const users = createMockUsers();
+  const eventTimeMs = Date.parse('2026-09-03T12:00:00.000Z');
+  const nowMs = eventTimeMs + 300000;
+  const eventId = 'EVT-TX-FAIL-503';
+
+  const ledgerDocId = paypalWebhook.__test.ledgerDocumentId(eventId);
+  db.collections.paypal_event_ledger.set(ledgerDocId, {
+    $id: ledgerDocId,
+    event_id: eventId,
+    received_at: new Date(eventTimeMs).toISOString(),
+    processing_status: 'processing',
+    outcome_code: 'in_progress',
+  });
+
+  let resBody = null;
+  let resStatus = null;
+  const res = {
+    json(payload, status) {
+      resBody = payload;
+      resStatus = status;
+      return { payload, status };
+    },
+  };
+  const rawEvent = {
+    id: eventId,
+    event_type: 'PAYMENT.SALE.COMPLETED',
+    create_time: new Date(eventTimeMs).toISOString(),
+    resource: {
+      id: 'TX-TX-FAIL-503',
+      billing_agreement_id: 'I-SUB-TX-FAIL-503',
+      custom_id: QA_USER_ID,
+      plan_id: SANDBOX_PRO_PLAN_ID,
+      billing_info: { next_billing_time: '2026-10-03T12:00:00.000Z' },
+    },
+  };
+
+  const req = {
+    headers: {
+      'paypal-auth-algo': 'SHA256withRSA',
+      'paypal-cert-url': 'https://api.sandbox.paypal.com/cert',
+      'paypal-transmission-id': 'trans_123',
+      'paypal-transmission-sig': 'sig_123',
+      'paypal-transmission-time': new Date().toISOString(),
+    },
+    body: JSON.stringify(rawEvent),
+    __test: {
+      databases: db,
+      users,
+      nowMs,
+      env: TEST_ENV,
+      customVerifier: async () => ({ ok: true }),
+    },
+  };
+
+  await paypalWebhook({ req, res, log: () => {}, error: () => {} });
+  assert.equal(resStatus, 503, 'Must return HTTP 503 for transient transaction creation failure');
+  assert.equal(resBody.status, 'error');
+  assert.equal(resBody.code, 'transaction_creation_failed');
+  assert.equal(db.collections.paypal_subscription_state.size, 0, 'Zero provider state mutation');
+});
+
+test('Concurrency 11: createTransaction returning invalid transaction ID throws with zero state mutation', async () => {
+  const db = createMockDatabases();
+  db.createTransaction = async () => ({ $id: null });
+  const users = createMockUsers();
+  const eventTimeMs = Date.parse('2026-09-03T12:00:00.000Z');
+  const nowMs = eventTimeMs + 300000;
+  const eventId = 'EVT-TX-INVALID-ID';
+
+  const saleEvent = normalizeEvent({
+    id: eventId,
+    event_type: 'PAYMENT.SALE.COMPLETED',
+    create_time: new Date(eventTimeMs).toISOString(),
+    resource: {
+      id: 'TX-INVALID-ID',
+      billing_agreement_id: 'I-SUB-TX-INVALID',
+      custom_id: QA_USER_ID,
+      plan_id: SANDBOX_PRO_PLAN_ID,
+      billing_info: { next_billing_time: '2026-10-03T12:00:00.000Z' },
+    },
+  });
+
+  const ledgerDocId = paypalWebhook.__test.ledgerDocumentId(eventId);
+  db.collections.paypal_event_ledger.set(ledgerDocId, {
+    $id: ledgerDocId,
+    event_id: eventId,
+    received_at: new Date(eventTimeMs).toISOString(),
+    processing_status: 'processing',
+    outcome_code: 'in_progress',
+  });
+
+  let threw = false;
+  try {
+    await processWebhookEvent({ databases: db, users, event: saleEvent, nowMs, env: TEST_ENV });
+  } catch (err) {
+    threw = true;
+    assert.equal(err.code, 'invalid_transaction');
+    assert.equal(err.status, 503);
+    assert.equal(err.isTransient, true);
+  }
+  assert.equal(threw, true, 'Must throw when transaction ID is invalid');
+  assert.equal(db.collections.paypal_subscription_state.size, 0, 'Zero provider state mutation');
+});

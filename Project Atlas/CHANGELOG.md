@@ -1,5 +1,17 @@
 # WiseResume Atlas Master Changelog
 
+### 2026-09-04 - PayPal Sandbox Integration Phase 3: Final Fail-Closed Concurrency & Unsafe Fallback Removal
+
+- **Workstream Verdict:** `PAYPAL_PHASE3_FINAL_FAILCLOSED_CONCURRENCY_CI_PASS_READY_TO_MERGE`.
+- **Git Branch:** `feat/paypal-sandbox-phase3` (PR #286).
+- **Scope:** Completely removed the unsafe non-transactional `updateDocument` fallback from `reclaimLedgerReservation`, enforced strict fail-closed retry-safe behavior when transaction primitives are unavailable or transaction creation fails, verified HTTP 503 retry semantics, and added 3 focused regression tests (66 tests in `paypal-webhook.test.cjs`).
+- **Core Improvements & Fixes:**
+  - **Removed Unsafe Non-Transactional Fallback:** Eliminated the fallback `updateDocument` path that executed when `createTransaction` was unavailable or failed. Reclamation strictly requires an Appwrite database transaction (`createTransaction`).
+  - **Fail-Closed Infrastructure Errors:** If `createTransaction` is not supported, throws `transaction_unavailable` (`status = 503, isTransient = true`). If transaction creation fails, throws `transaction_creation_failed` (`status = 503, isTransient = true`). If transaction object is invalid, throws `invalid_transaction` (`status = 503, isTransient = true`).
+  - **Zero Ledger or State Mutation on Failure:** When transaction infrastructure fails, neither the ledger document nor `paypal_subscription_state` is updated, ensuring PayPal can retry the webhook delivery safely.
+  - **Retry-Safe HTTP 503 Handler:** Webhook HTTP layer returns HTTP 503 with error payload preserving specific code, signaling PayPal webhook delivery infrastructure to retry.
+  - **Tests:** 66/66 tests pass in `paypal-webhook.test.cjs` (added Concurrency tests 9, 10, 11); 112/112 tests pass across all billing contract suites; full PR validation matrix (15 Vitest files, 83 tests), TypeScript compilation, and production build pass cleanly.
+
 ### 2026-09-04 - PayPal Sandbox Integration Phase 3: Final Stale-Recovery Concurrency Safety Gate
 
 - **Workstream Verdict:** `PAYPAL_PHASE3_CONCURRENCY_PROVEN_CI_PASS_READY_FOR_FINAL_MERGE_REVIEW`.
