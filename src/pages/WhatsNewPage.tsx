@@ -43,6 +43,28 @@ export default function WhatsNewPage() {
   const [showOlder, setShowOlder] = useState<boolean>(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
+  // Default expanded months: September 2026 and August 2026
+  const [expandedMonths, setExpandedMonths] = useState<Set<string>>(
+    () => new Set(['2026-09', '2026-08'])
+  );
+
+  // Check if any filter is active
+  const isFilterActive = activeType !== 'all' || activeCategory !== 'all' || selectedMonth !== 'all';
+
+  // Toggle individual month disclosure
+  const toggleMonth = (monthKey: string) => {
+    triggerHaptic.light();
+    setExpandedMonths((prev) => {
+      const next = new Set(prev);
+      if (next.has(monthKey)) {
+        next.delete(monthKey);
+      } else {
+        next.add(monthKey);
+      }
+      return next;
+    });
+  };
+
   // Month groups derived dynamically
   const monthGroups = useMemo(() => {
     return getAvailableMonthGroups(whatsNewReleases);
@@ -140,6 +162,15 @@ export default function WhatsNewPage() {
     setActiveType('all');
     setActiveCategory('all');
     setSelectedMonth('all');
+    setExpandedMonths(new Set(['2026-09', '2026-08']));
+  };
+
+  const handleSelectMonth = (monthId: string) => {
+    triggerHaptic.light();
+    setSelectedMonth(monthId);
+    if (monthId !== 'all') {
+      setExpandedMonths((prev) => new Set([...prev, monthId]));
+    }
   };
 
   const renderTypeBadge = (release: ReleaseUpdate) => {
@@ -400,10 +431,7 @@ export default function WhatsNewPage() {
 
             <div className="flex items-center gap-1.5 overflow-x-auto pb-2 scrollbar-none snap-x">
               <button
-                onClick={() => {
-                  triggerHaptic.light();
-                  setSelectedMonth('all');
-                }}
+                onClick={() => handleSelectMonth('all')}
                 className={`px-3 py-1 rounded-lg text-xs font-medium whitespace-nowrap transition-all snap-start ${
                   selectedMonth === 'all'
                     ? 'bg-foreground text-background font-semibold shadow-xs'
@@ -417,10 +445,7 @@ export default function WhatsNewPage() {
                 return (
                   <button
                     key={month.id}
-                    onClick={() => {
-                      triggerHaptic.light();
-                      setSelectedMonth(month.id);
-                    }}
+                    onClick={() => handleSelectMonth(month.id)}
                     className={`px-3 py-1 rounded-lg text-xs font-medium whitespace-nowrap transition-all snap-start ${
                       isActive
                         ? 'bg-foreground text-background font-semibold shadow-xs'
@@ -457,16 +482,22 @@ export default function WhatsNewPage() {
             </button>
           </div>
         ) : (
-          <div className="space-y-8">
+          <div className="space-y-6">
             {releasesByMonth.map((group) => {
+              const isExpanded = isFilterActive || expandedMonths.has(group.monthKey);
+              const displayedItems =
+                !isFilterActive && group.monthKey === '2026-09'
+                  ? group.items.filter((item) => !item.featured)
+                  : group.items;
+
               return (
                 <section
                   key={group.monthKey}
                   id={`month-${group.monthKey}`}
-                  className="rounded-2xl border border-border/70 bg-card/40 p-4 sm:p-6 transition-all"
+                  className="rounded-2xl border border-border/70 bg-card/40 p-4 sm:p-5 transition-all"
                 >
-                  {/* Month Section Header */}
-                  <div className="flex items-center justify-between gap-3 mb-4 pb-2 border-b border-border/60">
+                  {/* Month Section Header with Accessible Expand/Collapse */}
+                  <div className="flex items-center justify-between gap-3 mb-2 pb-2 border-b border-border/60">
                     <div className="flex items-center gap-2.5">
                       <h2 className="text-lg sm:text-xl font-bold text-foreground">
                         {group.label[lang]}
@@ -476,14 +507,53 @@ export default function WhatsNewPage() {
                       </span>
                     </div>
 
-                    <span className="text-xs font-mono text-muted-foreground">
-                      {group.monthKey}
-                    </span>
+                    <div className="flex items-center gap-2.5">
+                      <span className="text-xs font-mono text-muted-foreground hidden sm:inline-block">
+                        {group.monthKey}
+                      </span>
+
+                      <button
+                        type="button"
+                        onClick={() => toggleMonth(group.monthKey)}
+                        aria-expanded={isExpanded}
+                        aria-controls={`month-content-${group.monthKey}`}
+                        aria-label={
+                          isExpanded
+                            ? (lang === 'ar' ? `إخفاء تحديثات ${group.label.ar}` : `Hide ${group.label.en} updates`)
+                            : (lang === 'ar' ? `عرض تحديثات ${group.label.ar}` : `Show ${group.label.en} updates`)
+                        }
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border border-border/80 bg-background hover:bg-muted/70 text-foreground transition-all shadow-2xs focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary"
+                      >
+                        <span>
+                          {isExpanded
+                            ? (lang === 'ar' ? 'إخفاء' : 'Hide')
+                            : (lang === 'ar' ? 'عرض التحديثات' : 'Show updates')}
+                        </span>
+                        {isExpanded ? (
+                          <ChevronUp className="w-3.5 h-3.5 text-muted-foreground" />
+                        ) : (
+                          <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />
+                        )}
+                      </button>
+                    </div>
                   </div>
 
                   {/* Cards for this Month */}
-                  <div className="space-y-4 pt-1">
-                      {group.items.map((entry) => {
+                  {isExpanded && (
+                    <div id={`month-content-${group.monthKey}`} className="space-y-4 pt-2">
+                      {/* Compact reference note for September featured updates shown above in default view */}
+                      {!isFilterActive && group.monthKey === '2026-09' && (
+                        <div className="flex items-center gap-2.5 p-3 rounded-xl bg-primary/5 border border-primary/20 text-xs text-muted-foreground">
+                          <Rocket className="w-4 h-4 text-primary shrink-0" />
+                          <span>
+                            {lang === 'ar'
+                              ? 'يتضمن هذا الشهر أيضاً 3 تحديثات رئيسية معروضة في قسم "أبرز التحديثات الأخيرة" بالأعلى.'
+                              : 'This month also includes 3 major updates featured in the Latest Highlights section above.'}
+                          </span>
+                        </div>
+                      )}
+
+                      {displayedItems.map((entry) => {
                         const Icon = entry.icon;
                         const isCopied = copiedId === entry.id;
 
@@ -552,6 +622,7 @@ export default function WhatsNewPage() {
                         );
                       })}
                     </div>
+                  )}
                 </section>
               );
             })}
@@ -564,7 +635,13 @@ export default function WhatsNewPage() {
             <button
               onClick={() => {
                 triggerHaptic.light();
-                setShowOlder((prev) => !prev);
+                setShowOlder((prev) => {
+                  const next = !prev;
+                  if (next) {
+                    setExpandedMonths((current) => new Set([...current, '2025-12', '2025-11', '2025-10']));
+                  }
+                  return next;
+                });
               }}
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-border bg-card text-xs font-semibold text-foreground hover:bg-muted/50 transition-colors shadow-2xs"
             >

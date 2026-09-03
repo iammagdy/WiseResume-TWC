@@ -8,35 +8,37 @@
 
 * **Workstream Verdict:** `WHATS_NEW_IMPLEMENTED_LOCAL_BROWSER_VERIFIED / VERCEL_PREVIEW_READY_REMOTE_QA_PENDING`.
 * **Branch:** `feat/whats-new-revamp`
-* **Target Verdict:** `WHATS_NEW_REVAMP_PR_APPROVED_TO_MERGE / PRODUCTION_UNVERIFIED` (Only after remote Vercel Preview QA passes; STOP BEFORE MERGE).
-* **Previous Page UX Problems Identified (Playwright Audit):**
-  - The live page rendered a 9,427px tall chronological wall of 28 articles with giant padding (`p-6 sm:p-8`), oversized icons, and repetitive styling.
-  - Zero September 2026 releases were represented on production; the newest update was from late August 2026.
-  - No primary categorization by update type (`New`, `Improved`, `Fixed`); all updates carried identical visual weight.
-  - Category filters duplicated Type filters (`New Features` in Type and Category).
-  - Historical 2025 releases dominated the page without monthly grouping or collapsible sections.
-* **Redesign Architecture & Customer Experience:**
-  - **Latest Highlights:** Curated top 3 recent customer-facing updates in a 3-column featured grid (More Reliable Native PDF Exports, Asynchronous LinkedIn Profile Optimization, and Instant Tailoring Cancellation).
-  - **Dual Filter System:**
-    - Type Filter bar: `All Updates` | `New Features` | `Improvements` | `Fixes`.
-    - Product Area Filter bar: `All Areas` | `Resume & Portfolio` | `AI & Tailoring` | `Jobs & Career` | `Platform` | `Security & Legal`.
-  - **Monthly Grouping & Timeline:** Releases grouped under clean month headers (`September 2026`, `August 2026`, etc.) with count badges and quick month jump selectors.
-  - **Progressive Disclosure for 2025 Archive:** Older 2025 updates hidden by default behind the `Show Older 2025 Updates` toggle, dramatically reducing initial page height and visual noise while preserving accessibility.
-  - **Mobile Responsive Navbar:** Condensed header actions on small mobile viewports (<= 390px), guaranteeing 0px horizontal overflow in LTR and RTL.
-* **Strict Public Claims Qualification (Steps 3-7):**
-  - **Native PDF:** Removed unsupported claims (`Across All Templates`, `pixel-perfect`, verified multi-page behavior). Qualified to verified PDF generation across main resume, preview, cover letter, and tailored result workflows (`More Reliable Native PDF Exports`).
-  - **Polling Efficiency:** Removed theoretical percentage claims (`over 90% network bandwidth reduction`) and direct battery claims. Qualified to factual background account check reduction while preserving realtime updates and focus triggers (`Optimized Background Account Synchronization`).
-  - **Autosave:** Removed subjective claims (`noticeably smoother`, `completely interruption-free`). Qualified to factual Appwrite read deduplication and direct cache reconciliation (`Efficient Cloud Autosave & Cache Synchronization`).
-  - **Tailoring Cancellation:** Removed absolute protection claims and clarified client lifecycle clearing boundary (`Instant Tailoring Cancellation & Workspace Protection`).
-  - **Portfolio Contact:** Framed strictly around public portfolio visitor contact form with spam protection and owner notifications (`Protected Visitor Inquiries for Public Portfolios`).
-* **Explicit `updateType` Reconciliation (Step 8):**
-  - Reconciled all 40 releases with explicit `updateType`: 19 `new`, 16 `improved`, 5 `fixed`.
-  - Added automated test guaranteeing every release has an explicit `updateType` and asserting filter counts and representative entries.
+* **Target Verdict:** `WHATS_NEW_REVAMP_OWNER_VISUAL_REVIEW_READY / REMOTE_PREVIEW_QA_PENDING` (STOP BEFORE MERGE).
+* **Core UX Density & Initial Scroll Height Solved:**
+  - Original production page: ~9,427px Desktop.
+  - Prior un-collapsed redesign build: ~11,531px Desktop EN, ~17,397px Mobile EN.
+  - **New Materially Reduced Initial Height (Browser Measured):**
+    - Desktop EN (1440px): **`5,011px`** (56.5% reduction vs prior redesign; 46.8% shorter than original production)
+    - Desktop AR (1440px): **`4,857px`** (57.1% reduction vs prior redesign)
+    - Mobile EN (390px): **`7,174px`** (58.8% reduction vs prior redesign)
+    - Mobile AR (390px): **`6,459px`** (58.3% reduction vs prior redesign)
+    - Zero horizontal overflow (0px across all 8 matrix viewports).
+* **Monthly Progressive Disclosure Architecture:**
+  - **Latest Highlights (Feed De-duplication):** Curated top 3 September 2026 releases (PDF Export, LinkedIn Async, Tailoring Cancel) rendered once in a 3-column featured grid. In the default unfiltered September feed, full duplicate cards are omitted in favor of a compact highlight reference banner and the 3 remaining September releases, eliminating redundant vertical scrolling. When any filter is active, matching releases are surfaced dynamically in full.
+  - **Recent Months Expanded:** September 2026 and August 2026 remain expanded by default.
+  - **Older Months Collapsed by Default:** July 2026 down through October 2025 collapsed by default into slim, accessible month section bars.
+  - **Accessible Expand/Collapse Controls:** Real semantic `<button>` with `aria-expanded`, `aria-controls`, `aria-label`, keyboard interaction (Enter/Space), and visible focus rings (`focus-visible:ring-2`). Bilingual labels: EN (`Show [Month] updates` / `Hide [Month] updates`), AR (`عرض تحديثات [الشهر]` / `إخفاء تحديثات [الشهر]`).
+  - **Filter Dynamic Auto-Expansion:** When a Type (`New`, `Improved`, `Fixed`), Product Area, or Month filter is applied, matching months automatically expand so the user never has to manually expand multiple months to find filter results.
+  - **Month Jump Navigation:** Selecting a month in the month selector automatically expands that month and exposes its releases.
+* **Strict Public Claims Qualification:**
+  - **Native PDF:** Removed unsupported claims (`Across All Templates`, `pixel-perfect`, `isolated serverless Chromium`). Qualified to verified downloads across main resume, preview, cover letter, and tailored result workflows (`More Reliable Native PDF Exports`).
+  - **Polling Efficiency:** Removed theoretical percentage claims (`over 90% network bandwidth reduction`) and direct battery claims. Qualified to factual background account synchronization checks reduction while preserving realtime updates and focus triggers (`Optimized Background Account Synchronization`).
+  - **Autosave:** Removed subjective claims (`noticeably smoother`, `completely interruption-free writing`). Qualified to factual Appwrite read deduplication and direct cache reconciliation (`Efficient Cloud Autosave & Cache Synchronization`).
+  - **Tailoring Cancellation:** Clarified client lifecycle clearing boundary and protection from late-arriving stale results (`Instant Tailoring Cancellation & Workspace Protection`).
+  - **Portfolio Contact:** Framed strictly around public portfolio visitor contact inquiries with spam prevention and owner email notifications (`Protected Visitor Inquiries for Public Portfolios`).
+* **Explicit `updateType` Reconciliation:**
+  - Reconciled all 40 releases with explicit `updateType`: 19 `new`, 16 `improved`, 5 `fixed`, 0 undefined.
+  - Automated tests guarantee every release has an explicit `updateType` and verify type counts and representative entries.
 * **Validation & Test Coverage:**
   - TypeScript: 0 errors (`tsc --noEmit`).
-  - Vitest: 49/49 passing tests across 7 test suites.
+  - Vitest: 55/55 passing tests across 7 test suites (including 6 new dedicated tests for monthly progressive disclosure).
   - i18n Audits: `npm run test:i18n` (11 namespaces) and `npm run test:i18n:coverage` (13 critical surfaces) passed.
-  - Build: Clean production build in 48.4s (`0 *.map files in dist/`).
+  - Build: Clean production build in 44.9s (`0 *.map files in dist/`).
 * **Local Browser QA (Playwright Preview Server):**
   - Verified all 8 matrix combinations passed with 0px horizontal overflow and 0 console errors (Desktop 1440px / Mobile 390px x EN LTR / AR RTL x Light / Dark).
 * **Remote Vercel Preview QA Status:** `VERCEL_PREVIEW_READY_REMOTE_QA_PENDING`.

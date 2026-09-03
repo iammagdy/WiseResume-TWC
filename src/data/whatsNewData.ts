@@ -201,12 +201,12 @@ export const whatsNewReleases: ReleaseUpdate[] = [
       en: [
         'Restored reliable PDF generation for Designed and ATS resume formats',
         'Verified downloads across resume preview, cover letters, and tailored results',
-        'Clean physical page boundary alignment for standard Letter and A4 outputs',
+        'Reliable downloads across the main resume, preview, cover letter, and tailoring result workflows',
       ],
       ar: [
         'استعادة تصدير ملفات PDF بموثوقية لكلا النمطين المصمم وATS',
         'تحميل معتمد وموثوق عبر معاينة السيرة وخطابات التقديم ونتائج التخصيص',
-        'تنسيق سليم للصفحات متوافق مع مقاسات Letter وA4 القياسية',
+        'تنزيل موثوق عبر المسارات الرئيسية للسيرة الذاتية والمعاينة وخطاب التقديم ونتائج التخصيص',
       ],
     },
   },
@@ -305,12 +305,12 @@ export const whatsNewReleases: ReleaseUpdate[] = [
       en: [
         'Avoids redundant document reads after background cloud saves',
         'Direct cache reconciliation keeps resume content accurately synchronized',
-        'Reduced background network overhead during continuous editing',
+        'Keeps active resume data synchronized without triggering redundant post-save document reads',
       ],
       ar: [
         'تجنب قراءة المستندات المتكررة بعد الحفظ السحابي في الخلفية',
         'مزامنة مباشرة لذاكرة التخزين المؤقت للحفاظ على دقة محتوى السيرة الذاتية',
-        'تقليل الحمل الشبكي في الخلفية أثناء التحرير المستمر',
+        'الحفاظ على تزامن بيانات السيرة الذاتية دون تكرار عمليات القراءة بعد الحفظ',
       ],
     },
   },
@@ -339,12 +339,12 @@ export const whatsNewReleases: ReleaseUpdate[] = [
       en: [
         'Direct visitor contact form on public portfolio profiles',
         'Built-in spam prevention on incoming message submissions',
-        'Email and in-app notifications when a visitor reaches out',
+        'Email notifications when a visitor sends a portfolio inquiry',
       ],
       ar: [
         'نموذج تواصل مباشر للزوار في الملفات المهنية العامة',
         'حماية مدمجة من الرسائل العشوائية عند إرسال الاستفسارات',
-        'إشعارات عبر البريد وداخل التطبيق عند تواصل الزوار معك',
+        'إشعارات بريد إلكتروني فورية عند إرسال أي زائر استفساراً عبر الملف',
       ],
     },
   },
@@ -373,12 +373,12 @@ export const whatsNewReleases: ReleaseUpdate[] = [
       en: [
         'Optimized account polling interval for open browser tabs',
         'Immediate refresh on window focus and critical user actions',
-        'Preserved realtime updates without unnecessary background network checks',
+        'Realtime workspace updates and refresh-on-focus behavior remain preserved',
       ],
       ar: [
         'فترات فحص محسّنة للحساب في علامات التبويب المفتوحة',
         'تحديث فوري عند العودة إلى نافذة المتصفح وعند الإجراءات المهمة',
-        'الحفاظ على التحديثات الحية دون طلبات فحص متكررة غير ضرورية',
+        'استمرار التحديثات الفورية في مساحة العمل والتحديث عند التركيز على النافذة',
       ],
     },
   },
