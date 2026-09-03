@@ -1,15 +1,16 @@
 # WiseResume Atlas Master Changelog
 
-### 2026-09-03 - What's New Page Full Revamp & Shipped-History Reconciliation (feat/whats-new-revamp)
+### 2026-09-03 - What's New Page Full Revamp & Shipped-History Reconciliation (PR #280)
 
-- **Workstream Verdict:** `WHATS_NEW_IMPLEMENTED_LOCAL_BROWSER_VERIFIED / VERCEL_PREVIEW_READY_REMOTE_QA_PENDING`.
-- **Branch:** `feat/whats-new-revamp`
+- **Workstream Verdict:** `WHATS_NEW_REVAMP_DEPLOYED_PRODUCTION_VERIFIED`.
+- **PR #280 Merge Commit:** `59d38309dbd2bb68ee14cf913cf3d9192eb2b013`
+- **Vercel Production Deployment ID:** `Hc26exYbknDjyKee7TZH3qDbRsJw` (`READY` / `Deployment has completed`)
 - **Scope:** Full customer-facing redesign of `/whats-new` and `/ar/whats-new`, progressive disclosure architecture, and shipped-history reconciliation through 2026-09-03.
 - **Problem Solved & Page Density Reduction:**
   - Resolved the 9,427px tall un-scannable chronological wall of 28 articles with giant card padding (`p-6 sm:p-8`) and repetitive layouts.
-  - Materially reduced initial page height: Desktop EN from 11,531px to **5,011px** (46.8% shorter than original 9,427px production baseline; 56.5% reduction vs prior redesign build). Desktop AR: **4,857px**. Mobile EN from 17,397px to **7,174px**. Mobile AR: **6,459px**.
-  - Reconciled the missing September 2026 releases: none were displayed on the live production page.
-  - Eliminated feed duplication: top 3 Latest Highlights are rendered prominently above; September feed displays a compact reference banner and non-featured releases in default view.
+  - Materially reduced initial page height: Desktop EN from 11,531px to **`5,011px`** (46.8% shorter than original 9,427px production baseline; 56.5% reduction vs prior uncollapsed redesign build). Desktop AR: **`4,857px`** (48.5% shorter than original production). Mobile EN from 17,397px to **`7,174px`**. Mobile AR: **`6,459px`**.
+  - Reconciled all 40 verified releases spanning October 2025 through September 2026.
+  - Eliminated feed duplication: top 3 Latest Highlights are rendered prominently above; September feed displays a compact reference banner and 3 non-featured releases in default view.
   - Monthly progressive disclosure keeps recent months (September and August 2026) expanded by default while collapsing older months (July 2026 down through October 2025) behind accessible semantic button controls (`aria-expanded`, `aria-controls`, `aria-label`, visible focus).
   - Dynamic filter expansion: applying Type, Product Area, or Month filters automatically exposes matching monthly groups without forcing manual expansion.
 - **Strict Public Claims Qualification:**
@@ -21,13 +22,18 @@
 - **Data Model & Classification Architecture:**
   - Assigned explicit `updateType: 'new' | 'improved' | 'fixed'` on ALL 40 releases (19 new, 16 improved, 5 fixed).
   - Streamlined categories to represent distinct **Product Areas** (`Resume & Portfolio`, `AI & Tailoring`, `Jobs & Career`, `Platform`, `Security & Legal`), eliminating duplication with Type filters.
-- **Validation:**
-  - TypeScript: 0 errors (`tsc --noEmit`).
-  - Vitest: 55/55 passing tests across 7 test suites, including dedicated monthly progressive disclosure and deduplication test suites.
-  - i18n Audits: `npm run test:i18n` and `npm run test:i18n:coverage` passed.
-  - Build: Clean production build in 44.9s (`0 *.map files in dist/`).
-  - Local Browser QA: All 8 matrix permutations passed with 0px overflow and 0 console errors (Desktop 1440px / Mobile 390px x EN LTR / AR RTL x Light / Dark).
-  - Remote QA Status: Vercel Preview deployment ready; remote QA pending.
+- **Real Production Browser QA Matrix (8/8 PASSED):**
+  - Desktop 1440px EN Light: HTTP 200, Dir: LTR, H1: OK, Height: `5,011px`, Overflow: 0px, Errors: 0, **PASS**
+  - Desktop 1440px EN Dark: HTTP 200, Dir: LTR, H1: OK, Height: `5,011px`, Overflow: 0px, Errors: 0, **PASS**
+  - Desktop 1440px AR Light: HTTP 200, Dir: RTL, H1: OK, Height: `4,857px`, Overflow: 0px, Errors: 0, **PASS**
+  - Desktop 1440px AR Dark: HTTP 200, Dir: RTL, H1: OK, Height: `4,857px`, Overflow: 0px, Errors: 0, **PASS**
+  - Mobile 390px EN Light: HTTP 200, Dir: LTR, H1: OK, Height: `7,174px`, Overflow: 0px, Errors: 0, **PASS**
+  - Mobile 390px EN Dark: HTTP 200, Dir: LTR, H1: OK, Height: `7,174px`, Overflow: 0px, Errors: 0, **PASS**
+  - Mobile 390px AR Light: HTTP 200, Dir: RTL, H1: OK, Height: `6,459px`, Overflow: 0px, Errors: 0, **PASS**
+  - Mobile 390px AR Dark: HTTP 200, Dir: RTL, H1: OK, Height: `6,459px`, Overflow: 0px, Errors: 0, **PASS**
+  - Content check: 0 occurrences of banned overclaims; verified live across all 5 key releases.
+  - Zero Appwrite backend or schema changes required (`APPWRITE_PRODUCT_SCHEMA_CHANGE = NO`).
+  - Billing checkout remains disabled (`BILLING_CHECKOUT_DISABLED`).
 
 ### 2026-09-03 - AI Studio LinkedIn Optimizer Async Execution Remediation & Production Verification (PR #278)
 
