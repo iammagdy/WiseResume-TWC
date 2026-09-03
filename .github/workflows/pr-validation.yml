@@ -53,7 +53,8 @@ jobs:
           node --check scripts/configure_billing_runtime.cjs &&
           node tests/scripts/configure_billing_runtime.test.cjs &&
           node tests/hubs/billing-checkout.test.cjs &&
-          node --test tests/hubs/revenuecat-webhook.test.cjs tests/hubs/revenuecat-schema.test.cjs
+          node --test tests/hubs/revenuecat-webhook.test.cjs tests/hubs/revenuecat-schema.test.cjs &&
+          node --test tests/hubs/paypal-webhook.test.cjs tests/hubs/paypal-schema.test.cjs tests/hubs/paypal-subscription-resolver.test.cjs tests/hubs/billing-checkout-deployment.test.cjs tests/hubs/appwrite-function-policy.test.cjs
 
       - name: Run frontend and portfolio tests (relevant, known-passing)
         run: >-

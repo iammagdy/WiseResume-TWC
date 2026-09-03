@@ -1,5 +1,20 @@
 # WiseResume Atlas Master Changelog
 
+### 2026-09-03 - PayPal Sandbox Integration Phase 3: Pre-Merge Real Lifecycle Correction
+
+- **Workstream Verdict:** `PAYPAL_PHASE3_PR_CORRECTED_LOCAL_PASS`.
+- **Git Branch:** `feat/paypal-sandbox-phase3` (PR #286).
+- **Scope:** Real PayPal lifecycle authority corrections, removal of fabricated expiry, memoized trusted subscription snapshot reuse, retry-safe transient error classification (HTTP 503), pre-payment cancellation invariant enforcement, `UPDATED` entitlement-bearing duration freeze, atomic delete-create concurrency reclaim (`atomicReclaimLedgerReservation`), and remote CI PR validation workflow update (`.github/workflows/pr-validation.yml`).
+- **Core Improvements & Fixes:**
+  - **Removed Fabricated Expiry:** Eliminated arbitrary 30-day fallback from `calculateExpiry`. Paid boundary must derive from authoritative PayPal provider state (`subDetails.billing_info.next_billing_time` or event `nextBillingTime`). If absent, fails closed with `missing_authoritative_expiry` with zero state mutation.
+  - **Subscription Snapshot Memoization:** `getSubscriptionSnapshot()` memoizes `fetchSubscriptionDetails(subscriptionId)` so `PAYMENT.SALE.COMPLETED` fetches provider state at most once, reusing the snapshot across canonical user correlation, plan resolution, and authoritative expiry calculation.
+  - **Transient vs Permanent Error Classification:** Classified 5xx, 429, and network failures in PayPal GET requests with `err.isTransient = true`. On transient error, marks ledger `failed` (`transient_paypal_fetch_failure`) and returns HTTP 503 so PayPal retries delivery.
+  - **Pre-Payment Cancellation Invariant:** `ACTIVATED -> pending_initial_payment -> CANCELLED` writes `expires_at: null` and evaluates strictly to Free. Cancellation preserves paid access only when an existing verified paid period exists.
+  - **UPDATED Duration Freeze:** `BILLING.SUBSCRIPTION.UPDATED` freezes `expires_at = previous?.expires_at || null`, ensuring metadata updates cannot advance or manufacture paid entitlement duration without a verified payment.
+  - **Atomic Stale Lease Reclaim:** Replaced read-then-update recovery with `atomicReclaimLedgerReservation` using `deleteDocument` followed by `createDocument` on Appwrite's unique ID constraint. Proved via concurrent race test that two simultaneous stale recovery deliveries yield exactly one winner and zero duplicate state mutations.
+  - **Remote CI PR Validation:** Updated `.github/workflows/pr-validation.yml` step `Run billing contract tests` to execute `paypal-webhook.test.cjs`, `paypal-schema.test.cjs`, `paypal-subscription-resolver.test.cjs`, `billing-checkout-deployment.test.cjs`, and `appwrite-function-policy.test.cjs`.
+  - **Tests:** 104/104 tests pass across 12 test suites; 44/44 tests pass in `paypal-webhook.test.cjs`.
+
 ### 2026-09-03 - PayPal Sandbox Integration Phase 3: Final Pre-Commit Gate
 
 - **Workstream Verdict:** `PAYPAL_PHASE3_FINAL_TESTED_LOCAL_READY_TO_COMMIT`.

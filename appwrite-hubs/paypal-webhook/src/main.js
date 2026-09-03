@@ -318,7 +318,15 @@ async function fetchSubscriptionDetails(subscriptionId, { env = process.env, cus
       },
       body: 'grant_type=client_credentials',
     });
-    if (!tokenRes.ok) return null;
+    if (!tokenRes.ok) {
+      if (tokenRes.status >= 500 || tokenRes.status === 429) {
+        const err = new Error(`PayPal OAuth token request failed transiently with status ${tokenRes.status}`);
+        err.isTransient = true;
+        err.status = tokenRes.status;
+        throw err;
+      }
+      return null;
+    }
     const tokenData = await tokenRes.json();
     const accessToken = tokenData?.access_token;
     if (!accessToken) return null;
@@ -330,9 +338,23 @@ async function fetchSubscriptionDetails(subscriptionId, { env = process.env, cus
         'Content-Type': 'application/json',
       },
     });
-    if (!subRes.ok) return null;
+    if (!subRes.ok) {
+      if (subRes.status >= 500 || subRes.status === 429) {
+        const err = new Error(`PayPal subscription GET failed transiently with status ${subRes.status}`);
+        err.isTransient = true;
+        err.status = subRes.status;
+        throw err;
+      }
+      return null;
+    }
     return await subRes.json();
-  } catch {
+  } catch (err) {
+    if (err?.isTransient) throw err;
+    if (err?.name === 'FetchError' || err?.name === 'TypeError' || err?.code === 'ECONNRESET' || err?.code === 'ETIMEDOUT') {
+      const netErr = new Error(`PayPal API network failure: ${err.message}`);
+      netErr.isTransient = true;
+      throw netErr;
+    }
     return null;
   }
 }
@@ -344,6 +366,7 @@ async function resolveCanonicalUser({
   previousState = null,
   env = process.env,
   subscriptionFetcher = null,
+  getSubscriptionSnapshot = null,
 }) {
   // 1. Existing paypal_subscription_state by subscription_id
   if (previousState?.user_id) {
@@ -370,7 +393,16 @@ async function resolveCanonicalUser({
   }
 
   // 3. Server-side PayPal GET /v1/billing/subscriptions/{subscriptionId}
-  const subDetails = await fetchSubscriptionDetails(event.subscriptionId, { env, customFetcher: subscriptionFetcher });
+  let subDetails = null;
+  try {
+    if (typeof getSubscriptionSnapshot === 'function') {
+      subDetails = await getSubscriptionSnapshot();
+    } else {
+      subDetails = await fetchSubscriptionDetails(event.subscriptionId, { env, customFetcher: subscriptionFetcher });
+    }
+  } catch (err) {
+    if (err?.isTransient) throw err;
+  }
   const serverCustomId = String(subDetails?.custom_id || '').trim();
   if (serverCustomId) {
     if (users) {
@@ -408,16 +440,51 @@ function resolvePlanFromId(planId) {
   return mapped && VALID_PAID_PLANS.has(mapped) ? mapped : null;
 }
 
-function calculateExpiry(event, previousState) {
+function resolveAuthoritativeExpiry(event, subDetails) {
+  // 1. Authoritative next_billing_time from trusted PayPal subscription snapshot
+  const subBillingTime = subDetails?.billing_info?.next_billing_time;
+  if (subBillingTime) {
+    const parsed = new Date(subBillingTime).getTime();
+    if (Number.isFinite(parsed) && parsed > 0) return new Date(parsed).toISOString();
+  }
+
+  // 2. Authoritative nextBillingTime from event resource if present
   if (event.nextBillingTime) {
     const parsed = new Date(event.nextBillingTime).getTime();
     if (Number.isFinite(parsed) && parsed > 0) return new Date(parsed).toISOString();
   }
-  if (previousState?.expires_at) {
-    return previousState.expires_at;
+
+  // Under NO circumstances fabricate calendar durations (e.g. +30 days)
+  return null;
+}
+
+function calculateExpiry(event, previousState, subDetails) {
+  return resolveAuthoritativeExpiry(event, subDetails);
+}
+
+async function atomicReclaimLedgerReservation(databases, ledgerDocId, payload) {
+  try {
+    await databases.deleteDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId);
+  } catch (err) {
+    if (err?.code !== 404 && !/not found/i.test(err?.message || '')) {
+      return false;
+    }
   }
-  // Default fallback: 30 days from event timestamp
-  return new Date(event.eventTimestampMs + 30 * 86400000).toISOString();
+  try {
+    await databases.createDocument(
+      DB_ID,
+      LEDGER_COLLECTION_ID,
+      ledgerDocId,
+      payload,
+      serverOnlyPermissions()
+    );
+    return true;
+  } catch (err) {
+    if (err?.code === 409 || /already exists/i.test(err?.message || '')) {
+      return false;
+    }
+    throw err;
+  }
 }
 
 async function upsertProviderState(databases, payload, previous) {
@@ -451,6 +518,30 @@ async function processWebhookEvent({
   const ledgerDocId = ledgerDocumentId(event.id);
   const nowIso = new Date(nowMs).toISOString();
 
+  // Subscription snapshot cache (memoized: fetched at most once per webhook event)
+  let cachedSubDetails = null;
+  let cachedSubError = null;
+  let subFetchAttempted = false;
+
+  async function getSubscriptionSnapshot() {
+    if (subFetchAttempted) {
+      if (cachedSubError) throw cachedSubError;
+      return cachedSubDetails;
+    }
+    subFetchAttempted = true;
+    if (!event.subscriptionId) return null;
+    try {
+      cachedSubDetails = await fetchSubscriptionDetails(event.subscriptionId, {
+        env,
+        customFetcher: subscriptionFetcher,
+      });
+      return cachedSubDetails;
+    } catch (err) {
+      cachedSubError = err;
+      throw err;
+    }
+  }
+
   // ATOMIC CONCURRENCY RESERVATION (Section 3):
   // Atomically claim the event identity in the ledger before state mutation.
   // The unique document ID and event_id index guarantee only ONE processor wins.
@@ -474,7 +565,7 @@ async function processWebhookEvent({
       serverOnlyPermissions()
     );
   } catch (err) {
-    if (err?.code === 409) {
+    if (err?.code === 409 || /already exists/i.test(err?.message || '')) {
       // Document already exists! Determine status of existing reservation.
       const existing = await findLedger(databases, event.id);
       if (!existing) {
@@ -491,25 +582,38 @@ async function processWebhookEvent({
           return { outcome: 'duplicate', code: 'concurrent_processing', mutated: false };
         }
         // Old abandoned processing reservation (hard process termination, timeout, or uncaught crash).
-        // Safely re-claim the reservation and allow this retry delivery to finish processing.
-        try {
-          await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
-            received_at: nowIso,
-            processing_status: 'processing',
-            outcome_code: 'recovered_abandoned_reservation',
-          }, serverOnlyPermissions());
-        } catch {
+        // Atomically re-claim the lease via delete+create with unique ID constraint.
+        const reclaimed = await atomicReclaimLedgerReservation(databases, ledgerDocId, {
+          event_id: event.id,
+          event_type: event.type,
+          user_id: existing.user_id || null,
+          subscription_id: event.subscriptionId || null,
+          event_timestamp_ms: event.eventTimestampMs,
+          received_at: nowIso,
+          processing_status: 'processing',
+          ordering_key: eventOrderingKey(event),
+          outcome_code: 'recovered_abandoned_reservation',
+          expires_at: retentionIso(nowMs),
+        });
+        if (!reclaimed) {
           return { outcome: 'duplicate', code: 'concurrent_processing', mutated: false };
         }
       } else if (existing.processing_status === 'failed') {
         // Recoverable retry after a previous processor crashed before state mutation.
-        try {
-          await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
-            received_at: nowIso,
-            processing_status: 'processing',
-            outcome_code: 'in_progress_retry',
-          }, serverOnlyPermissions());
-        } catch {
+        // Atomically re-claim the lease via delete+create with unique ID constraint.
+        const reclaimed = await atomicReclaimLedgerReservation(databases, ledgerDocId, {
+          event_id: event.id,
+          event_type: event.type,
+          user_id: existing.user_id || null,
+          subscription_id: event.subscriptionId || null,
+          event_timestamp_ms: event.eventTimestampMs,
+          received_at: nowIso,
+          processing_status: 'processing',
+          ordering_key: eventOrderingKey(event),
+          outcome_code: 'in_progress_retry',
+          expires_at: retentionIso(nowMs),
+        });
+        if (!reclaimed) {
           return { outcome: 'duplicate', code: 'concurrent_processing', mutated: false };
         }
       } else {
@@ -533,14 +637,27 @@ async function processWebhookEvent({
   let previous = await findStateBySubscriptionId(databases, event.subscriptionId);
 
   // Canonical user correlation (Section 1: state -> checkout session -> PayPal GET -> validate)
-  const userId = await resolveCanonicalUser({
-    event,
-    databases,
-    users,
-    previousState: previous,
-    env,
-    subscriptionFetcher,
-  });
+  let userId = null;
+  try {
+    userId = await resolveCanonicalUser({
+      event,
+      databases,
+      users,
+      previousState: previous,
+      env,
+      subscriptionFetcher,
+      getSubscriptionSnapshot,
+    });
+  } catch (err) {
+    if (err?.isTransient) {
+      await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
+        processing_status: 'failed',
+        outcome_code: 'transient_paypal_fetch_failure',
+      }, serverOnlyPermissions()).catch(() => {});
+      throw err;
+    }
+    throw err;
+  }
 
   if (!userId) {
     await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
@@ -600,8 +717,26 @@ async function processWebhookEvent({
     }
   }
 
-  // Plan ID resolution and validation
-  const effectivePlanId = event.planId || previous?.plan_id;
+  // For SALE.COMPLETED (or if plan is not in event or previous), obtain trusted subscription snapshot
+  let subDetails = null;
+  if (event.type === 'PAYMENT.SALE.COMPLETED' || (!event.planId && !previous?.plan_id)) {
+    try {
+      subDetails = await getSubscriptionSnapshot();
+    } catch (err) {
+      if (err?.isTransient) {
+        await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
+          user_id: userId,
+          processing_status: 'failed',
+          outcome_code: 'transient_paypal_fetch_failure',
+        }, serverOnlyPermissions()).catch(() => {});
+        throw err;
+      }
+    }
+  }
+
+  // Plan ID resolution and validation:
+  // Precedence: explicit event planId -> server-side PayPal snapshot plan_id -> previous state plan_id
+  const effectivePlanId = event.planId || subDetails?.plan_id || previous?.plan_id;
   const resolvedPlan = resolvePlanFromId(effectivePlanId);
 
   // Validate plan for events with plan ID
@@ -646,53 +781,78 @@ async function processWebhookEvent({
       stateUpdate.status = 'pending_initial_payment';
       stateUpdate.will_renew = true;
       stateUpdate.grace_period_expires_at = null;
+      stateUpdate.expires_at = null;
       break;
 
-    case 'PAYMENT.SALE.COMPLETED':
+    case 'PAYMENT.SALE.COMPLETED': {
+      // Authoritative paid boundary must come from trusted PayPal state:
+      const authoritativeExpiry = resolveAuthoritativeExpiry(event, subDetails);
+      if (!authoritativeExpiry) {
+        await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
+          user_id: userId,
+          processing_status: 'rejected',
+          outcome_code: 'missing_authoritative_expiry',
+        }, serverOnlyPermissions());
+        return { outcome: 'rejected', code: 'missing_authoritative_expiry', mutated: false };
+      }
       // Verified successful payment grants/renews active entitlement
       stateUpdate.status = 'active';
       stateUpdate.will_renew = true;
       stateUpdate.grace_period_expires_at = null;
-      stateUpdate.expires_at = calculateExpiry(event, previous);
+      stateUpdate.expires_at = authoritativeExpiry;
       break;
+    }
 
     case 'BILLING.SUBSCRIPTION.PAYMENT.FAILED': {
       // 48-hour grace period from failure event timestamp
       const graceExpiresAt = new Date(event.eventTimestampMs + GRACE_PERIOD_MS).toISOString();
       stateUpdate.status = 'billing_issue';
-      stateUpdate.grace_period_expires_at = graceExpiresAt;
-      stateUpdate.expires_at = graceExpiresAt;
+      if (!previous?.grace_period_expires_at) {
+        stateUpdate.grace_period_expires_at = graceExpiresAt;
+        stateUpdate.expires_at = graceExpiresAt;
+      } else {
+        stateUpdate.grace_period_expires_at = previous.grace_period_expires_at;
+        stateUpdate.expires_at = previous.expires_at;
+      }
       stateUpdate.will_renew = true;
       break;
     }
 
     case 'BILLING.SUBSCRIPTION.CANCELLED':
-      // Cancellation preserves paid access through already-paid period
+      // Cancellation preserves paid access ONLY through already-paid period from verified prior payment.
+      // If user was never active with verified payment, expires_at remains null and outcome is Free.
       stateUpdate.status = 'canceled';
       stateUpdate.will_renew = false;
       stateUpdate.grace_period_expires_at = null;
-      stateUpdate.expires_at = previous?.expires_at || calculateExpiry(event, previous);
+      if ((previous?.status === 'active' || previous?.status === 'canceled') && previous?.expires_at) {
+        stateUpdate.expires_at = previous.expires_at;
+      } else {
+        stateUpdate.expires_at = null;
+      }
       break;
 
     case 'BILLING.SUBSCRIPTION.SUSPENDED':
       stateUpdate.status = 'suspended';
       stateUpdate.will_renew = false;
       stateUpdate.grace_period_expires_at = null;
+      stateUpdate.expires_at = null;
       break;
 
     case 'BILLING.SUBSCRIPTION.EXPIRED':
       stateUpdate.status = 'expired';
       stateUpdate.will_renew = false;
       stateUpdate.grace_period_expires_at = null;
+      stateUpdate.expires_at = null;
       break;
 
     case 'BILLING.SUBSCRIPTION.UPDATED':
-      // CRITICAL (Section 2): UPDATED must never raise paid entitlement rank without a verified payment.
+      // CRITICAL: UPDATED must never raise paid entitlement rank without a verified payment.
       // Preserve the currently paid plan:
       stateUpdate.plan = previous?.plan || 'pro';
       // Refresh non-entitlement metadata:
       if (event.planId) stateUpdate.plan_id = event.planId;
-      if (event.nextBillingTime) stateUpdate.expires_at = calculateExpiry(event, previous);
+      // CRITICAL: UPDATED must NOT advance or manufacture paid entitlement duration:
+      stateUpdate.expires_at = previous?.expires_at || null;
       // Preserve status (pending_initial_payment remains pending; active remains active):
       stateUpdate.status = previous?.status || 'pending_initial_payment';
       break;
@@ -779,13 +939,17 @@ module.exports = async ({ req, res, log, error }) => {
       event,
       nowMs: testOpts.nowMs || Date.now(),
       env: currentEnv,
+      subscriptionFetcher: testOpts.subscriptionFetcher || null,
     });
 
     log?.(`PayPal webhook ${requestId}: ${event.type} -> ${result.outcome} (${result.code})`);
     return response(res, { status: 'success', data: { ok: true, ...result } }, 200);
   } catch (err) {
-    error?.(`PayPal webhook ${requestId}: processing failure`);
-    return response(res, { status: 'error', code: 'processing_failed', message: 'Webhook processing failed.' }, 500);
+    const isTransient = err?.isTransient || err?.status >= 500;
+    const statusCode = isTransient ? 503 : 500;
+    const errCode = isTransient ? 'transient_paypal_fetch_failure' : 'processing_failed';
+    error?.(`PayPal webhook ${requestId}: ${errCode} (${err.message})`);
+    return response(res, { status: 'error', code: errCode, message: err.message || 'Webhook processing failed.' }, statusCode);
   }
 };
 
@@ -818,7 +982,10 @@ module.exports.__test = {
   findLedger,
   resolveCanonicalUser,
   resolvePlanFromId,
+  resolveAuthoritativeExpiry,
   calculateExpiry,
+  atomicReclaimLedgerReservation,
+  fetchSubscriptionDetails,
   upsertProviderState,
   processWebhookEvent,
   getPaypalApiBaseUrl,

@@ -80,6 +80,16 @@ function createMockDatabases() {
       col.set(docId, created);
       return created;
     },
+    async deleteDocument(_dbId, collectionId, docId) {
+      const col = collections[collectionId];
+      if (!col || !col.has(docId)) {
+        const err = new Error('Document not found');
+        err.code = 404;
+        throw err;
+      }
+      col.delete(docId);
+      return { ok: true };
+    },
     async updateDocument(_dbId, collectionId, docId, data, _permissions) {
       const col = collections[collectionId];
       const existing = col.get(docId);
@@ -209,6 +219,7 @@ test('Correlation: first SALE.COMPLETED with no state resolves canonical user vi
       id: 'TX-SALE-BRIDGE-1',
       billing_agreement_id: 'I-SUB-SESSION-1',
       plan_id: SANDBOX_PRO_PLAN_ID,
+      billing_info: { next_billing_time: '2026-10-03T12:00:00Z' },
     },
   });
 
@@ -277,7 +288,11 @@ test('Correlation: unresolved local session falls back to server PayPal GET cust
     env: TEST_ENV,
     subscriptionFetcher: async (subId) => {
       assert.equal(subId, 'I-SUB-REMOTE');
-      return { id: subId, custom_id: QA_USER_ID };
+      return {
+        id: subId,
+        custom_id: QA_USER_ID,
+        billing_info: { next_billing_time: '2026-10-03T12:00:00Z' },
+      };
     },
   });
 
@@ -423,6 +438,7 @@ test('UPDATED: SALE.COMPLETED for Ultimate after UPDATED activates premium', asy
       id: 'TX-AFTER-UPD',
       billing_agreement_id: 'I-SUB-STEP-UPGRADE',
       amount: { total: '10.00', currency: 'USD' },
+      billing_info: { next_billing_time: new Date(nowMs + 30 * 86400000).toISOString() },
     },
   });
 
@@ -519,6 +535,7 @@ test('Recovery: stale abandoned processing reservation -> retry can recover', as
       billing_agreement_id: 'I-SUB-ABANDONED',
       custom_id: QA_USER_ID,
       plan_id: SANDBOX_PRO_PLAN_ID,
+      billing_info: { next_billing_time: '2026-10-03T12:00:00Z' },
     },
   });
 
@@ -637,6 +654,7 @@ test('Recovery: recovered SALE.COMPLETED -> exactly one active-state transition'
       billing_agreement_id: 'I-SUB-RECOVER-SALE',
       custom_id: QA_USER_ID,
       plan_id: SANDBOX_PRO_PLAN_ID,
+      billing_info: { next_billing_time: '2026-10-03T12:00:00Z' },
     },
   });
 
@@ -679,6 +697,7 @@ test('Sandbox QA: matching QA user is eligible for state mutation', async () => 
       billing_agreement_id: 'I-SUB-QA-MATCH',
       custom_id: QA_USER_ID,
       plan_id: SANDBOX_PRO_PLAN_ID,
+      billing_info: { next_billing_time: '2026-10-03T12:00:00Z' },
     },
   });
 
@@ -922,6 +941,7 @@ test('Ordering: equal-timestamp PAYMENT.SALE.COMPLETED on pending state is allow
       id: 'TX-CONFIRM-1',
       billing_agreement_id: 'I-SUB-EQUAL-CONFIRM',
       amount: { total: '5.00', currency: 'USD' },
+      billing_info: { next_billing_time: new Date(eventTimeMs + 30 * 86400000).toISOString() },
     },
   });
 
@@ -1196,6 +1216,7 @@ test('Bootstrap: valid PAYPAL_WEBHOOK_ID enables verified SUCCESS path to procee
         billing_agreement_id: 'I-SUB-ACTIVATED',
         custom_id: QA_USER_ID,
         plan_id: SANDBOX_PRO_PLAN_ID,
+        billing_info: { next_billing_time: '2026-10-03T12:00:00Z' },
       },
     }),
     __test: {
@@ -1276,5 +1297,418 @@ test('Bootstrap: Production environment remains strictly rejected even with vali
   // Signature verification fails closed because getPaypalApiBaseUrl returns empty string for production!
   assert.equal(responseStatus, 401);
   assert.equal(responseData?.code, 'unconfigured_paypal_environment');
+  assert.equal(db.collections.paypal_subscription_state.size, 0);
+});
+
+// ==================================================
+// Section 10: Pre-Merge Real Lifecycle & Authority Regression Tests
+// ==================================================
+
+test('Lifecycle: ACTIVATED -> pending_initial_payment -> CANCELLED before payment results in zero paid entitlement (Free)', async () => {
+  const db = createMockDatabases();
+  const users = createMockUsers();
+  const nowMs = Date.parse('2026-09-03T12:00:00.000Z');
+
+  // Step 1: ACTIVATED arrives
+  const activatedEvent = normalizeEvent({
+    id: 'EVT-ACT-THEN-CANCEL',
+    event_type: 'BILLING.SUBSCRIPTION.ACTIVATED',
+    create_time: new Date(nowMs).toISOString(),
+    resource: {
+      id: 'I-SUB-ACT-CANCEL',
+      custom_id: QA_USER_ID,
+      plan_id: SANDBOX_PRO_PLAN_ID,
+    },
+  });
+
+  const actResult = await processWebhookEvent({ databases: db, users, event: activatedEvent, nowMs, env: TEST_ENV });
+  assert.equal(actResult.outcome, 'processed');
+  assert.equal(actResult.status, 'pending_initial_payment');
+  assert.equal(actResult.effectivePlan, 'free'); // No paid entitlement!
+
+  const stateAfterAct = db.collections.paypal_subscription_state.get(paypalWebhook.__test.stateDocumentId(QA_USER_ID));
+  assert.equal(stateAfterAct.status, 'pending_initial_payment');
+  assert.equal(stateAfterAct.expires_at, null); // Zero fabricated expiry!
+
+  // Step 2: CANCELLED arrives before any PAYMENT.SALE.COMPLETED
+  const cancelEvent = normalizeEvent({
+    id: 'EVT-CANCEL-BEFORE-PAY',
+    event_type: 'BILLING.SUBSCRIPTION.CANCELLED',
+    create_time: new Date(nowMs + 60000).toISOString(),
+    resource: {
+      id: 'I-SUB-ACT-CANCEL',
+    },
+  });
+
+  const cancelResult = await processWebhookEvent({ databases: db, users, event: cancelEvent, nowMs: nowMs + 60000, env: TEST_ENV });
+  assert.equal(cancelResult.outcome, 'processed');
+  assert.equal(cancelResult.status, 'canceled');
+  assert.equal(cancelResult.effectivePlan, 'free'); // STRICT REQUIREMENT: No paid entitlement!
+
+  const stateAfterCancel = db.collections.paypal_subscription_state.get(paypalWebhook.__test.stateDocumentId(QA_USER_ID));
+  assert.equal(stateAfterCancel.status, 'canceled');
+  assert.equal(stateAfterCancel.expires_at, null); // No fabricated future date!
+});
+
+test('UPDATED: active Pro with expires_at X + UPDATED reporting later next_billing_time Y leaves expires_at at X', async () => {
+  const db = createMockDatabases();
+  const users = createMockUsers();
+  const nowMs = Date.parse('2026-09-03T12:00:00.000Z');
+  const existingExpiry = '2026-09-20T00:00:00.000Z';
+
+  // Seed active Pro state
+  db.collections.paypal_subscription_state.set(paypalWebhook.__test.stateDocumentId(QA_USER_ID), {
+    $id: paypalWebhook.__test.stateDocumentId(QA_USER_ID),
+    user_id: QA_USER_ID,
+    plan: 'pro',
+    subscription_id: 'I-SUB-UPD-EXPIRY-FREEZE',
+    plan_id: SANDBOX_PRO_PLAN_ID,
+    environment: 'sandbox',
+    status: 'active',
+    expires_at: existingExpiry,
+    latest_event_timestamp_ms: nowMs,
+  });
+
+  // UPDATED arrives attempting to report a later next_billing_time
+  const updatedEvent = normalizeEvent({
+    id: 'EVT-UPD-LATER-EXPIRY',
+    event_type: 'BILLING.SUBSCRIPTION.UPDATED',
+    create_time: new Date(nowMs + 60000).toISOString(),
+    resource: {
+      id: 'I-SUB-UPD-EXPIRY-FREEZE',
+      plan_id: SANDBOX_PRO_PLAN_ID,
+      billing_info: { next_billing_time: '2026-10-20T00:00:00.000Z' },
+    },
+  });
+
+  const result = await processWebhookEvent({ databases: db, users, event: updatedEvent, nowMs: nowMs + 60000, env: TEST_ENV });
+  assert.equal(result.outcome, 'processed');
+
+  const state = db.collections.paypal_subscription_state.get(paypalWebhook.__test.stateDocumentId(QA_USER_ID));
+  // STRICT REQUIREMENT: expires_at remains strictly X, never advanced by UPDATED
+  assert.equal(state.expires_at, existingExpiry);
+});
+
+test('Realistic SALE.COMPLETED shape (no plan_id/custom_id/next_billing_time in event) resolves via PayPal GET', async () => {
+  const db = createMockDatabases();
+  const users = createMockUsers();
+  const nowMs = Date.parse('2026-09-03T12:00:00.000Z');
+  const expectedBillingTime = '2026-10-03T12:00:00.000Z';
+
+  // Realistic SALE.COMPLETED webhook payload: only transaction ID, subscription agreement ID, amount
+  const realisticEvent = normalizeEvent({
+    id: 'EVT-SALE-REALISTIC-SHAPE',
+    event_type: 'PAYMENT.SALE.COMPLETED',
+    create_time: new Date(nowMs).toISOString(),
+    resource: {
+      id: 'TX-REAL-99999',
+      billing_agreement_id: 'I-SUB-REALISTIC-PRO',
+      amount: { total: '5.00', currency: 'USD' },
+    },
+  });
+
+  let fetcherCallCount = 0;
+  const mockFetcher = async (subId) => {
+    fetcherCallCount++;
+    assert.equal(subId, 'I-SUB-REALISTIC-PRO');
+    return {
+      id: subId,
+      status: 'ACTIVE',
+      plan_id: SANDBOX_PRO_PLAN_ID,
+      custom_id: QA_USER_ID,
+      billing_info: { next_billing_time: expectedBillingTime },
+    };
+  };
+
+  const result = await processWebhookEvent({
+    databases: db,
+    users,
+    event: realisticEvent,
+    nowMs,
+    env: TEST_ENV,
+    subscriptionFetcher: mockFetcher,
+  });
+
+  assert.equal(result.outcome, 'processed');
+  assert.equal(result.status, 'active');
+  assert.equal(result.plan, 'pro');
+  assert.equal(result.effectivePlan, 'pro');
+  assert.equal(fetcherCallCount, 1); // Memoized: exactly ONE fetch for correlation + plan + expiry!
+
+  const state = db.collections.paypal_subscription_state.get(paypalWebhook.__test.stateDocumentId(QA_USER_ID));
+  assert.equal(state.user_id, QA_USER_ID);
+  assert.equal(state.plan, 'pro');
+  assert.equal(state.expires_at, new Date(expectedBillingTime).toISOString());
+});
+
+test('Realistic SALE.COMPLETED shape for Ultimate plan resolves strictly to premium', async () => {
+  const db = createMockDatabases();
+  const users = createMockUsers();
+  const nowMs = Date.parse('2026-09-03T12:00:00.000Z');
+  const expectedBillingTime = '2026-10-03T12:00:00.000Z';
+
+  const realisticEvent = normalizeEvent({
+    id: 'EVT-SALE-REALISTIC-ULT',
+    event_type: 'PAYMENT.SALE.COMPLETED',
+    create_time: new Date(nowMs).toISOString(),
+    resource: {
+      id: 'TX-REAL-ULT-1',
+      billing_agreement_id: 'I-SUB-REALISTIC-ULT',
+      amount: { total: '10.00', currency: 'USD' },
+    },
+  });
+
+  const mockFetcher = async (subId) => {
+    return {
+      id: subId,
+      status: 'ACTIVE',
+      plan_id: SANDBOX_ULTIMATE_PLAN_ID,
+      custom_id: QA_USER_ID,
+      billing_info: { next_billing_time: expectedBillingTime },
+    };
+  };
+
+  const result = await processWebhookEvent({
+    databases: db,
+    users,
+    event: realisticEvent,
+    nowMs,
+    env: TEST_ENV,
+    subscriptionFetcher: mockFetcher,
+  });
+
+  assert.equal(result.outcome, 'processed');
+  assert.equal(result.plan, 'premium');
+  assert.equal(result.effectivePlan, 'premium');
+  const state = db.collections.paypal_subscription_state.get(paypalWebhook.__test.stateDocumentId(QA_USER_ID));
+  assert.equal(state.plan, 'premium'); // Never persists 'ultimate'!
+});
+
+test('Realistic SALE.COMPLETED where PayPal GET returns unknown plan fails closed', async () => {
+  const db = createMockDatabases();
+  const users = createMockUsers();
+  const nowMs = Date.parse('2026-09-03T12:00:00.000Z');
+
+  const saleEvent = normalizeEvent({
+    id: 'EVT-SALE-UNKNOWN-PLAN',
+    event_type: 'PAYMENT.SALE.COMPLETED',
+    create_time: new Date(nowMs).toISOString(),
+    resource: {
+      id: 'TX-SALE-UNKNOWN',
+      billing_agreement_id: 'I-SUB-UNKNOWN-PLAN',
+      amount: { total: '99.00', currency: 'USD' },
+    },
+  });
+
+  const mockFetcher = async (subId) => {
+    return {
+      id: subId,
+      status: 'ACTIVE',
+      plan_id: 'P-FOREIGN-UNMAPPED-PLAN',
+      custom_id: QA_USER_ID,
+      billing_info: { next_billing_time: '2026-10-03T12:00:00.000Z' },
+    };
+  };
+
+  const result = await processWebhookEvent({
+    databases: db,
+    users,
+    event: saleEvent,
+    nowMs,
+    env: TEST_ENV,
+    subscriptionFetcher: mockFetcher,
+  });
+
+  assert.equal(result.outcome, 'rejected');
+  assert.equal(result.code, 'unknown_plan_id');
+  assert.equal(result.mutated, false);
+  assert.equal(db.collections.paypal_subscription_state.size, 0); // No state mutation!
+});
+
+test('Realistic SALE.COMPLETED where PayPal GET fails transiently throws retry-safe 503 and marks ledger failed', async () => {
+  const db = createMockDatabases();
+  const users = createMockUsers();
+  let responseData = null;
+  let responseStatus = null;
+  const res = {
+    json(data, status = 200) {
+      responseData = data;
+      responseStatus = status;
+      return { data, status };
+    },
+  };
+
+  const req = {
+    headers: {
+      'paypal-transmission-id': 'trans_transient_001',
+      'paypal-transmission-time': '2026-09-03T12:00:00Z',
+      'paypal-cert-url': 'https://api.sandbox.paypal.com/cert.pem',
+      'paypal-auth-algo': 'SHA256withRSA',
+      'paypal-transmission-sig': 'mock_sig',
+    },
+    bodyText: JSON.stringify({
+      id: 'EVT-SALE-TRANSIENT-FAIL',
+      event_type: 'PAYMENT.SALE.COMPLETED',
+      create_time: '2026-09-03T12:00:00Z',
+      resource: {
+        id: 'TX-SALE-TRANSIENT',
+        billing_agreement_id: 'I-SUB-TRANSIENT',
+        amount: { total: '5.00', currency: 'USD' },
+      },
+    }),
+    __test: {
+      databases: db,
+      users,
+      env: {
+        PAYPAL_ACCESS_ENVIRONMENT: 'sandbox',
+        PAYPAL_CLIENT_ID: 'mock_client_id',
+        PAYPAL_CLIENT_SECRET: 'mock_client_secret',
+        PAYPAL_WEBHOOK_ID: 'WH-SANDBOX-123',
+        BILLING_CHECKOUT_QA_USER_ID: QA_USER_ID,
+      },
+      customVerifier: () => ({ ok: true }),
+      subscriptionFetcher: async () => {
+        const err = new Error('PayPal upstream 503 Service Unavailable');
+        err.isTransient = true;
+        err.status = 503;
+        throw err;
+      },
+    },
+  };
+
+  await paypalWebhook({ req, res, log: () => {}, error: () => {} });
+
+  // STRICT REQUIREMENT: HTTP 503 returned to PayPal to prompt retry
+  assert.equal(responseStatus, 503);
+  assert.equal(responseData?.code, 'transient_paypal_fetch_failure');
+  assert.equal(db.collections.paypal_subscription_state.size, 0); // No state mutation!
+
+  const ledgerDocId = paypalWebhook.__test.ledgerDocumentId('EVT-SALE-TRANSIENT-FAIL');
+  const ledger = db.collections.paypal_event_ledger.get(ledgerDocId);
+  assert.equal(ledger.processing_status, 'failed');
+  assert.equal(ledger.outcome_code, 'transient_paypal_fetch_failure');
+
+  // Next retry arrives with PayPal service recovered
+  const retryReq = {
+    ...req,
+    __test: {
+      ...req.__test,
+      subscriptionFetcher: async (subId) => ({
+        id: subId,
+        status: 'ACTIVE',
+        plan_id: SANDBOX_PRO_PLAN_ID,
+        custom_id: QA_USER_ID,
+        billing_info: { next_billing_time: '2026-10-03T12:00:00.000Z' },
+      }),
+    },
+  };
+
+  await paypalWebhook({ req: retryReq, res, log: () => {}, error: () => {} });
+  assert.equal(responseStatus, 200);
+  assert.equal(responseData?.data?.outcome, 'processed');
+  assert.equal(db.collections.paypal_subscription_state.size, 1);
+});
+
+test('Concurrency: two simultaneous stale recovery deliveries have exactly one mutation winner', async () => {
+  const db = createMockDatabases();
+  const users = createMockUsers();
+  const eventTimeMs = Date.parse('2026-09-03T12:00:00.000Z');
+  const nowMs = eventTimeMs + 120000; // 120s later (> 60s lease)
+
+  const event = normalizeEvent({
+    id: 'EVT-STALE-CONCURRENT-RACE',
+    event_type: 'PAYMENT.SALE.COMPLETED',
+    create_time: new Date(eventTimeMs).toISOString(),
+    resource: {
+      id: 'TX-RACE-1',
+      billing_agreement_id: 'I-SUB-RACE',
+      custom_id: QA_USER_ID,
+      plan_id: SANDBOX_PRO_PLAN_ID,
+      billing_info: { next_billing_time: '2026-10-03T12:00:00.000Z' },
+    },
+  });
+
+  // Pre-seed stale processing reservation
+  const ledgerDocId = paypalWebhook.__test.ledgerDocumentId(event.id);
+  db.collections.paypal_event_ledger.set(ledgerDocId, {
+    $id: ledgerDocId,
+    event_id: event.id,
+    received_at: new Date(eventTimeMs).toISOString(),
+    processing_status: 'processing',
+    outcome_code: 'in_progress',
+  });
+
+  let stateMutationCount = 0;
+  const originalUpdate = db.updateDocument.bind(db);
+  const originalCreate = db.createDocument.bind(db);
+  db.updateDocument = async (...args) => {
+    if (args[1] === 'paypal_subscription_state') stateMutationCount++;
+    return originalUpdate(...args);
+  };
+  db.createDocument = async (...args) => {
+    if (args[1] === 'paypal_subscription_state') stateMutationCount++;
+    return originalCreate(...args);
+  };
+
+  // Two simultaneous delivery executions race to recover
+  const [res1, res2] = await Promise.all([
+    processWebhookEvent({ databases: db, users, event, nowMs, env: TEST_ENV }),
+    processWebhookEvent({ databases: db, users, event, nowMs, env: TEST_ENV }),
+  ]);
+
+  const outcomes = [res1.outcome, res2.outcome].sort();
+  assert.deepEqual(outcomes, ['duplicate', 'processed']);
+
+  const winner = res1.outcome === 'processed' ? res1 : res2;
+  const loser = res1.outcome === 'processed' ? res2 : res1;
+
+  assert.equal(winner.mutated, true);
+  assert.equal(loser.mutated, false);
+  assert.equal(loser.code, 'concurrent_processing');
+
+  // STRICT REQUIREMENT: exactly ONE provider state mutation occurred
+  assert.equal(stateMutationCount, 1);
+  assert.equal(db.collections.paypal_subscription_state.size, 1);
+});
+
+test('Expiry Authority: SALE.COMPLETED without authoritative next_billing_time fails closed (no 30-day fabrication)', async () => {
+  const db = createMockDatabases();
+  const users = createMockUsers();
+  const nowMs = Date.parse('2026-09-03T12:00:00.000Z');
+
+  const saleEvent = normalizeEvent({
+    id: 'EVT-NO-AUTHORITATIVE-EXPIRY',
+    event_type: 'PAYMENT.SALE.COMPLETED',
+    create_time: new Date(nowMs).toISOString(),
+    resource: {
+      id: 'TX-NO-EXPIRY',
+      billing_agreement_id: 'I-SUB-NO-EXPIRY',
+      custom_id: QA_USER_ID,
+      plan_id: SANDBOX_PRO_PLAN_ID,
+      // Absolutely no next_billing_time in resource!
+    },
+  });
+
+  const mockFetcher = async (subId) => ({
+    id: subId,
+    status: 'ACTIVE',
+    plan_id: SANDBOX_PRO_PLAN_ID,
+    custom_id: QA_USER_ID,
+    // Upstream PayPal response omits billing_info
+  });
+
+  const result = await processWebhookEvent({
+    databases: db,
+    users,
+    event: saleEvent,
+    nowMs,
+    env: TEST_ENV,
+    subscriptionFetcher: mockFetcher,
+  });
+
+  // STRICT REQUIREMENT: Fail closed! No fabricated +30 days!
+  assert.equal(result.outcome, 'rejected');
+  assert.equal(result.code, 'missing_authoritative_expiry');
+  assert.equal(result.mutated, false);
   assert.equal(db.collections.paypal_subscription_state.size, 0);
 });
