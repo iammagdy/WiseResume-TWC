@@ -1,7 +1,7 @@
 # WiseResume PayPal Subscription Synchronization & Entitlement Resolution
 
-**Last Verified:** 2026-09-03
-**Status:** `PAYPAL_PHASE3_PR_CORRECTED_LOCAL_PASS` — Phase 3 implementation for dedicated Appwrite Function webhook ingress (`paypal-webhook`), signature verification, canonical correlation bridge, idempotency ledger, atomic delete-create crash/timeout recovery lease (`atomicReclaimLedgerReservation`), memoized server-side PayPal subscription snapshot reuse, strict fail-closed authoritative paid-through expiry resolution (zero manufactured 30-day calendar dates), transient vs permanent error classification with retry-safe HTTP 503 responses, pre-payment cancellation invariant enforcement (`expires_at: null`, outcome `Free`), `BILLING.SUBSCRIPTION.UPDATED` entitlement-bearing expiry freeze, Sandbox QA mutation boundary, two-stage deployment bootstrap contract, non-mutating preflight validation before schema mutation, explicit fail-closed environment contract (zero implicit sandbox default), webhook-ID anti-downgrade protection, remote CI PR validation wiring (`.github/workflows/pr-validation.yml`), and multi-provider subscription resolution is complete and verified locally via 104 automated test cases across 12 suites.
+**Last Verified:** 2026-09-04
+**Status:** `PAYPAL_PHASE3_GRACE_INVARIANT_TESTED_LOCAL_PASS` — Phase 3 implementation for dedicated Appwrite Function webhook ingress (`paypal-webhook`), signature verification, canonical correlation bridge, idempotency ledger, single-winner reservation reclamation lease (`atomicReclaimLedgerReservation` via delete-then-create with unique ID constraint), memoized server-side PayPal subscription snapshot reuse, strict fail-closed authoritative paid-through expiry resolution (zero manufactured 30-day calendar dates), retry-safe HTTP 503 transient error classification, failed-payment grace invariant enforcement (no paid grace without prior verified payment; initial payment failure yields Free), terminal event grace preservation (provider `SUSPENDED`/`CANCELLED`/`EXPIRED` cannot shorten active 48-hour app grace), `BILLING.SUBSCRIPTION.UPDATED` entitlement-bearing duration freeze, Sandbox QA mutation boundary, two-stage deployment bootstrap contract, non-mutating preflight validation before schema mutation, explicit fail-closed environment contract (zero implicit sandbox default), webhook-ID anti-downgrade protection, remote CI PR validation wiring (`.github/workflows/pr-validation.yml`), and multi-provider subscription resolution is complete and verified locally via 117 automated test cases across all billing suites (55 tests in `paypal-webhook.test.cjs`).
 **Location:** `Project Atlas/architecture/paypal-subscription-sync.md`
 
 ## Scope and Preserved Contracts
@@ -137,13 +137,13 @@ To guarantee account ownership without trusting client-supplied data or payer em
 4. **Direct Resource `custom_id` Fallback:** If present in event payload, validates user exists in Appwrite Users.
 5. If canonical user cannot be established through these trusted server channels, event is safely recorded in `paypal_event_ledger` with `outcome_code: 'unresolved_user_correlation'` and zero state mutation occurs. Payer email is never trusted.
 
-### 4. Idempotency & Concurrency Reservation Model (`paypal_event_ledger`)
+### 4. Idempotency & Single-Winner Concurrency Reservation (`paypal_event_ledger`)
 - Global uniqueness: Deterministic Document ID `ppe_${sha256(eventId).slice(0, 29)}` and unique `event_id` index.
 - **Write-Order Boundary:** Event identity must be claimed *before* state mutation.
   1. Processor creates a ledger reservation with `processing_status: 'processing'`, `outcome_code: 'in_progress'`.
   2. A concurrent processor receives Appwrite 409 (conflict), inspects the reservation, detects `'processing'` in-flight, and **stops before state mutation** (`outcome: 'duplicate'`, `code: 'concurrent_processing'`).
   3. Redelivery of completed events detects `'processed'`/`'ignored'`/`'rejected'` and returns duplicate without secondary mutation.
-  4. **Hard-Crash / Timeout Recovery Lease:** If a processor crashes, dies, or times out after reserving the event, the reservation has `processing_status: 'processing'`. Any retry arriving after `PROCESSING_RESERVATION_TTL_MS = 60000` (60 seconds) safely re-claims the lease (`outcome_code: 'recovered_abandoned_reservation'`) and executes state mutation. If status is `'failed'`, retries immediately re-claim the lease.
+  4. **Single-Winner Crash/Timeout Recovery Lease:** If a processor crashes, dies, or times out after reserving the event, the reservation has `processing_status: 'processing'`. Any retry arriving after `PROCESSING_RESERVATION_TTL_MS = 60000` (60 seconds) safely reclaims the lease (`atomicReclaimLedgerReservation`) via delete-then-create with the unique document ID constraint. Note that while this is not an Appwrite database transaction, the database-enforced unique ID constraint guarantees that at most one competing recovery delivery can successfully create the replacement reservation document and proceed to state mutation. If status is `'failed'`, retries immediately re-claim the lease.
 
 ### 5. Event Ordering & Equal-Timestamp Determinism
 - Evaluates incoming `event.eventTimestampMs` against `previousState.latest_event_timestamp_ms`.
@@ -159,24 +159,27 @@ To guarantee account ownership without trusting client-supplied data or payer em
 | Event | Status | Plan | `will_renew` | `grace_period_expires_at` | `expires_at` | Description |
 |---|---|---|---|---|---|---|
 | `BILLING.SUBSCRIPTION.ACTIVATED` | `pending_initial_payment` | Valid Pro/Premium | `true` | `null` | `null` | Initial subscription setup; grants **no** paid access until first payment. |
-| `PAYMENT.SALE.COMPLETED` | `active` | Valid Pro/Premium | `true` | `null` | Next billing time | Verified payment; grants/renews active paid access and clears grace. |
-| `BILLING.SUBSCRIPTION.PAYMENT.FAILED` | `billing_issue` | Preserved | `true` | `eventTimestamp + 48h` | `eventTimestamp + 48h` | Failed renewal; activates exactly 48-hour grace period before access drops to Free. |
-| `BILLING.SUBSCRIPTION.CANCELLED` | `canceled` | Preserved | `false` | `null` | Preserved | User/merchant cancellation; retains paid access through already-paid period. |
-| `BILLING.SUBSCRIPTION.SUSPENDED` | `suspended` | Preserved | `false` | `null` | Current / expired | Subscription suspended; immediately loses paid entitlement. |
-| `BILLING.SUBSCRIPTION.EXPIRED` | `expired` | Preserved | `false` | `null` | Current / expired | Subscription expired; immediately loses paid entitlement. |
-| `BILLING.SUBSCRIPTION.UPDATED` | Preserved | **PRESERVED** | Preserved | Preserved | Updated / preserved | Refreshes metadata only; **never elevates paid plan** without verified `PAYMENT.SALE.COMPLETED`. |
+| `PAYMENT.SALE.COMPLETED` | `active` | Valid Pro/Premium | `true` | `null` | Authoritative next billing time | Verified payment; grants/renews active paid access, clears grace. |
+| `BILLING.SUBSCRIPTION.PAYMENT.FAILED` (initial payment) | `billing_issue` | Preserved | `false` | `null` | `null` | Initial payment failure; records billing problem, grants **zero** paid grace and zero paid entitlement (Free). |
+| `BILLING.SUBSCRIPTION.PAYMENT.FAILED` (renewal) | `billing_issue` | Preserved | `true` | `eventTimestamp + 48h` | `eventTimestamp + 48h` | Renewal failure of active subscription; activates exactly 48-hour grace window. |
+| `BILLING.SUBSCRIPTION.PAYMENT.FAILED` (in grace) | `billing_issue` | Preserved | `true` | Preserved original `G` | Preserved original `G` | Distinct or duplicate failure while already in grace; **never extends** grace period. |
+| `BILLING.SUBSCRIPTION.CANCELLED` (in grace) | `billing_issue` | Preserved | `false` | Preserved original `G` | Preserved original `G` | Cancellation during active grace; **must not shorten** the 48-hour app grace. |
+| `BILLING.SUBSCRIPTION.CANCELLED` (outside grace) | `canceled` | Preserved | `false` | `null` | Preserved paid expiry | Normal cancellation; retains paid access through already-paid period if prior verified payment exists; otherwise `null`. |
+| `BILLING.SUBSCRIPTION.SUSPENDED` (in grace) | `billing_issue` | Preserved | `false` | Preserved original `G` | Preserved original `G` | Suspension during active grace; **must not shorten** the 48-hour app grace. |
+| `BILLING.SUBSCRIPTION.SUSPENDED` (outside grace) | `suspended` | Preserved | `false` | `null` | `null` | Subscription suspended outside grace; immediately loses paid entitlement. |
+| `BILLING.SUBSCRIPTION.EXPIRED` (in grace) | `billing_issue` | Preserved | `false` | Preserved original `G` | Preserved original `G` | Expiration during active grace; **must not shorten** the 48-hour app grace. |
+| `BILLING.SUBSCRIPTION.EXPIRED` (outside grace) | `expired` | Preserved | `false` | `null` | `null` | Subscription expired outside grace; immediately loses paid entitlement. |
+| `BILLING.SUBSCRIPTION.UPDATED` | Preserved | **PRESERVED** | Preserved | Preserved | Preserved | Refreshes metadata only; **never elevates paid plan** or extends paid duration without verified payment. |
 | `PAYMENT.SALE.REFUNDED` | N/A | N/A | N/A | N/A | N/A | Ledger-only (`ledger_only_policy_pending`); zero state mutation. |
 | `PAYMENT.SALE.REVERSED` | N/A | N/A | N/A | N/A | N/A | Ledger-only (`ledger_only_policy_pending`); zero state mutation. |
 
 ### 7. 48-Hour Failed Payment Grace Model
-- On `BILLING.SUBSCRIPTION.PAYMENT.FAILED`:
-  - `status = 'billing_issue'`
-  - `grace_period_expires_at = new Date(eventTimestampMs + 48 * 3600 * 1000).toISOString()`
-  - `expires_at = grace_period_expires_at`
-- Shared resolver accepts `status: 'billing_issue'` while `expires_at` is in the future.
-- When 48 hours elapse, resolver drops entitlement to Free.
-- If payment recovery succeeds (`PAYMENT.SALE.COMPLETED`), status reverts to `active` and grace period is cleared.
-- Redelivery of the same failure event is recognized as duplicate and cannot extend the grace period.
+- **Prior-Paid Prerequisite:** An app-level 48-hour grace period applies exclusively to a failed renewal of an active, previously verified paid subscription (`previous.status === 'active'`).
+- **Initial Payment Failure (`pending_initial_payment` + `PAYMENT.FAILED`):** Sets `status = 'billing_issue'`, `grace_period_expires_at = null`, `expires_at = null`, `will_renew = false`. Zero paid entitlement is granted; resolver yields Free.
+- **Preserved Window:** Once an active grace window `G` has started, subsequent failure events (duplicate or distinct) cannot extend `G`.
+- **Terminal Event Grace Preservation:** Provider status events (`SUSPENDED`, `CANCELLED`, `EXPIRED`) arriving while `now < G` must **not** shorten the existing 48-hour window. The normalized state remains `billing_issue` with original grace `G` so the resolver continues to grant access until `G` expires.
+- **Natural Expiration:** Once `G` passes, `isFutureTimestamp(expires_at, nowMs)` evaluates to false, and the resolver naturally drops entitlement to Free.
+- **Recovery:** When a subsequent `PAYMENT.SALE.COMPLETED` arrives, `status = 'active'`, `grace_period_expires_at = null` (grace cleared), and `expires_at` is updated to the authoritative next billing time from PayPal.
 
 ### 8. Refund & Reversal Policy Status
 - In Phase 3, `PAYMENT.SALE.REFUNDED` and `PAYMENT.SALE.REVERSED` are cryptographically verified, deduplicated, and recorded in `paypal_event_ledger` with `processing_status: 'processed'`, `outcome_code: 'ledger_only_policy_pending'`.

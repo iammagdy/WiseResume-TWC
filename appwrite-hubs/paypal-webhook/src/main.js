@@ -462,6 +462,18 @@ function calculateExpiry(event, previousState, subDetails) {
   return resolveAuthoritativeExpiry(event, subDetails);
 }
 
+function hasActivePaidGrace(previousState, referenceTimeMs = Date.now()) {
+  if (!previousState?.grace_period_expires_at) return false;
+  const graceMs = new Date(previousState.grace_period_expires_at).getTime();
+  return Number.isFinite(graceMs) && graceMs > referenceTimeMs;
+}
+
+// Single-winner reservation reclamation:
+// The unique deterministic ledger document ID (`ppe_${sha256(eventId)}`) enforces
+// single-winner reservation semantics for competing recovery deliveries via delete-then-create
+// on Appwrite's unique document ID constraint. Note: this pattern is not an Appwrite database
+// transaction, but the database-enforced unique ID constraint guarantees that at most one
+// recovery delivery can successfully create the replacement reservation document and proceed.
 async function atomicReclaimLedgerReservation(databases, ledgerDocId, payload) {
   try {
     await databases.deleteDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId);
@@ -804,45 +816,78 @@ async function processWebhookEvent({
     }
 
     case 'BILLING.SUBSCRIPTION.PAYMENT.FAILED': {
-      // 48-hour grace period from failure event timestamp
-      const graceExpiresAt = new Date(event.eventTimestampMs + GRACE_PERIOD_MS).toISOString();
       stateUpdate.status = 'billing_issue';
-      if (!previous?.grace_period_expires_at) {
+      stateUpdate.will_renew = true;
+
+      if (previous?.status === 'active') {
+        // Renewal failure on an active, previously verified paid subscription:
+        // Start an authoritative 48-hour app grace window.
+        const graceExpiresAt = new Date(event.eventTimestampMs + GRACE_PERIOD_MS).toISOString();
         stateUpdate.grace_period_expires_at = graceExpiresAt;
         stateUpdate.expires_at = graceExpiresAt;
-      } else {
+      } else if (hasActivePaidGrace(previous, event.eventTimestampMs)) {
+        // Distinct or duplicate failure while already in an active 48-hour grace window:
+        // Strictly preserve the original grace window; never extend it.
         stateUpdate.grace_period_expires_at = previous.grace_period_expires_at;
-        stateUpdate.expires_at = previous.expires_at;
+        stateUpdate.expires_at = previous.expires_at || previous.grace_period_expires_at;
+      } else {
+        // Initial payment failure (e.g. pending_initial_payment) or failure without prior verified paid access:
+        // ZERO paid entitlement. Zero 48-hour paid grace. Zero future expires_at.
+        stateUpdate.grace_period_expires_at = null;
+        stateUpdate.expires_at = null;
+        stateUpdate.will_renew = false;
       }
-      stateUpdate.will_renew = true;
       break;
     }
 
     case 'BILLING.SUBSCRIPTION.CANCELLED':
-      // Cancellation preserves paid access ONLY through already-paid period from verified prior payment.
-      // If user was never active with verified payment, expires_at remains null and outcome is Free.
-      stateUpdate.status = 'canceled';
       stateUpdate.will_renew = false;
-      stateUpdate.grace_period_expires_at = null;
-      if ((previous?.status === 'active' || previous?.status === 'canceled') && previous?.expires_at) {
-        stateUpdate.expires_at = previous.expires_at;
+      if (hasActivePaidGrace(previous, event.eventTimestampMs)) {
+        // Provider status event must not shorten an existing 48-hour app grace from renewal failure.
+        // Remain in billing_issue with the original grace until G expires.
+        stateUpdate.status = 'billing_issue';
+        stateUpdate.grace_period_expires_at = previous.grace_period_expires_at;
+        stateUpdate.expires_at = previous.expires_at || previous.grace_period_expires_at;
       } else {
-        stateUpdate.expires_at = null;
+        // Normal cancellation outside grace:
+        // Cancellation preserves paid access ONLY through already-paid period from verified prior active payment.
+        // If user was never active with verified payment, expires_at remains null and outcome is Free.
+        stateUpdate.status = 'canceled';
+        stateUpdate.grace_period_expires_at = null;
+        if ((previous?.status === 'active' || previous?.status === 'canceled') && previous?.expires_at) {
+          stateUpdate.expires_at = previous.expires_at;
+        } else {
+          stateUpdate.expires_at = null;
+        }
       }
       break;
 
     case 'BILLING.SUBSCRIPTION.SUSPENDED':
-      stateUpdate.status = 'suspended';
       stateUpdate.will_renew = false;
-      stateUpdate.grace_period_expires_at = null;
-      stateUpdate.expires_at = null;
+      if (hasActivePaidGrace(previous, event.eventTimestampMs)) {
+        // Provider status event must not shorten an existing 48-hour app grace from renewal failure.
+        stateUpdate.status = 'billing_issue';
+        stateUpdate.grace_period_expires_at = previous.grace_period_expires_at;
+        stateUpdate.expires_at = previous.expires_at || previous.grace_period_expires_at;
+      } else {
+        stateUpdate.status = 'suspended';
+        stateUpdate.grace_period_expires_at = null;
+        stateUpdate.expires_at = null;
+      }
       break;
 
     case 'BILLING.SUBSCRIPTION.EXPIRED':
-      stateUpdate.status = 'expired';
       stateUpdate.will_renew = false;
-      stateUpdate.grace_period_expires_at = null;
-      stateUpdate.expires_at = null;
+      if (hasActivePaidGrace(previous, event.eventTimestampMs)) {
+        // Provider status event must not shorten an existing 48-hour app grace from renewal failure.
+        stateUpdate.status = 'billing_issue';
+        stateUpdate.grace_period_expires_at = previous.grace_period_expires_at;
+        stateUpdate.expires_at = previous.expires_at || previous.grace_period_expires_at;
+      } else {
+        stateUpdate.status = 'expired';
+        stateUpdate.grace_period_expires_at = null;
+        stateUpdate.expires_at = null;
+      }
       break;
 
     case 'BILLING.SUBSCRIPTION.UPDATED':
@@ -861,7 +906,7 @@ async function processWebhookEvent({
       break;
   }
 
-  // ATOMIC ENTITLEMENT MUTATION WITH CRASH/RETRY PROTECTION:
+  // ENTITLEMENT MUTATION WITH CRASH/RETRY LEASE PROTECTION:
   try {
     await upsertProviderState(databases, stateUpdate, previous);
     await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
@@ -984,6 +1029,7 @@ module.exports.__test = {
   resolvePlanFromId,
   resolveAuthoritativeExpiry,
   calculateExpiry,
+  hasActivePaidGrace,
   atomicReclaimLedgerReservation,
   fetchSubscriptionDetails,
   upsertProviderState,

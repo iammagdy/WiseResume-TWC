@@ -3,6 +3,7 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 const paypalWebhook = require('../../appwrite-hubs/paypal-webhook/src/main.js');
+const { resolveEffectivePlan } = require('../../appwrite-hubs/shared-subscription-resolver/index.js');
 const {
   SANDBOX_PRO_PLAN_ID,
   SANDBOX_ULTIMATE_PLAN_ID,
@@ -609,6 +610,19 @@ test('Recovery: recovered PAYMENT.FAILED -> exactly one 48-hour grace calculatio
     event_type: 'BILLING.SUBSCRIPTION.PAYMENT.FAILED',
     create_time: new Date(eventTimeMs).toISOString(),
     resource: { id: 'I-SUB-RECOVER-FAIL', custom_id: QA_USER_ID, plan_id: SANDBOX_PRO_PLAN_ID },
+  });
+
+  // Pre-seed verified active state (renewal failure requires prior active paid subscription)
+  db.collections.paypal_subscription_state.set(paypalWebhook.__test.stateDocumentId(QA_USER_ID), {
+    $id: paypalWebhook.__test.stateDocumentId(QA_USER_ID),
+    user_id: QA_USER_ID,
+    plan: 'pro',
+    subscription_id: 'I-SUB-RECOVER-FAIL',
+    plan_id: SANDBOX_PRO_PLAN_ID,
+    environment: 'sandbox',
+    status: 'active',
+    expires_at: new Date(eventTimeMs).toISOString(),
+    latest_event_timestamp_ms: eventTimeMs - 1000,
   });
 
   // Pre-seed abandoned processing reservation (from crash)
@@ -1711,4 +1725,448 @@ test('Expiry Authority: SALE.COMPLETED without authoritative next_billing_time f
   assert.equal(result.code, 'missing_authoritative_expiry');
   assert.equal(result.mutated, false);
   assert.equal(db.collections.paypal_subscription_state.size, 0);
+});
+
+// ==================================================
+// Section 11: Failed-Payment Grace Invariant & Terminal Event Preservation Regression Matrix
+// ==================================================
+
+test('Invariant 1: ACTIVATED -> PAYMENT.FAILED results in Free and zero future paid expires_at', async () => {
+  const db = createMockDatabases();
+  const users = createMockUsers();
+  const nowMs = Date.parse('2026-09-03T12:00:00.000Z');
+
+  // Step 1: ACTIVATED
+  const actEvent = normalizeEvent({
+    id: 'EVT-INV1-ACT',
+    event_type: 'BILLING.SUBSCRIPTION.ACTIVATED',
+    create_time: new Date(nowMs).toISOString(),
+    resource: { id: 'I-SUB-INV1', custom_id: QA_USER_ID, plan_id: SANDBOX_PRO_PLAN_ID },
+  });
+  await processWebhookEvent({ databases: db, users, event: actEvent, nowMs, env: TEST_ENV });
+
+  // Step 2: Initial payment fails
+  const failEvent = normalizeEvent({
+    id: 'EVT-INV1-FAIL',
+    event_type: 'BILLING.SUBSCRIPTION.PAYMENT.FAILED',
+    create_time: new Date(nowMs + 60000).toISOString(),
+    resource: { id: 'I-SUB-INV1', custom_id: QA_USER_ID, plan_id: SANDBOX_PRO_PLAN_ID },
+  });
+
+  const result = await processWebhookEvent({ databases: db, users, event: failEvent, nowMs: nowMs + 60000, env: TEST_ENV });
+  assert.equal(result.outcome, 'processed');
+  assert.equal(result.status, 'billing_issue');
+  assert.equal(result.effectivePlan, 'free'); // STRICT REQUIREMENT: Free entitlement!
+
+  const state = db.collections.paypal_subscription_state.get(paypalWebhook.__test.stateDocumentId(QA_USER_ID));
+  assert.equal(state.status, 'billing_issue');
+  assert.equal(state.expires_at, null); // Zero future paid expires_at!
+  assert.equal(state.grace_period_expires_at, null); // Zero 48-hour paid grace!
+  assert.equal(state.will_renew, false);
+});
+
+test('Invariant 2: SALE.COMPLETED -> active -> PAYMENT.FAILED starts exactly 48-hour grace', async () => {
+  const db = createMockDatabases();
+  const users = createMockUsers();
+  const nowMs = Date.parse('2026-09-03T12:00:00.000Z');
+  const paidBillingTime = '2026-10-03T12:00:00.000Z';
+
+  // Step 1: Verified initial payment creates active Pro
+  const saleEvent = normalizeEvent({
+    id: 'EVT-INV2-SALE',
+    event_type: 'PAYMENT.SALE.COMPLETED',
+    create_time: new Date(nowMs).toISOString(),
+    resource: {
+      id: 'TX-INV2-1',
+      billing_agreement_id: 'I-SUB-INV2',
+      custom_id: QA_USER_ID,
+      plan_id: SANDBOX_PRO_PLAN_ID,
+      billing_info: { next_billing_time: paidBillingTime },
+    },
+  });
+  await processWebhookEvent({ databases: db, users, event: saleEvent, nowMs, env: TEST_ENV });
+
+  // Step 2: Renewal payment fails at next renewal cycle
+  const failTimeMs = Date.parse(paidBillingTime);
+  const failEvent = normalizeEvent({
+    id: 'EVT-INV2-FAIL',
+    event_type: 'BILLING.SUBSCRIPTION.PAYMENT.FAILED',
+    create_time: new Date(failTimeMs).toISOString(),
+    resource: { id: 'I-SUB-INV2', custom_id: QA_USER_ID, plan_id: SANDBOX_PRO_PLAN_ID },
+  });
+
+  const failResult = await processWebhookEvent({ databases: db, users, event: failEvent, nowMs: failTimeMs, env: TEST_ENV });
+  assert.equal(failResult.outcome, 'processed');
+  assert.equal(failResult.status, 'billing_issue');
+  assert.equal(failResult.effectivePlan, 'pro'); // Preserves Pro during grace!
+
+  const expectedGraceIso = new Date(failTimeMs + 48 * 3600 * 1000).toISOString();
+  const state = db.collections.paypal_subscription_state.get(paypalWebhook.__test.stateDocumentId(QA_USER_ID));
+  assert.equal(state.grace_period_expires_at, expectedGraceIso);
+  assert.equal(state.expires_at, expectedGraceIso);
+});
+
+test('Invariant 3: duplicate same PAYMENT.FAILED leaves grace unchanged', async () => {
+  const db = createMockDatabases();
+  const users = createMockUsers();
+  const failTimeMs = Date.parse('2026-10-03T12:00:00.000Z');
+  const expectedGraceIso = new Date(failTimeMs + 48 * 3600 * 1000).toISOString();
+
+  // Seed active Pro prior to failure
+  db.collections.paypal_subscription_state.set(paypalWebhook.__test.stateDocumentId(QA_USER_ID), {
+    $id: paypalWebhook.__test.stateDocumentId(QA_USER_ID),
+    user_id: QA_USER_ID,
+    plan: 'pro',
+    subscription_id: 'I-SUB-INV3',
+    plan_id: SANDBOX_PRO_PLAN_ID,
+    environment: 'sandbox',
+    status: 'active',
+    expires_at: '2026-10-03T12:00:00.000Z',
+    latest_event_timestamp_ms: failTimeMs - 1000,
+  });
+
+  const failEvent = normalizeEvent({
+    id: 'EVT-INV3-FAIL',
+    event_type: 'BILLING.SUBSCRIPTION.PAYMENT.FAILED',
+    create_time: new Date(failTimeMs).toISOString(),
+    resource: { id: 'I-SUB-INV3', custom_id: QA_USER_ID, plan_id: SANDBOX_PRO_PLAN_ID },
+  });
+
+  await processWebhookEvent({ databases: db, users, event: failEvent, nowMs: failTimeMs, env: TEST_ENV });
+
+  // Duplicate arrives 10 minutes later
+  const dupResult = await processWebhookEvent({ databases: db, users, event: failEvent, nowMs: failTimeMs + 600000, env: TEST_ENV });
+  assert.equal(dupResult.outcome, 'duplicate');
+  assert.equal(dupResult.mutated, false);
+
+  const state = db.collections.paypal_subscription_state.get(paypalWebhook.__test.stateDocumentId(QA_USER_ID));
+  assert.equal(state.grace_period_expires_at, expectedGraceIso); // STRICT: Unchanged!
+});
+
+test('Invariant 4: distinct later PAYMENT.FAILED while already in grace leaves grace unchanged', async () => {
+  const db = createMockDatabases();
+  const users = createMockUsers();
+  const t0Ms = Date.parse('2026-10-03T12:00:00.000Z');
+  const originalGraceIso = new Date(t0Ms + 48 * 3600 * 1000).toISOString();
+
+  // Seed active Pro state
+  db.collections.paypal_subscription_state.set(paypalWebhook.__test.stateDocumentId(QA_USER_ID), {
+    $id: paypalWebhook.__test.stateDocumentId(QA_USER_ID),
+    user_id: QA_USER_ID,
+    plan: 'pro',
+    subscription_id: 'I-SUB-INV4',
+    plan_id: SANDBOX_PRO_PLAN_ID,
+    environment: 'sandbox',
+    status: 'active',
+    expires_at: '2026-10-03T12:00:00.000Z',
+    latest_event_timestamp_ms: t0Ms - 1000,
+  });
+
+  // First failure at t0 starts 48h grace
+  const fail1 = normalizeEvent({
+    id: 'EVT-INV4-FAIL-1',
+    event_type: 'BILLING.SUBSCRIPTION.PAYMENT.FAILED',
+    create_time: new Date(t0Ms).toISOString(),
+    resource: { id: 'I-SUB-INV4', custom_id: QA_USER_ID, plan_id: SANDBOX_PRO_PLAN_ID },
+  });
+  await processWebhookEvent({ databases: db, users, event: fail1, nowMs: t0Ms, env: TEST_ENV });
+
+  // Distinct second failure arrives 12 hours later (while still in grace)
+  const t12hMs = t0Ms + 12 * 3600 * 1000;
+  const fail2 = normalizeEvent({
+    id: 'EVT-INV4-FAIL-2',
+    event_type: 'BILLING.SUBSCRIPTION.PAYMENT.FAILED',
+    create_time: new Date(t12hMs).toISOString(),
+    resource: { id: 'I-SUB-INV4', custom_id: QA_USER_ID, plan_id: SANDBOX_PRO_PLAN_ID },
+  });
+
+  const res2 = await processWebhookEvent({ databases: db, users, event: fail2, nowMs: t12hMs, env: TEST_ENV });
+  assert.equal(res2.outcome, 'processed');
+
+  const state = db.collections.paypal_subscription_state.get(paypalWebhook.__test.stateDocumentId(QA_USER_ID));
+  // STRICT: Original grace is preserved; NOT extended to t12h + 48h!
+  assert.equal(state.grace_period_expires_at, originalGraceIso);
+  assert.equal(state.expires_at, originalGraceIso);
+});
+
+test('Invariant 5: billing_issue -> SUSPENDED during grace preserves original grace window', async () => {
+  const db = createMockDatabases();
+  const users = createMockUsers();
+  const t0Ms = Date.parse('2026-10-03T12:00:00.000Z');
+  const originalGraceIso = new Date(t0Ms + 48 * 3600 * 1000).toISOString();
+
+  // Pre-seed billing_issue state in active grace
+  db.collections.paypal_subscription_state.set(paypalWebhook.__test.stateDocumentId(QA_USER_ID), {
+    $id: paypalWebhook.__test.stateDocumentId(QA_USER_ID),
+    user_id: QA_USER_ID,
+    plan: 'pro',
+    subscription_id: 'I-SUB-INV5',
+    plan_id: SANDBOX_PRO_PLAN_ID,
+    environment: 'sandbox',
+    status: 'billing_issue',
+    grace_period_expires_at: originalGraceIso,
+    expires_at: originalGraceIso,
+    latest_event_timestamp_ms: t0Ms,
+  });
+
+  // SUSPENDED event arrives 10 hours into grace
+  const t10hMs = t0Ms + 10 * 3600 * 1000;
+  const suspEvent = normalizeEvent({
+    id: 'EVT-INV5-SUSP',
+    event_type: 'BILLING.SUBSCRIPTION.SUSPENDED',
+    create_time: new Date(t10hMs).toISOString(),
+    resource: { id: 'I-SUB-INV5' },
+  });
+
+  const result = await processWebhookEvent({ databases: db, users, event: suspEvent, nowMs: t10hMs, env: TEST_ENV });
+  assert.equal(result.outcome, 'processed');
+  assert.equal(result.effectivePlan, 'pro'); // STRICT: Still Pro during active grace!
+
+  const state = db.collections.paypal_subscription_state.get(paypalWebhook.__test.stateDocumentId(QA_USER_ID));
+  assert.equal(state.status, 'billing_issue'); // Preserves billing_issue for resolver
+  assert.equal(state.grace_period_expires_at, originalGraceIso); // Preserved G
+  assert.equal(state.expires_at, originalGraceIso); // Preserved G
+  assert.equal(state.latest_event_type, 'BILLING.SUBSCRIPTION.SUSPENDED');
+});
+
+test('Invariant 6: billing_issue -> CANCELLED during grace preserves original grace window', async () => {
+  const db = createMockDatabases();
+  const users = createMockUsers();
+  const t0Ms = Date.parse('2026-10-03T12:00:00.000Z');
+  const originalGraceIso = new Date(t0Ms + 48 * 3600 * 1000).toISOString();
+
+  // Pre-seed billing_issue state in active grace
+  db.collections.paypal_subscription_state.set(paypalWebhook.__test.stateDocumentId(QA_USER_ID), {
+    $id: paypalWebhook.__test.stateDocumentId(QA_USER_ID),
+    user_id: QA_USER_ID,
+    plan: 'pro',
+    subscription_id: 'I-SUB-INV6',
+    plan_id: SANDBOX_PRO_PLAN_ID,
+    environment: 'sandbox',
+    status: 'billing_issue',
+    grace_period_expires_at: originalGraceIso,
+    expires_at: originalGraceIso,
+    latest_event_timestamp_ms: t0Ms,
+  });
+
+  // CANCELLED arrives 10 hours into grace
+  const t10hMs = t0Ms + 10 * 3600 * 1000;
+  const cancelEvent = normalizeEvent({
+    id: 'EVT-INV6-CANCEL',
+    event_type: 'BILLING.SUBSCRIPTION.CANCELLED',
+    create_time: new Date(t10hMs).toISOString(),
+    resource: { id: 'I-SUB-INV6' },
+  });
+
+  const result = await processWebhookEvent({ databases: db, users, event: cancelEvent, nowMs: t10hMs, env: TEST_ENV });
+  assert.equal(result.outcome, 'processed');
+  assert.equal(result.effectivePlan, 'pro'); // STRICT: Still Pro during active grace!
+
+  const state = db.collections.paypal_subscription_state.get(paypalWebhook.__test.stateDocumentId(QA_USER_ID));
+  assert.equal(state.status, 'billing_issue');
+  assert.equal(state.grace_period_expires_at, originalGraceIso);
+  assert.equal(state.expires_at, originalGraceIso);
+  assert.equal(state.latest_event_type, 'BILLING.SUBSCRIPTION.CANCELLED');
+});
+
+test('Invariant 7: billing_issue -> EXPIRED during grace preserves original grace window', async () => {
+  const db = createMockDatabases();
+  const users = createMockUsers();
+  const t0Ms = Date.parse('2026-10-03T12:00:00.000Z');
+  const originalGraceIso = new Date(t0Ms + 48 * 3600 * 1000).toISOString();
+
+  // Pre-seed billing_issue state in active grace
+  db.collections.paypal_subscription_state.set(paypalWebhook.__test.stateDocumentId(QA_USER_ID), {
+    $id: paypalWebhook.__test.stateDocumentId(QA_USER_ID),
+    user_id: QA_USER_ID,
+    plan: 'pro',
+    subscription_id: 'I-SUB-INV7',
+    plan_id: SANDBOX_PRO_PLAN_ID,
+    environment: 'sandbox',
+    status: 'billing_issue',
+    grace_period_expires_at: originalGraceIso,
+    expires_at: originalGraceIso,
+    latest_event_timestamp_ms: t0Ms,
+  });
+
+  // EXPIRED arrives 10 hours into grace
+  const t10hMs = t0Ms + 10 * 3600 * 1000;
+  const expEvent = normalizeEvent({
+    id: 'EVT-INV7-EXP',
+    event_type: 'BILLING.SUBSCRIPTION.EXPIRED',
+    create_time: new Date(t10hMs).toISOString(),
+    resource: { id: 'I-SUB-INV7' },
+  });
+
+  const result = await processWebhookEvent({ databases: db, users, event: expEvent, nowMs: t10hMs, env: TEST_ENV });
+  assert.equal(result.outcome, 'processed');
+  assert.equal(result.effectivePlan, 'pro');
+
+  const state = db.collections.paypal_subscription_state.get(paypalWebhook.__test.stateDocumentId(QA_USER_ID));
+  assert.equal(state.status, 'billing_issue');
+  assert.equal(state.grace_period_expires_at, originalGraceIso);
+  assert.equal(state.expires_at, originalGraceIso);
+  assert.equal(state.latest_event_type, 'BILLING.SUBSCRIPTION.EXPIRED');
+});
+
+test('Invariant 8: after grace timestamp passes resolver naturally yields Free', async () => {
+  const t0Ms = Date.parse('2026-10-03T12:00:00.000Z');
+  const graceExpiresMs = t0Ms + 48 * 3600 * 1000;
+  const graceExpiresIso = new Date(graceExpiresMs).toISOString();
+
+  const state = {
+    $id: paypalWebhook.__test.stateDocumentId(QA_USER_ID),
+    user_id: QA_USER_ID,
+    plan: 'pro',
+    subscription_id: 'I-SUB-INV8',
+    plan_id: SANDBOX_PRO_PLAN_ID,
+    environment: 'sandbox',
+    status: 'billing_issue',
+    grace_period_expires_at: graceExpiresIso,
+    expires_at: graceExpiresIso,
+  };
+
+  // 1 minute after grace has expired
+  const afterGraceMs = graceExpiresMs + 60000;
+  const planAfter = resolveEffectivePlan({
+    paypalProviderState: state,
+    paypalProviderEnvironment: 'sandbox',
+    qaUserId: QA_USER_ID,
+    userId: QA_USER_ID,
+    nowMs: afterGraceMs,
+  });
+
+  // STRICT REQUIREMENT: Resolver naturally returns Free after grace passes!
+  assert.equal(planAfter.plan, 'free');
+});
+
+test('Invariant 9: pending_initial_payment -> CANCELLED yields Free with null expires_at', async () => {
+  const db = createMockDatabases();
+  const users = createMockUsers();
+  const nowMs = Date.parse('2026-09-03T12:00:00.000Z');
+
+  // ACTIVATED sets pending_initial_payment
+  const actEvent = normalizeEvent({
+    id: 'EVT-INV9-ACT',
+    event_type: 'BILLING.SUBSCRIPTION.ACTIVATED',
+    create_time: new Date(nowMs).toISOString(),
+    resource: { id: 'I-SUB-INV9', custom_id: QA_USER_ID, plan_id: SANDBOX_PRO_PLAN_ID },
+  });
+  await processWebhookEvent({ databases: db, users, event: actEvent, nowMs, env: TEST_ENV });
+
+  // CANCELLED arrives before payment
+  const cancelEvent = normalizeEvent({
+    id: 'EVT-INV9-CANCEL',
+    event_type: 'BILLING.SUBSCRIPTION.CANCELLED',
+    create_time: new Date(nowMs + 60000).toISOString(),
+    resource: { id: 'I-SUB-INV9' },
+  });
+
+  const result = await processWebhookEvent({ databases: db, users, event: cancelEvent, nowMs: nowMs + 60000, env: TEST_ENV });
+  assert.equal(result.outcome, 'processed');
+  assert.equal(result.status, 'canceled');
+  assert.equal(result.effectivePlan, 'free');
+
+  const state = db.collections.paypal_subscription_state.get(paypalWebhook.__test.stateDocumentId(QA_USER_ID));
+  assert.equal(state.status, 'canceled');
+  assert.equal(state.expires_at, null);
+  assert.equal(state.grace_period_expires_at, null);
+});
+
+test('Invariant 10: active -> CANCELLED without billing issue preserves existing paid expiry only', async () => {
+  const db = createMockDatabases();
+  const users = createMockUsers();
+  const nowMs = Date.parse('2026-09-03T12:00:00.000Z');
+  const paidExpiryIso = '2026-09-28T12:00:00.000Z'; // 25 days paid remaining
+
+  // Pre-seed active state with 25 days remaining
+  db.collections.paypal_subscription_state.set(paypalWebhook.__test.stateDocumentId(QA_USER_ID), {
+    $id: paypalWebhook.__test.stateDocumentId(QA_USER_ID),
+    user_id: QA_USER_ID,
+    plan: 'pro',
+    subscription_id: 'I-SUB-INV10',
+    plan_id: SANDBOX_PRO_PLAN_ID,
+    environment: 'sandbox',
+    status: 'active',
+    expires_at: paidExpiryIso,
+    latest_event_timestamp_ms: nowMs,
+  });
+
+  // Normal cancellation
+  const cancelEvent = normalizeEvent({
+    id: 'EVT-INV10-CANCEL',
+    event_type: 'BILLING.SUBSCRIPTION.CANCELLED',
+    create_time: new Date(nowMs + 60000).toISOString(),
+    resource: { id: 'I-SUB-INV10' },
+  });
+
+  const result = await processWebhookEvent({ databases: db, users, event: cancelEvent, nowMs: nowMs + 60000, env: TEST_ENV });
+  assert.equal(result.outcome, 'processed');
+  assert.equal(result.status, 'canceled');
+  assert.equal(result.effectivePlan, 'pro'); // Still Pro while within paidExpiry!
+
+  const state = db.collections.paypal_subscription_state.get(paypalWebhook.__test.stateDocumentId(QA_USER_ID));
+  assert.equal(state.status, 'canceled');
+  assert.equal(state.expires_at, paidExpiryIso);
+  assert.equal(state.will_renew, false);
+  assert.equal(state.grace_period_expires_at, null);
+
+  // After paidExpiry passes -> Free
+  const afterPaidExpiryMs = Date.parse(paidExpiryIso) + 60000;
+  const planAfter = resolveEffectivePlan({
+    paypalProviderState: state,
+    paypalProviderEnvironment: 'sandbox',
+    qaUserId: QA_USER_ID,
+    userId: QA_USER_ID,
+    nowMs: afterPaidExpiryMs,
+  });
+  assert.equal(planAfter.plan, 'free');
+});
+
+test('Invariant 11: PAYMENT.SALE.COMPLETED recovery during grace restores active, clears grace, requires authoritative expiry', async () => {
+  const db = createMockDatabases();
+  const users = createMockUsers();
+  const t0Ms = Date.parse('2026-10-03T12:00:00.000Z');
+  const originalGraceIso = new Date(t0Ms + 48 * 3600 * 1000).toISOString();
+  const newCycleExpiryIso = '2026-11-03T12:00:00.000Z';
+
+  // In active grace following renewal failure
+  db.collections.paypal_subscription_state.set(paypalWebhook.__test.stateDocumentId(QA_USER_ID), {
+    $id: paypalWebhook.__test.stateDocumentId(QA_USER_ID),
+    user_id: QA_USER_ID,
+    plan: 'pro',
+    subscription_id: 'I-SUB-INV11',
+    plan_id: SANDBOX_PRO_PLAN_ID,
+    environment: 'sandbox',
+    status: 'billing_issue',
+    grace_period_expires_at: originalGraceIso,
+    expires_at: originalGraceIso,
+    latest_event_timestamp_ms: t0Ms,
+  });
+
+  // Successful payment recovery arrives 24 hours into grace
+  const t24hMs = t0Ms + 24 * 3600 * 1000;
+  const recoverySale = normalizeEvent({
+    id: 'EVT-INV11-RECOVERY-SALE',
+    event_type: 'PAYMENT.SALE.COMPLETED',
+    create_time: new Date(t24hMs).toISOString(),
+    resource: {
+      id: 'TX-INV11-REC',
+      billing_agreement_id: 'I-SUB-INV11',
+      custom_id: QA_USER_ID,
+      plan_id: SANDBOX_PRO_PLAN_ID,
+      billing_info: { next_billing_time: newCycleExpiryIso },
+    },
+  });
+
+  const result = await processWebhookEvent({ databases: db, users, event: recoverySale, nowMs: t24hMs, env: TEST_ENV });
+  assert.equal(result.outcome, 'processed');
+  assert.equal(result.status, 'active');
+  assert.equal(result.effectivePlan, 'pro');
+
+  const state = db.collections.paypal_subscription_state.get(paypalWebhook.__test.stateDocumentId(QA_USER_ID));
+  assert.equal(state.status, 'active');
+  assert.equal(state.grace_period_expires_at, null); // Grace cleared!
+  assert.equal(state.expires_at, newCycleExpiryIso); // Authoritative new expiry from PayPal!
+  assert.equal(state.will_renew, true);
 });

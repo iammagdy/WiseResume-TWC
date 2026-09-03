@@ -1,5 +1,20 @@
 # WiseResume Atlas Master Changelog
 
+### 2026-09-04 - PayPal Sandbox Integration Phase 3: Final Failed-Payment Grace Invariant & Terminal Event Preservation
+
+- **Workstream Verdict:** `PAYPAL_PHASE3_GRACE_INVARIANT_TESTED_LOCAL_PASS`.
+- **Git Branch:** `feat/paypal-sandbox-phase3` (PR #286).
+- **Scope:** Strict failed-payment grace invariant enforcement (no paid grace without prior verified payment), initial payment failure zero-grace handling (`expires_at: null`, Free), preservation of existing 48-hour app grace against provider terminal events (`SUSPENDED`, `CANCELLED`, `EXPIRED`), single-winner concurrency reservation documentation correction (non-transactional delete-then-create with unique ID constraint), and comprehensive 11-test regression matrix.
+- **Core Improvements & Fixes:**
+  - **No Paid Grace Without Prior Verified Payment:** Initial payment failure on a newly activated subscription (`ACTIVATED` -> `pending_initial_payment` -> `PAYMENT.FAILED`) records that a billing issue occurred (`status: 'billing_issue'`, `latest_event_type: 'BILLING.SUBSCRIPTION.PAYMENT.FAILED'`) but writes `expires_at: null` and `grace_period_expires_at: null`. Zero paid entitlement is granted; resolver outcome is Free.
+  - **48-Hour Grace Requires Prior Verified Paid Access:** Only starts a new 48-hour grace window when previous provider state proves active paid access (`previous.status === 'active'`).
+  - **Grace Extension Prevention:** Subsequent or distinct failure events arriving while already in an active grace window strictly preserve the original grace timestamp `G` and never extend it.
+  - **Terminal Event Grace Preservation:** Provider status events (`SUSPENDED`, `CANCELLED`, `EXPIRED`) arriving during an active 48-hour app grace window must not shorten the user's entitlement. State remains `billing_issue` with original grace `G` until `G` expires, naturally returning Free.
+  - **Terminal Events Outside Grace:** Normal cancellations outside grace retain already-paid expiry only if prior payment was verified; otherwise `expires_at: null`. Suspension or expiration outside grace immediately drops to Free.
+  - **Payment Recovery During Grace:** `PAYMENT.SALE.COMPLETED` restores `active`, clears `grace_period_expires_at: null`, sets `will_renew: true`, and establishes authoritative new next billing time from PayPal.
+  - **Concurrency Documentation Clarification:** Corrected documentation and comments so `atomicReclaimLedgerReservation` is accurately described as single-winner reservation semantics via delete-then-create with unique document ID constraint, rather than a database transaction.
+  - **Tests:** 55/55 tests pass in `paypal-webhook.test.cjs` (added Section 11 with 11 dedicated invariant tests); 117/117 tests pass across the entire billing contract test matrix.
+
 ### 2026-09-03 - PayPal Sandbox Integration Phase 3: Pre-Merge Real Lifecycle Correction
 
 - **Workstream Verdict:** `PAYPAL_PHASE3_PR_CORRECTED_LOCAL_PASS`.
