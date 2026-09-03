@@ -19,8 +19,8 @@
 >
 > 1. **Confirmed Product Bug — Serverless Native PDF Export Failure (`/api/export/pdf-native`):**  
 >    Both **Designed PDF** and **ATS-Focused PDF** fail 100% of the time with **HTTP 500 `FUNCTION_INVOCATION_FAILED`** on `https://wiseresume.app/api/export/pdf-native`. Detailed diagnosis proves this occurs at **Stage 2: Module import / bootstrapping failure BEFORE handler execution**. The blast radius is 100% of all PDF exports across the entire application.
-> 2. **Confirmed Architectural Defect — AI Studio Synchronous Function Timeout (HTTP 408):**  
->    Synchronous AI Studio tools (e.g. `executeLinkedInOptimizer`) hit **HTTP 408 Request Timeout** from Appwrite Cloud because model execution (>25s) exceeds Appwrite's 15-second synchronous function limit. In contrast, `tailor-resume` works because it implements asynchronous execution (`async: true`) and status polling.
+> 2. **Confirmed Architectural Defect — AI Studio Synchronous Function Timeout (HTTP 408) (SEPARATE P1 REMEDIATION WORKSTREAM — NOT PART OF PR #275):**
+>    Synchronous AI Studio tools (e.g. `executeLinkedInOptimizer`) hit **HTTP 408 Request Timeout** from Appwrite Cloud because model execution (>25s) exceeds Appwrite's 15-second synchronous function limit. In contrast, `tailor-resume` works because it implements asynchronous execution (`async: true`) and status polling. This is tracked as a dedicated follow-up workstream and is not modified in PR #275.
 > 3. **Billing System Correctly Disabled (`BILLING_CHECKOUT_ENABLED=false`):**  
 >    Paddle rejected the merchant onboarding on 2026-08-31 due to AUP category restrictions. The production system correctly fails closed with disabled checkouts until an alternative provider (e.g., Stripe) is integrated.
 > 4. **Arabic Guides Editorial Review Notice:**  
@@ -123,7 +123,7 @@ Every visible shipped AI Studio tool was executed against production `https://wi
 | **AI Resume Enhance** | `enhance` | **HTTP 201** (when sections manually selected) | Appwrite `ai-gateway` | Section diff comparing original text with improved active-voice phrasing | 0 (Ultimate Unlimited) | Apply button mutates resumeStore and persists to Appwrite database | **`PARTIAL (PRODUCT DEFECT)`** |
 
 ### Root Cause Analysis for AI Studio Defects:
-- **LinkedIn Optimizer Timeout (HTTP 408):** In `src/lib/appwrite-functions.ts`, `tailor-resume` uses asynchronous execution (`functions.createExecution(functionId, executionBody, true)`) followed by status polling. However, all other features (including `linkedin` and `enhance`) execute synchronously (`false`). Because generating a complete LinkedIn profile (5 headlines, 3 About variants, experience rewrites, skills, and tips) takes >25 seconds, Appwrite Cloud terminates the connection after 15 seconds with **HTTP 408 Request Timeout**.
+- **LinkedIn Optimizer Timeout (HTTP 408) (SEPARATE P1 REMEDIATION WORKSTREAM):** In `src/lib/appwrite-functions.ts`, `tailor-resume` uses asynchronous execution (`functions.createExecution(functionId, executionBody, true)`) followed by status polling. However, all other features (including `linkedin` and `enhance`) execute synchronously (`false`). Because generating a complete LinkedIn profile (5 headlines, 3 About variants, experience rewrites, skills, and tips) takes >25 seconds, Appwrite Cloud terminates the connection after 15 seconds with **HTTP 408 Request Timeout**. *(Tracked separately; not modified in PR #275).*
 - **AI Resume Enhance Initial State:** The Enhance button initializes in a disabled state because `selectedSections` defaults to an empty set (`new Set()`). Users must explicitly locate and click "Select All" (`Select All`) before the tool can be triggered.
 
 ---
@@ -144,24 +144,23 @@ All downloads were captured via real browser events and inspected on disk:
 
 ## 5. In-Depth Technical Investigation: PDF Export Failure
 
-### Current Status: `ROOT_CAUSE_UNCONFIRMED`
-Per strict audit instructions, because Vercel hides internal runtime stack traces behind `FUNCTION_INVOCATION_FAILED`, the exact line-level root cause is categorized as **`ROOT_CAUSE_UNCONFIRMED`**. The evidence required to confirm it is the Vercel Function runtime log from the Vercel Dashboard for request IDs:
-- `fra1::p87rq-1788357798056-a54bca310559`
-- `fra1::pwfql-1788416373160-7cfda23dfec2`
+### Root Cause Classification: `ROOT_CAUSE_HIGH_CONFIDENCE_NOT_PRODUCTION_PROVEN`
 
-### Confirmed Failure Stage: Stage 2 (Bootstrapping / Import Failure)
-Testing proves that the serverless function fails **BEFORE** entering the handler function:
-1. `GET https://wiseresume.app/api/export/pdf-native` returns **HTTP 500 `FUNCTION_INVOCATION_FAILED`** (`fra1::pwfql-1788416373160-7cfda23dfec2`).
-2. Inspection of `api/export/pdf-native.ts`:
-   - Line 881: `if (req.method !== 'POST') return res.status(405).json({ error: 'method_not_allowed' });`
-   - Line 886: `if (!jwtToken) return res.status(401).json({ error: 'unauthorized' });`
-3. If the function booted successfully, a `GET` request would return **HTTP 405 Method Not Allowed**, and an unauthenticated `POST` would return **HTTP 401 Unauthorized**.
-4. In comparison, `GET /api/app-settings` returns **HTTP 200**, and `GET /api/broadcasts` returns **HTTP 401 `{"error":"unauthorized"}`** directly from handler code.
-5. **Conclusion:** The Node.js process crashes during top-level module import or Vercel serverless bootstrapping before `export default async function handler` is executed.
+#### Proven Facts
+1. Production `POST https://wiseresume.app/api/export/pdf-native` returns **HTTP 500 `FUNCTION_INVOCATION_FAILED`**.
+2. Production `GET https://wiseresume.app/api/export/pdf-native` also fails before handler method validation (line 881: `if (req.method !== 'POST')`).
+3. Therefore, the failure occurs during serverless container bootstrapping / module evaluation before normal handler execution.
+4. Historical commit `4829c791` deleted `vercel.json`'s `functions` configuration (`includeFiles: "node_modules/@sparticuz/chromium/**"`), and commit `eb9059cf` restored a static top-level import.
+5. Current `@sparticuz/chromium` package requires runtime browser binary files (`chromium.br`, 64.1MB) loaded via dynamic file reads that are not ordinary static JS imports and are not traced by `@vercel/nft` without explicit configuration.
+6. Local remediation restores explicit Chromium package inclusion in `vercel.json` and lazy dynamic loading inside the handler.
+7. Local tests, production build, and serverless bundle evaluation simulation pass cleanly.
 
-### Leading Hypotheses for the Bootstrapping Crash:
-1. **Node Runtime Mismatch:** In `package.json`, `@sparticuz/chromium` is installed at version `148.0.0`. Its `package.json` strictly specifies `"engines": { "node": ">=22.17.0" }`. However, Vercel's default Node.js runtime for serverless functions is Node 20.x unless explicitly configured.
-2. **Missing Binary Tracing in `vercel.json`:** `@sparticuz/chromium/bin/chromium.br` is a 64.1 MB compressed Brotli binary. In `vercel.json`, there is no `functions` configuration block specifying `includeFiles: "node_modules/@sparticuz/chromium/bin/**"`, `maxDuration`, or `memory`.
+#### High-Confidence Inference
+The missing Chromium packaging combined with eager top-level module loading is the likely cause of the production pre-handler container crash.
+
+#### NOT Proven Yet
+- The exact runtime exception (such as `ERR_MODULE_NOT_FOUND`) cannot be claimed as production fact because Vercel suppresses container stderr/stack traces behind generic error headers (`x-vercel-error: FUNCTION_INVOCATION_FAILED`).
+- Production deployment and live container verification remain the final confirmation.
 
 ### Blast Radius Analysis (100% of PDF Call-Sites):
 Static analysis maps all frontend callers to `src/lib/nativePdfGenerator.ts` (`callPdfServer`), which exclusively posts to `/api/export/pdf-native`:
@@ -174,7 +173,7 @@ Static analysis maps all frontend callers to `src/lib/nativePdfGenerator.ts` (`c
 - `src/hooks/useOnePageExport.ts`: 1-Page wizard PDF generation.
 - `src/components/editor/tailor/CoverLetterGenerator.tsx`: `generateCoverLetterNativePDF`.
 
-**Blast Radius:** **100% of all PDF export entry points across the entire application are completely broken.**
+**Blast Radius:** **100% of all PDF export entry points across the entire application are completely broken in current production.**
 
 ---
 
@@ -183,10 +182,14 @@ Static analysis maps all frontend callers to `src/lib/nativePdfGenerator.ts` (`c
 WiseResume exhibits world-class UI craftsmanship, strict privacy controls, responsive mobile layouts, clean RTL localization, and robust database persistence. However, the production deployment cannot be signed off with a passing grade until the core export defect and AI function timeouts are resolved.
 
 ### Action Items for Development:
-1. **P0 — Fix `/api/export/pdf-native` Serverless Bootstrapping:**  
-   Configure `vercel.json` with a dedicated functions configuration setting Node.js 22 runtime, 1024MB memory, and file tracing for `node_modules/@sparticuz/chromium/bin/**`, or migrate PDF generation to an Appwrite Function with native Chromium.
-2. **P1 — Migrate AI Studio Tools to Asynchronous Polling:**  
-   Refactor `appwriteFunctions.invoke()` to use asynchronous execution (`async: true`) and polling for long-running AI Studio tools (`linkedin`, `enhance`) exactly as done for `tailor-resume` to eliminate HTTP 408 timeouts.
+1. **P0 — Restore `/api/export/pdf-native` Serverless Runtime (PR #275):**
+   Approved remediation:
+   - Restore explicit Chromium package inclusion for the Vercel function in `vercel.json` (`includeFiles: "node_modules/@sparticuz/chromium/**"`, `maxDuration: 60`).
+   - Lazy-load `@sparticuz/chromium` after request/auth validation.
+   - Production-verify the existing Vercel architecture after merge.
+   *(Keep larger architecture/runtime changes such as memory increases or Appwrite Function migration as fallback options only if production verification fails).*
+2. **P1 — Migrate AI Studio Tools to Asynchronous Polling (SEPARATE P1 REMEDIATION WORKSTREAM):**
+   *(Not part of PR #275).* Refactor `appwriteFunctions.invoke()` to use asynchronous execution (`async: true`) and polling for long-running AI Studio tools (`linkedin`, `enhance`) exactly as done for `tailor-resume` to eliminate HTTP 408 timeouts.
 3. **P1 — Onboard Replacement Merchant of Record:**  
    Complete merchant integration (e.g., Stripe) to re-enable self-serve billing checkouts.
 
