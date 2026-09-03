@@ -41,7 +41,7 @@
   - Build: Clean production build in 44.9s (`0 *.map files in dist/`).
 * **Local Browser QA (Playwright Preview Server):**
   - Verified all 8 matrix combinations passed with 0px horizontal overflow and 0 console errors (Desktop 1440px / Mobile 390px x EN LTR / AR RTL x Light / Dark).
-* **Remote Vercel Preview QA Status:** `VERCEL_PREVIEW_READY_REMOTE_QA_PENDING`.
+* **Remote Vercel Preview QA Status:** `BLOCKED_EXTERNAL_ACCESS` (Vercel Deployment Protection SSO login redirects unauthenticated probes to `https://vercel.com/sso-api?...`; owner authenticated browser session, share link, or bypass token required for remote preview access; stopping before merge per governance rules).
 
 * **Workstream Verdict:** `AI_STUDIO_LINKEDIN_408_P1_DEPLOYED_PRODUCTION_VERIFIED`.
 * **What's New Eligibility Decision:** `WHATS_NEW_READY_PENDING_PAGE_UPDATE` (Qualifies as a high-impact AI Studio customer-facing fix; ready for timeline inclusion upon dedicated What's New content release).
