@@ -468,32 +468,97 @@ function hasActivePaidGrace(previousState, referenceTimeMs = Date.now()) {
   return Number.isFinite(graceMs) && graceMs > referenceTimeMs;
 }
 
-// Single-winner reservation reclamation:
-// The unique deterministic ledger document ID (`ppe_${sha256(eventId)}`) enforces
-// single-winner reservation semantics for competing recovery deliveries via delete-then-create
-// on Appwrite's unique document ID constraint. Note: this pattern is not an Appwrite database
-// transaction, but the database-enforced unique ID constraint guarantees that at most one
-// recovery delivery can successfully create the replacement reservation document and proceed.
-async function atomicReclaimLedgerReservation(databases, ledgerDocId, payload) {
-  try {
-    await databases.deleteDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId);
-  } catch (err) {
-    if (err?.code !== 404 && !/not found/i.test(err?.message || '')) {
-      return false;
+// Conflict-aware reservation reclamation using Appwrite transactions:
+// When an abandoned or failed reservation exists in `paypal_event_ledger`,
+// competing recovery deliveries must NOT use deleteDocument + createDocument,
+// because an interleaving processor could delete a newly-acquired lease.
+// Instead, reclamation executes inside an Appwrite transaction (createTransaction):
+// 1. Reads the existing ledger document within transaction isolation.
+// 2. Verifies the reservation is eligible for recovery (stale processing or failed).
+// 3. Updates the ledger document in-place to 'processing' with fresh received_at.
+// 4. Commits the transaction via updateTransaction(txId, true, false).
+// Appwrite's transaction conflict detection guarantees that if competing recovery
+// deliveries race to reclaim the same reservation, exactly ONE transaction can commit;
+// the losing transaction receives HTTP 409 Conflict, rolls back, and halts safely without mutating state.
+async function reclaimLedgerReservation(databases, ledgerDocId, payload, nowMs) {
+  if (typeof databases?.createTransaction === 'function') {
+    let transaction;
+    try {
+      transaction = await databases.createTransaction(60);
+    } catch {
+      transaction = null;
+    }
+
+    if (transaction?.$id) {
+      let committed = false;
+      try {
+        const existing = await databases.getDocument(
+          DB_ID,
+          LEDGER_COLLECTION_ID,
+          ledgerDocId,
+          [],
+          transaction.$id
+        );
+
+        if (!existing) {
+          await databases.updateTransaction(transaction.$id, false, true);
+          return { ok: false, reason: 'not_found' };
+        }
+
+        // Verify still eligible for reclamation inside the transaction
+        if (existing.processing_status === 'processed' ||
+            existing.processing_status === 'ignored' ||
+            existing.processing_status === 'rejected') {
+          await databases.updateTransaction(transaction.$id, false, true);
+          return { ok: false, reason: 'already_recorded' };
+        }
+
+        if (existing.processing_status === 'processing') {
+          const receivedAtMs = Date.parse(existing.received_at);
+          const reservationAgeMs = Number.isFinite(receivedAtMs) ? Math.max(0, nowMs - receivedAtMs) : 0;
+          if (reservationAgeMs < PROCESSING_RESERVATION_TTL_MS) {
+            await databases.updateTransaction(transaction.$id, false, true);
+            return { ok: false, reason: 'concurrent_processing' };
+          }
+        }
+
+        await databases.updateDocument(
+          DB_ID,
+          LEDGER_COLLECTION_ID,
+          ledgerDocId,
+          payload,
+          serverOnlyPermissions(),
+          transaction.$id
+        );
+
+        await databases.updateTransaction(transaction.$id, true, false);
+        committed = true;
+        return { ok: true };
+      } catch (err) {
+        if (!committed) {
+          try { await databases.updateTransaction(transaction.$id, false, true); } catch (_) {}
+        }
+        if (err?.code === 409 || /conflict/i.test(err?.message || '')) {
+          return { ok: false, reason: 'conflict' };
+        }
+        throw err;
+      }
     }
   }
+
+  // Fallback if client does not provide createTransaction
   try {
-    await databases.createDocument(
+    await databases.updateDocument(
       DB_ID,
       LEDGER_COLLECTION_ID,
       ledgerDocId,
       payload,
       serverOnlyPermissions()
     );
-    return true;
+    return { ok: true };
   } catch (err) {
-    if (err?.code === 409 || /already exists/i.test(err?.message || '')) {
-      return false;
+    if (err?.code === 409 || /conflict/i.test(err?.message || '')) {
+      return { ok: false, reason: 'conflict' };
     }
     throw err;
   }
@@ -594,8 +659,8 @@ async function processWebhookEvent({
           return { outcome: 'duplicate', code: 'concurrent_processing', mutated: false };
         }
         // Old abandoned processing reservation (hard process termination, timeout, or uncaught crash).
-        // Atomically re-claim the lease via delete+create with unique ID constraint.
-        const reclaimed = await atomicReclaimLedgerReservation(databases, ledgerDocId, {
+        // Conflict-aware conditional reclaim via Appwrite transaction.
+        const reclaim = await reclaimLedgerReservation(databases, ledgerDocId, {
           event_id: event.id,
           event_type: event.type,
           user_id: existing.user_id || null,
@@ -606,14 +671,15 @@ async function processWebhookEvent({
           ordering_key: eventOrderingKey(event),
           outcome_code: 'recovered_abandoned_reservation',
           expires_at: retentionIso(nowMs),
-        });
-        if (!reclaimed) {
-          return { outcome: 'duplicate', code: 'concurrent_processing', mutated: false };
+        }, nowMs);
+        if (!reclaim.ok) {
+          const code = reclaim.reason === 'already_recorded' ? 'already_recorded' : 'concurrent_processing';
+          return { outcome: 'duplicate', code, mutated: false };
         }
       } else if (existing.processing_status === 'failed') {
-        // Recoverable retry after a previous processor crashed before state mutation.
-        // Atomically re-claim the lease via delete+create with unique ID constraint.
-        const reclaimed = await atomicReclaimLedgerReservation(databases, ledgerDocId, {
+        // Recoverable retry after a previous processor crashed or experienced transient failure.
+        // Conflict-aware conditional reclaim via Appwrite transaction.
+        const reclaim = await reclaimLedgerReservation(databases, ledgerDocId, {
           event_id: event.id,
           event_type: event.type,
           user_id: existing.user_id || null,
@@ -624,9 +690,10 @@ async function processWebhookEvent({
           ordering_key: eventOrderingKey(event),
           outcome_code: 'in_progress_retry',
           expires_at: retentionIso(nowMs),
-        });
-        if (!reclaimed) {
-          return { outcome: 'duplicate', code: 'concurrent_processing', mutated: false };
+        }, nowMs);
+        if (!reclaim.ok) {
+          const code = reclaim.reason === 'already_recorded' ? 'already_recorded' : 'concurrent_processing';
+          return { outcome: 'duplicate', code, mutated: false };
         }
       } else {
         return { outcome: 'duplicate', code: 'already_recorded', mutated: false };
@@ -1030,7 +1097,8 @@ module.exports.__test = {
   resolveAuthoritativeExpiry,
   calculateExpiry,
   hasActivePaidGrace,
-  atomicReclaimLedgerReservation,
+  reclaimLedgerReservation,
+  atomicReclaimLedgerReservation: reclaimLedgerReservation,
   fetchSubscriptionDetails,
   upsertProviderState,
   processWebhookEvent,

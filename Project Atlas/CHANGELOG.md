@@ -1,5 +1,18 @@
 # WiseResume Atlas Master Changelog
 
+### 2026-09-04 - PayPal Sandbox Integration Phase 3: Final Stale-Recovery Concurrency Safety Gate
+
+- **Workstream Verdict:** `PAYPAL_PHASE3_CONCURRENCY_PROVEN_CI_PASS_READY_FOR_FINAL_MERGE_REVIEW`.
+- **Git Branch:** `feat/paypal-sandbox-phase3` (PR #286).
+- **Scope:** Replaced un-versioned delete-then-create reservation recovery with conflict-aware conditional transaction isolation (`reclaimLedgerReservation` via Appwrite native `createTransaction`), proved old flaw via adversarial barrier reproduction, verified exactly-one-winner guarantee, crash recovery, and anti-stealing invariants via 8 new dedicated concurrency tests (63 tests in `paypal-webhook.test.cjs`).
+- **Core Improvements & Fixes:**
+  - **Adversarial Bug Reproduction:** Proved with an explicit synchronization barrier test that un-versioned `deleteDocument` followed by `createDocument` allows Processor B to delete Processor A's newly acquired replacement lease and proceed concurrently, causing dual provider-state mutations.
+  - **Conflict-Aware Transactional Reclaim:** Replaced `atomicReclaimLedgerReservation` with `reclaimLedgerReservation`. Recovery deliveries execute inside an Appwrite transaction session (`createTransaction(60)`), read the ledger document within transaction isolation, verify eligibility (stale processing or failed), update the document in-place, and commit via `updateTransaction(txId, true, false)`.
+  - **Single-Winner Concurrency Guarantee:** If two recovery deliveries race to reclaim the same reservation, Appwrite detects the document conflict and throws HTTP 409 Conflict to the losing transaction; the loser aborts with `mutated: false, code: 'concurrent_processing'` without modifying state or deleting the winner's lease.
+  - **In-Memory Mock Support:** Enhanced `createMockDatabases` with native transaction simulation, document-level read/write version tracking (`docVersions`), and conflict detection matching Appwrite Cloud transaction semantics.
+  - **Comprehensive 8-Scenario Concurrency Suite:** Added Section 12 to `paypal-webhook.test.cjs` verifying: (1) adversarial race reproduction, (2) safe transaction single-winner guarantee, (3) loser never mutates provider state, (4) winner crash permits later generation recovery, (5) fresh lease cannot be stolen, (6) completed event cannot be reclaimed, (7) failed event can safely recover, and (8) PAYMENT.FAILED recovered once does not extend grace.
+  - **Tests:** 63/63 tests pass in `paypal-webhook.test.cjs`; 125/125 tests pass across all billing contract suites; full PR validation matrix (15 Vitest files, 83 tests), TypeScript compilation, and production build pass cleanly.
+
 ### 2026-09-04 - PayPal Sandbox Integration Phase 3: Final Failed-Payment Grace Invariant & Terminal Event Preservation
 
 - **Workstream Verdict:** `PAYPAL_PHASE3_GRACE_INVARIANT_TESTED_LOCAL_PASS`.
@@ -11,8 +24,7 @@
   - **Grace Extension Prevention:** Subsequent or distinct failure events arriving while already in an active grace window strictly preserve the original grace timestamp `G` and never extend it.
   - **Terminal Event Grace Preservation:** Provider status events (`SUSPENDED`, `CANCELLED`, `EXPIRED`) arriving during an active 48-hour app grace window must not shorten the user's entitlement. State remains `billing_issue` with original grace `G` until `G` expires, naturally returning Free.
   - **Terminal Events Outside Grace:** Normal cancellations outside grace retain already-paid expiry only if prior payment was verified; otherwise `expires_at: null`. Suspension or expiration outside grace immediately drops to Free.
-  - **Payment Recovery During Grace:** `PAYMENT.SALE.COMPLETED` restores `active`, clears `grace_period_expires_at: null`, sets `will_renew: true`, and establishes authoritative new next billing time from PayPal.
-  - **Concurrency Documentation Clarification:** Corrected documentation and comments so `atomicReclaimLedgerReservation` is accurately described as single-winner reservation semantics via delete-then-create with unique document ID constraint, rather than a database transaction.
+  - **Concurrency Documentation Note:** Initial PR iteration attempted delete-then-create on document ID, but adversarial barrier testing proved delete-create allows race interleavings; superseded by transactional conflict-aware reclamation (`reclaimLedgerReservation`).
   - **Tests:** 55/55 tests pass in `paypal-webhook.test.cjs` (added Section 11 with 11 dedicated invariant tests); 117/117 tests pass across the entire billing contract test matrix.
 
 ### 2026-09-03 - PayPal Sandbox Integration Phase 3: Pre-Merge Real Lifecycle Correction
@@ -26,7 +38,7 @@
   - **Transient vs Permanent Error Classification:** Classified 5xx, 429, and network failures in PayPal GET requests with `err.isTransient = true`. On transient error, marks ledger `failed` (`transient_paypal_fetch_failure`) and returns HTTP 503 so PayPal retries delivery.
   - **Pre-Payment Cancellation Invariant:** `ACTIVATED -> pending_initial_payment -> CANCELLED` writes `expires_at: null` and evaluates strictly to Free. Cancellation preserves paid access only when an existing verified paid period exists.
   - **UPDATED Duration Freeze:** `BILLING.SUBSCRIPTION.UPDATED` freezes `expires_at = previous?.expires_at || null`, ensuring metadata updates cannot advance or manufacture paid entitlement duration without a verified payment.
-  - **Atomic Stale Lease Reclaim:** Replaced read-then-update recovery with `atomicReclaimLedgerReservation` using `deleteDocument` followed by `createDocument` on Appwrite's unique ID constraint. Proved via concurrent race test that two simultaneous stale recovery deliveries yield exactly one winner and zero duplicate state mutations.
+  - **Stale Lease Reclaim (Superseded):** Initially introduced `atomicReclaimLedgerReservation` using delete-then-create; later proven unsafe under adversarial interleaving and replaced with transaction isolation in the Concurrency Safety Gate.
   - **Remote CI PR Validation:** Updated `.github/workflows/pr-validation.yml` step `Run billing contract tests` to execute `paypal-webhook.test.cjs`, `paypal-schema.test.cjs`, `paypal-subscription-resolver.test.cjs`, `billing-checkout-deployment.test.cjs`, and `appwrite-function-policy.test.cjs`.
   - **Tests:** 104/104 tests pass across 12 test suites; 44/44 tests pass in `paypal-webhook.test.cjs`.
 

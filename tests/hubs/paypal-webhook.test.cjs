@@ -33,9 +33,67 @@ function createMockDatabases() {
     billing_checkout_sessions: new Map(),
   };
 
+  const docVersions = new Map();
+  const transactions = new Map();
+  let nextTxId = 1;
+
+  function docKey(collId, docId) {
+    return `${collId}:${docId}`;
+  }
+
+  function clone(data) {
+    return JSON.parse(JSON.stringify(data));
+  }
+
   return {
     collections,
-    async listDocuments(_dbId, collectionId, queries = []) {
+    docVersions,
+    transactions,
+    async createTransaction(ttl = 60) {
+      const id = `tx_${nextTxId++}`;
+      transactions.set(id, {
+        id,
+        ttl,
+        readVersions: new Map(),
+        stagedUpdates: new Map(),
+      });
+      return { $id: id };
+    },
+    async updateTransaction(transactionId, commit, rollback) {
+      const tx = transactions.get(transactionId);
+      if (!tx) return {};
+      if (rollback) {
+        transactions.delete(transactionId);
+        return {};
+      }
+      if (commit) {
+        // Conflict detection: verify none of the read documents were modified since read
+        for (const [key, readVer] of tx.readVersions.entries()) {
+          const currentVer = docVersions.get(key) || 0;
+          if (currentVer !== readVer) {
+            transactions.delete(transactionId);
+            const err = new Error('Transaction conflict: document was modified by another transaction');
+            err.code = 409;
+            throw err;
+          }
+        }
+
+        // Apply staged updates
+        for (const [key, update] of tx.stagedUpdates.entries()) {
+          const col = collections[update.collId];
+          const existing = col.get(update.docId);
+          const updated = { ...existing, ...update.data };
+          col.set(update.docId, updated);
+          const nextVer = (docVersions.get(key) || 0) + 1;
+          docVersions.set(key, nextVer);
+        }
+
+        transactions.delete(transactionId);
+        return { status: 'committed' };
+      }
+      return {};
+    },
+    async listDocuments(_dbId, collectionId, queries = [], _transactionId = null) {
       const col = collections[collectionId];
       if (!col) return { documents: [], total: 0 };
       let docs = Array.from(col.values());
@@ -49,9 +107,9 @@ function createMockDatabases() {
           }
         }
       }
-      return { documents: docs, total: docs.length };
+      return { documents: docs.map(clone), total: docs.length };
     },
-    async getDocument(_dbId, collectionId, docId) {
+    async getDocument(_dbId, collectionId, docId, _queries = [], transactionId = null) {
       const col = collections[collectionId];
       const doc = col?.get(docId);
       if (!doc) {
@@ -59,9 +117,16 @@ function createMockDatabases() {
         err.code = 404;
         throw err;
       }
-      return doc;
+      if (transactionId) {
+        const tx = transactions.get(transactionId);
+        if (tx) {
+          const key = docKey(collectionId, docId);
+          tx.readVersions.set(key, docVersions.get(key) || 0);
+        }
+      }
+      return clone(doc);
     },
-    async createDocument(_dbId, collectionId, docId, data, _permissions) {
+    async createDocument(_dbId, collectionId, docId, data, _permissions, _transactionId = null) {
       const col = collections[collectionId];
       if (col.has(docId)) {
         const err = new Error('Document already exists');
@@ -77,11 +142,12 @@ function createMockDatabases() {
           }
         }
       }
-      const created = { $id: docId, ...data };
+      const created = { $id: docId, ...clone(data) };
       col.set(docId, created);
-      return created;
+      docVersions.set(docKey(collectionId, docId), 1);
+      return clone(created);
     },
-    async deleteDocument(_dbId, collectionId, docId) {
+    async deleteDocument(_dbId, collectionId, docId, _transactionId = null) {
       const col = collections[collectionId];
       if (!col || !col.has(docId)) {
         const err = new Error('Document not found');
@@ -89,9 +155,18 @@ function createMockDatabases() {
         throw err;
       }
       col.delete(docId);
+      docVersions.delete(docKey(collectionId, docId));
       return { ok: true };
     },
-    async updateDocument(_dbId, collectionId, docId, data, _permissions) {
+    async updateDocument(_dbId, collectionId, docId, data, _permissions, transactionId = null) {
+      if (transactionId) {
+        const tx = transactions.get(transactionId);
+        if (tx) {
+          const key = docKey(collectionId, docId);
+          tx.stagedUpdates.set(key, { collId: collectionId, docId, data: clone(data) });
+          return { $id: docId, ...clone(data) };
+        }
+      }
       const col = collections[collectionId];
       const existing = col.get(docId);
       if (!existing) {
@@ -99,9 +174,11 @@ function createMockDatabases() {
         err.code = 404;
         throw err;
       }
-      const updated = { ...existing, ...data };
+      const updated = { ...existing, ...clone(data) };
       col.set(docId, updated);
-      return updated;
+      const key = docKey(collectionId, docId);
+      docVersions.set(key, (docVersions.get(key) || 0) + 1);
+      return clone(updated);
     },
   };
 }
@@ -2169,4 +2246,490 @@ test('Invariant 11: PAYMENT.SALE.COMPLETED recovery during grace restores active
   assert.equal(state.grace_period_expires_at, null); // Grace cleared!
   assert.equal(state.expires_at, newCycleExpiryIso); // Authoritative new expiry from PayPal!
   assert.equal(state.will_renew, true);
+});
+
+// =========================================================================
+// Section 12: Stale Recovery Concurrency, Conflict Detection & Barrier Tests
+// =========================================================================
+
+function deferred() {
+  let resolve, reject;
+  const promise = new Promise((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
+}
+
+test('Concurrency 1: adversarial A-create-then-B-delete race demonstrates why un-versioned delete-create is unsafe', async () => {
+  // Proves that under the un-versioned delete-then-create interleaving:
+  // A reads stale, B reads stale, A deletes old and creates new lease A,
+  // B's un-versioned delete deletes A's new lease and creates lease B,
+  // causing BOTH to believe they won and both mutating state.
+  const eventTimeMs = Date.parse('2026-09-03T12:00:00.000Z');
+  const nowMs = eventTimeMs + 300000;
+  const eventId = 'EVT-ADV-RACE-PROOF';
+
+  const ledgerDocId = paypalWebhook.__test.ledgerDocumentId(eventId);
+  const collections = {
+    paypal_subscription_state: new Map([[paypalWebhook.__test.stateDocumentId(QA_USER_ID), {
+      $id: paypalWebhook.__test.stateDocumentId(QA_USER_ID),
+      user_id: QA_USER_ID,
+      plan: 'pro',
+      subscription_id: 'I-SUB-ADV-RACE',
+      plan_id: SANDBOX_PRO_PLAN_ID,
+      environment: 'sandbox',
+      status: 'pending_initial_payment',
+      expires_at: null,
+      latest_event_timestamp_ms: eventTimeMs - 1000,
+    }]]),
+    paypal_event_ledger: new Map([[ledgerDocId, {
+      $id: ledgerDocId,
+      event_id: eventId,
+      received_at: new Date(eventTimeMs).toISOString(),
+      processing_status: 'processing',
+      outcome_code: 'in_progress',
+    }]]),
+    billing_checkout_sessions: new Map(),
+  };
+
+  function createUnsafeClient() {
+    return {
+      async getDocument(_db, collId, docId) {
+        const doc = collections[collId]?.get(docId);
+        if (!doc) throw Object.assign(new Error('Not found'), { code: 404 });
+        return JSON.parse(JSON.stringify(doc));
+      },
+      async deleteDocument(_db, collId, docId) {
+        if (!collections[collId]?.has(docId)) throw Object.assign(new Error('Not found'), { code: 404 });
+        collections[collId].delete(docId);
+        return { ok: true };
+      },
+      async createDocument(_db, collId, docId, data) {
+        if (collections[collId]?.has(docId)) throw Object.assign(new Error('Document already exists'), { code: 409 });
+        const doc = { $id: docId, ...JSON.parse(JSON.stringify(data)) };
+        collections[collId].set(docId, doc);
+        return doc;
+      },
+    };
+  }
+
+  // Under the old un-versioned delete-then-create pattern:
+  async function unsafeReclaim(db, docId, payload) {
+    await db.deleteDocument('main', 'paypal_event_ledger', docId);
+    await db.createDocument('main', 'paypal_event_ledger', docId, payload);
+    return true;
+  }
+
+  const clientA = createUnsafeClient();
+  const clientB = createUnsafeClient();
+
+  // Step 1: Processor A reads stale reservation
+  const staleA = await clientA.getDocument('main', 'paypal_event_ledger', ledgerDocId);
+  assert.equal(staleA.processing_status, 'processing');
+
+  // Step 2: Processor B reads stale reservation
+  const staleB = await clientB.getDocument('main', 'paypal_event_ledger', ledgerDocId);
+  assert.equal(staleB.processing_status, 'processing');
+
+  // Step 3: Processor A deletes stale reservation and creates replacement reservation A
+  const wonA = await unsafeReclaim(clientA, ledgerDocId, {
+    processing_status: 'processing',
+    received_at: new Date(nowMs).toISOString(),
+    outcome_code: 'lease_A',
+  });
+  assert.equal(wonA, true);
+  assert.equal(collections.paypal_event_ledger.get(ledgerDocId).outcome_code, 'lease_A');
+
+  // Step 4: Processor B (which already decided to reclaim in step 2) deletes ledgerDocId!
+  // In the old un-versioned delete, this DELETES Processor A's newly created lease_A!
+  // And creates replacement reservation B!
+  const wonB = await unsafeReclaim(clientB, ledgerDocId, {
+    processing_status: 'processing',
+    received_at: new Date(nowMs).toISOString(),
+    outcome_code: 'lease_B',
+  });
+  assert.equal(wonB, true);
+  assert.equal(collections.paypal_event_ledger.get(ledgerDocId).outcome_code, 'lease_B');
+
+  // Both processors believe they successfully reclaimed the lease, causing dual mutation!
+});
+
+test('Concurrency 2: safe transaction implementation yields exactly one winner under barrier synchronization', async () => {
+  const db = createMockDatabases();
+  const users = createMockUsers();
+  const eventTimeMs = Date.parse('2026-09-03T12:00:00.000Z');
+  const nowMs = eventTimeMs + 300000;
+  const eventId = 'EVT-BARRIER-RACE-WINNER';
+
+  const saleEvent = normalizeEvent({
+    id: eventId,
+    event_type: 'PAYMENT.SALE.COMPLETED',
+    create_time: new Date(eventTimeMs).toISOString(),
+    resource: {
+      id: 'TX-BARRIER-RACE',
+      billing_agreement_id: 'I-SUB-BARRIER-RACE',
+      custom_id: QA_USER_ID,
+      plan_id: SANDBOX_PRO_PLAN_ID,
+      billing_info: { next_billing_time: '2026-10-03T12:00:00.000Z' },
+    },
+  });
+
+  const ledgerDocId = paypalWebhook.__test.ledgerDocumentId(eventId);
+  db.collections.paypal_event_ledger.set(ledgerDocId, {
+    $id: ledgerDocId,
+    event_id: eventId,
+    received_at: new Date(eventTimeMs).toISOString(),
+    processing_status: 'processing',
+    outcome_code: 'in_progress',
+  });
+  db.docVersions.set(`paypal_event_ledger:${ledgerDocId}`, 1);
+
+  const bARead = deferred();
+  const bBRead = deferred();
+
+  const clientA = {
+    ...db,
+    async getDocument(dbId, collId, docId, queries, txId) {
+      const doc = await db.getDocument(dbId, collId, docId, queries, txId);
+      if (collId === 'paypal_event_ledger' && docId === ledgerDocId) {
+        bARead.resolve();
+        await bBRead.promise;
+      }
+      return doc;
+    },
+  };
+
+  const clientB = {
+    ...db,
+    async getDocument(dbId, collId, docId, queries, txId) {
+      await bARead.promise;
+      const doc = await db.getDocument(dbId, collId, docId, queries, txId);
+      if (collId === 'paypal_event_ledger' && docId === ledgerDocId) {
+        bBRead.resolve();
+        await new Promise(r => setTimeout(r, 10));
+      }
+      return doc;
+    },
+  };
+
+  const [resA, resB] = await Promise.all([
+    processWebhookEvent({ databases: clientA, users, event: saleEvent, nowMs, env: TEST_ENV }),
+    processWebhookEvent({ databases: clientB, users, event: saleEvent, nowMs, env: TEST_ENV }),
+  ]);
+
+  const winner = resA.mutated ? resA : resB;
+  const loser = resA.mutated ? resB : resA;
+
+  assert.equal(winner.mutated, true);
+  assert.equal(winner.outcome, 'processed');
+  assert.equal(winner.status, 'active');
+
+  assert.equal(loser.mutated, false);
+  assert.equal(loser.outcome, 'duplicate');
+  assert.equal(loser.code, 'concurrent_processing');
+});
+
+test('Concurrency 3: loser never reaches provider state mutation', async () => {
+  const db = createMockDatabases();
+  const users = createMockUsers();
+  const eventTimeMs = Date.parse('2026-09-03T12:00:00.000Z');
+  const nowMs = eventTimeMs + 300000;
+  const eventId = 'EVT-LOSER-NO-MUTATE';
+
+  const saleEvent = normalizeEvent({
+    id: eventId,
+    event_type: 'PAYMENT.SALE.COMPLETED',
+    create_time: new Date(eventTimeMs).toISOString(),
+    resource: {
+      id: 'TX-LOSER-NO-MUTATE',
+      billing_agreement_id: 'I-SUB-LOSER',
+      custom_id: QA_USER_ID,
+      plan_id: SANDBOX_PRO_PLAN_ID,
+      billing_info: { next_billing_time: '2026-10-03T12:00:00.000Z' },
+    },
+  });
+
+  const ledgerDocId = paypalWebhook.__test.ledgerDocumentId(eventId);
+  db.collections.paypal_event_ledger.set(ledgerDocId, {
+    $id: ledgerDocId,
+    event_id: eventId,
+    received_at: new Date(eventTimeMs).toISOString(),
+    processing_status: 'processing',
+    outcome_code: 'in_progress',
+  });
+  db.docVersions.set(`paypal_event_ledger:${ledgerDocId}`, 1);
+
+  let stateMutations = 0;
+  const origCreate = db.createDocument.bind(db);
+  const origUpdate = db.updateDocument.bind(db);
+  db.createDocument = async (dbId, collId, docId, data, perms, txId) => {
+    if (collId === 'paypal_subscription_state') stateMutations++;
+    return origCreate(dbId, collId, docId, data, perms, txId);
+  };
+  db.updateDocument = async (dbId, collId, docId, data, perms, txId) => {
+    if (collId === 'paypal_subscription_state') stateMutations++;
+    return origUpdate(dbId, collId, docId, data, perms, txId);
+  };
+
+  const bARead = deferred();
+  const bBRead = deferred();
+
+  const clientA = {
+    ...db,
+    async getDocument(dbId, collId, docId, queries, txId) {
+      const doc = await db.getDocument(dbId, collId, docId, queries, txId);
+      if (collId === 'paypal_event_ledger' && docId === ledgerDocId) {
+        bARead.resolve();
+        await bBRead.promise;
+      }
+      return doc;
+    },
+  };
+
+  const clientB = {
+    ...db,
+    async getDocument(dbId, collId, docId, queries, txId) {
+      await bARead.promise;
+      const doc = await db.getDocument(dbId, collId, docId, queries, txId);
+      if (collId === 'paypal_event_ledger' && docId === ledgerDocId) {
+        bBRead.resolve();
+        await new Promise(r => setTimeout(r, 10));
+      }
+      return doc;
+    },
+  };
+
+  const [resA, resB] = await Promise.all([
+    processWebhookEvent({ databases: clientA, users, event: saleEvent, nowMs, env: TEST_ENV }),
+    processWebhookEvent({ databases: clientB, users, event: saleEvent, nowMs, env: TEST_ENV }),
+  ]);
+
+  // Provider state was mutated EXACTLY ONCE
+  assert.equal(stateMutations, 1);
+  const loser = resA.mutated ? resB : resA;
+  assert.equal(loser.mutated, false);
+  assert.equal(loser.code, 'concurrent_processing');
+});
+
+test('Concurrency 4: winner crash still permits a later generation recovery', async () => {
+  const db = createMockDatabases();
+  const users = createMockUsers();
+  const t0Ms = Date.parse('2026-09-03T12:00:00.000Z');
+  const eventId = 'EVT-CRASH-LATER-RECOVER';
+
+  const saleEvent = normalizeEvent({
+    id: eventId,
+    event_type: 'PAYMENT.SALE.COMPLETED',
+    create_time: new Date(t0Ms).toISOString(),
+    resource: {
+      id: 'TX-CRASH-LATER',
+      billing_agreement_id: 'I-SUB-CRASH',
+      custom_id: QA_USER_ID,
+      plan_id: SANDBOX_PRO_PLAN_ID,
+      billing_info: { next_billing_time: '2026-10-03T12:00:00.000Z' },
+    },
+  });
+
+  const ledgerDocId = paypalWebhook.__test.ledgerDocumentId(eventId);
+
+  // Winner 1 crashes after acquiring lease (stuck in 'processing' at t0Ms)
+  db.collections.paypal_event_ledger.set(ledgerDocId, {
+    $id: ledgerDocId,
+    event_id: eventId,
+    received_at: new Date(t0Ms).toISOString(),
+    processing_status: 'processing',
+    outcome_code: 'in_progress',
+  });
+  db.docVersions.set(`paypal_event_ledger:${ledgerDocId}`, 1);
+
+  // 100 seconds later (> 60s TTL), delivery 2 arrives and recovers
+  const t100Ms = t0Ms + 100000;
+  const res2 = await processWebhookEvent({ databases: db, users, event: saleEvent, nowMs: t100Ms, env: TEST_ENV });
+  assert.equal(res2.outcome, 'processed');
+  assert.equal(res2.mutated, true);
+  assert.equal(res2.status, 'active');
+
+  const ledgerAfter = db.collections.paypal_event_ledger.get(ledgerDocId);
+  assert.equal(ledgerAfter.processing_status, 'processed');
+});
+
+test('Concurrency 5: fresh lease cannot be stolen', async () => {
+  const db = createMockDatabases();
+  const users = createMockUsers();
+  const t0Ms = Date.parse('2026-09-03T12:00:00.000Z');
+  const eventId = 'EVT-FRESH-NO-STEAL';
+
+  const saleEvent = normalizeEvent({
+    id: eventId,
+    event_type: 'PAYMENT.SALE.COMPLETED',
+    create_time: new Date(t0Ms).toISOString(),
+    resource: {
+      id: 'TX-FRESH-NO-STEAL',
+      billing_agreement_id: 'I-SUB-FRESH',
+      custom_id: QA_USER_ID,
+      plan_id: SANDBOX_PRO_PLAN_ID,
+      billing_info: { next_billing_time: '2026-10-03T12:00:00.000Z' },
+    },
+  });
+
+  const ledgerDocId = paypalWebhook.__test.ledgerDocumentId(eventId);
+  db.collections.paypal_event_ledger.set(ledgerDocId, {
+    $id: ledgerDocId,
+    event_id: eventId,
+    received_at: new Date(t0Ms).toISOString(),
+    processing_status: 'processing',
+    outcome_code: 'in_progress',
+  });
+  db.docVersions.set(`paypal_event_ledger:${ledgerDocId}`, 1);
+
+  // Delivery arrives 10 seconds later (< 60s TTL)
+  const t10Ms = t0Ms + 10000;
+  const res = await processWebhookEvent({ databases: db, users, event: saleEvent, nowMs: t10Ms, env: TEST_ENV });
+  assert.equal(res.outcome, 'duplicate');
+  assert.equal(res.code, 'concurrent_processing');
+  assert.equal(res.mutated, false);
+
+  // Original fresh lease was not modified
+  const ledger = db.collections.paypal_event_ledger.get(ledgerDocId);
+  assert.equal(ledger.received_at, new Date(t0Ms).toISOString());
+  assert.equal(ledger.outcome_code, 'in_progress');
+});
+
+test('Concurrency 6: completed event cannot be reclaimed', async () => {
+  const db = createMockDatabases();
+  const users = createMockUsers();
+  const t0Ms = Date.parse('2026-09-03T12:00:00.000Z');
+  const eventId = 'EVT-COMPLETED-NO-RECLAIM';
+
+  const saleEvent = normalizeEvent({
+    id: eventId,
+    event_type: 'PAYMENT.SALE.COMPLETED',
+    create_time: new Date(t0Ms).toISOString(),
+    resource: {
+      id: 'TX-COMPLETED',
+      billing_agreement_id: 'I-SUB-DONE',
+      custom_id: QA_USER_ID,
+      plan_id: SANDBOX_PRO_PLAN_ID,
+      billing_info: { next_billing_time: '2026-10-03T12:00:00.000Z' },
+    },
+  });
+
+  const ledgerDocId = paypalWebhook.__test.ledgerDocumentId(eventId);
+  db.collections.paypal_event_ledger.set(ledgerDocId, {
+    $id: ledgerDocId,
+    event_id: eventId,
+    received_at: new Date(t0Ms).toISOString(),
+    processing_status: 'processed',
+    outcome_code: 'state_updated',
+  });
+  db.docVersions.set(`paypal_event_ledger:${ledgerDocId}`, 1);
+
+  // Even 1 hour later, completed event is permanently idempotent
+  const t1hMs = t0Ms + 3600000;
+  const res = await processWebhookEvent({ databases: db, users, event: saleEvent, nowMs: t1hMs, env: TEST_ENV });
+  assert.equal(res.outcome, 'duplicate');
+  assert.equal(res.code, 'already_recorded');
+  assert.equal(res.mutated, false);
+});
+
+test('Concurrency 7: failed event can safely recover', async () => {
+  const db = createMockDatabases();
+  const users = createMockUsers();
+  const t0Ms = Date.parse('2026-09-03T12:00:00.000Z');
+  const eventId = 'EVT-FAILED-CAN-RECOVER';
+
+  const saleEvent = normalizeEvent({
+    id: eventId,
+    event_type: 'PAYMENT.SALE.COMPLETED',
+    create_time: new Date(t0Ms).toISOString(),
+    resource: {
+      id: 'TX-FAILED-RECOVER',
+      billing_agreement_id: 'I-SUB-RECOVER',
+      custom_id: QA_USER_ID,
+      plan_id: SANDBOX_PRO_PLAN_ID,
+      billing_info: { next_billing_time: '2026-10-03T12:00:00.000Z' },
+    },
+  });
+
+  const ledgerDocId = paypalWebhook.__test.ledgerDocumentId(eventId);
+  // Marked failed from a previous transient fetch failure
+  db.collections.paypal_event_ledger.set(ledgerDocId, {
+    $id: ledgerDocId,
+    event_id: eventId,
+    received_at: new Date(t0Ms).toISOString(),
+    processing_status: 'failed',
+    outcome_code: 'transient_paypal_fetch_failure',
+  });
+  db.docVersions.set(`paypal_event_ledger:${ledgerDocId}`, 1);
+
+  // Retry delivery arrives 30 seconds later (no need to wait for 60s TTL on failed events)
+  const t30Ms = t0Ms + 30000;
+  const res = await processWebhookEvent({ databases: db, users, event: saleEvent, nowMs: t30Ms, env: TEST_ENV });
+  assert.equal(res.outcome, 'processed');
+  assert.equal(res.mutated, true);
+  assert.equal(res.status, 'active');
+
+  const ledger = db.collections.paypal_event_ledger.get(ledgerDocId);
+  assert.equal(ledger.processing_status, 'processed');
+});
+
+test('Concurrency 8: PAYMENT.FAILED recovered exactly once does not extend grace', async () => {
+  const db = createMockDatabases();
+  const users = createMockUsers();
+  const t0Ms = Date.parse('2026-10-03T12:00:00.000Z');
+  const eventId = 'EVT-FAILED-GRACE-ONCE';
+
+  // Subscription was active
+  db.collections.paypal_subscription_state.set(paypalWebhook.__test.stateDocumentId(QA_USER_ID), {
+    $id: paypalWebhook.__test.stateDocumentId(QA_USER_ID),
+    user_id: QA_USER_ID,
+    plan: 'pro',
+    subscription_id: 'I-SUB-GRACE-ONCE',
+    plan_id: SANDBOX_PRO_PLAN_ID,
+    environment: 'sandbox',
+    status: 'active',
+    expires_at: new Date(t0Ms).toISOString(),
+    latest_event_timestamp_ms: t0Ms - 1000,
+  });
+
+  const failEvent = normalizeEvent({
+    id: eventId,
+    event_type: 'BILLING.SUBSCRIPTION.PAYMENT.FAILED',
+    create_time: new Date(t0Ms).toISOString(),
+    resource: {
+      id: 'I-SUB-GRACE-ONCE',
+      custom_id: QA_USER_ID,
+      plan_id: SANDBOX_PRO_PLAN_ID,
+    },
+  });
+
+  const ledgerDocId = paypalWebhook.__test.ledgerDocumentId(eventId);
+  // Stale abandoned reservation for this failure
+  db.collections.paypal_event_ledger.set(ledgerDocId, {
+    $id: ledgerDocId,
+    event_id: eventId,
+    received_at: new Date(t0Ms - 120000).toISOString(),
+    processing_status: 'processing',
+    outcome_code: 'in_progress',
+  });
+  db.docVersions.set(`paypal_event_ledger:${ledgerDocId}`, 1);
+
+  // Recover the event
+  const recRes = await processWebhookEvent({ databases: db, users, event: failEvent, nowMs: t0Ms, env: TEST_ENV });
+  assert.equal(recRes.outcome, 'processed');
+  assert.equal(recRes.mutated, true);
+  assert.equal(recRes.status, 'billing_issue');
+
+  const state = db.collections.paypal_subscription_state.get(paypalWebhook.__test.stateDocumentId(QA_USER_ID));
+  const expectedGraceIso = new Date(t0Ms + 48 * 3600 * 1000).toISOString();
+  assert.equal(state.grace_period_expires_at, expectedGraceIso);
+
+  // Subsequent duplicate delivery arrives 1 hour later -> does NOT extend grace!
+  const dupRes = await processWebhookEvent({ databases: db, users, event: failEvent, nowMs: t0Ms + 3600000, env: TEST_ENV });
+  assert.equal(dupRes.outcome, 'duplicate');
+  assert.equal(dupRes.mutated, false);
+
+  const stateAfter = db.collections.paypal_subscription_state.get(paypalWebhook.__test.stateDocumentId(QA_USER_ID));
+  assert.equal(stateAfter.grace_period_expires_at, expectedGraceIso); // Still original G!
 });
