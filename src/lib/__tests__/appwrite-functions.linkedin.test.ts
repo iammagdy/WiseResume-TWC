@@ -1,4 +1,4 @@
-﻿import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AppwriteException } from 'appwrite';
 
 const { createExecution, getExecution } = vi.hoisted(() => ({
@@ -337,5 +337,73 @@ describe('appwriteFunctions LinkedIn Optimizer async execution transport', () =>
     expect(response).toEqual({ data: mockLinkedInData, error: null });
     expect(createExecution).toHaveBeenCalledTimes(3);
     expect(createExecution.mock.calls[2][2]).toBe(false);
+
+    // Verify header semantics: initial request is normal, cached reads are result-only
+    const initialReq = JSON.parse(createExecution.mock.calls[0][1]);
+    expect(initialReq.__headers?.['X-AI-Result-Only']).toBeUndefined();
+    const resultReq1 = JSON.parse(createExecution.mock.calls[1][1]);
+    expect(resultReq1.__headers?.['X-AI-Result-Only']).toBe('true');
+    const resultReq2 = JSON.parse(createExecution.mock.calls[2][1]);
+    expect(resultReq2.__headers?.['X-AI-Result-Only']).toBe('true');
+  });
+
+  it('9. duplicate-provider prevention: status fallback receiving terminal failure returns error without second async execution or infinite loop', async () => {
+    vi.useFakeTimers();
+
+    createExecution
+      .mockResolvedValueOnce(execution({ $id: 'initial-async-exec' })) // initial async=true execution
+      .mockResolvedValueOnce(execution({
+        $id: 'pending-result-execution',
+        status: 'completed',
+        responseStatusCode: 409,
+        responseBody: JSON.stringify({ status: 'error', code: 'request_in_progress' }),
+      })) // first retrieveCachedLinkedInResult call: 409 in progress
+      .mockResolvedValueOnce(execution({
+        $id: 'failed-result-execution',
+        status: 'completed',
+        responseStatusCode: 503,
+        responseBody: JSON.stringify({
+          status: 'error',
+          code: 'result_unavailable',
+          message: 'LinkedIn optimization finished without a retrievable result. Please retry.',
+        }),
+      })); // second retrieveCachedLinkedInResult call: 503 terminal failure
+
+    getExecution.mockRejectedValueOnce(
+      new AppwriteException('Execution read access denied on Cloud.', 403),
+    );
+
+    const pending = appwriteFunctions.invoke('optimize-for-linkedin', {
+      body: { resume: { summary: 'Fallback test resume' }, region: 'global' },
+      timeoutMs: 10_000,
+    });
+
+    // Advance to trigger getExecution polling & first fallback read (409)
+    await vi.advanceTimersByTimeAsync(1_500);
+    expect(getExecution).toHaveBeenCalledTimes(1);
+    expect(createExecution).toHaveBeenCalledTimes(2);
+    expect(createExecution.mock.calls[0][2]).toBe(true);  // initial async trigger
+    expect(createExecution.mock.calls[1][2]).toBe(false); // result-only read 1
+
+    // Advance timer for 409 retry -> returns 503 result_unavailable
+    await vi.advanceTimersByTimeAsync(1_500);
+
+    const response = await pending;
+    expect(response.data).toBeNull();
+    expect(response.error).toBeDefined();
+    expect(response.error?.status).toBe(503);
+    expect(response.error?.code).toBeTruthy();
+
+    // Prove: Exactly 1 async execution was created; all follow-ups were result-only
+    expect(createExecution).toHaveBeenCalledTimes(3);
+    const asyncCalls = createExecution.mock.calls.filter((call) => call[2] === true);
+    expect(asyncCalls).toHaveLength(1);
+
+    const initialReq = JSON.parse(createExecution.mock.calls[0][1]);
+    expect(initialReq.__headers?.['X-AI-Result-Only']).toBeUndefined();
+    const resultReq1 = JSON.parse(createExecution.mock.calls[1][1]);
+    expect(resultReq1.__headers?.['X-AI-Result-Only']).toBe('true');
+    const resultReq2 = JSON.parse(createExecution.mock.calls[2][1]);
+    expect(resultReq2.__headers?.['X-AI-Result-Only']).toBe('true');
   });
 });

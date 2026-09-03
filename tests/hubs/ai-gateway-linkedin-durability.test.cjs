@@ -1,4 +1,4 @@
-﻿const assert = require('node:assert/strict');
+const assert = require('node:assert/strict');
 const path = require('node:path');
 
 const collections = new Map();
@@ -213,6 +213,21 @@ function responseRecorder() {
   };
 }
 
+function linkedInResultOnlyRequest(resume = baseResume, region = 'global') {
+  return {
+    headers: {},
+    body: JSON.stringify({
+      featureName: 'optimize-for-linkedin',
+      resume,
+      region,
+      __headers: {
+        'X-Appwrite-JWT': 'user-test-jwt',
+        'X-AI-Result-Only': 'true',
+      },
+    }),
+  };
+}
+
 async function runTests() {
   let providerCalls = 0;
   axios.post = async () => {
@@ -275,7 +290,8 @@ async function runTests() {
     const linkedInDoc = cachedDocs.find((d) => d.feature === 'optimize-for-linkedin');
     assert.ok(linkedInDoc, 'Idempotency document must exist in cache');
     assert.equal(linkedInDoc.status, 'success');
-    const parsedResult = JSON.parse(linkedInDoc.cached_result); assert.ok(parsedResult.data.headlines.length > 0);
+    const parsedResult = JSON.parse(linkedInDoc.cached_result);
+    assert.ok(parsedResult.data.headlines.length > 0);
   }
 
   // Test 3: Cache persistence failure does NOT charge credit and returns 503 result_unavailable
@@ -337,16 +353,19 @@ async function runTests() {
     failCreatePending = false;
     failUpdateSuccess = false;
     providerCalls = 0;
-    axios.post = async () => { providerCalls++; return {
-      data: {
-        choices: [{
-          message: {
-            content: JSON.stringify({ score: 88, feedback: 'Strong profile' }),
-          },
-        }],
-        usage: {},
-      },
-    }; };
+    axios.post = async () => {
+      providerCalls++;
+      return {
+        data: {
+          choices: [{
+            message: {
+              content: JSON.stringify({ score: 88, feedback: 'Strong profile' }),
+            },
+          }],
+          usage: {},
+        },
+      };
+    };
 
     const res = responseRecorder();
     await aiGateway({
@@ -366,6 +385,195 @@ async function runTests() {
     assert.equal(res.statusCode, 200);
     assert.equal(res.payload.status, 'success');
     assert.equal(providerCalls, 1);
+  }
+
+  // Test 6: Result-only read on pending execution returns 409 request_in_progress with 0 provider calls & 0 credits
+  {
+    providerCalls = 0;
+    const initialCredits = collection('ai_credits').get('credits-linkedin').total_usage;
+    const pendingResume = { ...baseResume, summary: 'Resume in flight for result-only pending test' };
+    const res = responseRecorder();
+
+    // Pre-seed a pending document in idempotency cache using computed key
+    const key = aiGateway.__test.computeContentKeys('user-linkedin', 'optimize-for-linkedin', { featureName: 'optimize-for-linkedin', resume: pendingResume, region: 'global' })[0];
+    collection('idempotency_cache').set('pending-doc-id', {
+      $id: 'pending-doc-id',
+      key,
+      user_id: 'user-linkedin',
+      feature: 'optimize-for-linkedin',
+      status: 'pending',
+      cached_result: null,
+      expires_at: new Date(Date.now() + 60_000).toISOString(),
+    });
+
+    await aiGateway({
+      req: linkedInResultOnlyRequest(pendingResume),
+      res,
+      log() {},
+      error(m) { console.error('ERROR_LOG:', m); },
+    });
+
+    assert.equal(res.statusCode, 409);
+    assert.equal(res.payload.code, 'request_in_progress');
+    assert.equal(providerCalls, 0, 'Result-only mode must NEVER invoke AI providers on pending');
+    assert.equal(
+      collection('ai_credits').get('credits-linkedin').total_usage,
+      initialCredits,
+      'No credits should be charged on result-only pending check',
+    );
+    collection('idempotency_cache').delete('pending-doc-id');
+  }
+
+  // Test 7: Result-only read on successful execution returns cached result with 0 provider calls & 0 credits
+  {
+    providerCalls = 0;
+    const initialCredits = collection('ai_credits').get('credits-linkedin').total_usage;
+    const res = responseRecorder();
+
+    // Re-issue result-only request for Test 2's successful resume
+    await aiGateway({
+      req: linkedInResultOnlyRequest(baseResume),
+      res,
+      log() {},
+      error(m) { console.error('ERROR_LOG:', m); },
+    });
+
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.payload.status, 'success');
+    assert.ok(res.payload.data.headlines.length > 0);
+    assert.equal(providerCalls, 0, 'Result-only mode must NEVER invoke AI providers on success hit');
+    assert.equal(
+      collection('ai_credits').get('credits-linkedin').total_usage,
+      initialCredits,
+      'No credits should be charged on result-only cached read',
+    );
+  }
+
+  // Test 8: Result-only read on failed background result returns stored failure with 0 provider calls & 0 credits
+  {
+    providerCalls = 0;
+    const initialCredits = collection('ai_credits').get('credits-linkedin').total_usage;
+    const failedResume = { ...baseResume, summary: 'Resume that failed background generation' };
+    const res = responseRecorder();
+
+    // Pre-seed a failed document in idempotency cache
+    const key = aiGateway.__test.computeContentKeys('user-linkedin', 'optimize-for-linkedin', { featureName: 'optimize-for-linkedin', resume: failedResume, region: 'global' })[0];
+    collection('idempotency_cache').set('failed-doc-id', {
+      $id: 'failed-doc-id',
+      key,
+      user_id: 'user-linkedin',
+      feature: 'optimize-for-linkedin',
+      status: 'failed',
+      has_result: true,
+      cached_result: JSON.stringify({
+        status: 'error',
+        code: 'provider_unavailable',
+        message: 'AI providers are temporarily unavailable. Please try again in a few minutes.',
+        httpStatus: 503,
+      }),
+      expires_at: new Date(Date.now() + 60_000).toISOString(),
+    });
+
+    await aiGateway({
+      req: linkedInResultOnlyRequest(failedResume),
+      res,
+      log() {},
+      error(m) { console.error('ERROR_LOG:', m); },
+    });
+
+    assert.equal(res.statusCode, 503);
+    assert.equal(res.payload.code, 'provider_unavailable');
+    assert.equal(providerCalls, 0, 'Result-only mode must NEVER invoke AI providers on failed hit');
+    assert.equal(
+      collection('ai_credits').get('credits-linkedin').total_usage,
+      initialCredits,
+      'No credits should be charged on result-only failure retrieval',
+    );
+    // Verify failed doc is cleaned up so user can retry
+    assert.equal(collection('idempotency_cache').has('failed-doc-id'), false);
+  }
+
+  // Test 9: Result-only read on missing result returns 503 result_unavailable with 0 provider calls & 0 credits
+  {
+    providerCalls = 0;
+    const initialCredits = collection('ai_credits').get('credits-linkedin').total_usage;
+    const missingResume = { ...baseResume, summary: 'Resume with zero idempotency cache record' };
+    const res = responseRecorder();
+
+    await aiGateway({
+      req: linkedInResultOnlyRequest(missingResume),
+      res,
+      log() {},
+      error(m) { console.error('ERROR_LOG:', m); },
+    });
+
+    assert.equal(res.statusCode, 503);
+    assert.equal(res.payload.code, 'result_unavailable');
+    assert.equal(providerCalls, 0, 'Result-only mode must NEVER invoke AI providers on missing cache');
+    assert.equal(
+      collection('ai_credits').get('credits-linkedin').total_usage,
+      initialCredits,
+      'No credits should be charged on result-only missing record',
+    );
+  }
+
+  // Test 10: Explicit later retry after surfaced failure starts a fresh successful generation
+  {
+    providerCalls = 0;
+    const initialCredits = collection('ai_credits').get('credits-linkedin').total_usage;
+    const retryResume = { ...baseResume, summary: 'Resume that failed previously but user now retries' };
+
+    // 1. Initial attempt fails and leaves failed idempotency record
+    axios.post = async () => {
+      providerCalls++;
+      const err = new Error('Simulated upstream provider outage');
+      err.response = { status: 503, data: { error: { message: 'Outage' } } };
+      throw err;
+    };
+
+    const res1 = responseRecorder();
+    await aiGateway({
+      req: linkedInRequest(retryResume),
+      res: res1,
+      log() {},
+      error(m) { /* expected failure */ },
+    });
+    assert.equal(res1.statusCode, 503);
+    assert.equal(providerCalls, 2, 'Initial attempt exhausts primary and fallback candidates');
+
+    // 2. Result-only reader reads the failure cleanly (0 provider calls)
+    const res2 = responseRecorder();
+    await aiGateway({
+      req: linkedInResultOnlyRequest(retryResume),
+      res: res2,
+      log() {},
+      error(m) { console.error('ERROR_LOG:', m); },
+    });
+    assert.equal(res2.statusCode, 503);
+    assert.equal(res2.payload.code, 'provider_unavailable');
+    assert.equal(providerCalls, 2, 'Result-only read must not trigger any provider calls');
+
+    // 3. User later clicks retry (normal request without X-AI-Result-Only) -> Provider is back up
+    axios.post = async () => {
+      providerCalls++;
+      return successfulLinkedInResponse;
+    };
+
+    const res3 = responseRecorder();
+    await aiGateway({
+      req: linkedInRequest(retryResume),
+      res: res3,
+      log() {},
+      error(m) { console.error('ERROR_LOG:', m); },
+    });
+    assert.equal(res3.statusCode, 200);
+    assert.equal(res3.payload.status, 'success');
+    assert.equal(providerCalls, 3, 'Normal retry calls primary provider once and succeeds');
+    assert.equal(
+      collection('ai_credits').get('credits-linkedin').total_usage,
+      initialCredits + 1,
+      'Exactly 1 credit should be charged after successful retry',
+    );
   }
 
   console.log('✓ All AI Gateway LinkedIn durability and credit safety tests passed!');

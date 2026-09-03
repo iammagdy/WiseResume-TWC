@@ -165,11 +165,24 @@ async function waitForTailorResult(
 
 async function retrieveCachedLinkedInResult(
   functionId: string,
-  executionBody: string,
+  finalPayload: Record<string, unknown>,
+  headers: Record<string, string>,
   startedAt: number,
   timeoutMs: number,
   signal?: AbortSignal,
 ): Promise<Models.Execution> {
+  const resultPayload = {
+    ...finalPayload,
+    __headers: {
+      ...headers,
+      'X-AI-Result-Only': 'true',
+    },
+  };
+  const executionBody = JSON.stringify({
+    featureName: 'optimize-for-linkedin',
+    ...resultPayload,
+  });
+
   while (true) {
     throwIfAborted(signal, 'LinkedIn optimization');
     const remainingMs = timeoutMs - (Date.now() - startedAt);
@@ -559,7 +572,8 @@ export const appwriteFunctions = {
 
           execution = await retrieveCachedLinkedInResult(
             functionId,
-            executionBody,
+            finalPayload,
+            headers,
             linkedinStartedAt,
             linkedinTimeoutMs,
             options?.signal,
@@ -568,7 +582,8 @@ export const appwriteFunctions = {
           if (!isExecutionStatusUnavailable(error)) throw error;
           execution = await retrieveCachedLinkedInResult(
             functionId,
-            executionBody,
+            finalPayload,
+            headers,
             linkedinStartedAt,
             linkedinTimeoutMs,
             options?.signal,

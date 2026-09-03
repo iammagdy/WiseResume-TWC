@@ -1,23 +1,24 @@
 # Project Atlas — Active Operational & Handover State
 
 **Last Verified:** 2026-09-03
-**Status:** `PDF_EXPORT_P1_DEPLOYED_PRODUCTION_VERIFIED / AI_STUDIO_LINKEDIN_ASYNC_PR_READY / FUNCTIONALITY_GAPS_FOUND` — PR created on branch `fix/ai-studio-linkedin-async-execution` to resolve `AI_STUDIO_LINKEDIN_408_P1`. Full application audit remains `FUNCTIONALITY_GAPS_FOUND` pending PR merge, deployment, and live production QA. Billing checkout remains strictly disabled (`BILLING_CHECKOUT_ENABLED=false`).
+**Status:** `PDF_EXPORT_P1_DEPLOYED_PRODUCTION_VERIFIED / AI_STUDIO_LINKEDIN_ASYNC_PR_APPROVED_TO_MERGE / FUNCTIONALITY_GAPS_FOUND` — PR created and approved on branch `fix/ai-studio-linkedin-async-execution` to resolve `AI_STUDIO_LINKEDIN_408_P1`. Full application audit remains `FUNCTIONALITY_GAPS_FOUND` pending PR merge, deployment, and live production QA. Billing checkout remains strictly disabled (`BILLING_CHECKOUT_ENABLED=false`).
 **Location:** `Project Atlas/WHERE_WE_STOPPED.md`
 
 ## AI Studio LinkedIn Optimizer Async Execution Remediation & Safety Hardening (PR #278) — 2026-09-03
 
-* **Workstream Verdict:** `LINKEDIN_ASYNC_FIX_PR_READY / PRODUCTION_UNVERIFIED`.
+* **Workstream Verdict:** `LINKEDIN_ASYNC_FIX_PR_APPROVED_TO_MERGE / PRODUCTION_UNVERIFIED`.
 * **What's New Eligibility Decision:** `WHATS_NEW_DEFER_UNTIL_PRODUCTION` (Customer-impacting AI optimization tool fix; deferred until merged and verified in production).
 * **Defect Repaired:** `optimize-for-linkedin` previously failed with `HTTP 408 Request Timeout` on production after ~15s due to synchronous HTTP execution (`async: false`) on a long-running AI workload (>20s).
 * **Defect Classification:** `SYNCHRONOUS_EXECUTION_TRANSPORT_TIMEOUT`. (Appwrite documentation specifies 30-second hard timeout; empirical timeout occurred at ~15s).
 * **Implementation & Safety Hardening Summary:**
   - Branch: `fix/ai-studio-linkedin-async-execution` (PR #278).
-  - In `src/lib/appwrite-functions.ts`: Switched `optimize-for-linkedin` to `functions.createExecution(..., true)` + 1.5s polling loop (`waitForExecution`) with 75s bounded timeout + generic idempotency cache result retrieval (`retrieveCachedLinkedInResult`) + browser `getExecution` unavailable fallback (401/403/404) with 409 retry.
+  - In `src/lib/appwrite-functions.ts`: Switched `optimize-for-linkedin` to `functions.createExecution(..., true)` + 1.5s polling loop (`waitForExecution`) with 75s bounded timeout + server-owned result-only retrieval (`retrieveCachedLinkedInResult`) with `X-AI-Result-Only: true` + browser `getExecution` unavailable fallback (401/403/404) with 409 retry.
   - Terminal failure handling: Immediately throws `FunctionWaitError('function_runtime_failed')` on failed background execution without sending secondary execution requests (duplicate provider prevention).
   - In `src/components/editor/ai/LinkedInOptimizerSheet.tsx`: Handled `executeAI(action, { silent: true })` and attached `AbortController` cancellation for client polling (`CLIENT_POLL_ABORTED / SERVER_EXECUTION_MAY_CONTINUE`), preventing unmount memory leaks, stale state updates, and unintended error toasts.
-  - In `appwrite-hubs/ai-gateway/src/main.js`: Added fail-closed reservation check (503 `idempotency_unavailable`) before provider invocation and enforced durable-result-before-credit ordering.
+  - In `appwrite-hubs/ai-gateway/src/main.js`: Added server-owned `isLinkedInResultOnly` read-only evaluation path for `X-AI-Result-Only: true` returning cached success (200), pending (409), stored failure (503/500/504), or missing (503 `result_unavailable`) with 0 AI provider calls. Enforced fail-closed reservation check (503 `idempotency_unavailable`) before provider invocation and durable-result-before-credit ordering.
+  - Preserved failure state in `finalizeIdempotencyFailure()` for `optimize-for-linkedin` so result-only readers distinguish failed from missing without triggering re-execution.
   - Regenerated `src/lib/devkit/sourceHashes.generated.json` via `node scripts/compute-source-hashes.mjs`.
-  - Dedicated tests: 8/8 unit tests in `src/lib/__tests__/appwrite-functions.linkedin.test.ts`, 2/2 cancellation tests in `src/components/editor/ai/__tests__/LinkedInOptimizerSheet.cancellation.test.tsx`, and full suite in `tests/hubs/ai-gateway-linkedin-durability.test.cjs`.
+  - Dedicated tests: 9/9 unit tests in `src/lib/__tests__/appwrite-functions.linkedin.test.ts`, 2/2 cancellation tests in `src/components/editor/ai/__tests__/LinkedInOptimizerSheet.cancellation.test.tsx`, and 10/10 tests in `tests/hubs/ai-gateway-linkedin-durability.test.cjs`.
 * **Deployment & Architecture Boundaries:**
   - `APPWRITE_DEPLOYMENT_IMPACT = YES_TARGETED_AI_GATEWAY` (Targeted `ai-gateway` deployment required after PR review/merge).
   - Database schema: `NO CHANGES`.

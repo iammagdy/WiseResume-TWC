@@ -4341,6 +4341,62 @@ module.exports = async ({ req, res, log, error }) => {
       }
     }
 
+    const isLinkedInResultOnly = featureName === 'optimize-for-linkedin' &&
+      getHeader(opts.__headers, 'X-AI-Result-Only').toLowerCase() === 'true';
+    if (isLinkedInResultOnly) {
+      const aiOpts = sanitizeAiPayload(opts);
+      const resultKeys = computeContentKeys(effectiveUserId, featureName, aiOpts);
+
+      let cached = { hit: false };
+      for (const key of resultKeys) {
+        cached = await checkIdempotencyCache(db, key, log);
+        if (cached.hit) break;
+      }
+
+      if (cached.hit && cached.status === 'success' && cached.result) {
+        await safeLogAiRequest(db, {
+          feature: featureName, provider: 'cache', model: 'none', latencyMs: Date.now() - handlerStartedAt,
+          fallback: false, adminTest: false, credits: 0,
+          idempotencyKey: resultKeys[0], isIdempotencyHit: true, requestId: runtimeRequestId,
+          startedAt: runtimeStartedAt,
+        }, effectiveUserId);
+        await flushDD();
+        return res.json(withCurrentRequestId(cached.result, runtimeRequestId));
+      }
+
+      if (cached.hit && cached.status === 'failed') {
+        const failure = cached.result || {
+          status: 'error',
+          code: 'request_failed',
+          message: 'LinkedIn optimization could not complete. Please retry.',
+          httpStatus: 503,
+        };
+        await deleteIdempotencyDoc(db, cached.docId);
+        await flushDD();
+        return res.json({
+          status: 'error',
+          code: asString(failure.code) || 'request_failed',
+          message: asString(failure.message) || 'LinkedIn optimization could not complete. Please retry.',
+        }, Number(failure.httpStatus) || 503);
+      }
+
+      if (cached.hit && cached.status === 'pending') {
+        await flushDD();
+        return res.json({
+          status: 'error',
+          code: 'request_in_progress',
+          message: 'LinkedIn optimization is still processing. Please wait a moment and retry.',
+        }, 409);
+      }
+
+      await flushDD();
+      return res.json({
+        status: 'error',
+        code: 'result_unavailable',
+        message: 'LinkedIn optimization finished without a retrievable result. Please retry.',
+      }, 503);
+    }
+
     // Fetch plan once here - reused by persistent rate limit and credit state.
     // Admin tests skip plan lookup (nonce already gates them).
     const plan = isAdminTest ? 'free' : await getEffectivePlan(db, effectiveUserId);
@@ -4417,7 +4473,7 @@ module.exports = async ({ req, res, log, error }) => {
         }, 409);
       }
 
-      // Public portfolio AI and asynchronous AI features (tailor-resume, optimize-for-linkedin)
+      // Public portfolio AI and optimize-for-linkedin
       // must not proceed without a durable deduplication reservation. This is a fail-closed guard
       // for missing schema or a transient Appwrite write failure; other AI features retain legacy
       // behavior while their existing compatibility path is preserved.
@@ -4517,7 +4573,7 @@ module.exports = async ({ req, res, log, error }) => {
 
     async function finalizeIdempotencyFailure(code, message, httpStatus) {
       await releasePortfolioQuotaReservations();
-      if (featureName === 'tailor-resume') {
+      if (featureName === 'tailor-resume' || featureName === 'optimize-for-linkedin') {
         await updateIdempotencyFailure(db, idempotencyDocId, {
           status: 'error',
           code,
@@ -4859,25 +4915,30 @@ module.exports = async ({ req, res, log, error }) => {
               return res.json(responsePayload);
             }
             if (i === candidates.length - 1) {
-              if (featureName === 'tailor-resume') {
+              if (featureName === 'tailor-resume' || featureName === 'optimize-for-linkedin') {
                 if (creditLockAcquired) {
                   await releaseCreditLock(db, effectiveUserId);
                   activeCreditLockUserId = null;
                 }
+                const failMsg = featureName === 'tailor-resume'
+                  ? 'Tailoring returned malformed data. Your resume was not changed. Please retry.'
+                  : 'LinkedIn optimization returned malformed data. Please retry.';
                 await finalizeIdempotencyFailure(
                   'invalid_ai_response',
-                  'Tailoring returned malformed data. Your resume was not changed. Please retry.',
+                  failMsg,
                   500,
                 );
               } else {
                 await deleteIdempotencyDoc(db, idempotencyDocId);
               }
               await flushDD();
-              return featureName === 'tailor-resume'
+              return (featureName === 'tailor-resume' || featureName === 'optimize-for-linkedin')
                 ? res.json({
                     status: 'error',
                     code: 'invalid_ai_response',
-                    message: 'Tailoring returned malformed data. Your resume was not changed. Please retry.',
+                    message: featureName === 'tailor-resume'
+                      ? 'Tailoring returned malformed data. Your resume was not changed. Please retry.'
+                      : 'LinkedIn optimization returned malformed data. Please retry.',
                   }, 500)
                 : res.json({ status: 'error', message: `${featureName} returned malformed data.` }, 500);
             }
@@ -4998,9 +5059,14 @@ module.exports = async ({ req, res, log, error }) => {
         );
         if (isTotalTimeout) {
           if (creditLockAcquired) { await releaseCreditLock(db, effectiveUserId); activeCreditLockUserId = null; }
+          const timeoutMsg = featureName === 'tailor-resume'
+            ? 'Tailoring reached its time limit. Your resume was not changed. Please retry.'
+            : featureName === 'optimize-for-linkedin'
+              ? 'LinkedIn optimization reached its time limit. Please retry.'
+              : 'The AI request timed out. Please try again.';
           await finalizeIdempotencyFailure(
             'request_timeout',
-            'Tailoring reached its time limit. Your resume was not changed. Please retry.',
+            timeoutMsg,
             504,
           );
           await runtimeReceipts.writeReceipt(db, {
@@ -5024,7 +5090,7 @@ module.exports = async ({ req, res, log, error }) => {
           return res.json({
             status: 'error',
             code: 'request_timeout',
-            message: 'Tailoring reached its time limit. Your resume was not changed. Please retry.',
+            message: timeoutMsg,
           }, 504);
         }
         if (i === candidates.length - 1) {
@@ -5088,11 +5154,13 @@ module.exports = async ({ req, res, log, error }) => {
     await releasePortfolioQuotaReservations();
     if (activeCreditLockUserId) await releaseCreditLock(db, activeCreditLockUserId);
     if (idempotencyDocId) {
-      if (featureName === 'tailor-resume') {
+      if (featureName === 'tailor-resume' || featureName === 'optimize-for-linkedin') {
         await updateIdempotencyFailure(db, idempotencyDocId, {
           status: 'error',
           code: 'gateway_exception',
-          message: 'Tailoring stopped unexpectedly. Your resume was not changed. Please retry.',
+          message: featureName === 'tailor-resume'
+            ? 'Tailoring stopped unexpectedly. Your resume was not changed. Please retry.'
+            : 'LinkedIn optimization stopped unexpectedly. Please retry.',
           httpStatus: 500,
         });
       } else {
