@@ -4,11 +4,11 @@
 
 - **Workstream Verdict:** `AI_STUDIO_LINKEDIN_408_P1_DEPLOYED_PRODUCTION_VERIFIED`.
 - **What's New Eligibility:** `WHATS_NEW_READY_PENDING_PAGE_UPDATE` (High-impact customer-facing fix in AI Studio; ready for timeline inclusion upon dedicated release).
-- **Scope:** Remediated production HTTP 408 Request Timeout on `optimize-for-linkedin` via backend-first rollout: deployed hardened `ai-gateway` with server-owned result-only contract (`X-AI-Result-Only: true`), merged PR #278 into `main` (`ba32c3bfbd9514db2f5dd9c44ec8770f47d36e16`), verified automatic Vercel Production deployment `8JwoQdtnRGsJ6KV7rnqDVg6xgM3G`, and completed live authenticated production QA.
+- **Scope:** Remediated production HTTP 408 Request Timeout on `optimize-for-linkedin` via backend-first rollout: deployed hardened `ai-gateway` with server-owned result-only contract (`X-AI-Result-Only: true`) via GitHub Actions run `33739650073` (deployment ID `6a993f8a964aa9a65327`, status `ready`), merged PR #278 (head `0976594f45ddfe6529d105d1d94541366bd03467`) into `main` (`ba32c3bfbd9514db2f5dd9c44ec8770f47d36e16`), verified automatic Vercel Production deployment `8JwoQdtnRGsJ6KV7rnqDVg6xgM3G`, and completed live authenticated production QA.
 - **Defect Repaired & Verified:**
   - Production observed `HTTP 408 Request Timeout` at approximately 15 seconds while the long-running LinkedIn generation was invoked synchronously (`async: false`).
   - Defect Classification: `SYNCHRONOUS_EXECUTION_TRANSPORT_TIMEOUT`. (Note: Appwrite platform documentation states synchronous executions have a 30-second hard timeout; empirical timeout on this path occurred at ~15s).
-  - Production Verification: Initial execution created asynchronously (`async: true`), seamlessly routed through server-owned `X-AI-Result-Only: true` fallback polling with 409 `request_in_progress` handling, completed in 9.1s with 0 HTTP 408 timeouts. Complete contract verified (4 headlines, 3 about sections, experience rewrites, 10 skills, 10 keywords, 5 tips, DOCX download). Credit deduction verified (+1 credit charged: 10 -> 11). Client cancellation verified clean. Pro metered verification status preserved as `NOT_LIVE_METERED_VERIFIED`.
+  - Production Verification: Initial execution created asynchronously (`async: true`), seamlessly routed through server-owned `X-AI-Result-Only: true` fallback polling with 409 `request_in_progress` handling, completed in 9.1s with 0 HTTP 408 timeouts. Complete contract verified (4 headlines, 3 about sections, experience rewrites, 10 skills, 10 keywords, 5 tips, DOCX download). Usage Accounting Verified: The server recorded one unit of AI usage for accounting (`daily_usage: 10 -> 11`, `total_usage: 135 -> 136`). The Ultimate entitlement remained unlimited; no finite quota was reduced or exhausted. Result-only cached reads verified 0 additional usage. Client cancellation verified clean with zero error toasts. Pro metered verification status preserved as `NOT_LIVE_METERED_VERIFIED`.
 - **Implementation & Safety Hardening Highlights:**
   - `src/lib/appwrite-functions.ts`:
     - Added scoped asynchronous execution path for `optimize-for-linkedin` invoking `functions.createExecution(..., true)`.
@@ -23,24 +23,24 @@
     - Preserved existing output contracts, copy actions, Word download, and regional styling options.
   - `appwrite-hubs/ai-gateway/src/main.js`:
     - Added server-owned `isLinkedInResultOnly` handler: when `X-AI-Result-Only: true` is provided for `optimize-for-linkedin`, computes content keys and reads idempotency state without ever calling AI providers.
-      - Cached success -> returns stored result (0 provider calls, 0 credits).
-      - Pending -> returns 409 `request_in_progress` (0 provider calls, 0 credits).
-      - Cached failed -> returns stored typed failure and cleans up doc (0 provider calls, 0 credits).
-      - Missing/unavailable -> returns 503 `result_unavailable` (0 provider calls, 0 credits).
+      - Cached success -> returns stored result (0 provider calls, 0 usage).
+      - Pending -> returns 409 `request_in_progress` (0 provider calls, 0 usage).
+      - Cached failed -> returns stored typed failure and cleans up doc (0 provider calls, 0 usage).
+      - Missing/unavailable -> returns 503 `result_unavailable` (0 provider calls, 0 usage).
     - Preserved failure state for `optimize-for-linkedin` in `finalizeIdempotencyFailure()` so result-only readers distinguish failed from missing without triggering re-execution.
-    - Fail-closed reservation check: if a durable pending document cannot be created in `idempotency_cache`, returns 503 `idempotency_unavailable` before provider invocation (0 credits charged, 0 AI calls).
-    - Enforced durable-result-before-credit ordering: structured LinkedIn result is written and verified in `idempotency_cache` via `updateIdempotencySuccess()` *before* `recordSuccessUsage()` commits credit deduction.
+    - Fail-closed reservation check: if a durable pending document cannot be created in `idempotency_cache`, returns 503 `idempotency_unavailable` before provider invocation (0 usage recorded, 0 AI calls).
+    - Enforced durable-result-before-credit ordering: structured LinkedIn result is written and verified in `idempotency_cache` via `updateIdempotencySuccess()` *before* `recordSuccessUsage()` commits usage accounting.
   - `src/lib/devkit/sourceHashes.generated.json`:
     - Regenerated via `node scripts/compute-source-hashes.mjs` to reflect the hardened `ai-gateway` source hash (`125595493336fffe46e8c5739832ccd793a94babfa12c97c74232e28ad281ff1`).
 - **Credit & Deduplication Semantics:**
   - 1 initial async request initiates 1 background generation.
-  - Server-side credit deduction commits strictly upon successful structured result persistence.
-  - Idempotency reservation failure, model failure, or cache update failure all fail closed with 0 credits charged.
-  - Result-only read hits generic idempotency cache and logs `credits: 0, isIdempotencyHit: true`.
+  - The server records one unit of AI usage for accounting upon successful structured result persistence. The Ultimate entitlement remained unlimited; no finite quota was reduced or exhausted.
+  - Idempotency reservation failure, model failure, or cache update failure all fail closed with 0 usage recorded.
+  - Result-only read hits generic idempotency cache with 0 additional usage (`credits: 0, isIdempotencyHit: true`).
   - Pro / Metered live verification status: `NOT_LIVE_METERED_VERIFIED` (Unlimited QA account baseline).
 - **Deployment & Architecture Boundaries:**
-  - `APPWRITE_DEPLOYMENT_IMPACT = YES_TARGETED_AI_GATEWAY` (Targeted `ai-gateway` deployment required after PR review/merge).
-  - Schema impact: `NO`.
+  - `APPWRITE_DEPLOYMENT_IMPACT = YES_TARGETED_AI_GATEWAY` (Targeted `ai-gateway` deployment completed).
+  - Schema impact: No new schema migration was introduced by PR #278. The approved targeted `ai-gateway` deployment re-ran the workflow's normal idempotent schema/permission provisioners; existing required attributes/indexes were reported as already present (`APPWRITE_PRODUCT_SCHEMA_CHANGE = NO`).
   - Model routing impact: `NO` (DeepSeek primary preserved).
   - Other AI features (Enhance, Briefing, Cover Letters, Chat, Career Plan) remain synchronous and untouched.
 - **Validation:**
@@ -69,7 +69,7 @@
   3. **Remaining PDF Call-Sites:**
      - 1-Page PDF wizard, Combined Application PDF, Share drawer PDF: `TRANSPORT_PATH_RESTORED / UI_SURFACE_NOT_INDIVIDUALLY_REVERIFIED` (underlying serverless transport restored; distinct UI flows not individually executed in this session).
 - **Root Cause Resolution:** `ROOT_CAUSE_PRODUCTION_CONFIRMED_BY_REMEDIATION` — The confirmed production bootstrap blocker was the ESM relative-import failure (`../_lib/appwriteDocumentId` lacking `.js`). Chromium package inclusion and lazy loading remain part of the successfully deployed runtime configuration in Vercel Production Node 24.x ESM runtime.
-- **Remaining Open Workstream:** `AI_STUDIO_LINKEDIN_408_P1` (Separate AI Studio LinkedIn Optimizer 408 timeout issue).
+- **Historical Remaining Open Workstream (at time of PDF closeout):** `AI_STUDIO_LINKEDIN_408_P1` was the remaining open workstream at the time of PDF closeout; subsequently resolved and production verified later on 2026-09-03 via PR #278.
 
 ### 2026-09-03 - Native PDF Export P1 ESM Relative Import Remediation
 

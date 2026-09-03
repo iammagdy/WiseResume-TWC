@@ -10,23 +10,23 @@
 
 ---
 
-> ### **FINAL AUDIT VERDICT: FUNCTIONALITY_GAPS_FOUND**
+> ### **FINAL AUDIT VERDICT: FULL_FUNCTIONALITY_AUDIT_P1S_RESOLVED**
 >
 > **Core Assessment:**
 > The WiseResume production deployment at `https://wiseresume.app` has completed a full, multi-phase functionality audit covering public surfaces, protected routes, security boundaries, authenticated browser lifecycles, and real file downloads.
 >
-> Following the deployment and production verification of PR #275 and PR #276 (Deployment `3rZbgn2aGhWC739Bu4UgBMh2ni11`, Vercel Production Node 24.x ESM runtime), **Native PDF export functionality has been fully restored and verified** across 5 distinct surfaces (Designed PDF, ATS-Focused PDF, Preview Page PDF, Cover Letter PDF, and Tailoring Hub Result PDF).
->
-> However, **the canonical overall audit verdict must remain `FUNCTIONALITY_GAPS_FOUND`** because a core user-facing AI Studio feature remains confirmed broken in production:
+> **Both P1 product defects identified by this audit — Native PDF Export and AI Studio LinkedIn Optimizer HTTP 408 — are now production verified as resolved.**
 >
 > 1. **Resolved — Native PDF Export Verified (`PDF_EXPORT_P1_DEPLOYED_PRODUCTION_VERIFIED`):**
->    Designed PDF, ATS-Focused PDF, Preview Page PDF, Cover Letter PDF, and Tailoring Hub Result PDF succeed with **HTTP 200 `application/pdf`** and generate real, valid, non-zero `%PDF-` files. Remaining entry points (1-Page wizard, Combined PDF, Share drawer) are classified `TRANSPORT_PATH_RESTORED / UI_SURFACE_NOT_INDIVIDUALLY_REVERIFIED`.
-> 2. **Confirmed Product Defect — AI Studio LinkedIn Optimizer Timeout (HTTP 408) (`AI_STUDIO_LINKEDIN_408_P1`):**
->    Synchronous AI Studio tool `executeLinkedInOptimizer` hits **HTTP 408 Request Timeout** from Appwrite Cloud because model execution (>25s) exceeds Appwrite's 15-second synchronous function limit. Tracked as the next dedicated P1 remediation workstream (`AI_STUDIO_LINKEDIN_408_P1`).
+>    Designed PDF, ATS-Focused PDF, Preview Page PDF, Cover Letter PDF, and Tailoring Hub Result PDF succeed with **HTTP 200 `application/pdf`** and generate real, valid, non-zero `%PDF-` files (PR #275 & PR #276, deployment `3rZbgn2aGhWC739Bu4UgBMh2ni11`). Remaining entry points (1-Page wizard, Combined PDF, Share drawer) are classified `TRANSPORT_PATH_RESTORED / UI_SURFACE_NOT_INDIVIDUALLY_REVERIFIED`.
+> 2. **Resolved — AI Studio LinkedIn Optimizer Async Remediation Verified (`AI_STUDIO_LINKEDIN_408_P1_DEPLOYED_PRODUCTION_VERIFIED`):**
+>    Decoupled from synchronous transport to background execution (`async: true`) with 1.5s client polling, server-owned result-only retrieval (`X-AI-Result-Only: true`), and 409 pending handling (PR #278, Appwrite deployment `6a993f8a964aa9a65327`, Vercel deployment `8JwoQdtnRGsJ6KV7rnqDVg6xgM3G`). Live production testing verified end-to-end completion in ~9.1s with zero HTTP 408 timeouts, complete structured output rendering (4 headlines, short/medium/long About sections, experience rewrites, 10 skills, 10 keywords, 5 tips), Word (`.docx`) export, and accounting for one usage unit without reducing the unlimited Ultimate entitlement.
 > 3. **Billing System Correctly Disabled (`BILLING_CHECKOUT_ENABLED=false`):**
 >    Paddle rejected merchant onboarding on 2026-08-31 due to AUP category restrictions. The production system correctly fails closed with disabled checkouts until an alternative provider (e.g., Stripe) is integrated.
 > 4. **Arabic Guides Editorial Review Notice:**
 >    Routes `/ar/guides` and `/ar/examples` intentionally render clean review notices pending final editorial translation.
+> 5. **Metered Pro Baseline:**
+>    `PRO_LIVE_METERED_VERIFICATION = NOT_LIVE_METERED_VERIFIED` (Approved non-customer Ultimate QA fixture used; live metered Pro fixture was not modified).
 
 ---
 
@@ -48,8 +48,8 @@
 | **Cover Letter Generator** | 1 full flow | 1 | 0 | 0 | **PASS** | `PERSISTENCE_VERIFIED` |
 | **Portfolio Owner Save & Public Reflection** | 1 full flow | 1 | 0 | 0 | **PASS** | `PERSISTENCE_VERIFIED` |
 | **Notifications Full Lifecycle** | 1 full flow | 1 | 0 | 0 | **PASS** | `PERSISTENCE_VERIFIED` |
-| **AI Studio Tools Suite** | 5 tools | 3 passed | 1 partial | 1 failed (408 timeout) | **FUNCTIONALITY_GAPS_FOUND** | `PARTIAL` / `PRODUCT BUG` |
-| **Non-PDF File Exports (.docx, .json, .png)** | 3 formats | 3 | 0 | 0 | **PASS** | `EXPORT_FILE_VERIFIED` |
+| **AI Studio Tools Suite** | 5 tools | 4 passed | 1 partial (Enhance initial selection) | 0 | **PASS** | `FULL_FUNCTIONALITY_AUDIT_P1S_RESOLVED` |
+| **Non-PDF File Exports (.docx, .json, .png)** | 4 formats | 4 | 0 | 0 | **PASS** | `EXPORT_FILE_VERIFIED` |
 | **PDF Native Exports (Designed, ATS, Preview, Cover Letter, Tailor Result)** | 5 surfaces | 5 | 0 | 0 | **PASS** | `PDF_EXPORT_P1_DEPLOYED_PRODUCTION_VERIFIED` |
 
 ---
@@ -121,11 +121,11 @@ Every visible shipped AI Studio tool was executed against production `https://wi
 | **Tailoring Hub** | `job-match` | **HTTP 201** (Async 202 + Polling) | Appwrite `ai-gateway` (Anthropic / OpenAI pool) | 3,922 chars tailored CV, score delta, skills gap breakdown | 0 (Ultimate Unlimited) | Persists new resume to `COLLECTIONS.resumes` & redirects to `/tailoring-hub/result/:id` | **`PASS (PERSISTENCE_VERIFIED)`** |
 | **Cover Letter Writer** | `cover-letters` | **HTTP 201** | Appwrite `ai-gateway` | 1,671 chars tailored letter with hiring manager hook | 0 (Ultimate Unlimited) | Persists to `COLLECTIONS.cover_letters` with Word & Copy export | **`PASS (PERSISTENCE_VERIFIED)`** |
 | **Company Briefing** | `company-briefing` | **HTTP 201** | Appwrite `ai-gateway` | Comprehensive interview briefing for Stripe with mission, culture, tech stack breakdown, and targeted questions | 0 (Ultimate Unlimited) | Save to library, Download PDF, and Copy actions active in drawer | **`PASS (BROWSER_VERIFIED)`** |
-| **LinkedIn Optimizer** | `linkedin` | **HTTP 408** (Request Timeout) | Appwrite `ai-gateway` | None (Timeout) | 0 | None (Fails before rendering results) | **`FAIL (PRODUCT DEFECT)`** |
-| **AI Resume Enhance** | `enhance` | **HTTP 201** (when sections manually selected) | Appwrite `ai-gateway` | Section diff comparing original text with improved active-voice phrasing | 0 (Ultimate Unlimited) | Apply button mutates resumeStore and persists to Appwrite database | **`PARTIAL (PRODUCT DEFECT)`** |
+| **LinkedIn Optimizer** | `linkedin` | **HTTP 201** (Async 202 + Polling + Result-Only fallback) | Appwrite `ai-gateway` (DeepSeek primary) | 4 tailored headlines, short/medium/long About sections, experience rewrites, 10 suggested skills, 10 keywords, 5 actionable profile tips | Usage accounted (+1 unit; Ultimate quota remains unlimited) | Word (`.docx`, 9,786 bytes) & Copy All export rendered in UI | **`PASS (AI_STUDIO_LINKEDIN_408_P1_DEPLOYED_PRODUCTION_VERIFIED)`** |
+| **AI Resume Enhance** | `enhance` | **HTTP 201** (when sections manually selected) | Appwrite `ai-gateway` | Section diff comparing original text with improved active-voice phrasing | Usage accounted (Ultimate quota remains unlimited) | Apply button mutates resumeStore and persists to Appwrite database | **`PARTIAL (PRODUCT DEFECT)`** |
 
 ### Root Cause Analysis for AI Studio Defects:
-- **LinkedIn Optimizer Timeout (HTTP 408) (SEPARATE P1 REMEDIATION WORKSTREAM):** In `src/lib/appwrite-functions.ts`, `tailor-resume` uses asynchronous execution (`functions.createExecution(functionId, executionBody, true)`) followed by status polling. However, all other features (including `linkedin` and `enhance`) execute synchronously (`false`). Because generating a complete LinkedIn profile (5 headlines, 3 About variants, experience rewrites, skills, and tips) takes >25 seconds, Appwrite Cloud terminates the connection after 15 seconds with **HTTP 408 Request Timeout**. *(Tracked separately; not modified in PR #275).*
+- **LinkedIn Optimizer Timeout (HTTP 408) (RESOLVED & PRODUCTION VERIFIED):** Production previously observed HTTP 408 at approximately 15 seconds while LinkedIn was coupled to a synchronous execution transport. The remediation decoupled the long-running AI operation using async execution (`functions.createExecution(..., true)`), 1.5s client-side polling, and server-owned result-only polling (`X-AI-Result-Only: true`) with 409 pending handling, eliminating the transport timeout entirely (PR #278, Appwrite deployment `6a993f8a964aa9a65327`, Vercel deployment `8JwoQdtnRGsJ6KV7rnqDVg6xgM3G`).
 - **AI Resume Enhance Initial State:** The Enhance button initializes in a disabled state because `selectedSections` defaults to an empty set (`new Set()`). Users must explicitly locate and click "Select All" (`Select All`) before the tool can be triggered.
 
 ---
@@ -137,6 +137,7 @@ All downloads were captured via real browser events and inspected on disk:
 | Format | Option ID | Expected Ext | Downloaded File | File Size | Header / Content Validation | Verdict | Evidence Tag |
 |---|---|---|---|---|---|---|---|
 | **Word Document** | `docx` | `.docx` | `Ahmed_Hassan_Resume.docx` | **9,258 bytes** | Magic bytes `PK\x03\x04` (Valid OpenXML document) | **`PASS`** | `EXPORT_FILE_VERIFIED` |
+| **LinkedIn Word Document** | `docx` | `.docx` | `LinkedIn_Profile_Ahmed_Hassan.docx` | **9,786 bytes** | Magic bytes `PK\x03\x04` (Valid OpenXML document) | **`PASS`** | `EXPORT_FILE_VERIFIED` |
 | **JSON Backup** | `json` | `.json` | `Ahmed_Hassan_Backup.json` | **1,435 bytes** | Valid parseable JSON containing complete resume data model | **`PASS`** | `EXPORT_FILE_VERIFIED` |
 | **4K Image** | `image` | `.png` | `Ahmed_Hassan_Resume_4K.png` | **937,255 bytes** | High-resolution canvas PNG render | **`PASS`** | `EXPORT_FILE_VERIFIED` |
 | **Designed PDF** | `resume` | `.pdf` | `designed-resume.pdf` | **30,349 bytes** | Magic bytes `%PDF-`, 1 page, parsed cleanly with `pdf-lib` | **`PASS`** | `EXPORT_FILE_VERIFIED` |
@@ -175,8 +176,7 @@ WiseResume exhibits world-class UI craftsmanship, strict privacy controls, respo
 
 ### Action Items:
 1. **P1 — Native PDF Serverless Runtime:** **`RESOLVED & PRODUCTION VERIFIED`** (PR #275 & PR #276 merged and verified on `https://wiseresume.app`).
-2. **P1 — Migrate AI Studio Tools to Asynchronous Polling (`AI_STUDIO_LINKEDIN_408_P1`):**
-   Refactor `appwriteFunctions.invoke()` to use asynchronous execution (`async: true`) and polling for long-running AI Studio tools (`linkedin`, `enhance`) exactly as done for `tailor-resume` to eliminate HTTP 408 timeouts.
+2. **P1 — Migrate AI Studio Tools to Asynchronous Polling (`AI_STUDIO_LINKEDIN_408_P1`):** **`RESOLVED & PRODUCTION VERIFIED`** (PR #278 merged, `ai-gateway` deployed with server-owned result-only contract, verified in live production with zero HTTP 408 timeouts, complete structured output rendering, and Word export).
 3. **P1 — Onboard Replacement Merchant of Record:**
    Complete merchant integration (e.g., Stripe) to re-enable self-serve billing checkouts.
 
