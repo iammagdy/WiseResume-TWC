@@ -34,6 +34,7 @@ const HUBS = [
   'ai-health',
   'coupons',
   'revenuecat-webhook',
+  'paypal-webhook',
   'email-service',
   'email-templates',
   'job-import',

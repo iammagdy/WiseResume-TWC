@@ -134,6 +134,12 @@ const FUNCTION_EXECUTION_POLICIES = Object.freeze({
     handlerAuth: 'Requires constant-time comparison of the Authorization secret before parsing or mutating state',
     execute: Object.freeze(['any']),
   }),
+  'paypal-webhook': Object.freeze({
+    classification: 'anonymous-public',
+    caller: 'PayPal HTTPS webhook delivery',
+    handlerAuth: 'Requires successful PayPal webhook signature verification before parsing or mutating state',
+    execute: Object.freeze(['any']),
+  }),
   'email-service': Object.freeze({
     classification: 'anonymous-public',
     caller: 'Public auth email flows, authenticated account actions, and signed internal admin email actions',
