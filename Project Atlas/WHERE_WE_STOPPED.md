@@ -1,8 +1,36 @@
 # Project Atlas — Active Operational & Handover State
 
-**Last Verified:** 2026-09-02
-**Status:** `P2_OPTIMIZATIONS_DEPLOYED_WITH_BROWSER_QA_PENDING / PADDLE_APPLICATION_REJECTED_CATEGORY_AUP` — All Phase 2 performance optimizations (P2-1, P2-2, P2-3A, P2-3B) merged and deployed to production; documentation reconciled via PR #272 at baseline `main` commit [`13a7996a348e08b0faf4f15a191f08ea9c0cc29e`](https://github.com/iammagdy/WiseResume-TWC/commit/13a7996a348e08b0faf4f15a191f08ea9c0cc29e). Authenticated runtime browser QA remains `BLOCKED_AUTHENTICATED_RUNTIME_QA`. Paddle domain review site readiness was completed (`PADDLE_DOMAIN_REVIEW_SITE_READY`), but Paddle rejected account activation on 2026-08-31 due to the Resume/CV Builder category under its Acceptable Use Policy (`PADDLE_APPLICATION_REJECTED_CATEGORY_AUP`). Billing checkout remains strictly disabled (`BILLING_CHECKOUT_ENABLED=false`).
+**Last Verified:** 2026-09-03
+**Status:** `PDF_EXPORT_P1_REMEDIATED_LOCAL_VERIFIED / AWAITING_PRODUCTION_DEPLOYMENT` — Repaired Native PDF Export P1 defect (`POST /api/export/pdf-native` failing with HTTP 500). Restored `vercel.json` functions configuration with `includeFiles: "node_modules/@sparticuz/chromium/**"` and converted static import to lazy dynamic import in `api/export/pdf-native.ts`. All unit, build, and bundle simulation tests passed locally. Billing checkout remains strictly disabled (`BILLING_CHECKOUT_ENABLED=false`) due to Paddle AUP category rejection.
 **Location:** `Project Atlas/WHERE_WE_STOPPED.md`
+
+## Native PDF Export P1 Remediation (Local Verified) — 2026-09-03
+
+* **Workstream Verdict:** `PDF_EXPORT_P1_REMEDIATED_LOCAL_VERIFIED`.
+* **What's New Eligibility Decision:** `WHATS_NEW_DEFER_UNTIL_PRODUCTION` (Qualifies as a critical user-facing fix; deferred until live production deployment verification).
+* **Defect Repaired:** `POST https://wiseresume.app/api/export/pdf-native` returned `HTTP 500 FUNCTION_INVOCATION_FAILED` for Designed PDF and ATS PDF.
+* **Root Cause Classification:** `ROOT_CAUSE_HIGH_CONFIDENCE_NOT_PRODUCTION_PROVEN`. Production evidence proves the function crashes during container bootstrapping before handler execution (GET returns 500 rather than 405). Git history proves commit `4829c791` deleted `vercel.json`'s `functions` configuration (`includeFiles: "node_modules/@sparticuz/chromium/**"`), and commit `eb9059cf` restored a static top-level import. Local package analysis strongly supports missing runtime Chromium packaging/bootstrap as the cause, as `@vercel/nft` cannot trace the 64MB `chromium.br` binary without `includeFiles`. Exact Vercel container stderr/stack was not available via CLI/API, so production deployment verification is required.
+* **Changes Applied:**
+  1. `vercel.json`: Restored `"functions"` block with `includeFiles: "node_modules/@sparticuz/chromium/**"` and `maxDuration: 60`.
+  2. `api/export/pdf-native.ts`: Converted static `import chromium from '@sparticuz/chromium'` to lazy dynamic import inside handler (`if (!_chromium) _chromium = (await import('@sparticuz/chromium')).default;`).
+  3. `src/lib/security/pdfNativeRuntimeImports.test.ts`: Updated test suite to verify `vercel.json` includeFiles and lazy dynamic loading.
+* **Verification Completed:**
+  - `tsc --noEmit`: 0 errors.
+  - `src/lib/security/pdfNativeRuntimeImports.test.ts`: 2/2 passed.
+  - `src/lib/exportResumePdf.test.ts`: 2/2 passed.
+  - `src/lib/nativePdfGenerator.test.ts`: 5/5 passed.
+  - `npm run build`: Clean production build in 55.85s (0 sourcemaps).
+  - Bundled Serverless Function evaluation simulation: 0 module resolution errors.
+* **Next Action:** Push branch / create PR, merge to `main`, trigger Vercel deployment, and verify live PDF downloads in production using the approved non-customer QA session.
+
+## Full Application End-to-End Functionality & Production Audit — 2026-09-02
+
+* **Audit Report:** [`Project Atlas/reports/2026-09-02-full-functionality-production-audit.md`](file:///d:/WiseResume-TWC/Project%20Atlas/reports/2026-09-02-full-functionality-production-audit.md).
+* **Audit Verdict:** `FUNCTIONALITY_GAPS_FOUND` (PDF Export P1 defect remediated locally; awaiting production deployment and live browser verification).
+* **Repository Baseline:** `d293437bc54032c08329c99f6f527e1a6574c499` (`main`, synchronized with `origin/main`).
+* **Live Target:** `https://wiseresume.app`.
+
+---
 
 ## P2-3B Tailoring Client Lifecycle Reconciliation (Merged & Deployed) — 2026-09-02
 

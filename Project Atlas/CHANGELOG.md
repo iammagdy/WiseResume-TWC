@@ -1,5 +1,26 @@
 # WiseResume Atlas Master Changelog
 
+### 2026-09-03 - Native PDF Export P1 Remediation (Vercel Serverless Chromium Restoration)
+
+- **Workstream Verdict:** `PDF_EXPORT_P1_REMEDIATED_LOCAL_VERIFIED`.
+- **What's New Eligibility:** `WHATS_NEW_DEFER_UNTIL_PRODUCTION` (Qualifies as a fix for a core customer-facing feature; deferred until live production deployment verification).
+- **Scope:** Repaired production failure on `POST /api/export/pdf-native` returning `HTTP 500 FUNCTION_INVOCATION_FAILED`.
+- **Root Cause Classification:** `ROOT_CAUSE_HIGH_CONFIDENCE_NOT_PRODUCTION_PROVEN`.
+  - Production behavior proves the function crashes during container bootstrapping before handler execution (GET returns 500 rather than 405).
+  - Commit history proves commit `4829c791` deleted `vercel.json`'s `functions` configuration (`includeFiles: "node_modules/@sparticuz/chromium/**"`), and commit `eb9059cf` restored a static top-level import.
+  - Local package analysis strongly supports missing runtime Chromium packaging/bootstrap as the cause, as `@vercel/nft` cannot trace the 64MB `chromium.br` binary without `includeFiles`.
+  - Exact Vercel container stderr/stack was not available via CLI/API.
+  - Production deployment verification is still required after merge.
+- **Local Fixes Applied:**
+  - `vercel.json`: Restored missing `"functions"` configuration block with `"includeFiles": "node_modules/@sparticuz/chromium/**"` and `"maxDuration": 60`.
+  - `api/export/pdf-native.ts`: Converted top-level static `import chromium from '@sparticuz/chromium'` to lazy dynamic `import('@sparticuz/chromium')` inside the handler to prevent serverless module loading crashes before handler execution.
+  - `src/lib/security/pdfNativeRuntimeImports.test.ts`: Updated test suite to verify `vercel.json` contains `includeFiles`, dynamic import is present, and static top-level import is rejected.
+- **Validation:**
+  - TypeScript: 0 errors (`tsc --noEmit`).
+  - Vitest: 11/11 tests passed across `pdfNativeRuntimeImports.test.ts`, `exportResumePdf.test.ts`, and `nativePdfGenerator.test.ts`.
+  - Build: Clean Vite production build in 55.85s (`0 *.map files in dist/`).
+  - Bundle test: Simulated `@vercel/node` esbuild bundle and verified clean module evaluation in Node with 0 errors.
+
 ### 2026-09-02 - WiseResume Global Atlas State Reconciliation After P2 Closeout
 
 - **Workstream Verdict:** `ATLAS_GLOBAL_STATE_RECONCILED_PR_READY`.

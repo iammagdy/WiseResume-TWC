@@ -12,7 +12,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createHash } from 'node:crypto';
 import { Client, Databases, Query } from 'node-appwrite';
-import chromium from '@sparticuz/chromium';
 import { isPuppeteerRequestUrlAllowed } from '../../src/lib/security/ssrfGuards.js';
 import {
   PDF_EXPORT_MAX_CONTENT_HEIGHT_PX,
@@ -26,11 +25,13 @@ import {
   validatePdfExportRequestBody,
 } from '../../src/lib/security/pdfExportPolicy.js';
 import { createAppwriteDocumentId } from '../_lib/appwriteDocumentId';
-// The static Chromium import is intentional: Vercel's file tracer must see the
-// dependency so it ships the package and its compressed browser binaries.
-// Keep puppeteer-core lazy because simple validation responses do not need it.
+// Keep heavy browser dependencies lazy so top-level bootstrapping and simple
+// validation or error responses do not crash during module startup.
+// vercel.json includeFiles ensures the ESM and browser binary files ship with the function bundle.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let _puppeteer: any;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let _chromium: any;
 let _pdfLib: typeof import('pdf-lib') | undefined;
 
 export const config = {
@@ -1011,6 +1012,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       console.log('[pdf] step: puppeteer-core ok');
     }
     const puppeteer = _puppeteer;
+    if (!_chromium) {
+      console.log('[pdf] step: import @sparticuz/chromium');
+      _chromium = (await import('@sparticuz/chromium')).default;
+      console.log('[pdf] step: @sparticuz/chromium ok');
+    }
+    const chromium = _chromium;
 
     console.log('[pdf] step: get chromium args, count:', chromium.args?.length);
     console.log('[pdf] step: get executablePath');
