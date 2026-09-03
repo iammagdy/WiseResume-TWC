@@ -30,6 +30,9 @@ import {
   Languages,
   FileSpreadsheet,
   Workflow,
+  FileDown,
+  Linkedin,
+  History,
 } from 'lucide-react';
 import React from 'react';
 
@@ -42,10 +45,12 @@ export type ReleaseCategory =
   | 'security'
   | 'improvements';
 
+export type UpdateType = 'all' | 'new' | 'improved' | 'fixed';
+
 export interface ReleaseUpdate {
   id: string;
   date: string;
-  monthKey: string; // Canonical YYYY-MM format e.g. "2026-08"
+  monthKey: string; // Canonical YYYY-MM format e.g. "2026-09"
   year: number;
   category: ReleaseCategory;
   categoryLabel: {
@@ -69,6 +74,11 @@ export interface ReleaseUpdate {
     ar: string[];
   };
   featured?: boolean;
+  updateType?: 'new' | 'improved' | 'fixed';
+  featureArea?: {
+    en: string;
+    ar: string;
+  };
 }
 
 export interface MonthGroup {
@@ -81,6 +91,13 @@ export interface MonthGroup {
   };
 }
 
+export const TYPE_FILTERS: { id: UpdateType; label: { en: string; ar: string } }[] = [
+  { id: 'all', label: { en: 'All Updates', ar: 'جميع التحديثات' } },
+  { id: 'new', label: { en: 'New Features', ar: 'ميزات جديدة' } },
+  { id: 'improved', label: { en: 'Improvements', ar: 'تحسينات' } },
+  { id: 'fixed', label: { en: 'Fixes', ar: 'إصلاحات' } },
+];
+
 export const CATEGORY_FILTERS: { id: ReleaseCategory; label: { en: string; ar: string } }[] = [
   { id: 'all', label: { en: 'All Updates', ar: 'جميع التحديثات' } },
   { id: 'features', label: { en: 'New Features', ar: 'ميزات جديدة' } },
@@ -90,6 +107,19 @@ export const CATEGORY_FILTERS: { id: ReleaseCategory; label: { en: string; ar: s
   { id: 'security', label: { en: 'Security & Legal', ar: 'الأمان والقوانين' } },
   { id: 'improvements', label: { en: 'Improvements & Fixes', ar: 'تحسينات وإصلاحات' } },
 ];
+
+export function getUpdateType(release: ReleaseUpdate): 'new' | 'improved' | 'fixed' {
+  if (release.updateType) return release.updateType;
+  if (release.category === 'features') return 'new';
+  if (release.category === 'improvements') {
+    if (/fix|fixes|remediation|resolve|resolution/i.test(release.title.en)) {
+      return 'fixed';
+    }
+    return 'improved';
+  }
+  if (release.category === 'security') return 'fixed';
+  return 'improved';
+}
 
 const MONTH_NAMES_EN: Record<number, string> = {
   1: 'January',
@@ -153,6 +183,215 @@ export function getAvailableMonthGroups(releases: ReleaseUpdate[]): MonthGroup[]
 }
 
 export const whatsNewReleases: ReleaseUpdate[] = [
+  // ── September 2026 ──────────────────────────────────────────
+  {
+    id: 'sep-2026-native-pdf-export',
+    date: 'September 2026',
+    monthKey: '2026-09',
+    year: 2026,
+    category: 'resume',
+    updateType: 'fixed',
+    featureArea: { en: 'PDF Export', ar: 'تصدير PDF' },
+    categoryLabel: { en: 'Resume & Portfolio', ar: 'السيرة والملف الشخصي' },
+    categoryBg: 'bg-cyan-500/10',
+    categoryText: 'text-cyan-600 dark:text-cyan-400',
+    iconBg: 'bg-cyan-500/15',
+    icon: FileDown,
+    featured: true,
+    title: {
+      en: 'High-Fidelity Native PDF Exports Across All Templates',
+      ar: 'تصدير ملفات PDF فائقة الجودة لكافة النماذج',
+    },
+    description: {
+      en: 'Exporting your resume, cover letter, and application materials to PDF now generates pixel-perfect, single-page and multi-page documents with native serverless rendering.',
+      ar: 'تصدير سيرتك الذاتية وخطاب التقديم ومستندات التوظيف كملف PDF أصبح الآن يولد مستندات مطابقة تماماً للمعاينة مع دعم كامل للطباعة والنماذج المتوافقة مع أنظمة ATS.',
+    },
+    highlights: {
+      en: [
+        'Restored native serverless PDF generation across Designed and ATS resume formats',
+        'Verified single-page and multi-page preview and tailored result downloads',
+        'Clean physical page boundary alignment for Letter and A4 formats',
+      ],
+      ar: [
+        'استعادة التصدير عالي الدقة لكافة نماذج السير الذاتية المصممة والنماذج المتوافقة مع ATS',
+        'تحميل فوري وموثوق للمعاينة وخطابات التقديم ونتائج التخصيص',
+        'محاذاة دقيقة لحدود الصفحات وفق المقاسات العالمية المعتمدة Letter وA4',
+      ],
+    },
+  },
+  {
+    id: 'sep-2026-linkedin-optimizer-async',
+    date: 'September 2026',
+    monthKey: '2026-09',
+    year: 2026,
+    category: 'ai',
+    updateType: 'fixed',
+    featureArea: { en: 'AI Studio', ar: 'استوديو الذكاء الاصطناعي' },
+    categoryLabel: { en: 'AI & Tailoring', ar: 'الذكاء الاصطناعي والتخصيص' },
+    categoryBg: 'bg-blue-500/10',
+    categoryText: 'text-blue-600 dark:text-blue-400',
+    iconBg: 'bg-blue-500/15',
+    icon: Linkedin,
+    featured: true,
+    title: {
+      en: 'Asynchronous LinkedIn Profile Optimization & Word Export',
+      ar: 'تحسين الملف الشخصي على LinkedIn في الخلفية وتصدير Word',
+    },
+    description: {
+      en: 'The AI Studio LinkedIn Optimizer now runs smoothly in the background, generating comprehensive profile headlines, multi-length About summaries, experience rewrites, and downloadable Word documents without timeout interruptions.',
+      ar: 'يعمل مُحسّن لينكد إن الآن بسلاسة في الخلفية، حيث يُنشئ عناوين احترافية، وموجزات نبذة متنوعة، وصياغات مطورة للخبرات، مع إمكانية التصدير الفوري لمستند Word.',
+    },
+    highlights: {
+      en: [
+        'Reliable background profile generation without timeout errors',
+        'Tailored headlines, 3 About summary lengths, experience rewrites, and skill suggestions',
+        'One-click Word (.docx) profile download and clipboard copying',
+      ],
+      ar: [
+        'توليد موثوق للملف الشخصي في الخلفية دون أي انقطاع أو تأخير',
+        'عناوين مخصصة، و3 خيارات لطول النبذة المهنية، وصياغة للخبرات، واقتراحات للمهارات',
+        'تصدير فوري بنقرة واحدة لمستند Word (.docx) ونسخ المحتوى للحافظة',
+      ],
+    },
+  },
+  {
+    id: 'sep-2026-tailoring-cancellation',
+    date: 'September 2026',
+    monthKey: '2026-09',
+    year: 2026,
+    category: 'ai',
+    updateType: 'improved',
+    featureArea: { en: 'Tailoring Hub', ar: 'مركز التخصيص' },
+    categoryLabel: { en: 'AI & Tailoring', ar: 'الذكاء الاصطناعي والتخصيص' },
+    categoryBg: 'bg-amber-500/10',
+    categoryText: 'text-amber-600 dark:text-amber-400',
+    iconBg: 'bg-amber-500/15',
+    icon: History,
+    featured: true,
+    title: {
+      en: 'Instant Tailoring Cancellation & Workspace Protection',
+      ar: 'إلغاء فوري لعمليات التخصيص وحماية مساحة العمل',
+    },
+    description: {
+      en: 'You can now cancel in-flight tailoring runs instantly across all pages and drawer sheets. Closing or navigating away immediately resets the workspace without stuck loading states or stale overwrites.',
+      ar: 'يمكنك الآن إلغاء عمليات التخصيص الجارية فوراً عبر جميع الصفحات والنوافذ الجانبية، مع إعادة ضبط فورية لمساحة العمل دون تعليق مؤشرات التحميل أو تداخل التعديلات.',
+    },
+    highlights: {
+      en: [
+        'Instant cancellation across Tailoring Hub, Editor sheets, and Fast Tailor',
+        'Immediate recovery of active editor controls when abandoning a run',
+        'Guaranteed protection against stale background result overwrites',
+      ],
+      ar: [
+        'إلغاء فوري عبر مركز التخصيص، ونوافذ المحرر، وخاصية التخصيص السريع',
+        'استعادة فورية للتحكم في مساحة العمل دون انتظار استجابة الخادم',
+        'حماية تامة من الكتابة فوق المستندات عند إلغاء الطلب في الخلفية',
+      ],
+    },
+  },
+  {
+    id: 'sep-2026-autosave-deduplication',
+    date: 'September 2026',
+    monthKey: '2026-09',
+    year: 2026,
+    category: 'resume',
+    updateType: 'improved',
+    featureArea: { en: 'Resume Editor', ar: 'محرر السيرة الذاتية' },
+    categoryLabel: { en: 'Resume & Portfolio', ar: 'السيرة والملف الشخصي' },
+    categoryBg: 'bg-violet-500/10',
+    categoryText: 'text-violet-600 dark:text-violet-400',
+    iconBg: 'bg-violet-500/15',
+    icon: Zap,
+    title: {
+      en: 'Seamless Autosave & Typing Responsiveness',
+      ar: 'حفظ تلقائي سلس واستجابة فائقة أثناء الكتابة',
+    },
+    description: {
+      en: 'Resume editing is now noticeably smoother. Background cloud autosaves intelligently deduplicate document fetches, keeping your editing flow completely interruption-free.',
+      ar: 'أصبح تحرير السيرة الذاتية أكثر سلاسة وسرعة، حيث يقوم الحفظ التلقائي بمطابقة البيانات بذكاء دون إعادة تحميل المستندات أو إبطاء الكتابة.',
+    },
+    highlights: {
+      en: [
+        'Eliminated redundant network re-reads during background cloud saves',
+        'Interruption-free typing flow across long resume sections and bullet points',
+        'Real-time document reconciliation without editor flickering',
+      ],
+      ar: [
+        'استبعاد عمليات القراءة المتكررة من الشبكة أثناء الحفظ السحابي',
+        'كتابة وتعديل مستمر دون أي بطء في الأقسام الطويلة والنقاط النقطية',
+        'تحديث فوري لبيانات السيرة الذاتية دون أي وميض في الشاشة',
+      ],
+    },
+  },
+  {
+    id: 'sep-2026-portfolio-turnstile-contact',
+    date: 'September 2026',
+    monthKey: '2026-09',
+    year: 2026,
+    category: 'resume',
+    updateType: 'new',
+    featureArea: { en: 'Public Portfolio', ar: 'الملف المهني العام' },
+    categoryLabel: { en: 'Resume & Portfolio', ar: 'السيرة والملف الشخصي' },
+    categoryBg: 'bg-emerald-500/10',
+    categoryText: 'text-emerald-600 dark:text-emerald-400',
+    iconBg: 'bg-emerald-500/15',
+    icon: Shield,
+    title: {
+      en: 'Turnstile-Protected Visitor Inquiries for Public Portfolios',
+      ar: 'حماية رسائل الزوار في الملف المهني العام بنظام Turnstile',
+    },
+    description: {
+      en: 'Recruiters and visitors can now send direct inquiries through your public portfolio with frictionless Cloudflare Turnstile protection, delivering verified messages straight to your inbox and in-app tray.',
+      ar: 'يمكن لمسؤولي التوظيف والزوار التواصل معك مباشرة عبر ملفك المهني العام مع حماية متطورة من الرسائل المزعجة وتنبيهات فورية في بريدك وحسابك.',
+    },
+    highlights: {
+      en: [
+        'Direct visitor contact form with invisible Cloudflare Turnstile verification',
+        'Instant transactional email delivery to the portfolio owner inbox',
+        'Persistent in-app notification badge on incoming portfolio interest',
+      ],
+      ar: [
+        'نموذج تواصل مباشر للزوار مدعوم بفحص ذكي لمنع الرسائل العشوائية',
+        'تسليم فوري لرسائل الاستفسار إلى بريدك الإلكتروني الشخصي',
+        'إشعار فوري داخل التطبيق عند اهتمام أي زائر بملفك المهني',
+      ],
+    },
+  },
+  {
+    id: 'sep-2026-client-polling-efficiency',
+    date: 'September 2026',
+    monthKey: '2026-09',
+    year: 2026,
+    category: 'improvements',
+    updateType: 'improved',
+    featureArea: { en: 'Platform', ar: 'المنصة' },
+    categoryLabel: { en: 'Improvements & Fixes', ar: 'تحسينات وإصلاحات' },
+    categoryBg: 'bg-indigo-500/10',
+    categoryText: 'text-indigo-600 dark:text-indigo-400',
+    iconBg: 'bg-indigo-500/15',
+    icon: Gauge,
+    title: {
+      en: 'Background Battery & Bandwidth Efficiency',
+      ar: 'تحسين استهلاك البطارية والبيانات في الخلفية',
+    },
+    description: {
+      en: 'We significantly reduced background polling activity on open tabs, optimizing mobile battery life and cutting unnecessary network bandwidth by over 90%.',
+      ar: 'قمنا بتخفيض طلبات الفحص المتكررة في الخلفية بنسبة تتجاوز 90%، مما يحافظ على عمر بطارية الأجهزة المحمولة ويوفر استهلاك البيانات.',
+    },
+    highlights: {
+      en: [
+        'Extended session poll interval with real-time socket safety triggers',
+        'Lower device CPU and network utilization on long-running browser tabs',
+        'Faster overall dashboard and workspace page responsiveness',
+      ],
+      ar: [
+        'تنظيم فترات التحقق في الخلفية مع الحفاظ على التحديث اللحظي عبر الويب سوكيت',
+        'تقليل استهلاك المعالج وبيانات الإنترنت في علامات التبويب المفتوحة',
+        'استجابة أسرع وأخف للوحة التحكم ومساحة العمل',
+      ],
+    },
+  },
+
   // ── August 2026 ─────────────────────────────────────────────
   {
     id: 'aug-2026-remote-jobs',

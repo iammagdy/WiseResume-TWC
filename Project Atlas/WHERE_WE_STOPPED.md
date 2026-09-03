@@ -1,10 +1,52 @@
 # Project Atlas — Active Operational & Handover State
 
 **Last Verified:** 2026-09-03
-**Status:** `PDF_EXPORT_P1_DEPLOYED_PRODUCTION_VERIFIED / AI_STUDIO_LINKEDIN_408_P1_DEPLOYED_PRODUCTION_VERIFIED / FULL_FUNCTIONALITY_AUDIT_P1S_RESOLVED` — Both critical P1 functional blockers from the 2026-09-02 full application audit are now deployed and verified in live production. PR #278 merged into `main` (`ba32c3bfbd9514db2f5dd9c44ec8770f47d36e16`). Billing checkout remains strictly disabled (`BILLING_CHECKOUT_ENABLED=false`).
+**Status:** `WHATS_NEW_IMPLEMENTED_PREVIEW_VERIFIED / PRODUCTION_UNVERIFIED` (Audit Baseline: `FULL_FUNCTIONALITY_AUDIT_P1_CLOSEOUT_COMPLETE`, Billing: `BILLING_CHECKOUT_DISABLED`) — Redesigned customer-facing `/whats-new` and `/ar/whats-new` experiences implemented on branch `feat/whats-new-revamp`. Ready for PR and Vercel preview verification. Production deployment remains unperformed.
 **Location:** `Project Atlas/WHERE_WE_STOPPED.md`
 
-## AI Studio LinkedIn Optimizer Async Execution Remediation & Production Verification (PR #278) — 2026-09-03
+## What's New Page Full Revamp & Shipped-History Reconciliation — 2026-09-03
+
+* **Workstream Verdict:** `WHATS_NEW_IMPLEMENTED_PREVIEW_VERIFIED / PRODUCTION_UNVERIFIED`.
+* **Branch:** `feat/whats-new-revamp`
+* **Target Verdict:** `WHATS_NEW_REVAMP_PR_READY / PRODUCTION_UNVERIFIED` (Stop before merge).
+* **Previous Page UX Problems Identified (Playwright Audit):**
+  - The live page rendered a 9,427px tall chronological wall of 28 articles with giant padding (`p-6 sm:p-8`), oversized icons, and repetitive styling.
+  - Zero September 2026 releases were represented on production; the newest update was from late August 2026.
+  - No primary categorization by update type (`New`, `Improved`, `Fixed`); all updates carried identical visual weight.
+  - Historical 2025 releases dominated the page without monthly grouping or collapsible sections.
+* **Redesign Architecture & Customer Experience:**
+  - **Latest Highlights:** Curated top 3 recent customer-facing updates in a 3-column featured grid (Native PDF Export, Asynchronous LinkedIn Optimizer, and Instant Tailoring Cancellation).
+  - **Dual Filter System:**
+    - Type Filter bar: `All Updates` | `New Features` | `Improvements` | `Fixes`.
+    - Category Filter bar: `All Updates` | `New Features` | `AI & Tailoring` | `Jobs & Career` | `Resume & Portfolio` | `Security & Legal` | `Improvements & Fixes`.
+  - **Monthly Grouping & Timeline:** Releases grouped under clean month headers (`September 2026`, `August 2026`, etc.) with count badges and quick month jump selectors.
+  - **Progressive Disclosure for 2025 Archive:** Older 2025 updates hidden by default behind the `Show Older 2025 Updates` toggle, dramatically reducing initial page height and visual noise while preserving accessibility.
+  - **Mobile Responsive Navbar:** Condensed header actions on small mobile viewports (<= 390px), guaranteeing 0px horizontal overflow in LTR and RTL.
+* **Shipped Update Reconciliation (Cutoff: 2026-09-03):**
+  - Added 6 verified customer-facing September 2026 releases to `src/data/whatsNewData.ts`, increasing dataset from 34 to 40 items:
+    1. `sep-2026-native-pdf-export`: High-Fidelity Native PDF Exports Across All Templates (PR #275/#276, 2026-09-03, `Fixed` / `PDF Export`)
+    2. `sep-2026-linkedin-optimizer-async`: Asynchronous LinkedIn Profile Optimization & Word Export (PR #278, 2026-09-03, `Fixed` / `AI Studio`)
+    3. `sep-2026-tailoring-cancellation`: Instant Tailoring Cancellation & Workspace Protection (PR #271, 2026-09-02, `Improved` / `Tailoring Hub`)
+    4. `sep-2026-autosave-deduplication`: Seamless Autosave & Typing Responsiveness (PR #267, 2026-09-02, `Improved` / `Resume Editor`)
+    5. `sep-2026-portfolio-turnstile-contact`: Turnstile-Protected Visitor Inquiries for Public Portfolios (PR #263, 2026-09-01, `New` / `Public Portfolio`)
+    6. `sep-2026-client-polling-efficiency`: Background Battery & Bandwidth Efficiency (PR #265, 2026-09-01, `Improved` / `Platform`)
+  - Explicitly excluded: internal documentation PRs (#264, #272, #277, #279), test PRs, and Paddle billing PRs (`BILLING_CHECKOUT_DISABLED`).
+* **Validation & Test Coverage:**
+  - TypeScript: 0 errors (`tsc --noEmit`).
+  - Vitest: 47/47 passing tests across 7 test suites (`publicLocaleRouting.test.ts`, `WhatsNewPage.test.tsx`, `LocaleProvider.test.tsx`, `LanguageSwitcher.test.tsx`, `landingRouteContract.test.ts`, `ArabicPublicContentPages.test.tsx`, `productTrustCopy.test.ts`).
+  - i18n Audits: `npm run test:i18n` (11 namespaces) and `npm run test:i18n:coverage` (13 critical surfaces) passed.
+  - Build: Clean production build in 39.8s (`0 *.map files in dist/`).
+* **Browser QA (Playwright Preview Server):**
+  - Verified all 8 matrix combinations:
+    1. Desktop 1440px | EN (LTR) | Light: `PASS` (0px overflow, 0 console errors)
+    2. Desktop 1440px | EN (LTR) | Dark: `PASS` (0px overflow, 0 console errors)
+    3. Desktop 1440px | AR (RTL) | Light: `PASS` (0px overflow, 0 console errors)
+    4. Desktop 1440px | AR (RTL) | Dark: `PASS` (0px overflow, 0 console errors)
+    5. Mobile 390px | EN (LTR) | Light: `PASS` (0px overflow, 0 console errors)
+    6. Mobile 390px | EN (LTR) | Dark: `PASS` (0px overflow, 0 console errors)
+    7. Mobile 390px | AR (RTL) | Light: `PASS` (0px overflow, 0 console errors)
+    8. Mobile 390px | AR (RTL) | Dark: `PASS` (0px overflow, 0 console errors)
+* **Production Status:** `PRODUCTION_UNVERIFIED` (PR branch ready; stopped before merge per governance rules).
 
 * **Workstream Verdict:** `AI_STUDIO_LINKEDIN_408_P1_DEPLOYED_PRODUCTION_VERIFIED`.
 * **What's New Eligibility Decision:** `WHATS_NEW_READY_PENDING_PAGE_UPDATE` (Qualifies as a high-impact AI Studio customer-facing fix; ready for timeline inclusion upon dedicated What's New content release).

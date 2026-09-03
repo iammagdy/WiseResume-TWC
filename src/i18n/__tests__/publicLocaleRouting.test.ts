@@ -73,8 +73,8 @@ describe('Public Locale Routing & WhatsNew Data Reconciliation', () => {
   });
 
   describe('WhatsNew Dynamic Month Architecture & Inventory (Bug 1 Fix)', () => {
-    it('contains all 34 reconciled release items across October 2025 - August 2026', () => {
-      expect(whatsNewReleases.length).toBe(34);
+    it('contains all 40 reconciled release items across October 2025 - September 2026', () => {
+      expect(whatsNewReleases.length).toBe(40);
     });
 
     it('derives month groups dynamically without hardcoded missing 2026 months', () => {
@@ -82,6 +82,7 @@ describe('Public Locale Routing & WhatsNew Data Reconciliation', () => {
       const monthKeys = monthGroups.map((g) => g.id);
 
       // Verify all 2026 months are individually represented
+      expect(monthKeys).toContain('2026-09');
       expect(monthKeys).toContain('2026-08');
       expect(monthKeys).toContain('2026-07');
       expect(monthKeys).toContain('2026-06');
@@ -92,9 +93,9 @@ describe('Public Locale Routing & WhatsNew Data Reconciliation', () => {
       expect(monthKeys).toContain('2026-01');
 
       // Verify months are sorted newest to oldest
-      expect(monthKeys[0]).toBe('2026-08');
-      expect(monthKeys[1]).toBe('2026-07');
-      expect(monthKeys[2]).toBe('2026-06');
+      expect(monthKeys[0]).toBe('2026-09');
+      expect(monthKeys[1]).toBe('2026-08');
+      expect(monthKeys[2]).toBe('2026-07');
 
       // Verify no 2026 release uses 'older'
       const releases2026 = whatsNewReleases.filter((r) => r.year === 2026);
@@ -135,6 +136,10 @@ describe('Public Locale Routing & WhatsNew Data Reconciliation', () => {
 
     it('generates English and Arabic labels for every month group', () => {
       const monthGroups = getAvailableMonthGroups(whatsNewReleases);
+      const sepGroup = monthGroups.find((g) => g.id === '2026-09');
+      expect(sepGroup?.label.en).toBe('September 2026');
+      expect(sepGroup?.label.ar).toBe('سبتمبر 2026');
+
       const augGroup = monthGroups.find((g) => g.id === '2026-08');
       expect(augGroup?.label.en).toBe('August 2026');
       expect(augGroup?.label.ar).toBe('أغسطس 2026');

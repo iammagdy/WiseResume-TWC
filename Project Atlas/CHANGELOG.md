@@ -1,5 +1,36 @@
 # WiseResume Atlas Master Changelog
 
+### 2026-09-03 - What's New Page Full Revamp & Shipped-History Reconciliation (feat/whats-new-revamp)
+
+- **Workstream Verdict:** `WHATS_NEW_IMPLEMENTED_PREVIEW_VERIFIED / PRODUCTION_UNVERIFIED`.
+- **Branch:** `feat/whats-new-revamp`
+- **Scope:** Full customer-facing redesign of `/whats-new` and `/ar/whats-new` and shipped-history reconciliation through 2026-09-03.
+- **Problem Solved:**
+  - Resolved the 9,427px tall un-scannable chronological wall of 28 articles with giant card padding (`p-6 sm:p-8`) and repetitive layouts.
+  - Reconciled the missing September 2026 releases: none were displayed on the live production page.
+  - Replaced the undifferentiated list with structured release groupings, dual Type and Category filters, and a high-visibility Latest Highlights grid.
+  - Added progressive disclosure for the older 2025 archive, keeping the page compact, elegant, and fast to scan.
+- **Customer Experience & Design System:**
+  - **Latest Highlights:** 3-column featured grid showcasing top 3 recent updates (Native PDF Export, Asynchronous LinkedIn Optimizer, Instant Tailoring Cancellation).
+  - **Dual Filter System:**
+    - Type Filter bar: `All Updates` | `New Features` | `Improvements` | `Fixes`.
+    - Category Filter bar: `All Updates` | `New Features` | `AI & Tailoring` | `Jobs & Career` | `Resume & Portfolio` | `Security & Legal` | `Improvements & Fixes`.
+  - **Month Jump Navigation:** Horizontally scrolling month selector with clean monthly timeline section dividers.
+  - **Mobile Responsive Navbar:** Condensed header actions preventing horizontal overflow on <= 390px mobile screens in English and Arabic.
+- **Shipped Update Reconciliation (6 New September Releases, Total 40):**
+  1. `sep-2026-native-pdf-export`: High-Fidelity Native PDF Exports Across All Templates (PR #275/#276, 2026-09-03, `Fixed` / `PDF Export`)
+  2. `sep-2026-linkedin-optimizer-async`: Asynchronous LinkedIn Profile Optimization & Word Export (PR #278, 2026-09-03, `Fixed` / `AI Studio`)
+  3. `sep-2026-tailoring-cancellation`: Instant Tailoring Cancellation & Workspace Protection (PR #271, 2026-09-02, `Improved` / `Tailoring Hub`)
+  4. `sep-2026-autosave-deduplication`: Seamless Autosave & Typing Responsiveness (PR #267, 2026-09-02, `Improved` / `Resume Editor`)
+  5. `sep-2026-portfolio-turnstile-contact`: Turnstile-Protected Visitor Inquiries for Public Portfolios (PR #263, 2026-09-01, `New` / `Public Portfolio`)
+  6. `sep-2026-client-polling-efficiency`: Background Battery & Bandwidth Efficiency (PR #265, 2026-09-01, `Improved` / `Platform`)
+- **Validation:**
+  - TypeScript: 0 errors (`tsc --noEmit`).
+  - Vitest: 47/47 passing tests across 7 test suites (`publicLocaleRouting.test.ts`, `WhatsNewPage.test.tsx`, `LocaleProvider.test.tsx`, `LanguageSwitcher.test.tsx`, `landingRouteContract.test.ts`, `ArabicPublicContentPages.test.tsx`, `productTrustCopy.test.ts`).
+  - i18n Audits: `npm run test:i18n` and `npm run test:i18n:coverage` passed.
+  - Build: Clean production build in 39.8s (`0 *.map files in dist/`).
+  - Browser QA: All 8 matrix permutations passed with 0px overflow and 0 console errors (Desktop 1440px / Mobile 390px x EN LTR / AR RTL x Light / Dark).
+
 ### 2026-09-03 - AI Studio LinkedIn Optimizer Async Execution Remediation & Production Verification (PR #278)
 
 - **Workstream Verdict:** `AI_STUDIO_LINKEDIN_408_P1_DEPLOYED_PRODUCTION_VERIFIED`.
