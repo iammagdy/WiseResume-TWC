@@ -20,8 +20,8 @@ describe('server-owned billing checkout client', () => {
           plan: 'premium',
           state: 'created_or_reused',
           expires_at: '2026-08-28T10:15:00.000Z',
-          checkout_reference: 'paddle_public_reference',
-          checkout_url: 'https://checkout.example.test/session',
+          checkout_reference: 'paypal_public_reference',
+          checkout_url: 'https://www.sandbox.paypal.com/checkoutnow?token=BA-TEST',
         },
       },
       error: null,
@@ -41,7 +41,7 @@ describe('server-owned billing checkout client', () => {
   it('maps a disabled server response to a retryable safe error', async () => {
     invokeMock.mockResolvedValue({
       data: null,
-      error: { code: 'payments_disabled', message: 'Checkout is not available.' },
+      error: { code: 'payments_disabled', message: 'Subscription enrollments are currently closed.' },
     });
     const { createBillingCheckoutSession } = await import('./billingCheckout');
     await expect(createBillingCheckoutSession('pro')).resolves.toMatchObject({
@@ -55,5 +55,48 @@ describe('server-owned billing checkout client', () => {
     invokeMock.mockResolvedValue({ data: { status: 'success', data: { plan: 'ultimate' } }, error: null });
     const { createBillingCheckoutSession } = await import('./billingCheckout');
     await expect(createBillingCheckoutSession('pro')).resolves.toMatchObject({ ok: false, code: 'unknown' });
+  });
+
+  it('cancels billing subscription successfully via cancelBillingSubscription', async () => {
+    invokeMock.mockResolvedValue({
+      data: { status: 'success', canceled: true, subscription_id: 'I-SUB12345' },
+      error: null,
+    });
+    const { cancelBillingSubscription } = await import('./billingCheckout');
+    const result = await cancelBillingSubscription({ subscriptionId: 'I-SUB12345', reason: 'User cancel' });
+    expect(result.ok).toBe(true);
+    expect(invokeMock).toHaveBeenCalledWith('billing-checkout', {
+      body: { action: 'cancel-subscription', subscription_id: 'I-SUB12345', reason: 'User cancel' },
+    });
+  });
+
+  it('validates approved PayPal origins in openServerCheckout', async () => {
+    const { openServerCheckout } = await import('./billingCheckout');
+    const assignMock = vi.fn();
+    Object.defineProperty(window, 'location', {
+      value: { assign: assignMock },
+      writable: true,
+    });
+
+    // Valid sandbox PayPal origin
+    const valid = openServerCheckout({
+      session_reference: 'ref',
+      plan: 'pro',
+      state: 'created_or_reused',
+      expires_at: '2026-09-01T00:00:00Z',
+      checkout_url: 'https://www.sandbox.paypal.com/checkoutnow?token=BA-VALID',
+    });
+    expect(valid).toBe(true);
+    expect(assignMock).toHaveBeenCalledWith('https://www.sandbox.paypal.com/checkoutnow?token=BA-VALID');
+
+    // Invalid/malicious origin rejected
+    const invalid = openServerCheckout({
+      session_reference: 'ref',
+      plan: 'pro',
+      state: 'created_or_reused',
+      expires_at: '2026-09-01T00:00:00Z',
+      checkout_url: 'https://malicious-phishing.test/checkout',
+    });
+    expect(invalid).toBe(false);
   });
 });

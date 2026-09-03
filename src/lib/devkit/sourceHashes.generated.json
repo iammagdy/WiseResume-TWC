@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-03T22:07:48.639Z",
+  "generatedAt": "2026-09-03T23:30:09.343Z",
   "hashes": {
     "ai-gateway": "a54d30c3feb12b2d827dd5252c3db396049f5104f1a3a2db977db1cad4c8aea7",
     "admin-devkit-data": "7b31b3ef9aebe02d32aff1b1eef767cf9785c2765230adcbf6949188f84e8f35",
@@ -15,7 +15,7 @@
     "admin-testmail": "f97e15e3dba5b3cefc0879e8feea724b78ee2d5c89a1991cad441cc80caf1e67",
     "admin-visitor-analytics": "300efba1ccb8a086af6f639134652e15570614c960ecf02d998912ac188cc813",
     "ai-health": "93e4eb094e5363031fa8864bdc6c154b76f9e8b80d07f11ae73f0dbc8473e01f",
-    "coupons": "7ae0157fdeaa67cbe33adf3a692e6d64d89aac0a0286436ee2c09f33b1f8a51f",
+    "coupons": "36e3090d1ddb6352f744a29165012fd2e30037e0db6245f704e068af02a42c26",
     "revenuecat-webhook": "704b896e0460187b21d84e1f42f208088baf4c3d128971f0c114137435e27cdd",
     "paypal-webhook": "886be7129e23af2b4afd02e384b152f39d66d89357f564298b11e04301cf9032",
     "email-service": "0a3bdc2e05d7edd51ab26e5077dbf72a19a243eded08bd2165092c9c086e5baf",

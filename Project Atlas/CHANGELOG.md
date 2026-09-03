@@ -1,5 +1,35 @@
 # WiseResume Atlas Master Changelog
 
+### 2026-09-04 - PayPal Sandbox Integration Phase 4: Full Checkout, Subscription UX, Cancellation, Premium UI
+
+- **Workstream Verdict:** `PAYPAL_PHASE4_FULL_IMPLEMENTATION_LOCAL_PASS_READY_FOR_PR`.
+- **Git Branch:** `feat/paypal-sandbox-phase4`.
+- **Scope:** Full implementation of PayPal Checkout, Subscription Management, and Cancellation across backend hubs, frontend libraries, UI workspaces, deployment scripts, and test suites.
+- **Core Improvements & Fixes:**
+  - **Coupons Hub & Authoritative Lifecycle Metadata (`appwrite-hubs/coupons`):** `getMySubscription` returns `can_subscribe` (boolean), `can_cancel_subscription` (boolean, true only for `active` or `billing_issue` with `will_renew === true`), `provider_expires_at`, `provider_source`, `provider_status`, `expires_at`, and `will_renew`.
+  - **Frontend Hook Contract (`src/hooks/useMe.ts`):** `SubscriptionData` interface expanded with additive fields and null-safe legacy fallbacks.
+  - **Billing-Checkout Hub (`appwrite-hubs/billing-checkout`):**
+    - `PayPalSubscriptionProvider` implemented with cached OAuth credentials (`expires_in - 60s`).
+    - `createCheckout` with deterministic `PayPal-Request-Id: wr_sub_<hash>` and approved PayPal origin validation.
+    - `cancelSubscription` calling PayPal API `POST /v1/billing/subscriptions/{id}/cancel` with 204 handler and 400/422 verification fallback (`GET /v1/billing/subscriptions/{id}`).
+    - Session error handling hardened: ambiguous/transient network/5xx errors mark session uncertain (`markUncertain`) instead of definitive failure (`fail`).
+    - Handled `action === 'cancel-subscription'` verifying user subscription ownership.
+    - Fail-closed provider selection: Paddle returns HTTP 403, unconfigured returns HTTP 500.
+  - **Frontend Billing Libs (`src/lib/billing.ts`, `src/lib/billingCheckout.ts`):**
+    - Customer-facing copy cleaned up; retired provider references removed; `isSandboxTestMode() => false`.
+    - Added `cancelBillingSubscription` with origin validation and sanitized neutral error messaging.
+  - **Pricing & Subscription Pages (`src/pages/PricingPage.tsx`, `src/pages/SubscriptionPage.tsx`):**
+    - Removed test-mode warning banner; updated FAQ #3 with neutral self-serve cancellation copy.
+    - Full premium workspace redesign for SubscriptionPage.
+    - Strict "Subscribe" CTA button; disabled state with enrollment closed notice when `can_subscribe === false`.
+    - Checkout preparation state, cancellation card with confirmation dialog, and return polling (`?billing=success`, `?billing=canceled`).
+  - **Deployment Workflows & Hub Scripts (`deploy-appwrite-hubs.yml`, `deploy_hubs.cjs`, `pr-validation.yml`):**
+    - Configured PayPal checkout environment variables.
+    - Optional Paddle keys when provider is PayPal.
+    - Synchronized PayPal variables to `coupons` and `ai-gateway`.
+    - Added all Phase 4 contract and unit test suites to PR validation workflow.
+  - **Verification:** 150 hub contract tests pass (100%), 237 Vitest test suites pass (1,343 tests), `tsc --noEmit` clean, `vite build` clean in 38.73s.
+
 ### 2026-09-04 - PayPal Sandbox Integration Phase 3: Final Fail-Closed Concurrency & Unsafe Fallback Removal
 
 - **Workstream Verdict:** `PAYPAL_PHASE3_FINAL_FAILCLOSED_CONCURRENCY_CI_PASS_READY_TO_MERGE`.

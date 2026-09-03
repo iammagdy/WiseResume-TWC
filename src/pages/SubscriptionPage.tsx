@@ -1,14 +1,41 @@
-import { type ComponentType } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { type ComponentType, useEffect, useState } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { BackButton } from '@/components/ui/BackButton';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import {
-  Check, Crown, Share2, Sparkles, Gem, CalendarClock, FileText, Wand2, Target,
-  MessageSquare, Mail, LayoutList, BarChart2,
-  Package, Infinity as InfinityIcon, Bot, Star, Clock, Loader2, AlertCircle, ExternalLink,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  Check,
+  Crown,
+  Share2,
+  Sparkles,
+  Gem,
+  CalendarClock,
+  FileText,
+  Wand2,
+  Target,
+  MessageSquare,
+  Mail,
+  LayoutList,
+  BarChart2,
+  Package,
+  Infinity as InfinityIcon,
+  Bot,
+  Star,
+  Clock,
+  Loader2,
+  AlertCircle,
+  CheckCircle2,
+  ShieldCheck,
 } from 'lucide-react';
 import { PLAN_CREDIT_LIMITS } from '@/lib/planConfig';
 import { useResumes } from '@/hooks/useResumes';
@@ -19,13 +46,12 @@ import { useMe } from '@/hooks/useMe';
 import { Skeleton } from '@/components/ui/skeleton';
 import { TrialCountdownBadge } from '@/components/ui/TrialCountdownBadge';
 import { usePlanUpgradeCelebration } from '@/hooks/usePlanUpgradeCelebration';
-import { billingState } from '@/lib/billing';
 import {
   createBillingCheckoutSession,
   openServerCheckout,
+  cancelBillingSubscription,
   type BillingCheckoutPlan,
 } from '@/lib/billingCheckout';
-import { useEffect, useState } from 'react';
 
 interface PlanFeature {
   label: string;
@@ -84,16 +110,24 @@ function PlanIcon({ plan, className }: { plan: string; className?: string }) {
   return <Sparkles className={className ?? 'w-5 h-5 text-muted-foreground'} />;
 }
 
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString(undefined, {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  });
+function formatDate(iso?: string | null) {
+  if (!iso) return null;
+  try {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return null;
+    return d.toLocaleDateString(undefined, {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+  } catch {
+    return null;
+  }
 }
 
 export default function SubscriptionPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { data: resumes = [], isLoading: resumesLoading } = useResumes();
   const { data: credits, isLoading: creditsLoading } = useAICredits();
   const { plan, isPro, isPremium, isLoading: planLoading } = usePlan();
@@ -110,61 +144,146 @@ export default function SubscriptionPage() {
     const pending = sessionStorage.getItem('billing_pending_plan');
     return pending === 'pro' || pending === 'premium' ? pending : null;
   });
-  const [checkoutStatus, setCheckoutStatus] = useState<'idle' | 'preparing' | 'pending' | 'error'>('idle');
+  const [checkoutStatus, setCheckoutStatus] = useState<'idle' | 'preparing' | 'confirming' | 'approved' | 'timeout' | 'canceled' | 'error'>('idle');
   const [checkoutMessage, setCheckoutMessage] = useState('');
+  const [canceledNoticeDismissed, setCanceledNoticeDismissed] = useState(false);
 
+  // Cancellation state
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [isCanceling, setIsCanceling] = useState(false);
+  const [cancelError, setCancelError] = useState<string | null>(null);
+  const [cancelSuccessMessage, setCancelSuccessMessage] = useState<string | null>(null);
+
+  const subscriptionData = meData?.subscription;
+  const canSubscribe = subscriptionData?.can_subscribe ?? true;
+  const canCancelSubscription = subscriptionData?.can_cancel_subscription ?? false;
+  const providerExpiresAt = subscriptionData?.provider_expires_at ?? null;
+  const effectiveExpiresAt = subscriptionData?.expires_at ?? null;
+  const willRenew = subscriptionData?.will_renew;
+  const providerStatus = subscriptionData?.provider_status;
+
+  // Lifecycle return detection & Polling
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('billing') !== 'pending') return;
-    setCheckoutStatus('pending');
-    setCheckoutMessage(t('app.aiStudio.subscriptionPage.checkoutPending', 'Payment submitted. We’re waiting for provider confirmation before updating access.'));
+    const searchStr = location.search || (typeof window !== 'undefined' ? window.location.search : '');
+    const params = new URLSearchParams(searchStr);
+    const billingParam = params.get('billing');
+
+    if (billingParam === 'canceled') {
+      setCheckoutStatus('canceled');
+      return;
+    }
+
+    const hasApprovalParams = billingParam === 'success' ||
+      billingParam === 'pending' ||
+      params.has('subscription_id') ||
+      params.has('token') ||
+      params.has('ba_token');
+
+    if (!hasApprovalParams) return;
+
+    setCheckoutStatus('confirming');
+    setCheckoutMessage(t('app.aiStudio.subscriptionPage.checkoutConfirming', 'Confirming your subscription…'));
+
     const pendingPlan = sessionStorage.getItem('billing_pending_plan');
     if (pendingPlan === 'pro' || pendingPlan === 'premium') setCheckoutPlan(pendingPlan);
+
+    let isMounted = true;
+    const checkStatus = async () => {
+      const result = await refetchMe();
+      if (!isMounted) return false;
+      const resolved = String(result.data?.subscription?.effective_plan ?? '').toLowerCase();
+      const isPaidPlan = resolved === 'pro' || resolved === 'premium';
+      const targetReached = pendingPlan === 'premium'
+        ? resolved === 'premium'
+        : pendingPlan === 'pro'
+          ? isPaidPlan
+          : isPaidPlan;
+
+      if (targetReached) {
+        sessionStorage.removeItem('billing_pending_plan');
+        setCheckoutStatus('approved');
+        setCheckoutMessage(t('app.aiStudio.subscriptionPage.paymentApproved', 'Payment Approved'));
+        try {
+          window.history.replaceState({}, document.title, window.location.pathname);
+        } catch {}
+        return true;
+      }
+      return false;
+    };
+
+    // Run first check immediately on return
+    checkStatus();
+
     const startedAt = Date.now();
     const timer = window.setInterval(async () => {
-      const result = await refetchMe();
-      const resolved = String(result.data?.subscription?.effective_plan ?? '').toLowerCase();
-      const targetReached = checkoutPlan === 'premium'
-        ? resolved === 'premium'
-        : checkoutPlan === 'pro'
-          ? resolved === 'pro' || resolved === 'premium'
-          : false;
-      if (targetReached || Date.now() - startedAt > 90_000) {
+      const done = await checkStatus();
+      if (done || !isMounted) {
         window.clearInterval(timer);
-        if (targetReached) sessionStorage.removeItem('billing_pending_plan');
+      } else if (Date.now() - startedAt > 90_000) {
+        window.clearInterval(timer);
+        setCheckoutStatus('timeout');
       }
     }, 5_000);
-    return () => window.clearInterval(timer);
-  }, [checkoutPlan, refetchMe, t]);
+
+    return () => {
+      isMounted = false;
+      window.clearInterval(timer);
+    };
+  }, [location.search, refetchMe, t]);
 
   const beginCheckout = async (target: BillingCheckoutPlan) => {
+    if (!canSubscribe) return;
     setCheckoutPlan(target);
     setCheckoutStatus('preparing');
-    setCheckoutMessage(t('app.aiStudio.subscriptionPage.checkoutPreparing', 'Preparing secure test checkout…'));
+    setCheckoutMessage(t('app.aiStudio.subscriptionPage.checkoutPreparing', 'Preparing your subscription…'));
     const result = await createBillingCheckoutSession(target);
     if (!result.ok) {
       setCheckoutStatus('error');
-      setCheckoutMessage(result.code === 'payments_disabled'
-        ? t('app.aiStudio.subscriptionPage.checkoutUnavailable', 'Sandbox checkout is not available right now. No charge was made.')
-        : result.message || t('app.aiStudio.subscriptionPage.checkoutError', 'We couldn’t start checkout. No charge was made.'));
+      setCheckoutMessage(
+        result.code === 'payments_disabled'
+          ? t('app.aiStudio.subscriptionPage.enrollmentClosed', 'Subscription enrollments are currently closed.')
+          : result.message || t('app.aiStudio.subscriptionPage.checkoutError', 'We couldn’t start checkout. Please try again.')
+      );
       return;
     }
     sessionStorage.setItem('billing_pending_plan', target);
     if (!openServerCheckout(result.session)) {
       setCheckoutStatus('error');
-      setCheckoutMessage(t('app.aiStudio.subscriptionPage.checkoutError', 'We couldn’t start checkout. No charge was made.'));
+      setCheckoutMessage(t('app.aiStudio.subscriptionPage.checkoutError', 'We couldn’t start checkout. Please try again.'));
       return;
     }
-    setCheckoutStatus('pending');
-    setCheckoutMessage(t('app.aiStudio.subscriptionPage.checkoutPending', 'Payment submitted. We’re waiting for provider confirmation before updating access.'));
+    setCheckoutStatus('confirming');
+    setCheckoutMessage(t('app.aiStudio.subscriptionPage.checkoutConfirming', 'Confirming your subscription…'));
   };
 
-  const trialPlan = meData?.subscription?.trial_plan ?? null;
-  const trialExpiresAt = meData?.subscription?.trial_expires_at ?? null;
-  const isActiveTrial =
-    !!trialPlan &&
-    !!trialExpiresAt &&
-    new Date(trialExpiresAt) > new Date();
+  const handleConfirmCancel = async () => {
+    setIsCanceling(true);
+    setCancelError(null);
+    const subId = subscriptionData?.provider_status === 'paypal' ? undefined : undefined;
+    const result = await cancelBillingSubscription({
+      reason: 'User requested cancellation in subscription settings',
+      subscriptionId: subId,
+    });
+
+    setIsCanceling(false);
+    if (!result.ok) {
+      setCancelError(result.message || t('app.aiStudio.subscriptionPage.cancelFailed', 'Unable to cancel subscription. Please try again.'));
+      return;
+    }
+
+    setCancelDialogOpen(false);
+    const expiryFormatted = formatDate(providerExpiresAt || effectiveExpiresAt);
+    setCancelSuccessMessage(
+      expiryFormatted
+        ? t('app.aiStudio.subscriptionPage.cancelSuccessWithDate', 'Your subscription has been canceled. You retain full access until {{date}}.', { date: expiryFormatted })
+        : t('app.aiStudio.subscriptionPage.cancelSuccess', 'Your subscription has been canceled. You retain access until the end of your billing period.')
+    );
+    await refetchMe();
+  };
+
+  const trialPlan = subscriptionData?.trial_plan ?? null;
+  const trialExpiresAt = subscriptionData?.trial_expires_at ?? null;
+  const isActiveTrial = !!trialPlan && !!trialExpiresAt && new Date(trialExpiresAt) > new Date();
 
   const resumeLimit = RESUME_LIMIT[plan];
   const resumeCount = resumes.length;
@@ -178,7 +297,7 @@ export default function SubscriptionPage() {
   const upgradeTargets: string[] = isPremium ? [] : isPro ? ['premium'] : ['pro', 'premium'];
   const isPaid = isPro || isPremium;
 
-  const isSandboxTestMode = billingState.isSandboxTestMode;
+  const formattedExpiration = formatDate(providerExpiresAt || effectiveExpiresAt);
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
@@ -237,7 +356,11 @@ export default function SubscriptionPage() {
                         : 'border-blue-400/60 text-blue-500'
                     }
                   >
-                    {isActiveTrial ? t('app.aiStudio.subscriptionPage.trial', 'Trial') : t('app.aiStudio.subscriptionPage.active', 'Active')}
+                    {isActiveTrial
+                      ? t('app.aiStudio.subscriptionPage.trial', 'Trial')
+                      : willRenew === false
+                        ? t('app.aiStudio.subscriptionPage.canceling', 'Canceled')
+                        : t('app.aiStudio.subscriptionPage.active', 'Active')}
                   </Badge>
                 </div>
                 <p className="text-sm text-muted-foreground mt-0.5">
@@ -255,15 +378,16 @@ export default function SubscriptionPage() {
                     </span>
                   </div>
                 )}
-                {isActiveTrial && (
-                  <div className="mt-2">
-                    <TrialCountdownBadge />
+                {formattedExpiration && (
+                  <div className="flex items-center gap-1.5 mt-2 text-xs text-muted-foreground">
+                    <Clock className="w-3.5 h-3.5 shrink-0" />
+                    <span>
+                      {willRenew === false
+                        ? t('app.aiStudio.subscriptionPage.accessEndsOn', 'Access ends on {{date}}', { date: formattedExpiration })
+                        : t('app.aiStudio.subscriptionPage.renewsOn', 'Renews on {{date}}', { date: formattedExpiration })}
+                    </span>
                   </div>
                 )}
-                <Badge variant="outline" className="mt-3 inline-flex w-fit max-w-full h-auto items-start justify-center gap-1.5 whitespace-normal py-1 text-center text-xs leading-tight">
-                  <Clock className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-                  <span className="min-w-0 break-words">{t('app.aiStudio.subscriptionPage.paymentsComingSoon', 'Online payments coming soon')}</span>
-                </Badge>
               </div>
             </div>
           </div>
@@ -284,31 +408,142 @@ export default function SubscriptionPage() {
           </Card>
         )}
 
-        {isSandboxTestMode && (
-          <Card className="border-amber-400/50 bg-amber-50/60 dark:bg-amber-950/20" role="status">
+        {/* Cancellation Success Alert */}
+        {cancelSuccessMessage && (
+          <Card className="border-green-500/40 bg-green-50/50 dark:bg-green-950/20" role="status">
             <CardContent className="p-4 flex items-start gap-3">
-              <AlertCircle className="w-5 h-5 shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
-              <div className="min-w-0 space-y-1">
-                <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">{t('app.aiStudio.subscriptionPage.sandboxMode', 'Sandbox / Test Mode')}</p>
-                <p className="text-xs text-amber-800/80 dark:text-amber-200/80">{t('app.aiStudio.subscriptionPage.sandboxNoCharge', 'No real charge. Test checkout only.')}</p>
-                <p className="text-xs text-muted-foreground">{t('app.aiStudio.subscriptionPage.checkoutNoLocalGrant', 'Your plan updates only after verified provider confirmation.')}</p>
+              <CheckCircle2 className="w-5 h-5 shrink-0 text-green-600 dark:text-green-400 mt-0.5" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-green-800 dark:text-green-300">
+                  {t('app.aiStudio.subscriptionPage.subscriptionCanceledTitle', 'Subscription Canceled')}
+                </p>
+                <p className="text-xs text-green-800/80 dark:text-green-200/80 mt-0.5">
+                  {cancelSuccessMessage}
+                </p>
               </div>
             </CardContent>
           </Card>
         )}
 
-        {checkoutStatus !== 'idle' && (
-          <Card className={checkoutStatus === 'error' ? 'border-destructive/50' : 'border-primary/30'} role={checkoutStatus === 'error' ? 'alert' : 'status'}>
+        {/* Lifecycle States */}
+        {checkoutStatus === 'confirming' && (
+          <Card className="border-primary/40 bg-primary/5" role="status">
             <CardContent className="p-4 flex items-start gap-3">
-              {checkoutStatus === 'preparing' ? <Loader2 className="w-5 h-5 shrink-0 animate-spin text-primary" /> : checkoutStatus === 'error' ? <AlertCircle className="w-5 h-5 shrink-0 text-destructive" /> : <Clock className="w-5 h-5 shrink-0 text-primary" />}
+              <Loader2 className="w-5 h-5 shrink-0 animate-spin text-primary mt-0.5" />
+              <div className="min-w-0 space-y-1">
+                <p className="text-sm font-semibold text-foreground">
+                  {t('app.aiStudio.subscriptionPage.confirmingTitle', 'Confirming your subscription…')}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {t('app.aiStudio.subscriptionPage.confirmingDescription', 'Please wait while we verify your payment. This typically takes just a few seconds.')}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {checkoutStatus === 'approved' && (
+          <Card className="border-green-500/40 bg-green-50/50 dark:bg-green-950/20" role="status">
+            <CardContent className="p-4 flex items-start gap-3">
+              <CheckCircle2 className="w-5 h-5 shrink-0 text-green-600 dark:text-green-400 mt-0.5" />
+              <div className="min-w-0 space-y-1">
+                <p className="text-sm font-semibold text-green-800 dark:text-green-300">
+                  {t('app.aiStudio.subscriptionPage.paymentApproved', 'Payment Approved')}
+                </p>
+                <p className="text-xs text-green-800/80 dark:text-green-200/80">
+                  {t('app.aiStudio.subscriptionPage.planActive', 'Your {{plan}} plan is now active.', { plan: planLabel(plan) })}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {checkoutStatus === 'timeout' && (
+          <Card className="border-amber-400/40 bg-amber-50/50 dark:bg-amber-950/20" role="status">
+            <CardContent className="p-4 flex items-start gap-3">
+              <Clock className="w-5 h-5 shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
+              <div className="min-w-0 space-y-1">
+                <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">
+                  {t('app.aiStudio.subscriptionPage.paymentReceived', 'Payment Received')}
+                </p>
+                <p className="text-xs text-amber-800/80 dark:text-amber-200/80">
+                  {t('app.aiStudio.subscriptionPage.processingNotice', 'Your payment is being processed by PayPal. Your account will automatically upgrade within a few minutes. You can safely continue using WiseResume.')}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {checkoutStatus === 'canceled' && !canceledNoticeDismissed && (
+          <Card className="border-border bg-muted/40" role="status">
+            <CardContent className="p-4 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-muted-foreground shrink-0" />
+                <p className="text-sm text-muted-foreground">
+                  {t('app.aiStudio.subscriptionPage.checkoutCanceled', 'Subscription checkout was canceled. No charges were made.')}
+                </p>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2 text-xs"
+                onClick={() => setCanceledNoticeDismissed(true)}
+              >
+                {t('common.dismiss', 'Dismiss')}
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
+        {checkoutStatus === 'error' && (
+          <Card className="border-destructive/50" role="alert">
+            <CardContent className="p-4 flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 shrink-0 text-destructive mt-0.5" />
               <div className="min-w-0 flex-1 space-y-1">
-                <p className="text-sm font-medium">{checkoutMessage}</p>
-                <p className="text-xs text-muted-foreground">{t('app.aiStudio.subscriptionPage.checkoutNoLocalGrant', 'Your plan updates only after verified provider confirmation.')}</p>
-                {checkoutStatus === 'pending' && <span className="inline-flex items-center gap-1 text-xs text-primary"><ExternalLink className="w-3 h-3" />{t('app.aiStudio.subscriptionPage.checkoutPendingShort', 'Waiting for provider confirmation')}</span>}
-                {checkoutStatus === 'error' && checkoutPlan && (
-                  <Button variant="outline" size="sm" className="mt-2" onClick={() => beginCheckout(checkoutPlan)}>{t('app.aiStudio.subscriptionPage.checkoutRetry', 'Try again')}</Button>
+                <p className="text-sm font-medium text-destructive">{checkoutMessage}</p>
+                {checkoutPlan && canSubscribe && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="mt-2"
+                    onClick={() => beginCheckout(checkoutPlan)}
+                  >
+                    {t('app.aiStudio.subscriptionPage.checkoutRetry', 'Try again')}
+                  </Button>
                 )}
               </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Subscription Management & Cancellation */}
+        {canCancelSubscription && (
+          <Card className="border-border bg-card">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                <ShieldCheck className="w-4 h-4 text-primary" />
+                {t('app.aiStudio.subscriptionPage.manageTitle', 'Subscription Management')}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3 pt-1">
+              <div className="text-sm text-muted-foreground space-y-1">
+                <p>
+                  {t('app.aiStudio.subscriptionPage.activePlanNote', 'You have an active {{plan}} subscription.', { plan: planLabel(plan) })}
+                </p>
+                {formattedExpiration && (
+                  <p className="text-xs">
+                    {t('app.aiStudio.subscriptionPage.renewalNotice', 'Next scheduled renewal: {{date}}', { date: formattedExpiration })}
+                  </p>
+                )}
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30"
+                onClick={() => setCancelDialogOpen(true)}
+              >
+                {t('app.aiStudio.subscriptionPage.cancelSubscription', 'Cancel Subscription')}
+              </Button>
             </CardContent>
           </Card>
         )}
@@ -407,8 +642,7 @@ export default function SubscriptionPage() {
                   : t('app.aiStudio.subscriptionPage.aiCreditsPerDay', '{{count}} AI credits/day', { count: isPro ? PLAN_CREDIT_LIMITS.pro : PLAN_CREDIT_LIMITS.free })}
               </span>
               {isPremium && (
-                                  <Badge className="ml-auto text-[10px] px-1.5 py-0 bg-amber-500 text-white border-0">{t('app.aiStudio.subscriptionPage.unlimited', 'Unlimited')}</Badge>
-
+                <Badge className="ml-auto text-[10px] px-1.5 py-0 bg-amber-500 text-white border-0">{t('app.aiStudio.subscriptionPage.unlimited', 'Unlimited')}</Badge>
               )}
             </div>
 
@@ -461,21 +695,21 @@ export default function SubscriptionPage() {
                   })}
                 </div>
                 <Button
-                  className={`w-full mt-1 gap-2 ${target === 'premium' ? 'bg-amber-500 text-white' : 'bg-blue-500 text-white'}`}
-                  disabled={checkoutStatus === 'preparing' || target === plan}
+                  className={`w-full mt-1 gap-2 font-semibold ${target === 'premium' ? 'bg-amber-500 hover:bg-amber-600 text-white' : 'bg-primary hover:bg-primary/90 text-primary-foreground'}`}
+                  disabled={!canSubscribe || checkoutStatus === 'preparing' || target === plan}
                   onClick={() => beginCheckout(target as BillingCheckoutPlan)}
-                  data-track={`subscription-upgrade-cta-${target}`}
+                  data-track={`subscription-subscribe-cta-${target}`}
                 >
-                  {checkoutStatus === 'preparing' && checkoutPlan === target ? <Loader2 className="w-4 h-4 animate-spin" /> : <Clock className="w-4 h-4" />}
-                  {isSandboxTestMode
-                    ? t('app.aiStudio.subscriptionPage.checkoutTestOnly', 'Sandbox test checkout')
-                    : t('app.aiStudio.subscriptionPage.comingSoon', 'Coming Soon')}
+                  {checkoutStatus === 'preparing' && checkoutPlan === target && (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  )}
+                  {t('app.aiStudio.subscriptionPage.subscribe', 'Subscribe')}
                 </Button>
-                <p className="text-xs text-muted-foreground text-center">
-                  {isSandboxTestMode
-                    ? t('app.aiStudio.subscriptionPage.sandboxNoCharge', 'No real charge. Test checkout only.')
-                    : t('app.aiStudio.subscriptionPage.onlinePaymentUnavailable', 'Online payment is not available yet.')}
-                </p>
+                {!canSubscribe && (
+                  <p className="text-xs text-muted-foreground text-center mt-1">
+                    {t('app.aiStudio.subscriptionPage.enrollmentClosed', 'Subscription enrollments are currently closed.')}
+                  </p>
+                )}
               </CardContent>
             </Card>
           );
@@ -495,6 +729,50 @@ export default function SubscriptionPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Cancellation Confirmation Dialog */}
+      <Dialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold text-foreground">
+              {t('app.aiStudio.subscriptionPage.cancelDialogTitle', 'Cancel Subscription')}
+            </DialogTitle>
+            <DialogDescription className="text-sm text-muted-foreground pt-2">
+              {t(
+                'app.aiStudio.subscriptionPage.cancelDialogDescription',
+                'Are you sure you want to cancel your subscription? Your access will remain active until {{date}}. After this date, your account will downgrade to the Free plan and no further charges will occur.',
+                { date: formattedExpiration || t('app.aiStudio.subscriptionPage.billingCycleEnd', 'the end of your current billing period') }
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          {cancelError && (
+            <div className="p-3 rounded-lg bg-destructive/10 text-destructive text-sm flex items-start gap-2">
+              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+              <span>{cancelError}</span>
+            </div>
+          )}
+          <DialogFooter className="gap-2 sm:gap-0 mt-4">
+            <Button
+              variant="outline"
+              onClick={() => setCancelDialogOpen(false)}
+              disabled={isCanceling}
+            >
+              {t('app.aiStudio.subscriptionPage.keepSubscription', 'Keep Subscription')}
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleConfirmCancel}
+              disabled={isCanceling}
+              className="gap-2"
+            >
+              {isCanceling && <Loader2 className="w-4 h-4 animate-spin" />}
+              {isCanceling
+                ? t('app.aiStudio.subscriptionPage.canceling', 'Canceling…')
+                : t('app.aiStudio.subscriptionPage.confirmCancel', 'Confirm Cancellation')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

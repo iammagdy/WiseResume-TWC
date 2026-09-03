@@ -121,6 +121,17 @@ function failProviderDiagnostic(stage, category, { code = 'provider_unavailable'
   throw annotateProviderFailure(error, stage, category, diagnosticStatus);
 }
 
+function isAmbiguousProviderError(error) {
+  const diagnostic = providerDiagnostic(error);
+  if (!diagnostic) return false;
+  if (diagnostic.stage === 'provider.transport') return true;
+  if (diagnostic.category === 'transport_failure') return true;
+  if (diagnostic.category === 'provider_upstream_error') return true;
+  if (diagnostic.category === 'provider_rate_limited') return true;
+  if (Number.isInteger(diagnostic.status) && diagnostic.status >= 500 && diagnostic.status <= 599) return true;
+  return false;
+}
+
 async function providerOperation(stage, fallbackCategory, operation) {
   try { return await operation(); } catch (error) { throw annotateProviderFailure(error, stage, fallbackCategory); }
 }
@@ -181,8 +192,23 @@ function parseBody(req) {
 }
 
 function validateRequest(body) {
-  const logicalBody = { ...body };
+  const logicalBody = { ...(isRecord(body?.data) ? body.data : body) };
   delete logicalBody.__headers;
+  if (logicalBody.action === 'cancel-subscription') {
+    const allowedKeys = new Set(['action', 'reason', 'subscription_id', 'subscriptionId']);
+    if (Object.keys(logicalBody).some(key => !allowedKeys.has(key))) {
+      fail('invalid_request', 400, 'Invalid checkout request.');
+    }
+    const subscriptionId = asString(logicalBody.subscription_id || logicalBody.subscriptionId).trim();
+    if (subscriptionId && (!subscriptionId.startsWith('I-') || subscriptionId.length > 128)) {
+      fail('invalid_request', 400, 'Invalid subscription ID for cancellation.');
+    }
+    return {
+      action: 'cancel-subscription',
+      subscriptionId: subscriptionId || null,
+      reason: asString(logicalBody.reason).slice(0, 128),
+    };
+  }
   const allowedKeys = new Set(['action', 'plan', 'idempotency_key']);
   if (Object.keys(logicalBody).some(key => !allowedKeys.has(key))) {
     fail('invalid_request', 400, 'Invalid checkout request.');
@@ -196,7 +222,7 @@ function validateRequest(body) {
       fail('invalid_request', 400, 'Invalid checkout request.');
     }
   }
-  return { plan: logicalBody.plan, idempotencyKey: logicalBody.idempotency_key || null };
+  return { action: 'create-session', plan: logicalBody.plan, idempotencyKey: logicalBody.idempotency_key || null };
 }
 
 function hash(value) {
@@ -206,6 +232,11 @@ function hash(value) {
 function opaqueReference(prefix = 'cs') {
   return `${prefix}_${crypto.randomBytes(18).toString('hex')}`;
 }
+
+const PAYPAL_APPROVED_ORIGINS = Object.freeze({
+  sandbox: 'https://www.sandbox.paypal.com',
+  production: 'https://www.paypal.com',
+});
 
 function normalizeEnvironment(value) {
   return value === 'production' || value === 'sandbox' ? value : '';
@@ -233,11 +264,19 @@ function buildCatalog(env = process.env, environment = normalizeEnvironment(env.
 
 function readConfig(env = process.env, overrides = {}) {
   const environment = normalizeEnvironment(asString(env.BILLING_CHECKOUT_ENVIRONMENT).trim().toLowerCase());
+  const provider = asString(env.BILLING_CHECKOUT_PROVIDER).trim().toLowerCase();
+  const defaultApprovedOrigin = provider === 'paypal'
+    ? (PAYPAL_APPROVED_ORIGINS[environment] || '')
+    : asString(env.BILLING_CHECKOUT_APPROVED_ORIGIN).trim().replace(/\/$/, '');
+
   const config = {
     enabled: asString(env.BILLING_CHECKOUT_ENABLED).toLowerCase() === 'true',
     environment,
+    provider,
     providerReady: asString(env.BILLING_CHECKOUT_PROVIDER_READY).toLowerCase() === 'true',
-    approvedCheckoutOrigin: asString(env.BILLING_CHECKOUT_APPROVED_ORIGIN).trim().replace(/\/$/, ''),
+    approvedCheckoutOrigin: defaultApprovedOrigin,
+    approvedAppUrl: asString(env.BILLING_CHECKOUT_APPROVED_APP_URL || 'https://wiseresume.app').trim().replace(/\/$/, ''),
+    qaUserId: asString(env.BILLING_CHECKOUT_QA_USER_ID).trim(),
     catalogEnvironment: environment,
     catalog: buildCatalog(env, environment),
     ...overrides,
@@ -252,7 +291,7 @@ function validateCatalogEntry(entry) {
     typeof entry.productId === 'string' && entry.productId.length > 0;
 }
 
-function assertRuntimeEnabled(config, plan) {
+function assertRuntimeEnabled(config, plan, userId) {
   if (!config.enabled) fail('payments_disabled', 403, 'Checkout is not available.');
   if (!normalizeEnvironment(config.environment)) fail('environment_mismatch', 409, 'Checkout environment is unavailable.');
   if (config.catalogEnvironment !== config.environment) fail('catalog_mismatch', 409, 'Checkout catalog is unavailable.');
@@ -261,6 +300,13 @@ function assertRuntimeEnabled(config, plan) {
     fail('catalog_mismatch', 409, 'Checkout catalog is unavailable.');
   }
   if (!config.providerReady) fail('payments_disabled', 403, 'Checkout is not available.');
+
+  // Sandbox QA gate: restrict checkout creation to configured QA user when present
+  if (config.environment === 'sandbox' && config.qaUserId) {
+    if (userId !== config.qaUserId) {
+      fail('payments_disabled', 403, 'Checkout is not available.');
+    }
+  }
 }
 
 function normalizeEffectivePlan(value) {
@@ -343,9 +389,11 @@ function validateLockPayload(payload) {
 }
 
 class AppwriteCheckoutStore {
-  constructor(databases, providerEnvironment = '') {
+  constructor(databases, providerEnvironment = '', options = {}) {
     this.databases = databases;
     this.providerEnvironment = providerEnvironment;
+    this.paypalProviderEnvironment = options.paypalProviderEnvironment || providerEnvironment;
+    this.qaUserId = options.qaUserId || '';
   }
 
   async getDocument(collection, id, transactionId) {
@@ -382,6 +430,9 @@ class AppwriteCheckoutStore {
             await reserveOperation('reserve.commit_existing', () => this.databases.updateTransaction(transaction.$id, true, false));
             committed = true;
             if (!sameInput) fail('idempotency_conflict', 409, 'This checkout request key was already used.');
+            if (replayCandidate.state === 'uncertain' && new Date(replayCandidate.expires_at || 0).getTime() > input.nowMs) {
+              return { outcome: 'resume_provider', session: replayCandidate };
+            }
             if (['creating', 'created', 'opened', 'pending'].includes(replayCandidate.state) &&
                 new Date(replayCandidate.expires_at || 0).getTime() > input.nowMs) {
               if (replayCandidate.state === 'creating' || !replayCandidate.checkout_reference) {
@@ -397,12 +448,15 @@ class AppwriteCheckoutStore {
         const userLock = await reserveOperation('reserve.get_user_lock', () => this.getDocument(LOCK_COLLECTION, userLockId, transaction.$id));
         const planLock = await reserveOperation('reserve.get_plan_lock', () => this.getDocument(LOCK_COLLECTION, planLockId, transaction.$id));
         const planLockActive = planLock && new Date(planLock.expires_at).getTime() > input.nowMs &&
-          ['creating', 'created', 'opened', 'pending'].includes(planLock.state);
+          ['creating', 'created', 'opened', 'pending', 'uncertain'].includes(planLock.state);
         if (planLockActive) {
           const existing = await reserveOperation('reserve.get_existing_session', () => this.getDocument(SESSION_COLLECTION, planLock.session_id, transaction.$id));
           await reserveOperation('reserve.commit_existing', () => this.databases.updateTransaction(transaction.$id, true, false));
           committed = true;
           if (!existing) throw new Error('Checkout session lock has no session record.');
+          if (existing.state === 'uncertain' && existing.session_key === input.sessionKey && new Date(existing.expires_at || 0).getTime() > input.nowMs) {
+            return { outcome: 'resume_provider', session: existing };
+          }
           const canResume = ['created', 'opened', 'pending'].includes(existing.state) &&
             typeof existing.checkout_reference === 'string' && existing.checkout_reference.length > 0;
           if (canResume) return { outcome: 'reused', session: existing };
@@ -489,6 +543,20 @@ class AppwriteCheckoutStore {
     }
   }
 
+  async markUncertain(session, code, nowMs) {
+    const nowIso = new Date(nowMs).toISOString();
+    try {
+      await this.databases.updateDocument(DB_ID, SESSION_COLLECTION, session.$id, {
+        state: 'uncertain', updated_at: nowIso, last_error_code: code,
+      }, []);
+      await this.databases.updateDocument(DB_ID, LOCK_COLLECTION, `plan_${hash(`${session.user_id}:${session.plan}:${session.environment}`).slice(0, 28)}`, {
+        state: 'uncertain', updated_at: nowIso,
+      }, []);
+    } catch (_) {
+      // Ambiguous outcome remains fail-closed even if safe session marker cannot be updated.
+    }
+  }
+
   async fail(session, code, nowMs) {
     const nowIso = new Date(nowMs).toISOString();
     try {
@@ -514,6 +582,8 @@ class AppwriteCheckoutStore {
       providerState,
       paypalProviderState,
       providerEnvironment: this.providerEnvironment,
+      paypalProviderEnvironment: this.paypalProviderEnvironment,
+      qaUserId: this.qaUserId,
       userId,
     }).plan;
   }
@@ -630,6 +700,259 @@ class PaddleAutomaticProvider {
   }
 }
 
+const PAYPAL_API_ORIGINS = Object.freeze({
+  sandbox: 'https://api-m.sandbox.paypal.com',
+  production: 'https://api-m.paypal.com',
+});
+
+function paypalClientVariable(name) {
+  return name === 'CLIENT_ID' ? 'PAYPAL_CLIENT_ID' : 'PAYPAL_CLIENT_SECRET';
+}
+
+class PayPalSubscriptionProvider {
+  constructor({ env = process.env, fetchImpl = globalThis.fetch } = {}) {
+    this.env = env;
+    this.fetchImpl = fetchImpl;
+  }
+
+  async getAccessToken(environment) {
+    const apiOrigin = PAYPAL_API_ORIGINS[environment];
+    const clientId = asString(this.env[paypalClientVariable('CLIENT_ID')]).trim();
+    const clientSecret = asString(this.env[paypalClientVariable('CLIENT_SECRET')]).trim();
+
+    if (!apiOrigin) failProviderDiagnostic('provider.runtime_configuration', 'missing_provider_endpoint');
+    if (!clientId || !clientSecret) failProviderDiagnostic('provider.runtime_configuration', 'missing_runtime_credential');
+    if (typeof this.fetchImpl !== 'function') failProviderDiagnostic('provider.runtime_configuration', 'fetch_unavailable');
+
+    const basicAuth = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
+    let response;
+    try {
+      response = await this.fetchImpl(`${apiOrigin}/v1/oauth2/token`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Basic ${basicAuth}`,
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: 'grant_type=client_credentials',
+      });
+    } catch (_) {
+      failProviderDiagnostic('provider.transport', 'transport_failure');
+    }
+
+    if (!response?.ok) {
+      const status = Number(response?.status);
+      failProviderDiagnostic('provider.http_response', 'provider_auth_rejected', {
+        diagnosticStatus: Number.isInteger(status) ? status : null,
+      });
+    }
+
+    let payload;
+    try {
+      payload = await response.json();
+    } catch (_) {
+      failProviderDiagnostic('provider.response_json', 'invalid_json');
+    }
+
+    if (!payload?.access_token) failProviderDiagnostic('provider.response_json', 'invalid_json');
+    return payload.access_token;
+  }
+
+  async createCheckout(input) {
+    const apiOrigin = PAYPAL_API_ORIGINS[input.environment];
+    if (!apiOrigin) failProviderDiagnostic('provider.runtime_configuration', 'missing_provider_endpoint');
+
+    const accessToken = await this.getAccessToken(input.environment);
+
+    const planId = asString(input.priceId).trim();
+    if (!planId || !planId.startsWith('P-')) {
+      failProviderDiagnostic('provider.runtime_configuration', 'invalid_plan_id');
+    }
+
+    const appOrigin = asString(input.appOrigin || this.env.BILLING_CHECKOUT_APPROVED_APP_URL || 'https://wiseresume.app').trim().replace(/\/$/, '');
+    const returnUrl = `${appOrigin}${input.returnPath || SAFE_RETURN_PATH}`;
+    const cancelUrl = `${appOrigin}/subscription?billing=canceled`;
+
+    const requestBody = {
+      plan_id: planId,
+      custom_id: asString(input.customData?.app_user_id || input.userId).trim(),
+      application_context: {
+        brand_name: 'WiseResume',
+        locale: 'en-US',
+        shipping_preference: 'NO_SHIPPING',
+        user_action: 'SUBSCRIBE_NOW',
+        payment_method: {
+          payer_selected: 'PAYPAL',
+          payee_preferred: 'IMMEDIATE_PAYMENT_REQUIRED',
+        },
+        return_url: returnUrl,
+        cancel_url: cancelUrl,
+      },
+    };
+
+    const headers = {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+    };
+
+    if (input.providerRequestId) {
+      headers['PayPal-Request-Id'] = String(input.providerRequestId).trim();
+    }
+
+    let response;
+    try {
+      response = await this.fetchImpl(`${apiOrigin}/v1/billing/subscriptions`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(requestBody),
+      });
+    } catch (_) {
+      failProviderDiagnostic('provider.transport', 'transport_failure');
+    }
+
+    if (!response?.ok) {
+      const status = Number(response?.status);
+      const category = status === 401 || status === 403 ? 'provider_auth_rejected'
+        : status === 400 || status === 422 ? 'provider_request_rejected'
+          : status === 404 ? 'provider_not_found'
+            : status === 409 ? 'provider_conflict'
+              : status === 429 ? 'provider_rate_limited'
+                : Number.isInteger(status) && status >= 500 && status <= 599 ? 'provider_upstream_error'
+                  : 'provider_http_other';
+      failProviderDiagnostic('provider.http_response', category, {
+        diagnosticStatus: Number.isInteger(status) && status >= 100 && status <= 599 ? status : null,
+      });
+    }
+
+    let payload;
+    try {
+      payload = await response.json();
+    } catch (_) {
+      failProviderDiagnostic('provider.response_json', 'invalid_json');
+    }
+
+    const subscriptionId = asString(payload?.id).trim();
+    if (!subscriptionId || !subscriptionId.startsWith('I-')) {
+      failProviderDiagnostic('provider.transaction_validation', 'invalid_subscription_id');
+    }
+
+    const approveLink = (Array.isArray(payload?.links) ? payload.links : []).find(link => link?.rel === 'approve');
+    const checkoutUrl = asString(approveLink?.href).trim();
+    if (!checkoutUrl) {
+      failProviderDiagnostic('provider.transaction_validation', 'missing_approval_url');
+    }
+
+    const approvedOrigin = PAYPAL_APPROVED_ORIGINS[input.environment];
+    let parsedUrl;
+    try {
+      parsedUrl = new URL(checkoutUrl);
+    } catch {
+      failProviderDiagnostic('provider.transaction_validation', 'invalid_approval_url');
+    }
+
+    if (parsedUrl.origin !== approvedOrigin || parsedUrl.protocol !== 'https:') {
+      failProviderDiagnostic('provider.safe_result_validation', 'checkout_origin_mismatch');
+    }
+
+    return {
+      providerTransactionId: subscriptionId,
+      providerEnvironment: input.environment,
+      collectionMode: 'automatic',
+      checkoutReference: opaqueReference('paypal'),
+      checkoutUrl,
+    };
+  }
+
+  async cancelSubscription({ subscriptionId, reason, environment }) {
+    const env = normalizeEnvironment(environment) || 'sandbox';
+    const apiOrigin = PAYPAL_API_ORIGINS[env];
+    if (!apiOrigin) failProviderDiagnostic('provider.runtime_configuration', 'missing_provider_endpoint');
+
+    const cleanSubId = asString(subscriptionId).trim();
+    if (!cleanSubId || !cleanSubId.startsWith('I-')) {
+      fail('bad_request', 400, 'Invalid subscription ID.');
+    }
+
+    const accessToken = await this.getAccessToken(env);
+    const cancelReason = asString(reason).trim().slice(0, 128) || 'Canceled by user in WiseResume settings';
+
+    const headers = {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+      'PayPal-Request-Id': `wr_cancel_${hash(cleanSubId).slice(0, 24)}`,
+    };
+
+    let response;
+    try {
+      response = await this.fetchImpl(`${apiOrigin}/v1/billing/subscriptions/${encodeURIComponent(cleanSubId)}/cancel`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ reason: cancelReason }),
+      });
+    } catch (_) {
+      failProviderDiagnostic('provider.transport', 'transport_failure');
+    }
+
+    if (response?.status === 204) {
+      return { status: 'success', canceled: true, subscription_id: cleanSubId };
+    }
+
+    if (response?.status === 400 || response?.status === 422) {
+      let verifyResponse;
+      try {
+        verifyResponse = await this.fetchImpl(`${apiOrigin}/v1/billing/subscriptions/${encodeURIComponent(cleanSubId)}`, {
+          method: 'GET',
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+          },
+        });
+      } catch (_) {
+        failProviderDiagnostic('provider.transport', 'transport_failure');
+      }
+
+      if (verifyResponse?.ok) {
+        let subData;
+        try {
+          subData = await verifyResponse.json();
+        } catch (_) {
+          failProviderDiagnostic('provider.response_json', 'invalid_json');
+        }
+        if (asString(subData?.status).toUpperCase() === 'CANCELLED') {
+          return { status: 'success', canceled: true, subscription_id: cleanSubId };
+        }
+      }
+      fail('cancellation_failed', 400, 'Unable to cancel subscription. Please verify your subscription status.');
+    }
+
+    if (response?.status === 404) {
+      fail('not_found', 404, 'Subscription not found at provider.');
+    }
+
+    const status = Number(response?.status);
+    failProviderDiagnostic('provider.http_response', 'provider_upstream_error', {
+      diagnosticStatus: Number.isInteger(status) && status >= 100 && status <= 599 ? status : null,
+    });
+  }
+}
+
+function selectProvider(config, dependencies) {
+  if (dependencies.provider) return dependencies.provider;
+  const providerType = asString(config.provider || process.env.BILLING_CHECKOUT_PROVIDER).trim().toLowerCase();
+  if (providerType === 'paypal') {
+    return new PayPalSubscriptionProvider({ env: dependencies.env || process.env, fetchImpl: dependencies.fetchImpl });
+  }
+  if (providerType === 'paddle') {
+    fail('payments_disabled', 403, 'Requested checkout provider is retired.');
+  }
+  if (!providerType) {
+    fail('configuration_error', 500, 'Checkout provider is unconfigured.');
+  }
+  fail('configuration_error', 500, 'Unsupported checkout provider configuration.');
+}
+
 class BillingCheckoutService {
   constructor({ store, provider, config = readConfig(), now = () => Date.now() }) {
     this.store = store;
@@ -641,7 +964,7 @@ class BillingCheckoutService {
   async create({ userId, plan, idempotencyKey }) {
     if (!userId) fail('unauthorized', 401, 'Authentication is required.');
     if (!ALLOWED_PLANS.has(plan)) fail('invalid_plan', 400, 'This checkout plan is not available.');
-    assertRuntimeEnabled(this.config, plan);
+    assertRuntimeEnabled(this.config, plan, userId);
     const currentPlan = await this.store.getEffectivePlan(userId);
     assertNotAlreadyEntitled(currentPlan, plan);
     const catalog = this.config.catalog[plan];
@@ -662,6 +985,7 @@ class BillingCheckoutService {
     };
     const reservation = await this.store.reserve(sessionInput);
     if (reservation.outcome === 'reused') return publicSessionResponse(reservation.session, null);
+    const providerRequestId = `wr_sub_${hash(sessionKey).slice(0, 32)}`;
     const providerInput = {
       environment: this.config.environment,
       plan,
@@ -676,6 +1000,7 @@ class BillingCheckoutService {
       },
       returnPath: SAFE_RETURN_PATH,
       correlationId: sessionInput.correlationId,
+      providerRequestId,
     };
     try {
       const providerResult = await providerOperation('provider.create_checkout', 'provider_operation_failure', () => this.provider.createCheckout(providerInput));
@@ -684,13 +1009,46 @@ class BillingCheckoutService {
       return publicSessionResponse({ ...reservation.session, expiresAt: sessionInput.expiresAt, plan }, result);
     } catch (error) {
       const safeCode = error instanceof BillingCheckoutError ? error.code : 'provider_unavailable';
-      try { await this.store.fail(reservation.session, safeCode, this.now()); } catch (_) {}
+      if (isAmbiguousProviderError(error) && typeof this.store.markUncertain === 'function') {
+        try { await this.store.markUncertain(reservation.session, safeCode, this.now()); } catch (_) {}
+      } else {
+        try { await this.store.fail(reservation.session, safeCode, this.now()); } catch (_) {}
+      }
       if (error instanceof BillingCheckoutError) throw error;
       const sanitizedError = new BillingCheckoutError('provider_unavailable', 502, 'Checkout provider is temporarily unavailable.');
       const diagnostic = providerDiagnostic(error);
       if (diagnostic) throw annotateProviderFailure(sanitizedError, diagnostic.stage, diagnostic.category, diagnostic.status);
       throw sanitizedError;
     }
+  }
+
+  async cancel({ userId, subscriptionId, reason }) {
+    if (!userId) fail('unauthorized', 401, 'Authentication is required.');
+    let targetSubId = subscriptionId ? asString(subscriptionId).trim() : '';
+    if (typeof this.store.findOptional === 'function') {
+      const [sub, paypalState] = await Promise.all([
+        this.store.findOptional('subscriptions', userId),
+        this.store.findOptional('paypal_subscription_state', userId),
+      ]);
+      const availableSubId = paypalState?.subscription_id || sub?.subscription_id || '';
+      if (!targetSubId) {
+        targetSubId = availableSubId;
+      }
+      const matchesUser = (paypalState?.subscription_id === targetSubId) || (sub?.subscription_id === targetSubId);
+      if (!matchesUser || !targetSubId) {
+        fail('not_found', 404, 'Subscription not found.');
+      }
+    }
+    if (!targetSubId) fail('bad_request', 400, 'Subscription ID is required.');
+    if (typeof this.provider.cancelSubscription !== 'function') {
+      fail('configuration_error', 500, 'Cancellation is not supported by current checkout provider.');
+    }
+    return await this.provider.cancelSubscription({
+      subscriptionId: targetSubId,
+      reason,
+      environment: this.config.environment,
+      userId,
+    });
   }
 }
 
@@ -729,12 +1087,25 @@ async function handleBillingCheckout({ req, res, error }, dependencies = {}) {
     if (!user || typeof user.$id !== 'string') fail('unauthorized', 401, 'Authentication is required.');
     const request = validateRequest(body);
     const config = dependencies.config || readConfig();
+    const store = dependencies.store || new AppwriteCheckoutStore(clients.databases, config.environment, {
+      paypalProviderEnvironment: config.environment,
+      qaUserId: config.qaUserId,
+    });
+    const provider = selectProvider(config, dependencies);
     const service = new BillingCheckoutService({
-      store: dependencies.store || new AppwriteCheckoutStore(clients.databases, config.environment),
-      provider: dependencies.provider || new PaddleAutomaticProvider({ fetchImpl: dependencies.fetchImpl }),
+      store,
+      provider,
       config,
       now: dependencies.now,
     });
+    if (request.action === 'cancel-subscription') {
+      const response = await service.cancel({
+        userId: user.$id,
+        subscriptionId: request.subscriptionId,
+        reason: request.reason,
+      });
+      return res.json(response, 200);
+    }
     const response = await service.create({ userId: user.$id, ...request });
     return res.json(response, 200);
   } catch (caught) {
@@ -772,6 +1143,11 @@ module.exports.__test = {
   UnconfiguredProvider,
   PaddleAutomaticProvider,
   PADDLE_API_ORIGINS,
+  PAYPAL_API_ORIGINS,
+  PAYPAL_APPROVED_ORIGINS,
+  PayPalSubscriptionProvider,
+  selectProvider,
+  isAmbiguousProviderError,
   parsePaddleTransaction,
   providerDiagnostic,
   providerKeyVariable,

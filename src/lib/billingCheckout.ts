@@ -14,6 +14,8 @@ export type BillingCheckoutErrorCode =
   | 'provider_unavailable'
   | 'rate_limited'
   | 'invalid_request'
+  | 'cancellation_failed'
+  | 'not_found'
   | 'unknown';
 
 export type BillingCheckoutSession = {
@@ -29,6 +31,10 @@ export type BillingCheckoutResult =
   | { ok: true; session: BillingCheckoutSession }
   | { ok: false; code: BillingCheckoutErrorCode; message: string; retryable: boolean };
 
+export type CancelSubscriptionResult =
+  | { ok: true; canceled: boolean; subscriptionId: string }
+  | { ok: false; code: BillingCheckoutErrorCode; message: string };
+
 type CheckoutEnvelope = {
   status?: string;
   data?: BillingCheckoutSession;
@@ -41,6 +47,11 @@ const RETRYABLE_CODES = new Set<BillingCheckoutErrorCode>([
   'state_unavailable',
   'provider_unavailable',
   'rate_limited',
+]);
+
+export const APPROVED_PAYPAL_ORIGINS = Object.freeze([
+  'https://www.sandbox.paypal.com',
+  'https://www.paypal.com',
 ]);
 
 function normalizeErrorCode(value: unknown): BillingCheckoutErrorCode {
@@ -57,6 +68,8 @@ function normalizeErrorCode(value: unknown): BillingCheckoutErrorCode {
     'provider_unavailable',
     'rate_limited',
     'invalid_request',
+    'cancellation_failed',
+    'not_found',
   ].includes(code) ? code as BillingCheckoutErrorCode : 'unknown';
 }
 
@@ -65,10 +78,12 @@ function fallbackMessage(code: BillingCheckoutErrorCode): string {
     case 'unauthorized': return 'Please sign in before starting checkout.';
     case 'already_entitled': return 'Your account already has this access or a stronger plan.';
     case 'checkout_in_progress': return 'A checkout is already being prepared.';
-    case 'payments_disabled': return 'Sandbox checkout is temporarily unavailable.';
+    case 'payments_disabled': return 'Subscription enrollments are currently closed.';
     case 'state_unavailable': return 'Subscription status is temporarily unavailable. Please try again.';
     case 'rate_limited': return 'Too many checkout attempts. Please wait and try again.';
     case 'idempotency_conflict': return 'This checkout attempt cannot be replayed.';
+    case 'cancellation_failed': return 'Unable to cancel subscription. Please verify your subscription status or try again later.';
+    case 'not_found': return 'Subscription not found.';
     default: return 'Checkout is temporarily unavailable. Please try again later.';
   }
 }
@@ -88,7 +103,7 @@ function isSafeSession(value: unknown): value is BillingCheckoutSession {
   if (session.checkout_url !== undefined) {
     try {
       const url = new URL(session.checkout_url);
-      if (url.protocol !== 'https:') return false;
+      if (url.protocol !== 'https:' || !APPROVED_PAYPAL_ORIGINS.includes(url.origin)) return false;
     } catch {
       return false;
     }
@@ -132,11 +147,54 @@ export async function createBillingCheckoutSession(
   return { ok: true, session: envelope.data };
 }
 
+export async function cancelBillingSubscription(options: {
+  reason?: string;
+  subscriptionId?: string;
+} = {}): Promise<CancelSubscriptionResult> {
+  const result = await appwriteFunctions.invoke<{
+    status?: string;
+    canceled?: boolean;
+    subscription_id?: string;
+    error?: string;
+    message?: string;
+  }>('billing-checkout', {
+    body: {
+      action: 'cancel-subscription',
+      subscription_id: options.subscriptionId,
+      reason: options.reason,
+    },
+  });
+
+  if (result.error) {
+    const code = normalizeErrorCode(result.error.code);
+    return {
+      ok: false,
+      code,
+      message: result.error.message || fallbackMessage(code),
+    };
+  }
+
+  const envelope = result.data;
+  if (!envelope || envelope.status !== 'success' || !envelope.canceled) {
+    return {
+      ok: false,
+      code: 'cancellation_failed',
+      message: envelope?.message || fallbackMessage('cancellation_failed'),
+    };
+  }
+
+  return {
+    ok: true,
+    canceled: true,
+    subscriptionId: envelope.subscription_id || options.subscriptionId || '',
+  };
+}
+
 export function openServerCheckout(session: BillingCheckoutSession): boolean {
   if (!session.checkout_url) return false;
   try {
     const url = new URL(session.checkout_url);
-    if (url.protocol !== 'https:') return false;
+    if (url.protocol !== 'https:' || !APPROVED_PAYPAL_ORIGINS.includes(url.origin)) return false;
     window.location.assign(url.toString());
     return true;
   } catch {
@@ -149,4 +207,5 @@ export const billingCheckoutTestHelpers = {
   isSafeSession,
   makeIdempotencyKey,
   normalizeErrorCode,
+  APPROVED_PAYPAL_ORIGINS,
 };

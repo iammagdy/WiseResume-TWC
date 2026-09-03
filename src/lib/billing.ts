@@ -1,28 +1,26 @@
-export type PaymentStatus = 'coming_soon' | 'sandbox_unavailable';
-export type BillingMode = 'sandbox' | 'disabled';
-
-const configuredMode = String(import.meta.env.VITE_BILLING_PUBLIC_MODE ?? 'sandbox').trim().toLowerCase();
+export type PaymentStatus = 'available' | 'unavailable';
+export type BillingMode = 'active' | 'disabled';
 
 export interface BillingState {
   mode: BillingMode;
   paymentStatus: PaymentStatus;
-  paymentsEnabled: false;
+  paymentsEnabled: boolean;
   availablePaymentMethods: string[];
   isSandboxTestMode: boolean;
 }
 
 export const billingState: BillingState = {
-  mode: configuredMode === 'sandbox' ? 'sandbox' : 'disabled',
-  paymentStatus: configuredMode === 'sandbox' ? 'sandbox_unavailable' : 'coming_soon',
-  paymentsEnabled: false,
-  availablePaymentMethods: [],
-  isSandboxTestMode: configuredMode === 'sandbox',
+  mode: 'active',
+  paymentStatus: 'available',
+  paymentsEnabled: true,
+  availablePaymentMethods: ['paypal'],
+  isSandboxTestMode: false,
 };
 
 export function isSandboxTestMode() {
-  return billingState.isSandboxTestMode;
+  return false;
 }
 
 export function isBillingComingSoon() {
-  return billingState.paymentStatus === 'coming_soon';
+  return false;
 }

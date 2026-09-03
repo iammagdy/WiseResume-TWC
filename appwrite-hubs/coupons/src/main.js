@@ -5,6 +5,8 @@ const crypto = require('crypto');
 const {
   resolveEffectivePlan,
   configuredProviderEnvironment,
+  configuredPaypalProviderEnvironment,
+  configuredQaUserId,
 } = require('@wiseresume/subscription-resolver');
 
 const DB_ID = 'main';
@@ -302,30 +304,93 @@ async function validateCoupon(body, res) {
   return json(res, { status: 'success', data: { ok: true, valid: true, coupon: normalizeCoupon(coupon) } });
 }
 
-async function getMySubscription(body, res) {
+async function getMySubscription(body, res, dependencies = {}) {
   const jwt = header(body, 'X-Appwrite-JWT');
-  const { databases, account } = getClients(jwt);
-  const user = await getCurrentUser(account);
+  const { databases, account } = dependencies.clients || getClients(jwt);
+  const user = dependencies.user !== undefined ? dependencies.user : await getCurrentUser(account);
 
   if (!user) {
     return json(res, { status: 'error', message: 'Not authenticated.' }, 401);
   }
 
-  const sub = await findSubscription(databases, user.$id);
-  const [providerState, paypalProviderState] = await Promise.all([
-    findProviderState(databases, user.$id),
-    findPaypalProviderState(databases, user.$id),
-  ]);
+  const sub = dependencies.subscription !== undefined
+    ? dependencies.subscription
+    : await findSubscription(databases, user.$id);
+  const [providerState, paypalProviderState] = dependencies.providerStates
+    ? [dependencies.providerStates.providerState || null, dependencies.providerStates.paypalProviderState || null]
+    : await Promise.all([
+        findProviderState(databases, user.$id),
+        findPaypalProviderState(databases, user.$id),
+      ]);
   const trialPlan = sub?.trial_plan ?? null;
   const trialExpiresAt = sub?.trial_expires_at ?? null;
+  const configuredPaypalEnv = dependencies.paypalEnvironment !== undefined
+    ? dependencies.paypalEnvironment
+    : configuredPaypalProviderEnvironment();
+  const configuredQaUser = dependencies.qaUserId !== undefined
+    ? dependencies.qaUserId
+    : configuredQaUserId();
+
   const effectiveCandidate = resolveEffectivePlan({
     subscription: sub,
     providerState,
     paypalProviderState,
-    providerEnvironment: configuredProviderEnvironment(),
+    providerEnvironment: dependencies.providerEnvironment !== undefined ? dependencies.providerEnvironment : configuredProviderEnvironment(),
+    paypalProviderEnvironment: configuredPaypalEnv,
+    qaUserId: configuredQaUser,
     userId: user.$id,
   });
   const effectivePlan = effectiveCandidate.plan;
+
+  // Safe provider metadata calculation
+  const hasValidPaypalRecord = Boolean(
+    paypalProviderState &&
+    String(paypalProviderState.user_id || '').trim() === user.$id &&
+    String(paypalProviderState.subscription_id || '').trim().startsWith('I-')
+  );
+  const paypalStatus = String(paypalProviderState?.status || '').trim().toLowerCase();
+  const isPaypalCancellableStatus = ['active', 'billing_issue'].includes(paypalStatus);
+  const isEnvironmentMatch = String(paypalProviderState?.environment || '').trim().toLowerCase() === configuredPaypalEnv;
+  const willRenew = typeof paypalProviderState?.will_renew === 'boolean' ? paypalProviderState.will_renew : null;
+
+  // Crucial invariant: can_cancel_subscription requires active/billing_issue AND will_renew === true
+  const canCancelSubscription = Boolean(
+    hasValidPaypalRecord &&
+    isEnvironmentMatch &&
+    isPaypalCancellableStatus &&
+    willRenew === true
+  );
+
+  const providerExpiresAt = (hasValidPaypalRecord && isEnvironmentMatch && paypalProviderState?.expires_at)
+    ? String(paypalProviderState.expires_at)
+    : null;
+  const expiresAt = effectiveCandidate.expiresAt ? String(effectiveCandidate.expiresAt) : null;
+
+  let providerSource = null;
+  if (hasValidPaypalRecord && isEnvironmentMatch) {
+    providerSource = 'paypal';
+  } else if (providerState) {
+    providerSource = 'revenuecat';
+  } else if (sub?.coupon_code) {
+    providerSource = 'coupon';
+  } else if (sub?.plan) {
+    providerSource = 'manual/admin';
+  } else if (effectiveCandidate.source && effectiveCandidate.source !== 'free') {
+    providerSource = effectiveCandidate.source;
+  }
+
+  const providerStatus = (hasValidPaypalRecord && isEnvironmentMatch)
+    ? paypalStatus
+    : (providerState?.status ? String(providerState.status) : null);
+
+  // can_subscribe calculation
+  const isCheckoutEnabled = dependencies.checkoutEnabled !== undefined
+    ? dependencies.checkoutEnabled
+    : String(process.env.BILLING_CHECKOUT_ENABLED || '').toLowerCase() === 'true';
+  const isSandbox = configuredPaypalEnv === 'sandbox';
+  const isQaUserOrProduction = !isSandbox || (Boolean(configuredQaUser) && user.$id === configuredQaUser);
+  const isEligibleForUpgrade = effectivePlan !== 'premium';
+  const canSubscribe = Boolean(isCheckoutEnabled && isQaUserOrProduction && isEligibleForUpgrade);
 
   return json(res, {
     status: 'success',
@@ -336,6 +401,13 @@ async function getMySubscription(body, res) {
       trial_plan: trialPlan,
       trial_expires_at: trialExpiresAt,
       coupon_code: sub?.coupon_code ?? null,
+      expires_at: expiresAt,
+      provider_source: providerSource,
+      provider_status: providerStatus,
+      provider_expires_at: providerExpiresAt,
+      can_cancel_subscription: canCancelSubscription,
+      will_renew: willRenew,
+      can_subscribe: canSubscribe,
     },
   });
 }
@@ -415,5 +487,7 @@ module.exports.__test = {
   redemptionDocumentId,
   redeemCouponAtomically,
   findProviderState,
+  findPaypalProviderState,
   resolveEffectivePlan,
+  getMySubscription,
 };

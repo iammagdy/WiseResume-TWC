@@ -10,6 +10,7 @@ vi.mock('@paddle/paddle-js', () => ({
 
 describe('Sandbox Paddle transaction checkout', () => {
   beforeEach(() => {
+    vi.unstubAllEnvs();
     vi.resetModules();
     vi.clearAllMocks();
     latestPaddleOptions = undefined;
@@ -33,6 +34,7 @@ describe('Sandbox Paddle transaction checkout', () => {
   });
 
   it('fails closed when the client token is absent', async () => {
+    vi.stubEnv('VITE_PADDLE_CLIENT_TOKEN', '');
     const { initializeSandboxTransactionCheckout } = await import('./sandboxPaddleCheckout');
     const statuses: string[] = [];
     await initializeSandboxTransactionCheckout({

@@ -687,6 +687,8 @@ async function ensureAiGatewayVariables() {
         ['PUBLIC_SHARE_TOKEN_SECRET', process.env.PUBLIC_SHARE_TOKEN_SECRET],
         ['GATEWAY_SMOKE_SECRET', process.env.GATEWAY_SMOKE_SECRET],
         ['ADMIN_TEST_HMAC_SECRET', process.env.ADMIN_TEST_HMAC_SECRET],
+        ['PAYPAL_ACCESS_ENVIRONMENT', process.env.PAYPAL_ACCESS_ENVIRONMENT || 'sandbox'],
+        ['BILLING_CHECKOUT_QA_USER_ID', process.env.BILLING_CHECKOUT_QA_USER_ID],
     ];
     for (const [key, value] of vars) await ensureVariable('ai-gateway', key, value);
 }
@@ -870,18 +872,75 @@ async function isProductionBillingConfigured() {
 }
 
 async function ensureBillingCheckoutVariables() {
+    await ensureVariable('billing-checkout', 'APPWRITE_API_KEY', process.env.APPWRITE_API_KEY);
+    await ensureVariable('billing-checkout', 'APPWRITE_ENDPOINT', process.env.APPWRITE_ENDPOINT || 'https://fra.cloud.appwrite.io/v1');
+    await ensureVariable('billing-checkout', 'APPWRITE_PROJECT_ID', process.env.APPWRITE_PROJECT_ID || '69fd362b001eb325a192');
+
+    const rawProvider = (
+        process.env.BILLING_CHECKOUT_PROVIDER ||
+        await existingVariableValue('billing-checkout', 'BILLING_CHECKOUT_PROVIDER') ||
+        ''
+    ).trim().toLowerCase();
+
+    const provider = rawProvider || (process.env.PAYPAL_CLIENT_ID ? 'paypal' : 'paddle');
+    if (provider) {
+        await ensureVariable('billing-checkout', 'BILLING_CHECKOUT_PROVIDER', provider);
+    }
+
+    if (provider === 'paypal') {
+        const accessEnv = (
+            process.env.PAYPAL_ACCESS_ENVIRONMENT ||
+            await existingVariableValue('billing-checkout', 'PAYPAL_ACCESS_ENVIRONMENT') ||
+            'sandbox'
+        ).trim().toLowerCase();
+        await ensureVariable('billing-checkout', 'PAYPAL_ACCESS_ENVIRONMENT', accessEnv);
+
+        const clientId = process.env.PAYPAL_CLIENT_ID ||
+            await existingVariableValue('billing-checkout', 'PAYPAL_CLIENT_ID');
+        if (clientId) await ensureVariable('billing-checkout', 'PAYPAL_CLIENT_ID', clientId);
+
+        const clientSecret = process.env.PAYPAL_CLIENT_SECRET ||
+            await existingVariableValue('billing-checkout', 'PAYPAL_CLIENT_SECRET');
+        if (clientSecret) await ensureVariable('billing-checkout', 'PAYPAL_CLIENT_SECRET', clientSecret);
+
+        const proPlanId = process.env.PAYPAL_PRO_PLAN_ID ||
+            await existingVariableValue('billing-checkout', 'PAYPAL_PRO_PLAN_ID');
+        if (proPlanId) await ensureVariable('billing-checkout', 'PAYPAL_PRO_PLAN_ID', proPlanId);
+
+        const premiumPlanId = process.env.PAYPAL_PREMIUM_PLAN_ID ||
+            await existingVariableValue('billing-checkout', 'PAYPAL_PREMIUM_PLAN_ID');
+        if (premiumPlanId) await ensureVariable('billing-checkout', 'PAYPAL_PREMIUM_PLAN_ID', premiumPlanId);
+
+        const qaUserId = process.env.BILLING_CHECKOUT_QA_USER_ID ||
+            await existingVariableValue('billing-checkout', 'BILLING_CHECKOUT_QA_USER_ID');
+        if (qaUserId) await ensureVariable('billing-checkout', 'BILLING_CHECKOUT_QA_USER_ID', qaUserId);
+
+        const returnUrl = process.env.BILLING_CHECKOUT_RETURN_URL ||
+            await existingVariableValue('billing-checkout', 'BILLING_CHECKOUT_RETURN_URL') ||
+            'https://wiseresume.app/subscription?billing=success';
+        await ensureVariable('billing-checkout', 'BILLING_CHECKOUT_RETURN_URL', returnUrl);
+
+        const cancelUrl = process.env.BILLING_CHECKOUT_CANCEL_URL ||
+            await existingVariableValue('billing-checkout', 'BILLING_CHECKOUT_CANCEL_URL') ||
+            'https://wiseresume.app/subscription?billing=canceled';
+        await ensureVariable('billing-checkout', 'BILLING_CHECKOUT_CANCEL_URL', cancelUrl);
+    }
+
     const sandboxPaddleKey = process.env.BILLING_SANDBOX_PADDLE_API_KEY ||
         await existingVariableValue('billing-checkout', 'BILLING_SANDBOX_PADDLE_API_KEY');
     if (!sandboxPaddleKey) {
-        throw new Error('BILLING_SANDBOX_PADDLE_API_KEY is required to deploy billing-checkout');
+        if (provider !== 'paypal') {
+            throw new Error('BILLING_SANDBOX_PADDLE_API_KEY is required to deploy billing-checkout');
+        }
+    } else {
+        await ensureVariable('billing-checkout', 'BILLING_SANDBOX_PADDLE_API_KEY', sandboxPaddleKey);
     }
-    await ensureVariable('billing-checkout', 'BILLING_SANDBOX_PADDLE_API_KEY', sandboxPaddleKey);
 
     const productionConfigured = await isProductionBillingConfigured();
     const productionPaddleKey = process.env.BILLING_PRODUCTION_PADDLE_API_KEY ||
         await existingVariableValue('billing-checkout', 'BILLING_PRODUCTION_PADDLE_API_KEY');
 
-    if (productionConfigured && !productionPaddleKey) {
+    if (productionConfigured && !productionPaddleKey && provider !== 'paypal') {
         throw new Error('BILLING_PRODUCTION_PADDLE_API_KEY is required to deploy billing-checkout when configured for Production');
     }
 
@@ -915,6 +974,15 @@ async function ensureCouponsWiseHireVariables(fnIds) {
             ['RESEND_FROM_NAME', process.env.RESEND_FROM_NAME],
         ]) {
             await ensureVariable(fnId, key, value);
+        }
+        if (fnId === 'coupons') {
+            const accessEnv = process.env.PAYPAL_ACCESS_ENVIRONMENT ||
+                await existingVariableValue('coupons', 'PAYPAL_ACCESS_ENVIRONMENT') || 'sandbox';
+            await ensureVariable('coupons', 'PAYPAL_ACCESS_ENVIRONMENT', accessEnv);
+
+            const qaUserId = process.env.BILLING_CHECKOUT_QA_USER_ID ||
+                await existingVariableValue('coupons', 'BILLING_CHECKOUT_QA_USER_ID');
+            if (qaUserId) await ensureVariable('coupons', 'BILLING_CHECKOUT_QA_USER_ID', qaUserId);
         }
         if (fnId === 'public-share') {
             const publicShareSecret = process.env.PUBLIC_SHARE_TOKEN_SECRET ||
