@@ -1,7 +1,7 @@
 # Project Atlas — Active Operational & Handover State
 
 **Last Verified:** 2026-09-03
-**Status:** `PDF_EXPORT_P1_DEPLOYED_PRODUCTION_VERIFIED / AI_STUDIO_LINKEDIN_408_P1_DEPLOYED_PRODUCTION_VERIFIED / ALL_P1_DEFECTS_RESOLVED` — Both critical P1 functional blockers from the full application audit are now deployed and verified in live production. PR #278 merged into `main` (`ba32c3bfbd9514db2f5dd9c44ec8770f47d36e16`). Billing checkout remains strictly disabled (`BILLING_CHECKOUT_ENABLED=false`).
+**Status:** `PDF_EXPORT_P1_DEPLOYED_PRODUCTION_VERIFIED / AI_STUDIO_LINKEDIN_408_P1_DEPLOYED_PRODUCTION_VERIFIED / FULL_FUNCTIONALITY_AUDIT_P1S_RESOLVED` — Both critical P1 functional blockers from the 2026-09-02 full application audit are now deployed and verified in live production. PR #278 merged into `main` (`ba32c3bfbd9514db2f5dd9c44ec8770f47d36e16`). Billing checkout remains strictly disabled (`BILLING_CHECKOUT_ENABLED=false`).
 **Location:** `Project Atlas/WHERE_WE_STOPPED.md`
 
 ## AI Studio LinkedIn Optimizer Async Execution Remediation & Production Verification (PR #278) — 2026-09-03
@@ -13,8 +13,9 @@
 * **Production Deployment Details:**
   - Merge Commit SHA: `ba32c3bfbd9514db2f5dd9c44ec8770f47d36e16` (PR #278)
   - Vercel Deployment ID: `8JwoQdtnRGsJ6KV7rnqDVg6xgM3G` (Production target `https://wiseresume.app`, status `READY`)
-  - Appwrite Function Deployment: Targeted `ai-gateway` deployed via GitHub Actions workflow run `33739650073` on ref `fix/ai-studio-linkedin-async-execution` (`0976594fa35d37da8c1f964406a4637b58fb17d5`). Deployment ID: `6a993f8a964aa9a65327`, status `ready`.
+  - Appwrite Function Deployment: Targeted `ai-gateway` deployed via GitHub Actions workflow run `33739650073` on ref `fix/ai-studio-linkedin-async-execution` (`0976594f45ddfe6529d105d1d94541366bd03467`). Deployment ID: `6a993f8a964aa9a65327`, status `ready`.
   - Backend State: `AI_GATEWAY_LINKEDIN_RESULT_ONLY_DEPLOYED_BACKWARD_COMPATIBLE`.
+  - Schema & Provisioning: No new schema migration was introduced by PR #278. The approved targeted `ai-gateway` deployment re-ran the workflow's normal idempotent schema/permission provisioners; existing required attributes/indexes were reported as already present (`APPWRITE_PRODUCT_SCHEMA_CHANGE = NO`).
 * **Live Production QA Verification (Authenticated Non-Customer QA Account):**
   - Path Taken: Initial async creation via `functions.createExecution(..., async: true)` (Execution ID: `6a99457a8c777a1f1cd3`), browser `getExecution()` returned 404 (status unavailable to browser SDK), falling back immediately to `X-AI-Result-Only: true`.
   - Polling Lifecycle: Two 409 `request_in_progress` polls, followed by HTTP 200 completed result with 3,119 bytes in ~9.1s total.
@@ -27,10 +28,11 @@
     - 10 keywords (B2B SaaS, Demand Generation, SEO, HubSpot, etc.)
     - 5 actionable profile tips
   - UI Actions Verified: Leaves loading state cleanly, Copy All clicked without UI error, Word DOCX download verified with real downloaded file `LinkedIn_Profile_Ahmed_Hassan.docx` (9,786 bytes).
-  - Credit Deduction: Verified exactly +1 credit charged (`daily_usage: 10 -> 11`, `total_usage: 135 -> 136`).
+  - Credit & Usage Accounting: The server recorded one unit of AI usage for accounting (`daily_usage: 10 -> 11`, `total_usage: 135 -> 136`). The Ultimate entitlement remained unlimited; no finite quota was reduced or exhausted. Result-only cached reads verified 0 additional usage.
   - Cancellation: In-flight client cancellation verified clean with zero unhandled error toasts.
   - Metered Status: `PRO_LIVE_METERED_VERIFICATION = NOT_LIVE_METERED_VERIFIED`.
-* **Remaining Workstreams:** All P1 functionality gaps are closed. Next focus is load-testing / scaling or owner direction.
+* **Process Note:** Commit `b9253d5a` was previously pushed directly to `main`. This final documentation reconciliation is submitted via branch `docs/linkedin-p1-final-reconciliation` through a standard pull request.
+* **Remaining Workstreams:** All P1 functionality gaps identified by the 2026-09-02 full functionality audit are closed (`FULL_FUNCTIONALITY_AUDIT_P1S_RESOLVED`). The next engineering workstream has not yet been selected by the owner.
 
 ## Native PDF Export P1 Production Verification & Remediation Closeout — 2026-09-03
 
@@ -51,12 +53,12 @@
   5. **Tailoring Hub Result PDF:** 23,447 bytes, `%PDF-`, 1 page, opens/parses cleanly.
   6. **Other PDF Call-Sites:** 1-Page wizard, Combined PDF, Share drawer classified as `TRANSPORT_PATH_RESTORED / UI_SURFACE_NOT_INDIVIDUALLY_REVERIFIED`.
 * **Root Cause Resolution:** `ROOT_CAUSE_PRODUCTION_CONFIRMED_BY_REMEDIATION` — The confirmed production bootstrap blocker was the ESM relative-import failure (`../_lib/appwriteDocumentId` lacking `.js`). Chromium package inclusion and lazy loading remain part of the successfully deployed runtime configuration in Vercel Production Node 24.x ESM runtime.
-* **Remaining Open Workstream:** `AI_STUDIO_LINKEDIN_408_P1` (AI Studio LinkedIn Optimizer 408 timeout issue).
+* **Historical Remaining Open Workstream (at time of PDF closeout):** `AI_STUDIO_LINKEDIN_408_P1` was the remaining open workstream at the time of PDF closeout; subsequently resolved and production verified in PR #278.
 
 ## Full Application End-to-End Functionality & Production Audit — 2026-09-02
 
 * **Audit Report:** [`Project Atlas/reports/2026-09-02-full-functionality-production-audit.md`](file:///d:/WiseResume-TWC/Project%20Atlas/reports/2026-09-02-full-functionality-production-audit.md).
-* **Audit Verdict:** `FUNCTIONALITY_GAPS_FOUND` (PDF Export P1 defect remediated locally; awaiting production deployment and live browser verification).
+* **Audit Verdict:** `FULL_FUNCTIONALITY_AUDIT_P1S_RESOLVED` (Both P1 defects identified during the audit — PDF Export and AI Studio LinkedIn 408 — are now resolved and production verified).
 * **Repository Baseline:** `d293437bc54032c08329c99f6f527e1a6574c499` (`main`, synchronized with `origin/main`).
 * **Live Target:** `https://wiseresume.app`.
 
