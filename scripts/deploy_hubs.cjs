@@ -1310,6 +1310,19 @@ async function run() {
     }
 
     await runSmokeChecks(hubsToDeploy);
+    if (hubsToDeploy.some(hub => hub.id === 'paypal-webhook')) {
+        try {
+            const proxy = new sdk.Proxy(client);
+            const rules = await proxy.listRules();
+            console.log('\n--- Appwrite Function Proxy/Domain Rules ---');
+            for (const r of rules.rules || []) {
+                console.log(`  [Domain Rule] ID: ${r.$id}, Domain: ${r.domain}, Resource: ${r.resourceType}/${r.resourceId}, Status: ${r.status}`);
+            }
+        } catch (e) {
+            console.log(`\n  [Proxy listRules note]: ${e.message}`);
+        }
+    }
+
 
     if (!requestedIds) {
         await ensureJobsCreatePermission();
