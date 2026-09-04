@@ -1,19 +1,20 @@
 # Project Atlas — Active Operational & Handover State
 
 **Last Verified:** 2026-09-04
-**Status:** `PAYPAL_PHASE4_FINAL_CORRECTIVE_SAFETY_PASS_PR_READY` (Branch: `feat/paypal-sandbox-phase4`, PR: #287, Target: `main`) — Phase 4 final corrective safety, contract hardening, idempotency lifecycle, and UI verification pass complete: (1) Sandbox QA gate fails closed before provider invocation if QA user ID is missing or mismatched. (2) Stable request ID derived deterministically from session key. (3) Post-201 persistence failures mark session uncertain. (4) Cancellation server-derived from caller identity only, with sanitized response envelope. (5) Deployment workflows and deploy script wire exact Sandbox catalog IDs and fail closed if provider is missing. (6) Frontend client origin defense validates exact environment. (7) Client attempt key idempotency reuses on retryable errors and clears on plan switch, cancel, or success. (8) Two-stage cancellation flow and neutral copy without false billing period claims. (9) Polling timeout displays neutral "Taking Longer Than Usual" copy. (10) can_subscribe strictly fails closed. 101 Node tests and 19 Vitest tests pass; TypeScript type-check and Vite production build pass cleanly.
+**Status:** `PAYPAL_PHASE4_FINAL_SAFETY_AND_BROWSER_PASS_READY_TO_MERGE` (Branch: `feat/paypal-sandbox-phase4`, PR: #287, Target: `main`) — Phase 4 final pre-merge safety gate and contract hardening pass complete: (1) Cancellation provider-ID exclusivity eliminates legacy fallback and enforces strict preflight validation with zero calls on failure. (2) Cancel request strictly rejects client subscription IDs and injection keys. (3) Invalid/missing environment configuration fails closed without sandbox fallback. (4) Cancellation polling timeout transitions to delayed state, never fakes confirmed. (5) can_subscribe strictly validates full 6-point runtime readiness contract. (6) Coupons deployment contract receives availability variables. (7) Global billing state restored to fail-closed internal configuration model. (8) Adversarial idempotency tests prove persisted uncertain key preservation and post-201 recovery. (9) Headless Chromium browser automation completed 30/30 assertions across 5 viewports and locales. (10) Deployment scripts synchronize catalog only in PayPal path and document Production PayPal catalog as OWNER_ACTION_REQUIRED / NOT CONFIGURED. 139 Node hub tests pass; 14 SubscriptionPage Vitest tests pass; 7 billingCheckout Vitest tests pass; tsc and vite build pass cleanly.
 **Location:** `Project Atlas/WHERE_WE_STOPPED.md`
 
-## PayPal Sandbox Integration Phase 4 (Full Implementation Complete) — 2026-09-04
+## PayPal Sandbox Integration Phase 4 (Final Pre-Merge Safety Gate Complete) — 2026-09-04
 
-* **Workstream Verdict:** `PAYPAL_PHASE4_FINAL_CORRECTIVE_SAFETY_PASS_PR_READY`.
+* **Workstream Verdict:** `PAYPAL_PHASE4_FINAL_SAFETY_AND_BROWSER_PASS_READY_TO_MERGE`.
 * **Git Branch:** `feat/paypal-sandbox-phase4` (branched from clean `main` at `a64e8ca7822e7c407fd016bfbbfad6a7442d4528`).
-* **Commit Status:** **PENDING FINAL STAGED COMMIT**.
+* **Commit Status:** **PENDING FINAL SCOPED CORRECTIVE COMMIT**.
 * **Push Status:** **PENDING PUSH TO ORIGIN**.
 * **Deployment Status:** **NOT DEPLOYED** (Appwrite live deployment and schema execution strictly unauthorized during PR phase).
 * **Live Appwrite Schema Status:** **NOT APPLIED**.
 * **PayPal Webhook Status:** **NOT REGISTERED ON LIVE CLUSTER**.
-* **Live Transactions Status:** **ZERO LIVE TRANSACTIONS CREATED**.
+* **Production PayPal Catalog:** **DISABLED / NOT CONFIGURED (OWNER_ACTION_REQUIRED)**.
+* **Public Checkout:** **DISABLED**.
 * **What's New Eligibility Decision:** `WHATS_NEW_NOT_REQUIRED` (Phase 4 is an internal checkout and subscription capability on sandbox environment; public checkout is not yet activated in production).
 * **Sub-Phase Deliverables & Verification Details:**
   1. **Sub-Phase P4-A: Coupons Hub & Subscription Contract (`coupons`):**

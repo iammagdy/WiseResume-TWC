@@ -508,4 +508,161 @@ describe('SubscriptionPage PayPal Lifecycle & Cancellation', () => {
 
     vi.useRealTimers();
   });
+
+  it('cancellation 30s timeout transitions to delayed state (NOT confirmed) with neutral copy', async () => {
+    vi.useFakeTimers();
+
+    vi.mocked(useMe).mockReturnValue({
+      data: {
+        subscription: {
+          plan: 'pro',
+          effective_plan: 'pro',
+          status: 'active',
+          can_subscribe: true,
+          can_cancel_subscription: true,
+          provider_source: 'paypal',
+          provider_status: 'active',
+          provider_expires_at: null,
+          expires_at: null,
+          will_renew: true,
+        },
+      },
+      refetch: mockRefetchMe,
+    } as unknown as ReturnType<typeof useMe>);
+
+    vi.mocked(usePlan).mockReturnValue({
+      plan: 'pro',
+      isPro: true,
+      isPremium: false,
+      isLoading: false,
+    } as unknown as ReturnType<typeof usePlan>);
+
+    vi.mocked(cancelBillingSubscription).mockResolvedValue({
+      ok: true,
+      canceled: true,
+    });
+
+    // Subscriptions refetch keeps will_renew: true (webhook or backend slow to update)
+    mockRefetchMe.mockResolvedValue({
+      data: {
+        subscription: {
+          plan: 'pro',
+          effective_plan: 'pro',
+          status: 'active',
+          can_subscribe: true,
+          can_cancel_subscription: true,
+          provider_source: 'paypal',
+          provider_status: 'active',
+          provider_expires_at: null,
+          expires_at: null,
+          will_renew: true,
+        },
+      },
+    });
+
+    renderWithProviders(<SubscriptionPage />);
+
+    const cancelBtn = screen.getByRole('button', { name: /cancel subscription/i });
+    fireEvent.click(cancelBtn);
+
+    const confirmCancelBtn = screen.getByRole('button', { name: /confirm cancellation/i });
+    fireEvent.click(confirmCancelBtn);
+
+    // Advance 32 seconds with async timer advance to allow all promise ticks to resolve
+    await vi.advanceTimersByTimeAsync(35_000);
+
+    // Must transition to delayed, NOT confirmed!
+    expect(screen.getByText('Cancellation Status Updating')).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /your cancellation request was received. your subscription status is still updating. you can refresh this page in a moment./i
+      )
+    ).toBeInTheDocument();
+
+    // Must NEVER show "Subscription Canceled" without authoritative confirmation!
+    expect(screen.queryByText('Subscription Canceled')).not.toBeInTheDocument();
+
+    vi.useRealTimers();
+  });
+
+  it('cancellation transitions to confirmed when subsequent refetch proves will_renew=false', async () => {
+    vi.useFakeTimers();
+
+    vi.mocked(useMe).mockReturnValue({
+      data: {
+        subscription: {
+          plan: 'pro',
+          effective_plan: 'pro',
+          status: 'active',
+          can_subscribe: true,
+          can_cancel_subscription: true,
+          provider_source: 'paypal',
+          provider_status: 'active',
+          provider_expires_at: '2026-10-15T00:00:00Z',
+          expires_at: '2026-10-15T00:00:00Z',
+          will_renew: true,
+        },
+      },
+      refetch: mockRefetchMe,
+    } as unknown as ReturnType<typeof useMe>);
+
+    vi.mocked(usePlan).mockReturnValue({
+      plan: 'pro',
+      isPro: true,
+      isPremium: false,
+      isLoading: false,
+    } as unknown as ReturnType<typeof usePlan>);
+
+    vi.mocked(cancelBillingSubscription).mockResolvedValue({
+      ok: true,
+      canceled: true,
+    });
+
+    // Initial refetch still shows will_renew: true
+    mockRefetchMe.mockResolvedValueOnce({
+      data: {
+        subscription: {
+          plan: 'pro',
+          effective_plan: 'pro',
+          status: 'active',
+          can_subscribe: true,
+          can_cancel_subscription: true,
+          will_renew: true,
+        },
+      },
+    });
+
+    // Second refetch after 3s polling proves will_renew: false
+    mockRefetchMe.mockResolvedValueOnce({
+      data: {
+        subscription: {
+          plan: 'pro',
+          effective_plan: 'pro',
+          status: 'active',
+          can_subscribe: true,
+          can_cancel_subscription: false,
+          provider_expires_at: '2026-10-15T00:00:00Z',
+          expires_at: '2026-10-15T00:00:00Z',
+          will_renew: false,
+        },
+      },
+    });
+
+    renderWithProviders(<SubscriptionPage />);
+
+    const cancelBtn = screen.getByRole('button', { name: /cancel subscription/i });
+    fireEvent.click(cancelBtn);
+
+    const confirmCancelBtn = screen.getByRole('button', { name: /confirm cancellation/i });
+    fireEvent.click(confirmCancelBtn);
+
+    // Advance 4s with async timer advance to trigger poll
+    await vi.advanceTimersByTimeAsync(4000);
+
+    // Now confirmed state must appear with retain access date
+    expect(screen.getByText('Subscription Canceled')).toBeInTheDocument();
+    expect(screen.getByText(/your subscription has been canceled. you retain full access until/i)).toBeInTheDocument();
+
+    vi.useRealTimers();
+  });
 });

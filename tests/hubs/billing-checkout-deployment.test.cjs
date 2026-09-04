@@ -341,4 +341,70 @@ test('workflow ordering: bootstrap validation runs strictly before PayPal schema
     `Schema setup step (pos ${schemaIdx}) must precede deploy step (pos ${deployIdx})`,
   );
 });
+test('coupons hub receives checkout availability variables in ensureCouponsWiseHireVariables', () => {
+  const script = read('scripts/deploy_hubs.cjs');
+  assert.match(
+    script,
+    /ensureVariable\('coupons',\s*'BILLING_CHECKOUT_ENABLED'/,
+    'coupons must receive BILLING_CHECKOUT_ENABLED',
+  );
+  assert.match(
+    script,
+    /ensureVariable\('coupons',\s*'BILLING_CHECKOUT_PROVIDER'/,
+    'coupons must receive BILLING_CHECKOUT_PROVIDER',
+  );
+  assert.match(
+    script,
+    /ensureVariable\('coupons',\s*'BILLING_CHECKOUT_PROVIDER_READY'/,
+    'coupons must receive BILLING_CHECKOUT_PROVIDER_READY',
+  );
+  assert.match(
+    script,
+    /ensureVariable\('coupons',\s*'PAYPAL_ACCESS_ENVIRONMENT'/,
+    'coupons must receive PAYPAL_ACCESS_ENVIRONMENT',
+  );
+  assert.match(
+    script,
+    /ensureVariable\('coupons',\s*'BILLING_CHECKOUT_QA_USER_ID'/,
+    'coupons must receive BILLING_CHECKOUT_QA_USER_ID',
+  );
+});
 
+test('deploy-appwrite-hubs workflow exposes checkout availability variables for coupons', () => {
+  const workflow = read('.github/workflows/deploy-appwrite-hubs.yml');
+  assert.match(
+    workflow,
+    /BILLING_CHECKOUT_ENABLED:\s*\$\{\{\s*secrets\.BILLING_CHECKOUT_ENABLED\s*\|\|\s*vars\.BILLING_CHECKOUT_ENABLED\s*\|\|\s*'false'\s*\}\}/,
+    'Workflow must map BILLING_CHECKOUT_ENABLED',
+  );
+  assert.match(
+    workflow,
+    /BILLING_CHECKOUT_PROVIDER_READY:\s*\$\{\{\s*secrets\.BILLING_CHECKOUT_PROVIDER_READY\s*\|\|\s*vars\.BILLING_CHECKOUT_PROVIDER_READY\s*\|\|\s*'false'\s*\}\}/,
+    'Workflow must map BILLING_CHECKOUT_PROVIDER_READY',
+  );
+});
+
+test('PayPal catalog IDs are synchronized strictly within provider === paypal path', () => {
+  const script = read('scripts/deploy_hubs.cjs');
+  const paypalProviderIdx = script.indexOf("if (provider === 'paypal')");
+  const paddleProviderIdx = script.indexOf("} else if (provider === 'paddle')");
+  const catalogLoopIdx = script.indexOf("['BILLING_SANDBOX_PRO_PRICE_ID', process.env.BILLING_SANDBOX_PRO_PRICE_ID");
+
+  assert.ok(paypalProviderIdx > 0, 'Must have provider === paypal block');
+  assert.ok(paddleProviderIdx > 0, 'Must have provider === paddle block');
+  assert.ok(catalogLoopIdx > 0, 'Must have PayPal catalog loop');
+
+  assert.ok(
+    catalogLoopIdx > paypalProviderIdx && catalogLoopIdx < paddleProviderIdx,
+    'PayPal catalog loop must be located strictly inside if (provider === paypal) block before paddle block',
+  );
+});
+
+test('Production PayPal catalog is documented as OWNER_ACTION_REQUIRED / NOT CONFIGURED', () => {
+  const script = read('scripts/deploy_hubs.cjs');
+  assert.match(
+    script,
+    /Production PayPal catalog = OWNER_ACTION_REQUIRED \/ NOT CONFIGURED/,
+    'deploy_hubs.cjs must explicitly document that Production PayPal catalog is not configured',
+  );
+});

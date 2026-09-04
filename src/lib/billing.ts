@@ -9,18 +9,24 @@ export interface BillingState {
   isSandboxTestMode: boolean;
 }
 
+/**
+ * Fail-closed internal configuration model.
+ * In default unconfigured runtime state, payments remain disabled and unavailable.
+ * Server-authoritative checkout readiness (can_subscribe) is determined dynamically
+ * by the backend API per-user, never trusted to client-side flags.
+ */
 export const billingState: BillingState = {
-  mode: 'active',
-  paymentStatus: 'available',
-  paymentsEnabled: true,
-  availablePaymentMethods: ['paypal'],
+  mode: 'disabled',
+  paymentStatus: 'unavailable',
+  paymentsEnabled: false,
+  availablePaymentMethods: [],
   isSandboxTestMode: false,
 };
 
-export function isSandboxTestMode() {
+export function isSandboxTestMode(): boolean {
   return false;
 }
 
-export function isBillingComingSoon() {
-  return false;
+export function isBillingComingSoon(): boolean {
+  return !billingState.paymentsEnabled;
 }

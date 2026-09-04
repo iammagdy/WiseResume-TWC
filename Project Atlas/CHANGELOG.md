@@ -1,5 +1,22 @@
 # WiseResume Atlas Master Changelog
 
+### 2026-09-04 - PayPal Sandbox Integration Phase 4: Final Pre-Merge Safety Gate Pass
+
+- **Workstream Verdict:** `PAYPAL_PHASE4_FINAL_SAFETY_AND_BROWSER_PASS_READY_TO_MERGE`.
+- **Git Branch:** `feat/paypal-sandbox-phase4` (PR #287).
+- **Scope:** Completed final pre-merge safety gate hardening across cancellation, request validation, environment configuration, cancellation UI state machine, runtime readiness contract, global billing state, adversarial idempotency recovery, deployment wiring, and headless Chromium browser QA.
+- **Core Hardening & Fixes:**
+  - **Cancellation Provider-ID Exclusivity (`appwrite-hubs/billing-checkout`):** Eliminated legacy `subscriptions` document fallback in `service.cancel()`. The only authoritative source of provider subscription ID is `paypal_subscription_state` for the canonical user. Preflight fail-closed checks strictly enforce user matching, valid `^I-` ID format, exact environment matching, cancellable status (`active` / `billing_issue`), and `will_renew === true` with zero PayPal API calls on any failure.
+  - **Cancel Request Hardening (`appwrite-hubs/billing-checkout`):** Stripped `subscription_id` and `subscriptionId` from allowed request keys. Allowed keys are strictly `['action', 'reason']`. Injected keys (`user_id`, `plan_id`, `provider`, `environment`, etc.) return HTTP 400 `invalid_request`.
+  - **Environment Fail-Closed (`appwrite-hubs/billing-checkout`):** Removed default sandbox fallback in `PayPalSubscriptionProvider.cancelSubscription()`. Invalid or missing environment configuration immediately throws provider runtime failure with zero network calls.
+  - **Cancellation UI Delayed State Machine (`src/pages/SubscriptionPage.tsx`):** State machine updated to `'idle' | 'updating' | 'delayed' | 'confirmed'`. Polling timeout (30s) transitions to `delayed` with exact copy: *"Your cancellation request was received. Your subscription status is still updating. You can refresh this page in a moment."* Never fakes "Subscription Canceled" without authoritative proof from backend.
+  - **`can_subscribe` Runtime Readiness Contract (`appwrite-hubs/coupons`):** Expanded `can_subscribe` to require all 6 runtime conditions: `BILLING_CHECKOUT_ENABLED === true`, `BILLING_CHECKOUT_PROVIDER === 'paypal'`, `BILLING_CHECKOUT_PROVIDER_READY === true`, `PAYPAL_ACCESS_ENVIRONMENT === 'sandbox'`, QA user ID non-empty, matching QA user, and plan eligibility.
+  - **Coupons Deployment Contract Wiring (`scripts/deploy_hubs.cjs`, `.github/workflows/deploy-appwrite-hubs.yml`):** Wired `BILLING_CHECKOUT_ENABLED`, `BILLING_CHECKOUT_PROVIDER`, `BILLING_CHECKOUT_PROVIDER_READY`, `PAYPAL_ACCESS_ENVIRONMENT`, and `BILLING_CHECKOUT_QA_USER_ID` into `coupons` deployment contract; moved catalog synchronization strictly into `provider === 'paypal'`; documented `Production PayPal catalog = OWNER_ACTION_REQUIRED / NOT CONFIGURED`.
+  - **Global Billing State Restoration (`src/lib/billing.ts`):** Restored fail-closed internal configuration (`mode: 'disabled'`, `paymentStatus: 'unavailable'`, `paymentsEnabled: false`, `availablePaymentMethods: []`). Zero customer-facing sandbox/test wording.
+  - **Adversarial Idempotency Recovery (`tests/hubs/billing-checkout.paypal.test.cjs`):** Proven that persisted uncertain session key beats newly calculated retry key across bucket changes, and post-201 store completion recovery reuses the exact original `PayPal-Request-Id`.
+  - **Browser QA Automation:** Headless Chromium browser automation completed across Desktop English Light, Desktop English Dark, Mobile English, Desktop Arabic RTL, Mobile Arabic RTL, with 30/30 automated assertions passing (no horizontal overflow, plan cards, touch targets, focus visibility, keyboard navigation, dialog dismissal, neutral copy, updating, delayed, and confirmed states). Remote Vercel preview verified as protected by Vercel deployment protection SSO gate.
+  - **Tests:** 139/139 Node hub tests pass (27 paypal billing-checkout, 25 deployment, 21 coupons, 66 webhook); 14/14 SubscriptionPage Vitest tests pass; 7/7 billingCheckout Vitest tests pass; `tsc --noEmit` clean; `vite build` clean.
+
 ### 2026-09-04 - PayPal Sandbox Integration Phase 4: Final Corrective Safety & UI Verification Pass
 
 - **Workstream Verdict:** `PAYPAL_PHASE4_FINAL_CORRECTIVE_SAFETY_PASS_PR_READY`.

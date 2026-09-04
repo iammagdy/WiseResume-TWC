@@ -383,14 +383,29 @@ async function getMySubscription(body, res, dependencies = {}) {
     ? paypalStatus
     : (providerState?.status ? String(providerState.status) : null);
 
-  // can_subscribe calculation
+  // can_subscribe calculation: safe runtime availability contract
   const isCheckoutEnabled = dependencies.checkoutEnabled !== undefined
-    ? dependencies.checkoutEnabled
+    ? Boolean(dependencies.checkoutEnabled)
     : String(process.env.BILLING_CHECKOUT_ENABLED || '').toLowerCase() === 'true';
-  const isSandbox = configuredPaypalEnv === 'sandbox';
-  const isQaUserOrProduction = !isSandbox || (Boolean(configuredQaUser) && user.$id === configuredQaUser);
+  const checkoutProvider = dependencies.checkoutProvider !== undefined
+    ? String(dependencies.checkoutProvider || '').trim().toLowerCase()
+    : String(process.env.BILLING_CHECKOUT_PROVIDER || '').trim().toLowerCase();
+  const isProviderReady = dependencies.checkoutProviderReady !== undefined
+    ? Boolean(dependencies.checkoutProviderReady)
+    : String(process.env.BILLING_CHECKOUT_PROVIDER_READY || '').toLowerCase() === 'true';
+  const isSandbox = String(configuredPaypalEnv || '').trim().toLowerCase() === 'sandbox';
+  const hasValidQaUser = Boolean(configuredQaUser && String(configuredQaUser).trim().length > 0);
+  const isMatchingQaUser = hasValidQaUser && user.$id === String(configuredQaUser).trim();
   const isEligibleForUpgrade = effectivePlan !== 'premium';
-  const canSubscribe = Boolean(isCheckoutEnabled && isQaUserOrProduction && isEligibleForUpgrade);
+
+  const canSubscribe = Boolean(
+    isCheckoutEnabled &&
+    checkoutProvider === 'paypal' &&
+    isProviderReady &&
+    isSandbox &&
+    isMatchingQaUser &&
+    isEligibleForUpgrade
+  );
 
   return json(res, {
     status: 'success',

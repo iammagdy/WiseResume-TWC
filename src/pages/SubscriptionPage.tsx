@@ -165,7 +165,7 @@ export default function SubscriptionPage() {
   const [cancelError, setCancelError] = useState<string | null>(null);
   const [cancelSuccessMessage, setCancelSuccessMessage] = useState<string | null>(null);
 
-  const [cancelStage, setCancelStage] = useState<'idle' | 'updating' | 'confirmed'>('idle');
+  const [cancelStage, setCancelStage] = useState<'idle' | 'updating' | 'delayed' | 'confirmed'>('idle');
   const cancelPollTimerRef = useRef<number | null>(null);
 
   const subscriptionData = meData?.subscription;
@@ -299,15 +299,16 @@ export default function SubscriptionPage() {
 
     setCancelDialogOpen(false);
     setCancelStage('updating');
-    const expiryFormatted = formatDate(providerExpiresAt || effectiveExpiresAt);
-    const successText = expiryFormatted
-      ? t('app.aiStudio.subscriptionPage.cancelSuccessWithDate', 'Your subscription has been canceled. You retain full access until {{date}}.', { date: expiryFormatted })
-      : t('app.aiStudio.subscriptionPage.cancelNeutralNotice', 'Your cancellation will stop future renewals. Your account will update once the cancellation is confirmed.');
-    setCancelSuccessMessage(successText);
 
     const initialRes = await refetchMe();
     const initialSub = initialRes?.data?.subscription;
-    if (initialSub?.will_renew === false || initialSub?.can_cancel_subscription === false) {
+    if (initialSub?.will_renew === false || (initialSub && initialSub.can_cancel_subscription === false && initialSub.will_renew !== true)) {
+      const expiry = initialSub?.provider_expires_at || initialSub?.expires_at || providerExpiresAt || effectiveExpiresAt;
+      const expiryFormatted = formatDate(expiry);
+      const successText = expiryFormatted
+        ? t('app.aiStudio.subscriptionPage.cancelSuccessWithDate', 'Your subscription has been canceled. You retain full access until {{date}}.', { date: expiryFormatted })
+        : t('app.aiStudio.subscriptionPage.cancelNeutralNotice', 'Your cancellation will stop future renewals. Your account will update once the cancellation is confirmed.');
+      setCancelSuccessMessage(successText);
       setCancelStage('confirmed');
       return;
     }
@@ -316,13 +317,27 @@ export default function SubscriptionPage() {
     cancelPollTimerRef.current = window.setInterval(async () => {
       const res = await refetchMe();
       const sub = res?.data?.subscription;
-      const isSettled = sub?.will_renew === false || sub?.can_cancel_subscription === false;
-      if (isSettled || Date.now() - pollStart > 30_000) {
+      const isSettled = sub?.will_renew === false || (sub && sub.can_cancel_subscription === false && sub.will_renew !== true);
+      if (isSettled) {
         if (cancelPollTimerRef.current !== null) {
           window.clearInterval(cancelPollTimerRef.current);
           cancelPollTimerRef.current = null;
         }
+        const expiry = sub?.provider_expires_at || sub?.expires_at || providerExpiresAt || effectiveExpiresAt;
+        const expiryFormatted = formatDate(expiry);
+        const successText = expiryFormatted
+          ? t('app.aiStudio.subscriptionPage.cancelSuccessWithDate', 'Your subscription has been canceled. You retain full access until {{date}}.', { date: expiryFormatted })
+          : t('app.aiStudio.subscriptionPage.cancelNeutralNotice', 'Your cancellation will stop future renewals. Your account will update once the cancellation is confirmed.');
+        setCancelSuccessMessage(successText);
         setCancelStage('confirmed');
+        return;
+      }
+      if (Date.now() - pollStart >= 30_000) {
+        if (cancelPollTimerRef.current !== null) {
+          window.clearInterval(cancelPollTimerRef.current);
+          cancelPollTimerRef.current = null;
+        }
+        setCancelStage('delayed');
       }
     }, 3_000);
   };
@@ -465,6 +480,21 @@ export default function SubscriptionPage() {
                 </p>
                 <p className="text-xs text-muted-foreground mt-0.5">
                   {t('app.aiStudio.subscriptionPage.cancelUpdatingDescription', 'Cancellation requested. Updating your subscription…')}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+        {cancelStage === 'delayed' && (
+          <Card className="border-amber-500/40 bg-amber-50/50 dark:bg-amber-950/20" role="status">
+            <CardContent className="p-4 flex items-start gap-3">
+              <Clock className="w-5 h-5 shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">
+                  {t('app.aiStudio.subscriptionPage.cancelDelayedTitle', 'Cancellation Status Updating')}
+                </p>
+                <p className="text-xs text-amber-800/80 dark:text-amber-200/80 mt-0.5">
+                  {t('app.aiStudio.subscriptionPage.cancelDelayedDescription', 'Your cancellation request was received. Your subscription status is still updating. You can refresh this page in a moment.')}
                 </p>
               </div>
             </CardContent>

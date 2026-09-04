@@ -197,7 +197,7 @@ function validateRequest(body) {
   const logicalBody = { ...(isRecord(body?.data) ? body.data : body) };
   delete logicalBody.__headers;
   if (logicalBody.action === 'cancel-subscription') {
-    const allowedKeys = new Set(['action', 'reason', 'subscription_id', 'subscriptionId']);
+    const allowedKeys = new Set(['action', 'reason']);
     if (Object.keys(logicalBody).some(key => !allowedKeys.has(key))) {
       fail('invalid_request', 400, 'Invalid checkout request.');
     }
@@ -451,7 +451,7 @@ class AppwriteCheckoutStore {
           await reserveOperation('reserve.commit_existing', () => this.databases.updateTransaction(transaction.$id, true, false));
           committed = true;
           if (!existing) throw new Error('Checkout session lock has no session record.');
-          if (existing.state === 'uncertain' && existing.session_key === input.sessionKey && new Date(existing.expires_at || 0).getTime() > input.nowMs) {
+          if (existing.state === 'uncertain' && new Date(existing.expires_at || 0).getTime() > input.nowMs) {
             return { outcome: 'resume_provider', session: existing };
           }
           const canResume = ['created', 'opened', 'pending'].includes(existing.state) &&
@@ -861,9 +861,11 @@ class PayPalSubscriptionProvider {
   }
 
   async cancelSubscription({ subscriptionId, reason, environment }) {
-    const env = normalizeEnvironment(environment) || 'sandbox';
+    const env = normalizeEnvironment(environment);
+    if (!env || !PAYPAL_API_ORIGINS[env]) {
+      failProviderDiagnostic('provider.runtime_configuration', 'missing_provider_endpoint');
+    }
     const apiOrigin = PAYPAL_API_ORIGINS[env];
-    if (!apiOrigin) failProviderDiagnostic('provider.runtime_configuration', 'missing_provider_endpoint');
 
     const cleanSubId = asString(subscriptionId).trim();
     if (!cleanSubId || !cleanSubId.startsWith('I-')) {
@@ -1020,21 +1022,34 @@ class BillingCheckoutService {
   }
 
   async cancel({ userId, reason }) {
-    if (!userId) fail('unauthorized', 401, 'Authentication is required.');
-    let targetSubId = '';
-    if (typeof this.store.findOptional === 'function') {
-      const [sub, paypalState] = await Promise.all([
-        this.store.findOptional('subscriptions', userId),
-        this.store.findOptional('paypal_subscription_state', userId),
-      ]);
-      if (paypalState && (!paypalState.user_id || paypalState.user_id === userId)) {
-        targetSubId = paypalState.subscription_id || '';
-      } else if (sub && (!sub.user_id || sub.user_id === userId)) {
-        targetSubId = sub.subscription_id || '';
-      }
+    if (!userId || typeof userId !== 'string') fail('unauthorized', 401, 'Authentication is required.');
+    if (typeof this.store.findOptional !== 'function') {
+      fail('configuration_error', 500, 'Cancellation is not supported by current checkout store.');
     }
-    if (!targetSubId) {
+    const paypalState = await this.store.findOptional('paypal_subscription_state', userId);
+    if (!paypalState) {
       fail('not_found', 404, 'No active subscription found to cancel.');
+    }
+    if (paypalState.user_id !== userId) {
+      fail('forbidden', 403, 'Subscription does not belong to the authenticated user.');
+    }
+    const targetSubId = asString(paypalState.subscription_id).trim();
+    if (!targetSubId || !/^I-[A-Z0-9]{1,64}$/.test(targetSubId)) {
+      fail('bad_request', 400, 'Invalid subscription ID.');
+    }
+    const configuredEnv = normalizeEnvironment(this.config.environment);
+    if (!configuredEnv) {
+      failProviderDiagnostic('provider.runtime_configuration', 'missing_provider_endpoint');
+    }
+    if (!paypalState.environment || normalizeEnvironment(paypalState.environment) !== configuredEnv) {
+      fail('bad_request', 400, 'Subscription environment mismatch.');
+    }
+    const status = asString(paypalState.status).trim().toLowerCase();
+    if (!['active', 'billing_issue'].includes(status)) {
+      fail('bad_request', 400, 'Subscription status is not cancellable.');
+    }
+    if (paypalState.will_renew !== true) {
+      fail('bad_request', 400, 'Subscription is not renewable or already canceled.');
     }
     if (typeof this.provider.cancelSubscription !== 'function') {
       fail('configuration_error', 500, 'Cancellation is not supported by current checkout provider.');
@@ -1042,7 +1057,7 @@ class BillingCheckoutService {
     await this.provider.cancelSubscription({
       subscriptionId: targetSubId,
       reason,
-      environment: this.config.environment,
+      environment: configuredEnv,
       userId,
     });
     return {

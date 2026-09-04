@@ -18,10 +18,11 @@ const {
 } = billing.__test;
 
 class MockCheckoutStore {
-  constructor({ plan = 'free', userSub = null, paypalState = null } = {}) {
+  constructor({ plan = 'free', userSub = null, paypalState = null, existingSession = null } = {}) {
     this.plan = plan;
     this.userSub = userSub;
     this.paypalState = paypalState;
+    this.existingSession = existingSession;
     this.sessions = new Map();
     this.completed = [];
     this.failed = [];
@@ -34,6 +35,9 @@ class MockCheckoutStore {
   }
 
   async reserve(input) {
+    if (this.existingSession) {
+      return { outcome: 'resume_provider', session: this.existingSession };
+    }
     if (this.reserveOutcome === 'resume_provider') {
       const existing = this.sessions.get(input.sessionKey) || {
         $id: 'sess_existing_123',
@@ -377,7 +381,7 @@ test('BillingCheckoutService.cancel cancels active PayPal subscription (204 succ
   const config = readConfig(env);
   const store = new MockCheckoutStore({
     plan: 'pro',
-    paypalState: { subscription_id: 'I-SUB12345', user_id: 'user_owner', status: 'active' },
+    paypalState: { subscription_id: 'I-SUB12345', user_id: 'user_owner', status: 'active', environment: 'sandbox', will_renew: true },
   });
 
   let cancelCalled = false;
@@ -497,7 +501,7 @@ test('handleBillingCheckout routes action cancel-subscription correctly', async 
   const config = readConfig(env);
   const store = new MockCheckoutStore({
     plan: 'pro',
-    paypalState: { subscription_id: 'I-TEST999', user_id: 'qa_user_456', status: 'active' },
+    paypalState: { subscription_id: 'I-TEST999', user_id: 'qa_user_456', status: 'active', environment: 'sandbox', will_renew: true },
   });
 
   const provider = {
@@ -608,4 +612,369 @@ test('BillingCheckoutService derives providerRequestId deterministically from re
   assert.ok(storedSession, 'Session must have been completed');
   const expectedHash = billing.__test.hash(storedSession.session_key).slice(0, 32);
   assert.equal(capturedRequestId, `wr_sub_${expectedHash}`);
+});
+
+// ==============================================================================
+// Cancellation Server Checks & Parameter Sanitization Tests
+// ==============================================================================
+
+test('validateRequest strictly rejects subscription_id injection in cancel-subscription', () => {
+  const { validateRequest } = billing.__test;
+  assert.throws(
+    () => validateRequest({
+      action: 'cancel-subscription',
+      subscription_id: 'I-INJECTED123',
+      reason: 'Attempted override',
+    }),
+    err => err instanceof BillingCheckoutError && err.status === 400 && err.code === 'invalid_request'
+  );
+});
+
+test('validateRequest strictly rejects subscriptionId injection in cancel-subscription', () => {
+  const { validateRequest } = billing.__test;
+  assert.throws(
+    () => validateRequest({
+      action: 'cancel-subscription',
+      subscriptionId: 'I-INJECTED123',
+    }),
+    err => err instanceof BillingCheckoutError && err.status === 400 && err.code === 'invalid_request'
+  );
+});
+
+test('validateRequest strictly rejects client parameter injection (user_id, plan_id, provider, environment)', () => {
+  const { validateRequest } = billing.__test;
+  const injectionKeys = ['user_id', 'plan_id', 'provider', 'environment'];
+  for (const key of injectionKeys) {
+    assert.throws(
+      () => validateRequest({
+        action: 'cancel-subscription',
+        reason: 'Valid reason',
+        [key]: 'injected_value',
+      }),
+      err => err instanceof BillingCheckoutError && err.status === 400 && err.code === 'invalid_request',
+      `Should reject injection of ${key}`
+    );
+  }
+});
+
+test('service.cancel: no PayPal state -> zero provider call, fails closed with 404', async () => {
+  const env = validPayPalEnv();
+  const config = readConfig(env);
+  const store = new MockCheckoutStore({ plan: 'pro', paypalState: null });
+  let providerCalled = false;
+  const provider = {
+    cancelSubscription: async () => { providerCalled = true; },
+  };
+  const service = new BillingCheckoutService({ store, provider, config });
+  await assert.rejects(
+    () => service.cancel({ userId: 'qa_user_456', reason: 'Cancel' }),
+    err => err instanceof BillingCheckoutError && err.status === 404 && err.code === 'not_found'
+  );
+  assert.equal(providerCalled, false, 'Provider must not be called when paypalState is missing');
+});
+
+test('service.cancel: legacy subscriptions record only -> zero provider call, fails closed with 404', async () => {
+  const env = validPayPalEnv();
+  const config = readConfig(env);
+  const store = new MockCheckoutStore({
+    plan: 'pro',
+    userSub: { subscription_id: 'I-LEGACY123', user_id: 'qa_user_456' },
+    paypalState: null,
+  });
+  let providerCalled = false;
+  const provider = {
+    cancelSubscription: async () => { providerCalled = true; },
+  };
+  const service = new BillingCheckoutService({ store, provider, config });
+  await assert.rejects(
+    () => service.cancel({ userId: 'qa_user_456', reason: 'Cancel' }),
+    err => err instanceof BillingCheckoutError && err.status === 404 && err.code === 'not_found'
+  );
+  assert.equal(providerCalled, false, 'Provider must not be called with legacy subscription fallback');
+});
+
+test('service.cancel: ownership mismatch (paypalState.user_id !== userId) -> zero provider call', async () => {
+  const env = validPayPalEnv();
+  const config = readConfig(env);
+  const store = new MockCheckoutStore({
+    plan: 'pro',
+    paypalState: {
+      subscription_id: 'I-OTHER123',
+      user_id: 'victim_user',
+      environment: 'sandbox',
+      status: 'active',
+      will_renew: true,
+    },
+  });
+  // Ensure findOptional returns the state even if queried with attacker's ID to test ownership check
+  store.findOptional = async () => store.paypalState;
+
+  let providerCalled = false;
+  const provider = {
+    cancelSubscription: async () => { providerCalled = true; },
+  };
+  const service = new BillingCheckoutService({ store, provider, config });
+  await assert.rejects(
+    () => service.cancel({ userId: 'attacker_user', reason: 'Cancel' }),
+    err => err instanceof BillingCheckoutError && err.status === 403 && err.code === 'forbidden'
+  );
+  assert.equal(providerCalled, false, 'Provider must not be called on user ownership mismatch');
+});
+
+test('service.cancel: environment mismatch -> zero provider call, fails closed', async () => {
+  const env = validPayPalEnv();
+  const config = readConfig(env);
+  const store = new MockCheckoutStore({
+    plan: 'pro',
+    paypalState: {
+      subscription_id: 'I-ENVMISMATCH123',
+      user_id: 'qa_user_456',
+      environment: 'production', // Mismatch against sandbox config
+      status: 'active',
+      will_renew: true,
+    },
+  });
+  let providerCalled = false;
+  const provider = {
+    cancelSubscription: async () => { providerCalled = true; },
+  };
+  const service = new BillingCheckoutService({ store, provider, config });
+  await assert.rejects(
+    () => service.cancel({ userId: 'qa_user_456', reason: 'Cancel' }),
+    err => err instanceof BillingCheckoutError && err.status === 400 && err.code === 'bad_request'
+  );
+  assert.equal(providerCalled, false, 'Provider must not be called on environment mismatch');
+});
+
+test('service.cancel: invalid/missing environment in provider -> zero PayPal call', async () => {
+  const provider = new PayPalSubscriptionProvider({
+    PAYPAL_CLIENT_ID: 'mock_id',
+    PAYPAL_CLIENT_SECRET: 'mock_secret',
+  });
+  await assert.rejects(
+    () => provider.cancelSubscription({
+      subscriptionId: 'I-TEST123',
+      reason: 'Cancel test',
+      environment: 'staging_invalid',
+    }),
+    err => {
+      const diag = billing.__test.providerDiagnostic(err);
+      return diag && diag.stage === 'provider.runtime_configuration' && diag.category === 'missing_provider_endpoint';
+    }
+  );
+});
+
+test('service.cancel: will_renew = false -> zero provider call, fails closed', async () => {
+  const env = validPayPalEnv();
+  const config = readConfig(env);
+  const store = new MockCheckoutStore({
+    plan: 'pro',
+    paypalState: {
+      subscription_id: 'I-CANCELED123',
+      user_id: 'qa_user_456',
+      environment: 'sandbox',
+      status: 'active',
+      will_renew: false, // Already non-renewing
+    },
+  });
+  let providerCalled = false;
+  const provider = {
+    cancelSubscription: async () => { providerCalled = true; },
+  };
+  const service = new BillingCheckoutService({ store, provider, config });
+  await assert.rejects(
+    () => service.cancel({ userId: 'qa_user_456', reason: 'Cancel' }),
+    err => err instanceof BillingCheckoutError && err.status === 400 && err.code === 'bad_request'
+  );
+  assert.equal(providerCalled, false, 'Provider must not be called when will_renew is false');
+});
+
+test('service.cancel: non-cancellable status -> zero provider call, fails closed', async () => {
+  const env = validPayPalEnv();
+  const config = readConfig(env);
+  const invalidStatuses = ['canceled', 'cancelled', 'suspended', 'expired', 'pending'];
+  for (const status of invalidStatuses) {
+    const store = new MockCheckoutStore({
+      plan: 'pro',
+      paypalState: {
+        subscription_id: 'I-INVALID123',
+        user_id: 'qa_user_456',
+        environment: 'sandbox',
+        status,
+        will_renew: true,
+      },
+    });
+    let providerCalled = false;
+    const provider = {
+      cancelSubscription: async () => { providerCalled = true; },
+    };
+    const service = new BillingCheckoutService({ store, provider, config });
+    await assert.rejects(
+      () => service.cancel({ userId: 'qa_user_456', reason: 'Cancel' }),
+      err => err instanceof BillingCheckoutError && err.status === 400 && err.code === 'bad_request',
+      `Should reject non-cancellable status: ${status}`
+    );
+    assert.equal(providerCalled, false, `Provider must not be called when status is ${status}`);
+  }
+});
+
+test('service.cancel: valid PayPal state -> provider called successfully', async () => {
+  const env = validPayPalEnv();
+  const config = readConfig(env);
+  const store = new MockCheckoutStore({
+    plan: 'pro',
+    paypalState: {
+      subscription_id: 'I-VALID12345',
+      user_id: 'qa_user_456',
+      environment: 'sandbox',
+      status: 'active',
+      will_renew: true,
+    },
+  });
+  let capturedInput = null;
+  const provider = {
+    cancelSubscription: async (input) => {
+      capturedInput = input;
+      return { status: 'success', canceled: true, subscription_id: input.subscriptionId };
+    },
+  };
+  const service = new BillingCheckoutService({ store, provider, config });
+  const result = await service.cancel({ userId: 'qa_user_456', reason: 'User requested' });
+  assert.equal(result.status, 'success');
+  assert.equal(result.canceled, true);
+  assert.equal(capturedInput.subscriptionId, 'I-VALID12345');
+  assert.equal(capturedInput.environment, 'sandbox');
+});
+
+// ==============================================================================
+// Exact Idempotency Recovery Tests
+// ==============================================================================
+
+test('Adversarial Idempotency 1: persisted uncertain session key beats newly calculated retry key', async () => {
+  const env = validPayPalEnv();
+  const config = readConfig(env);
+
+  const ORIGINAL_KEY = 'user_qa_plan_pro_bucket_hour_1';
+  const NEW_RECALCULATED_KEY = 'user_qa_plan_pro_bucket_hour_2';
+
+  // Existing persisted session in uncertain state with session_key = ORIGINAL_KEY
+  const persistedSession = {
+    $id: 'sess_persisted_uncertain',
+    session_key: ORIGINAL_KEY,
+    public_reference: 'sess_pub_orig',
+    user_id: 'qa_user_456',
+    plan: 'pro',
+    environment: 'sandbox',
+    price_id: 'P-3A193536YV1432359NKM36QY',
+    state: 'uncertain',
+    expires_at: new Date(Date.now() + 300000).toISOString(),
+  };
+
+  const store = new MockCheckoutStore({
+    plan: 'free',
+    existingSession: persistedSession,
+  });
+
+  let capturedRequestId = null;
+  const provider = {
+    createCheckout: async (input) => {
+      capturedRequestId = input.providerRequestId;
+      return {
+        providerTransactionId: 'I-RECOVERED123',
+        providerEnvironment: input.environment,
+        collectionMode: 'automatic',
+        checkoutReference: 'ref_rec_123',
+        checkoutUrl: 'https://www.sandbox.paypal.com/checkoutnow?token=BA-REC',
+      };
+    },
+  };
+
+  const service = new BillingCheckoutService({ store, provider, config });
+
+  // Client retries and calculates a different idempotency key
+  await service.create({
+    userId: 'qa_user_456',
+    plan: 'pro',
+    idempotencyKey: NEW_RECALCULATED_KEY,
+  });
+
+  // Provider MUST receive wr_sub_<hash(ORIGINAL_KEY)>, NOT a hash of NEW_RECALCULATED_KEY!
+  const expectedHashOriginal = billing.__test.hash(ORIGINAL_KEY).slice(0, 32);
+  const expectedHashNew = billing.__test.hash(NEW_RECALCULATED_KEY).slice(0, 32);
+
+  assert.equal(
+    capturedRequestId,
+    `wr_sub_${expectedHashOriginal}`,
+    'Provider MUST receive PayPal-Request-Id derived from the persisted session_key (ORIGINAL_KEY)'
+  );
+  assert.notEqual(
+    capturedRequestId,
+    `wr_sub_${expectedHashNew}`,
+    'Provider MUST NOT receive a PayPal-Request-Id derived from the newly recalculated key'
+  );
+});
+
+test('Adversarial Idempotency 2: PayPal 201 -> store.complete throws -> uncertain -> retry reuses exact PayPal-Request-Id and completes', async () => {
+  const env = validPayPalEnv();
+  const config = readConfig(env);
+
+  let completeCallCount = 0;
+  const store = new MockCheckoutStore({ plan: 'free' });
+
+  // Step 1: First call -> store.complete throws database persistence error
+  store.complete = async (session, result) => {
+    completeCallCount += 1;
+    if (completeCallCount === 1) {
+      throw new Error('Database connection reset during completion');
+    }
+    store.completed.push({ session, result });
+    session.state = 'created';
+    session.checkout_reference = result.checkoutReference;
+    session.checkout_url = result.checkoutUrl;
+  };
+
+  const requestIdsSeen = [];
+  const provider = {
+    createCheckout: async (input) => {
+      requestIdsSeen.push(input.providerRequestId);
+      return {
+        providerTransactionId: 'I-PAYPAL201REC',
+        providerEnvironment: input.environment,
+        collectionMode: 'automatic',
+        checkoutReference: 'ref_201',
+        checkoutUrl: 'https://www.sandbox.paypal.com/checkoutnow?token=BA-201',
+      };
+    },
+  };
+
+  const service = new BillingCheckoutService({ store, provider, config });
+
+  // Attempt 1: provider returns 201, but complete() throws -> marks session uncertain
+  await assert.rejects(
+    () => service.create({ userId: 'qa_user_456', plan: 'pro', idempotencyKey: 'frontend_client_key_123' }),
+    err => err instanceof BillingCheckoutError && err.code === 'provider_unavailable'
+  );
+
+  assert.equal(store.uncertain.length, 1, 'Session must be marked uncertain');
+  const uncertainSession = store.uncertain[0].session;
+
+  // Simulate store reserve returning the uncertain session on retry
+  store.existingSession = uncertainSession;
+
+  // Attempt 2: retry with same logical frontend key
+  const response = await service.create({
+    userId: 'qa_user_456',
+    plan: 'pro',
+    idempotencyKey: 'frontend_client_key_123',
+  });
+
+  assert.equal(requestIdsSeen.length, 2);
+  assert.equal(
+    requestIdsSeen[1],
+    requestIdsSeen[0],
+    'Retry MUST reuse the exact same PayPal-Request-Id'
+  );
+  assert.equal(completeCallCount, 2, 'store.complete must have succeeded on second call');
+  assert.equal(response.status, 'success');
+  assert.ok(response.data.checkout_url.includes('token=BA-201'));
 });

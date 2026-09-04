@@ -907,6 +907,22 @@ async function ensureBillingCheckoutVariables() {
         const qaUserId = process.env.BILLING_CHECKOUT_QA_USER_ID ||
             await existingVariableValue('billing-checkout', 'BILLING_CHECKOUT_QA_USER_ID');
         if (qaUserId) await ensureVariable('billing-checkout', 'BILLING_CHECKOUT_QA_USER_ID', qaUserId);
+
+        // Sync PayPal Sandbox & Production catalog IDs strictly when provider is PayPal.
+        // NOTE: Production PayPal catalog is NOT ready in Phase 4.
+        // Production PayPal catalog = OWNER_ACTION_REQUIRED / NOT CONFIGURED.
+        for (const [key, value] of [
+            ['BILLING_SANDBOX_PRO_PRICE_ID', process.env.BILLING_SANDBOX_PRO_PRICE_ID || 'P-3A193536YV1432359NKM36QY'],
+            ['BILLING_SANDBOX_PRO_PRODUCT_ID', process.env.BILLING_SANDBOX_PRO_PRODUCT_ID || 'PROD-8XE5253028560521H'],
+            ['BILLING_SANDBOX_PREMIUM_PRICE_ID', process.env.BILLING_SANDBOX_PREMIUM_PRICE_ID || 'P-17M39010JR353545NNKM36RA'],
+            ['BILLING_SANDBOX_PREMIUM_PRODUCT_ID', process.env.BILLING_SANDBOX_PREMIUM_PRODUCT_ID || 'PROD-8XE5253028560521H'],
+            ['BILLING_PRODUCTION_PRO_PRICE_ID', process.env.BILLING_PRODUCTION_PRO_PRICE_ID],
+            ['BILLING_PRODUCTION_PRO_PRODUCT_ID', process.env.BILLING_PRODUCTION_PRO_PRODUCT_ID],
+            ['BILLING_PRODUCTION_PREMIUM_PRICE_ID', process.env.BILLING_PRODUCTION_PREMIUM_PRICE_ID],
+            ['BILLING_PRODUCTION_PREMIUM_PRODUCT_ID', process.env.BILLING_PRODUCTION_PREMIUM_PRODUCT_ID],
+        ]) {
+            if (value) await ensureNonSecretCatalogVariable('billing-checkout', key, value);
+        }
     } else if (provider === 'paddle') {
         const sandboxPaddleKey = process.env.BILLING_SANDBOX_PADDLE_API_KEY ||
             await existingVariableValue('billing-checkout', 'BILLING_SANDBOX_PADDLE_API_KEY');
@@ -930,19 +946,7 @@ async function ensureBillingCheckoutVariables() {
         throw new Error(`Unsupported BILLING_CHECKOUT_PROVIDER: "${provider}"`);
     }
 
-    // Sync Sandbox & Production catalog IDs (strict non-secret helper with explicit secret=false and readback).
-    for (const [key, value] of [
-        ['BILLING_SANDBOX_PRO_PRICE_ID', process.env.BILLING_SANDBOX_PRO_PRICE_ID || 'P-3A193536YV1432359NKM36QY'],
-        ['BILLING_SANDBOX_PRO_PRODUCT_ID', process.env.BILLING_SANDBOX_PRO_PRODUCT_ID || 'PROD-8XE5253028560521H'],
-        ['BILLING_SANDBOX_PREMIUM_PRICE_ID', process.env.BILLING_SANDBOX_PREMIUM_PRICE_ID || 'P-17M39010JR353545NNKM36RA'],
-        ['BILLING_SANDBOX_PREMIUM_PRODUCT_ID', process.env.BILLING_SANDBOX_PREMIUM_PRODUCT_ID || 'PROD-8XE5253028560521H'],
-        ['BILLING_PRODUCTION_PRO_PRICE_ID', process.env.BILLING_PRODUCTION_PRO_PRICE_ID],
-        ['BILLING_PRODUCTION_PRO_PRODUCT_ID', process.env.BILLING_PRODUCTION_PRO_PRODUCT_ID],
-        ['BILLING_PRODUCTION_PREMIUM_PRICE_ID', process.env.BILLING_PRODUCTION_PREMIUM_PRICE_ID],
-        ['BILLING_PRODUCTION_PREMIUM_PRODUCT_ID', process.env.BILLING_PRODUCTION_PREMIUM_PRODUCT_ID],
-    ]) {
-        if (value) await ensureNonSecretCatalogVariable('billing-checkout', key, value);
-    }
+
 }
 
 async function ensureCouponsWiseHireVariables(fnIds) {
@@ -962,8 +966,32 @@ async function ensureCouponsWiseHireVariables(fnIds) {
             await ensureVariable(fnId, key, value);
         }
         if (fnId === 'coupons') {
-            const accessEnv = process.env.PAYPAL_ACCESS_ENVIRONMENT ||
-                await existingVariableValue('coupons', 'PAYPAL_ACCESS_ENVIRONMENT') || 'sandbox';
+            const checkoutEnabled = (
+                process.env.BILLING_CHECKOUT_ENABLED ||
+                await existingVariableValue('coupons', 'BILLING_CHECKOUT_ENABLED') ||
+                'false'
+            ).trim().toLowerCase();
+            await ensureVariable('coupons', 'BILLING_CHECKOUT_ENABLED', checkoutEnabled);
+
+            const checkoutProvider = (
+                process.env.BILLING_CHECKOUT_PROVIDER ||
+                await existingVariableValue('coupons', 'BILLING_CHECKOUT_PROVIDER') ||
+                'paypal'
+            ).trim().toLowerCase();
+            await ensureVariable('coupons', 'BILLING_CHECKOUT_PROVIDER', checkoutProvider);
+
+            const checkoutProviderReady = (
+                process.env.BILLING_CHECKOUT_PROVIDER_READY ||
+                await existingVariableValue('coupons', 'BILLING_CHECKOUT_PROVIDER_READY') ||
+                'false'
+            ).trim().toLowerCase();
+            await ensureVariable('coupons', 'BILLING_CHECKOUT_PROVIDER_READY', checkoutProviderReady);
+
+            const accessEnv = (
+                process.env.PAYPAL_ACCESS_ENVIRONMENT ||
+                await existingVariableValue('coupons', 'PAYPAL_ACCESS_ENVIRONMENT') ||
+                'sandbox'
+            ).trim().toLowerCase();
             await ensureVariable('coupons', 'PAYPAL_ACCESS_ENVIRONMENT', accessEnv);
 
             const qaUserId = process.env.BILLING_CHECKOUT_QA_USER_ID ||

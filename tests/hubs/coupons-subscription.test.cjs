@@ -64,6 +64,8 @@ test('coupons getMySubscription - QA user in sandbox with checkout enabled', asy
     paypalEnvironment: 'sandbox',
     qaUserId: 'qa_user_1',
     checkoutEnabled: true,
+    checkoutProvider: 'paypal',
+    checkoutProviderReady: true,
   });
 
   assert.equal(res.result.status, 200);
@@ -108,6 +110,8 @@ test('coupons getMySubscription - active PayPal Pro subscriber with will_renew=t
     paypalEnvironment: 'sandbox',
     qaUserId: 'qa_user_1',
     checkoutEnabled: true,
+    checkoutProvider: 'paypal',
+    checkoutProviderReady: true,
   });
 
   assert.equal(res.result.status, 200);
@@ -338,4 +342,153 @@ test('coupons getMySubscription - environment mismatch invalidates PayPal candid
   assert.equal(data.can_cancel_subscription, false);
   assert.equal(data.provider_source, null);
   assert.equal(data.effective_plan, 'free');
+});
+
+// ==============================================================================
+// can_subscribe Runtime Readiness Permutation Tests
+// ==============================================================================
+
+test('can_subscribe permutation 1: checkoutEnabled = false -> false', async () => {
+  const res = createMockRes();
+  await getMySubscription({}, res, {
+    user: { $id: 'qa_user_1' },
+    subscription: null,
+    providerStates: { providerState: null, paypalProviderState: null },
+    paypalEnvironment: 'sandbox',
+    qaUserId: 'qa_user_1',
+    checkoutEnabled: false,
+    checkoutProvider: 'paypal',
+    checkoutProviderReady: true,
+  });
+  assert.equal(res.result.status, 200);
+  assert.equal(res.result.payload.data.can_subscribe, false);
+});
+
+test('can_subscribe permutation 2: checkoutProvider missing/empty -> false', async () => {
+  const res = createMockRes();
+  await getMySubscription({}, res, {
+    user: { $id: 'qa_user_1' },
+    subscription: null,
+    providerStates: { providerState: null, paypalProviderState: null },
+    paypalEnvironment: 'sandbox',
+    qaUserId: 'qa_user_1',
+    checkoutEnabled: true,
+    checkoutProvider: '',
+    checkoutProviderReady: true,
+  });
+  assert.equal(res.result.status, 200);
+  assert.equal(res.result.payload.data.can_subscribe, false);
+});
+
+test('can_subscribe permutation 3: checkoutProvider != paypal (e.g. paddle) -> false', async () => {
+  const res = createMockRes();
+  await getMySubscription({}, res, {
+    user: { $id: 'qa_user_1' },
+    subscription: null,
+    providerStates: { providerState: null, paypalProviderState: null },
+    paypalEnvironment: 'sandbox',
+    qaUserId: 'qa_user_1',
+    checkoutEnabled: true,
+    checkoutProvider: 'paddle',
+    checkoutProviderReady: true,
+  });
+  assert.equal(res.result.status, 200);
+  assert.equal(res.result.payload.data.can_subscribe, false);
+});
+
+test('can_subscribe permutation 4: checkoutProviderReady = false -> false', async () => {
+  const res = createMockRes();
+  await getMySubscription({}, res, {
+    user: { $id: 'qa_user_1' },
+    subscription: null,
+    providerStates: { providerState: null, paypalProviderState: null },
+    paypalEnvironment: 'sandbox',
+    qaUserId: 'qa_user_1',
+    checkoutEnabled: true,
+    checkoutProvider: 'paypal',
+    checkoutProviderReady: false,
+  });
+  assert.equal(res.result.status, 200);
+  assert.equal(res.result.payload.data.can_subscribe, false);
+});
+
+test('can_subscribe permutation 5: paypalEnvironment missing or not sandbox -> false', async () => {
+  const res = createMockRes();
+  await getMySubscription({}, res, {
+    user: { $id: 'qa_user_1' },
+    subscription: null,
+    providerStates: { providerState: null, paypalProviderState: null },
+    paypalEnvironment: 'production',
+    qaUserId: 'qa_user_1',
+    checkoutEnabled: true,
+    checkoutProvider: 'paypal',
+    checkoutProviderReady: true,
+  });
+  assert.equal(res.result.status, 200);
+  assert.equal(res.result.payload.data.can_subscribe, false);
+});
+
+test('can_subscribe permutation 6: qaUserId missing/empty -> false', async () => {
+  const res = createMockRes();
+  await getMySubscription({}, res, {
+    user: { $id: 'qa_user_1' },
+    subscription: null,
+    providerStates: { providerState: null, paypalProviderState: null },
+    paypalEnvironment: 'sandbox',
+    qaUserId: '',
+    checkoutEnabled: true,
+    checkoutProvider: 'paypal',
+    checkoutProviderReady: true,
+  });
+  assert.equal(res.result.status, 200);
+  assert.equal(res.result.payload.data.can_subscribe, false);
+});
+
+test('can_subscribe permutation 7: user does not match qaUserId -> false', async () => {
+  const res = createMockRes();
+  await getMySubscription({}, res, {
+    user: { $id: 'other_user_2' },
+    subscription: null,
+    providerStates: { providerState: null, paypalProviderState: null },
+    paypalEnvironment: 'sandbox',
+    qaUserId: 'qa_user_1',
+    checkoutEnabled: true,
+    checkoutProvider: 'paypal',
+    checkoutProviderReady: true,
+  });
+  assert.equal(res.result.status, 200);
+  assert.equal(res.result.payload.data.can_subscribe, false);
+});
+
+test('can_subscribe permutation 8: correct fully ready QA user with free plan -> true', async () => {
+  const res = createMockRes();
+  await getMySubscription({}, res, {
+    user: { $id: 'qa_user_1' },
+    subscription: null,
+    providerStates: { providerState: null, paypalProviderState: null },
+    paypalEnvironment: 'sandbox',
+    qaUserId: 'qa_user_1',
+    checkoutEnabled: true,
+    checkoutProvider: 'paypal',
+    checkoutProviderReady: true,
+  });
+  assert.equal(res.result.status, 200);
+  assert.equal(res.result.payload.data.can_subscribe, true);
+});
+
+test('can_subscribe permutation 9: Ultimate (premium) plan cannot subscribe/upgrade further -> false', async () => {
+  const res = createMockRes();
+  await getMySubscription({}, res, {
+    user: { $id: 'qa_user_1' },
+    subscription: { plan: 'premium' },
+    providerStates: { providerState: null, paypalProviderState: null },
+    paypalEnvironment: 'sandbox',
+    qaUserId: 'qa_user_1',
+    checkoutEnabled: true,
+    checkoutProvider: 'paypal',
+    checkoutProviderReady: true,
+  });
+  assert.equal(res.result.status, 200);
+  assert.equal(res.result.payload.data.effective_plan, 'premium');
+  assert.equal(res.result.payload.data.can_subscribe, false);
 });
