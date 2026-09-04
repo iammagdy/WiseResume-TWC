@@ -1,5 +1,19 @@
 # WiseResume Atlas Master Changelog
 
+### 2026-09-04 - PayPal Sandbox Integration: Stage A Reconciliation & Domain Recovery
+
+- **Workstream Verdict:** `PAYPAL_STAGE_A_RECONCILED_DOMAIN_RECOVERY_PENDING_STAGE_B`.
+- **Branch:** `fix/paypal-stage-a-reconciliation` (Target: `main`).
+- **Scope:** Completed Stage A deployment reconciliation and domain recovery preflight:
+  1. **Direct-Main Reconciliation:** Reverted the diagnostic `Proxy.listRules()` code block introduced in `scripts/deploy_hubs.cjs` by commit `83b38612`, restoring the exact file content from clean post-merge SHA `174af382c399ba4d72e37dbb0bb9d4d6d6112c38`.
+  2. **Stage A Deployment & Schema Execution:** Successfully deployed `paypal-webhook` via canonical GitHub Actions workflow `deploy-appwrite-hubs.yml` (runs `33917547251` and `33918098250`). Idempotent schema provisioner created server-only collections `paypal_subscription_state` and `paypal_event_ledger` with required unique and ordering indexes. Live smoke check confirmed HTTP `400 (expected — fail-closed)`.
+  3. **Secret & Config Provisioning:** Securely provisioned `PAYPAL_SANDBOX_CLIENT_ID`, `PAYPAL_SANDBOX_CLIENT_SECRET`, and `BILLING_CHECKOUT_QA_USER_ID` (dedicated clean QA fixture) in GitHub Secrets. Configured bootstrap-safe variables `BILLING_CHECKOUT_PROVIDER=paypal`, `BILLING_CHECKOUT_ENABLED=false`, `BILLING_CHECKOUT_PROVIDER_READY=false`.
+  4. **PayPal MCP Health & Catalog:** Verified official PayPal Sandbox MCP is healthy and active: Product `PROD-8XE5253028560521H` (`WiseResume`, `SERVICE`), Pro Plan `P-3A193536YV1432359NKM36QY` (`ACTIVE`, `USD 5.00`, `MONTH 1`), Ultimate Plan `P-17M39010JR353545NNKM36RA` (`ACTIVE`, `USD 10.00`, `MONTH 1`).
+  5. **Generated Domain Probe & Webhook Audit:** Verified 0 webhooks exist in PayPal Sandbox (zero conflicts). Probed candidate generated domain `https://paypal-webhook.fra.appwrite.run` (DNS/TLS passed, returned HTTP 404 router rule not found); exact generated domain retrieval requires Appwrite Console (`OWNER_ACTION_REQUIRED_FUNCTION_DOMAIN`).
+  6. **Report Accuracy Corrections:** Corrected non-QA safety status to `NON_QA_RUNTIME_CHECKOUT_SAFETY = NOT_YET_VERIFIED` (consumers not yet deployed); reaffirmed Pro credit policy as `50 AI credits/day` and Ultimate as unlimited; reaffirmed Stage B signature verification as PayPal postback verification with registered `PAYPAL_WEBHOOK_ID`.
+  7. **Stage B & Consumer Status:** Stage B remains pending; consumer hubs (`billing-checkout`, `coupons`, `ai-gateway`) not deployed; E2E not run; Production PayPal untouched; public checkout disabled; plan revision deferred.
+  8. **What's New Eligibility Decision:** `WHATS_NEW_DEFER_UNTIL_PRODUCTION` (Stage A runtime reconciliation is internal; public release notes deferred until production launch).
+
 ### 2026-09-04 - PayPal Sandbox Integration Phase 4: Merged Main / Runtime Activation Pending
 
 - **Workstream Verdict:** `PAYPAL_PHASE4_MERGED_MAIN_RUNTIME_ACTIVATION_PENDING`.

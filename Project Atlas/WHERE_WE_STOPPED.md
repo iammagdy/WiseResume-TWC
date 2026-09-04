@@ -1,37 +1,27 @@
 # Project Atlas — Active Operational & Handover State
 
 **Last Verified:** 2026-09-04
-**Status:** `PAYPAL_PHASE4_MERGED_MAIN_RUNTIME_ACTIVATION_PENDING` (Merged PR: #287, Target: `main`, Merge SHA: `4ad21fc4bf5eb2b28c983f152e49d50149e3cfcc`, Production Vercel: `5vronLcjEkxDhHWRmn1vfCCqhz3f` [SUCCESS]) — PayPal Phase 4 merged into main; automatic production deployment verified; public browser safety boundary confirmed fail-closed; runtime activation pending owner authorization: (1) Appwrite deployment NOT PERFORMED, Appwrite PayPal schema NOT APPLIED, PayPal webhook NOT REGISTERED, Production PayPal catalog DISABLED / NOT CONFIGURED (OWNER_ACTION_REQUIRED), public checkout strictly DISABLED (`BILLING_CHECKOUT_ENABLED=false`), Live PayPal UNTOUCHED. (2) Paid plan change policy: Free->Pro and Free->Ultimate supported; paid-to-paid Create-Subscription upgrades fail-closed with HTTP 409 `plan_change_unavailable` (0 provider calls) preventing double-billing risk; full PayPal subscription revision deferred (`PAYPAL_PLAN_CHANGE_REVISION_OWNER_DECISION_REQUIRED`). (3) Verified head: PR #287 merged head `fbac617b56ddc50ae5885110f8c9d12b489a5e69` (approved code head `c8dad009140c412b911d3927bf3f4eff0be38d34`). (4) Production verification: Public routes HTTP 200 with 0 errors and 0 banned terms; logged-out `/subscription` redirects to `/auth?mode=login&redirect=%2Fsubscription`; authenticated workspace QA recorded as `BROWSER_AUTH_QA_BLOCKED`. (5) What's New decision: `WHATS_NEW_DEFER_UNTIL_PRODUCTION`.
+**Status:** `PAYPAL_STAGE_A_RECONCILED_DOMAIN_RECOVERY_PENDING_STAGE_B` (Branch: `fix/paypal-stage-a-reconciliation`, Target: `main`) — PayPal Stage A deployment and schema applied on live Appwrite cluster via workflow runs 33917547251 & 33918098250; diagnostic direct-main commit reverted cleanly on recovery branch; runtime preflight and domain probe completed: (1) Stage A paypal-webhook function DEPLOYED in bootstrap mode (smoke check HTTP 400 fail-closed verified). (2) Schema APPLIED / VERIFIED on live cluster (paypal_subscription_state and paypal_event_ledger provisioned server-only). (3) Secrets PROVISIONED (PAYPAL_SANDBOX_CLIENT_ID, PAYPAL_SANDBOX_CLIENT_SECRET, BILLING_CHECKOUT_QA_USER_ID configured). (4) PayPal MCP HEALTHY (Product PROD-8XE5253028560521H, Pro P-3A193536YV1432359NKM36QY $5/mo, Ultimate P-17M39010JR353545NNKM36RA $10/mo verified ACTIVE). (5) Webhook registration NOT PERFORMED (0 webhooks in Sandbox; candidate https://paypal-webhook.fra.appwrite.run probed returning HTTP 404 router rule not found; exact generated domain retrieval requires Appwrite Console OWNER_ACTION_REQUIRED_FUNCTION_DOMAIN). (6) Stage B PENDING; consumers (billing-checkout, coupons, ai-gateway) NOT DEPLOYED; real signed webhook NOT VERIFIED; E2E NOT RUN; non-QA runtime checkout safety NOT_YET_VERIFIED. (7) Pro credit policy: 50 AI credits/day, Ultimate unlimited. (8) Production PayPal UNTOUCHED; public checkout DISABLED (`BILLING_CHECKOUT_ENABLED=false`); plan revision DEFERRED (`PAYPAL_PLAN_CHANGE_REVISION_OWNER_DECISION_REQUIRED`). (9) What's New decision: `WHATS_NEW_DEFER_UNTIL_PRODUCTION`.
 **Location:** `Project Atlas/WHERE_WE_STOPPED.md`
 
-## Current Active Handover — PayPal Sandbox Integration Phase 4 (Merged Main / Runtime Activation Pending)
+## Current Active Handover — PayPal Sandbox Integration: Stage A Reconciliation & Domain Recovery
 
-* **Workstream:** `PAYPAL_PHASE4_MERGED_MAIN_RUNTIME_ACTIVATION_PENDING`.
-* **PR:** [#287](https://github.com/iammagdy/WiseResume-TWC/pull/287) (`feat(billing): PayPal Phase 4 — Checkout, Subscription UX, and Cancellation`) — **MERGED** at `2026-09-04T13:24:40Z`.
-* **Branch:** `main` (Merge Commit: [`4ad21fc4bf5eb2b28c983f152e49d50149e3cfcc`](https://github.com/iammagdy/WiseResume-TWC/commit/4ad21fc4bf5eb2b28c983f152e49d50149e3cfcc)).
-* **Reviewed PR Head:** `fbac617b56ddc50ae5885110f8c9d12b489a5e69`.
-* **Approved Code Head:** `c8dad009140c412b911d3927bf3f4eff0be38d34`.
-* **Merge Status:** `MERGED_TO_MAIN`.
-* **Vercel Production Deployment:** **`SUCCESS`** (Deployment ID: `5vronLcjEkxDhHWRmn1vfCCqhz3f`, URL: `https://vercel.com/iam-magdy/wise-resume-twc/5vronLcjEkxDhHWRmn1vfCCqhz3f`, Target: `https://wiseresume.app`).
-* **First-Party GitHub CI (at PR Merge):** `PASS`
-  - **PR Validation (`Typecheck + portfolio tests`):** `PASS` (39s).
-  - **Security validation (`Security regression suite`):** `PASS` (50s).
-  - **Vercel Preview (`Vercel` / `Vercel Preview Comments`):** `PASS` (Deployment has completed).
-  - **TestSprite:** Third-party informational failure / `No tests detected` (non-blocking, not a first-party CI failure).
-* **Production Browser Safety QA:**
-  - **Public Pages (`/`, `/pricing`):** `PASS` (HTTP 200, 0 console errors, 0 uncaught errors, Free/Pro/Ultimate plans rendered normally).
-  - **Banned Copy Check:** `PASS` (0 customer-facing occurrences of Sandbox, Test/QA, Paddle, or RevenueCat wording).
-  - **Logged-Out Subscription Route (`/subscription`):** `PASS` (clean redirect to `/auth?mode=login&redirect=%2Fsubscription`).
-  - **Public Checkout Exposure:** `DISABLED` (`BILLING_CHECKOUT_ENABLED=false`).
-  - **Authenticated Subscription Workspace QA:** `BROWSER_AUTH_QA_BLOCKED` (Customer-facing credentials strictly prohibited; zero test credentials exist in production environment).
-* **Appwrite Deployment:** `NOT DEPLOYED` (Appwrite live deployment strictly unauthorized during preflight; functions untouched).
-* **Appwrite PayPal Schema:** `NOT APPLIED` (Schema provisioner script committed in repo; not executed on live cluster).
-* **PayPal Webhook:** `NOT REGISTERED` (Webhook URL remains unregistered on live Appwrite URL; zero webhooks configured).
-* **Production PayPal Catalog:** `DISABLED / NOT CONFIGURED / OWNER_ACTION_REQUIRED`.
-* **Public Checkout:** `DISABLED` (`BILLING_CHECKOUT_ENABLED=false`).
-* **Live PayPal:** `UNTOUCHED` (Zero live transactions created; sandbox testing only).
-* **PayPal Plan Revision:** `DEFERRED (PAYPAL_PLAN_CHANGE_REVISION_OWNER_DECISION_REQUIRED)`.
-* **What's New Eligibility Decision:** `WHATS_NEW_DEFER_UNTIL_PRODUCTION` (PayPal sandbox runtime activation and checkout enablement are internal/staging steps; public customer-facing announcements remain deferred until production rollout).
+* **Workstream:** `PAYPAL_STAGE_A_RECONCILED_DOMAIN_RECOVERY_PENDING_STAGE_B`.
+* **Recovery Branch:** `fix/paypal-stage-a-reconciliation` (Target: `main`).
+* **Base Merge Commits:** PR #287 merged at `4ad21fc4bf5eb2b28c983f152e49d50149e3cfcc`; PR #288 (Docs Closeout) merged at `174af382c399ba4d72e37dbb0bb9d4d6d6112c38`.
+* **Direct-Main Reconciliation:** Reverted unnecessary `Proxy.listRules()` diagnostic addition from `scripts/deploy_hubs.cjs` cleanly on recovery branch without force-pushing or rewriting history.
+* **Stage A Appwrite Deployment:** **`DEPLOYED / VERIFIED`** via canonical GitHub Actions workflow `deploy-appwrite-hubs.yml` (Runs: `33917547251` and `33918098250`).
+* **Appwrite PayPal Schema:** **`APPLIED / VERIFIED`** on live cluster (`paypal_subscription_state` and `paypal_event_ledger` provisioned server-only with unique/ordering indexes).
+* **Fail-Closed Smoke Verification:** `paypal-webhook` returns HTTP `400 (expected — fail-closed)` on unsigned ingress.
+* **GitHub Repository Secrets:** `PAYPAL_SANDBOX_CLIENT_ID`, `PAYPAL_SANDBOX_CLIENT_SECRET`, and `BILLING_CHECKOUT_QA_USER_ID` (dedicated clean QA fixture) securely set in GitHub Secrets.
+* **GitHub Repository Variables:** `BILLING_CHECKOUT_PROVIDER=paypal`, `BILLING_CHECKOUT_ENABLED=false`, `BILLING_CHECKOUT_PROVIDER_READY=false`.
+* **PayPal MCP Health & Catalog:** **`HEALTHY / VERIFIED`** via live tool calls (Product `PROD-8XE5253028560521H`, Pro `P-3A193536YV1432359NKM36QY` $5/mo, Ultimate `P-17M39010JR353545NNKM36RA` $10/mo ACTIVE).
+* **PayPal Webhook Ingress Audit:** **0 webhooks currently registered** in PayPal Sandbox (clean baseline, zero conflicts).
+* **Function Domain Probe & Next Gate:** Candidate `https://paypal-webhook.fra.appwrite.run` DNS/TLS passed, returned HTTP 404 router rule not found; exact generated domain retrieval requires Appwrite Console (`OWNER_ACTION_REQUIRED_FUNCTION_DOMAIN`).
+* **Stage B & Consumer Status:** Stage B `PENDING`; consumers (`billing-checkout`, `coupons`, `ai-gateway`) `NOT DEPLOYED`; real signed webhook `NOT VERIFIED`; E2E `NOT RUN`; non-QA runtime checkout safety `NOT_YET_VERIFIED`.
+* **Pro Credit Policy:** `50 AI credits/day`; Ultimate = unlimited.
+* **Production Boundary:** Production PayPal `DISABLED / UNTOUCHED`; public checkout `DISABLED`; plan revision `DEFERRED (PAYPAL_PLAN_CHANGE_REVISION_OWNER_DECISION_REQUIRED)`.
+* **What's New Eligibility Decision:** `WHATS_NEW_DEFER_UNTIL_PRODUCTION` (Stage A runtime configuration is internal; public release notes deferred until production launch).
 
 ### Paid Plan Change Policy
 * **Supported new subscriptions:**

@@ -1,7 +1,7 @@
 # WiseResume PayPal Subscription Synchronization & Entitlement Resolution
 
 **Last Verified:** 2026-09-04
-**Status:** `PAYPAL_PHASE4_FINAL_CORRECTIVE_SAFETY_PASS_PR_READY` — Phase 4 final corrective safety, contract hardening, idempotency lifecycle, and UI verification pass complete and verified locally via 101 automated Node hub tests and 19 Vitest tests.
+**Status:** `PAYPAL_STAGE_A_DEPLOYED_SCHEMA_VERIFIED_PENDING_STAGE_B` — PayPal Stage A deployment and schema applied on live Appwrite cluster via workflow runs 33917547251 & 33918098250; collections `paypal_subscription_state` and `paypal_event_ledger` provisioned server-only; secrets provisioned; catalog verified active via MCP; Stage B webhook registration and consumer deployments pending.
 **Location:** `Project Atlas/architecture/paypal-subscription-sync.md`
 
 ## Scope and Preserved Contracts
