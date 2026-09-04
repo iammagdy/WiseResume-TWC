@@ -1,5 +1,28 @@
 # WiseResume Atlas Master Changelog
 
+### 2026-09-04 - PayPal Sandbox Integration Phase 4: Merged Main / Runtime Activation Pending
+
+- **Workstream Verdict:** `PAYPAL_PHASE4_MERGED_MAIN_RUNTIME_ACTIVATION_PENDING`.
+- **Merged PR:** [#287](https://github.com/iammagdy/WiseResume-TWC/pull/287) (`feat(billing): PayPal Phase 4 — Checkout, Subscription UX, and Cancellation`) merged into `main` at `2026-09-04T13:24:40Z`.
+- **Merge SHA:** [`4ad21fc4bf5eb2b28c983f152e49d50149e3cfcc`](https://github.com/iammagdy/WiseResume-TWC/commit/4ad21fc4bf5eb2b28c983f152e49d50149e3cfcc).
+- **Reviewed PR Head:** `fbac617b56ddc50ae5885110f8c9d12b489a5e69`; **Approved Code Head:** `c8dad009140c412b911d3927bf3f4eff0be38d34`.
+- **Vercel Production Deployment:** `5vronLcjEkxDhHWRmn1vfCCqhz3f` (`SUCCESS` at `https://wiseresume.app`).
+- **Production Browser Safety QA:**
+  - Public routes (`/`, `/pricing`) verified: HTTP 200, 0 console errors, 0 uncaught errors, pricing cards render Free / Pro / Ultimate normally.
+  - Banned copy check passed: 0 customer-facing mentions of Sandbox, Test/QA, Paddle, or RevenueCat.
+  - Logged-out `/subscription` redirects cleanly to `/auth?mode=login&redirect=%2Fsubscription`.
+  - Public checkout exposure: strictly `DISABLED` (`BILLING_CHECKOUT_ENABLED=false`).
+  - Authenticated workspace QA: recorded as `BROWSER_AUTH_QA_BLOCKED` (no approved customer test accounts).
+- **Operational Boundaries:**
+  - Appwrite functions: `NOT DEPLOYED`.
+  - Appwrite PayPal schema: `NOT APPLIED`.
+  - PayPal webhook: `NOT REGISTERED`.
+  - Production PayPal catalog: `DISABLED / NOT CONFIGURED / OWNER_ACTION_REQUIRED`.
+  - Public checkout: `DISABLED` (`BILLING_CHECKOUT_ENABLED=false`).
+  - Live PayPal: `UNTOUCHED`.
+  - PayPal plan revision: `DEFERRED (PAYPAL_PLAN_CHANGE_REVISION_OWNER_DECISION_REQUIRED)`.
+- **What's New Eligibility Decision:** `WHATS_NEW_DEFER_UNTIL_PRODUCTION` (PayPal sandbox runtime activation and checkout enablement are internal/staging steps; public customer-facing announcements remain deferred until production rollout).
+
 ### 2026-09-04 - PayPal Sandbox Integration Phase 4: Final Docs Reconciliation Before Merge
 
 - **Workstream Verdict:** `PAYPAL_PHASE4_DOCS_RECONCILED_READY_FOR_MERGE`.
