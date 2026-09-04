@@ -26,6 +26,14 @@ test('deploy-appwrite-hubs workflow exposes Sandbox and Production billing varia
   assert.match(workflow, /BILLING_PRODUCTION_PRO_PRODUCT_ID:\s*pro_01m1924dqce7nd69khnakxftzw/);
   assert.match(workflow, /BILLING_PRODUCTION_PREMIUM_PRICE_ID:\s*pri_01m192m6bwzvarmcr05c78by7r/);
   assert.match(workflow, /BILLING_PRODUCTION_PREMIUM_PRODUCT_ID:\s*pro_01m192jr9nzd6k5ysa6yhk5aq7/);
+  assert.match(workflow, /BILLING_SANDBOX_PRO_PRICE_ID:\s*P-3A193536YV1432359NKM36QY/);
+  assert.match(workflow, /BILLING_SANDBOX_PRO_PRODUCT_ID:\s*PROD-8XE5253028560521H/);
+  assert.match(workflow, /BILLING_SANDBOX_PREMIUM_PRICE_ID:\s*P-17M39010JR353545NNKM36RA/);
+  assert.match(workflow, /BILLING_SANDBOX_PREMIUM_PRODUCT_ID:\s*PROD-8XE5253028560521H/);
+  assert.doesNotMatch(workflow, /PAYPAL_PRO_PLAN_ID/);
+  assert.doesNotMatch(workflow, /PAYPAL_PREMIUM_PLAN_ID/);
+  assert.doesNotMatch(workflow, /BILLING_CHECKOUT_RETURN_URL/);
+  assert.doesNotMatch(workflow, /BILLING_CHECKOUT_CANCEL_URL/);
 });
 
 test('scripts/deploy_hubs.cjs synchronizes billing secrets only for billing-checkout', () => {
@@ -48,7 +56,7 @@ test('scripts/deploy_hubs.cjs synchronizes billing secrets only for billing-chec
   assert.match(
     script,
     /ensureNonSecretCatalogVariable\('billing-checkout',\s*key,\s*value\)/,
-    'deploy_hubs.cjs must use ensureNonSecretCatalogVariable for Production catalog IDs',
+    'deploy_hubs.cjs must use ensureNonSecretCatalogVariable for catalog IDs',
   );
   // Verify other hubs do not receive billing secrets
   const nonBillingHubs = [
@@ -70,9 +78,28 @@ test('scripts/deploy_hubs.cjs synchronizes billing secrets only for billing-chec
   }
 });
 
-test('ensureBillingCheckoutVariables fails closed when Sandbox secret is absent', async () => {
+test('ensureBillingCheckoutVariables fails closed when BILLING_CHECKOUT_PROVIDER is absent', async () => {
   const deployHubs = require('../../scripts/deploy_hubs.cjs');
+  const originalProvider = process.env.BILLING_CHECKOUT_PROVIDER;
+  delete process.env.BILLING_CHECKOUT_PROVIDER;
+  try {
+    await assert.rejects(
+      async () => {
+        await deployHubs.ensureBillingCheckoutVariables();
+      },
+      /BILLING_CHECKOUT_PROVIDER is required to deploy billing-checkout/,
+    );
+  } finally {
+    if (originalProvider !== undefined) process.env.BILLING_CHECKOUT_PROVIDER = originalProvider;
+    else delete process.env.BILLING_CHECKOUT_PROVIDER;
+  }
+});
+
+test('ensureBillingCheckoutVariables fails closed when Sandbox secret is absent (provider=paddle)', async () => {
+  const deployHubs = require('../../scripts/deploy_hubs.cjs');
+  const originalProvider = process.env.BILLING_CHECKOUT_PROVIDER;
   const originalSandboxEnv = process.env.BILLING_SANDBOX_PADDLE_API_KEY;
+  process.env.BILLING_CHECKOUT_PROVIDER = 'paddle';
   delete process.env.BILLING_SANDBOX_PADDLE_API_KEY;
   try {
     await assert.rejects(
@@ -83,16 +110,21 @@ test('ensureBillingCheckoutVariables fails closed when Sandbox secret is absent'
       'Must fail closed with clear error message when Sandbox secret is absent',
     );
   } finally {
+    if (originalProvider !== undefined) process.env.BILLING_CHECKOUT_PROVIDER = originalProvider;
+    else delete process.env.BILLING_CHECKOUT_PROVIDER;
     if (originalSandboxEnv) process.env.BILLING_SANDBOX_PADDLE_API_KEY = originalSandboxEnv;
+    else delete process.env.BILLING_SANDBOX_PADDLE_API_KEY;
   }
 });
 
-test('ensureBillingCheckoutVariables fails closed when configured for Production and BILLING_PRODUCTION_PADDLE_API_KEY is absent', async () => {
+test('ensureBillingCheckoutVariables fails closed when configured for Production and BILLING_PRODUCTION_PADDLE_API_KEY is absent (provider=paddle)', async () => {
   const deployHubs = require('../../scripts/deploy_hubs.cjs');
+  const originalProvider = process.env.BILLING_CHECKOUT_PROVIDER;
   const originalProdKey = process.env.BILLING_PRODUCTION_PADDLE_API_KEY;
   const originalProPrice = process.env.BILLING_PRODUCTION_PRO_PRICE_ID;
   const originalSandboxKey = process.env.BILLING_SANDBOX_PADDLE_API_KEY;
 
+  process.env.BILLING_CHECKOUT_PROVIDER = 'paddle';
   process.env.BILLING_SANDBOX_PADDLE_API_KEY = 'sandbox-key-fixture';
   process.env.BILLING_PRODUCTION_PRO_PRICE_ID = 'pri_01m192gqtw1cxrkctafjcahmfe';
   delete process.env.BILLING_PRODUCTION_PADDLE_API_KEY;
@@ -106,6 +138,8 @@ test('ensureBillingCheckoutVariables fails closed when configured for Production
       'Must fail closed when Production catalog is configured but Production key is absent',
     );
   } finally {
+    if (originalProvider !== undefined) process.env.BILLING_CHECKOUT_PROVIDER = originalProvider;
+    else delete process.env.BILLING_CHECKOUT_PROVIDER;
     if (originalProdKey !== undefined) process.env.BILLING_PRODUCTION_PADDLE_API_KEY = originalProdKey;
     else delete process.env.BILLING_PRODUCTION_PADDLE_API_KEY;
     if (originalProPrice !== undefined) process.env.BILLING_PRODUCTION_PRO_PRICE_ID = originalProPrice;
@@ -307,4 +341,70 @@ test('workflow ordering: bootstrap validation runs strictly before PayPal schema
     `Schema setup step (pos ${schemaIdx}) must precede deploy step (pos ${deployIdx})`,
   );
 });
+test('coupons hub receives checkout availability variables in ensureCouponsWiseHireVariables', () => {
+  const script = read('scripts/deploy_hubs.cjs');
+  assert.match(
+    script,
+    /ensureVariable\('coupons',\s*'BILLING_CHECKOUT_ENABLED'/,
+    'coupons must receive BILLING_CHECKOUT_ENABLED',
+  );
+  assert.match(
+    script,
+    /ensureVariable\('coupons',\s*'BILLING_CHECKOUT_PROVIDER'/,
+    'coupons must receive BILLING_CHECKOUT_PROVIDER',
+  );
+  assert.match(
+    script,
+    /ensureVariable\('coupons',\s*'BILLING_CHECKOUT_PROVIDER_READY'/,
+    'coupons must receive BILLING_CHECKOUT_PROVIDER_READY',
+  );
+  assert.match(
+    script,
+    /ensureVariable\('coupons',\s*'PAYPAL_ACCESS_ENVIRONMENT'/,
+    'coupons must receive PAYPAL_ACCESS_ENVIRONMENT',
+  );
+  assert.match(
+    script,
+    /ensureVariable\('coupons',\s*'BILLING_CHECKOUT_QA_USER_ID'/,
+    'coupons must receive BILLING_CHECKOUT_QA_USER_ID',
+  );
+});
 
+test('deploy-appwrite-hubs workflow exposes checkout availability variables for coupons', () => {
+  const workflow = read('.github/workflows/deploy-appwrite-hubs.yml');
+  assert.match(
+    workflow,
+    /BILLING_CHECKOUT_ENABLED:\s*\$\{\{\s*secrets\.BILLING_CHECKOUT_ENABLED\s*\|\|\s*vars\.BILLING_CHECKOUT_ENABLED\s*\|\|\s*'false'\s*\}\}/,
+    'Workflow must map BILLING_CHECKOUT_ENABLED',
+  );
+  assert.match(
+    workflow,
+    /BILLING_CHECKOUT_PROVIDER_READY:\s*\$\{\{\s*secrets\.BILLING_CHECKOUT_PROVIDER_READY\s*\|\|\s*vars\.BILLING_CHECKOUT_PROVIDER_READY\s*\|\|\s*'false'\s*\}\}/,
+    'Workflow must map BILLING_CHECKOUT_PROVIDER_READY',
+  );
+});
+
+test('PayPal catalog IDs are synchronized strictly within provider === paypal path', () => {
+  const script = read('scripts/deploy_hubs.cjs');
+  const paypalProviderIdx = script.indexOf("if (provider === 'paypal')");
+  const paddleProviderIdx = script.indexOf("} else if (provider === 'paddle')");
+  const catalogLoopIdx = script.indexOf("['BILLING_SANDBOX_PRO_PRICE_ID', process.env.BILLING_SANDBOX_PRO_PRICE_ID");
+
+  assert.ok(paypalProviderIdx > 0, 'Must have provider === paypal block');
+  assert.ok(paddleProviderIdx > 0, 'Must have provider === paddle block');
+  assert.ok(catalogLoopIdx > 0, 'Must have PayPal catalog loop');
+
+  assert.ok(
+    catalogLoopIdx > paypalProviderIdx && catalogLoopIdx < paddleProviderIdx,
+    'PayPal catalog loop must be located strictly inside if (provider === paypal) block before paddle block',
+  );
+});
+
+test('Production PayPal catalog is documented as OWNER_ACTION_REQUIRED / NOT CONFIGURED', () => {
+  const script = read('scripts/deploy_hubs.cjs');
+  assert.match(
+    script,
+    /Production PayPal catalog = OWNER_ACTION_REQUIRED \/ NOT CONFIGURED/,
+    'deploy_hubs.cjs must explicitly document that Production PayPal catalog is not configured',
+  );
+});

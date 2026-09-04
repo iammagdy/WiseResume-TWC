@@ -49,8 +49,8 @@ describe('Real Browser & DOM Preview QA Verification', () => {
     expect(legalContent.ar.refund.effectiveDate).toContain('آخر تحديث: 31 أغسطس 2026');
   });
 
-  it('verifies Pricing Page FAQ cancellation answer contains accurate Paddle cancellation wording', () => {
+  it('verifies Pricing Page FAQ cancellation answer contains accurate self-serve cancellation wording', () => {
     const pricingSource = readFileSync(resolve(process.cwd(), 'src/pages/PricingPage.tsx'), 'utf8');
-    expect(pricingSource).toContain('Yes. You can manage or cancel a Paddle-processed subscription using the link in your purchase communications or by contacting support.');
+    expect(pricingSource).toContain('Yes. You can cancel your subscription at any time directly from your Subscription settings. Your access will remain active until the end of your billing period with no further charges.');
   });
 });

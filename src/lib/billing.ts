@@ -1,28 +1,32 @@
-export type PaymentStatus = 'coming_soon' | 'sandbox_unavailable';
-export type BillingMode = 'sandbox' | 'disabled';
-
-const configuredMode = String(import.meta.env.VITE_BILLING_PUBLIC_MODE ?? 'sandbox').trim().toLowerCase();
+export type PaymentStatus = 'available' | 'unavailable';
+export type BillingMode = 'active' | 'disabled';
 
 export interface BillingState {
   mode: BillingMode;
   paymentStatus: PaymentStatus;
-  paymentsEnabled: false;
+  paymentsEnabled: boolean;
   availablePaymentMethods: string[];
   isSandboxTestMode: boolean;
 }
 
+/**
+ * Fail-closed internal configuration model.
+ * In default unconfigured runtime state, payments remain disabled and unavailable.
+ * Server-authoritative checkout readiness (can_subscribe) is determined dynamically
+ * by the backend API per-user, never trusted to client-side flags.
+ */
 export const billingState: BillingState = {
-  mode: configuredMode === 'sandbox' ? 'sandbox' : 'disabled',
-  paymentStatus: configuredMode === 'sandbox' ? 'sandbox_unavailable' : 'coming_soon',
+  mode: 'disabled',
+  paymentStatus: 'unavailable',
   paymentsEnabled: false,
   availablePaymentMethods: [],
-  isSandboxTestMode: configuredMode === 'sandbox',
+  isSandboxTestMode: false,
 };
 
-export function isSandboxTestMode() {
-  return billingState.isSandboxTestMode;
+export function isSandboxTestMode(): boolean {
+  return false;
 }
 
-export function isBillingComingSoon() {
-  return billingState.paymentStatus === 'coming_soon';
+export function isBillingComingSoon(): boolean {
+  return !billingState.paymentsEnabled;
 }

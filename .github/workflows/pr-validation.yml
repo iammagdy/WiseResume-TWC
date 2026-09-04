@@ -54,7 +54,7 @@ jobs:
           node tests/scripts/configure_billing_runtime.test.cjs &&
           node tests/hubs/billing-checkout.test.cjs &&
           node --test tests/hubs/revenuecat-webhook.test.cjs tests/hubs/revenuecat-schema.test.cjs &&
-          node --test tests/hubs/paypal-webhook.test.cjs tests/hubs/paypal-schema.test.cjs tests/hubs/paypal-subscription-resolver.test.cjs tests/hubs/billing-checkout-deployment.test.cjs tests/hubs/appwrite-function-policy.test.cjs
+          node --test tests/hubs/paypal-webhook.test.cjs tests/hubs/paypal-schema.test.cjs tests/hubs/paypal-subscription-resolver.test.cjs tests/hubs/billing-checkout-deployment.test.cjs tests/hubs/appwrite-function-policy.test.cjs tests/hubs/coupons-subscription.test.cjs tests/hubs/billing-checkout.paypal.test.cjs
 
       - name: Run frontend and portfolio tests (relevant, known-passing)
         run: >-
@@ -74,3 +74,5 @@ jobs:
           src/lib/security/publicPrivacyHardening.test.ts
           src/pages/__tests__/PortfolioEditorPage.test.tsx
           src/pages/__tests__/PortfolioEditorPage-D8.test.tsx
+          src/lib/billingCheckout.test.ts
+          src/pages/__tests__/SubscriptionPage.paypal.test.tsx

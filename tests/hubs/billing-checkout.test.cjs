@@ -849,7 +849,7 @@ assert.throws(
   const result = await invoke({ action: 'create-session', plan: 'pro' }, {
     user: { $id: 'runtime-configuration-user' }, store,
     provider: new PaddleAutomaticProvider({ env: {}, fetchImpl: async () => { throw new Error('must not call'); } }),
-    config: config({ environment: 'sandbox', catalogEnvironment: 'sandbox' }), now: () => nowMs,
+    config: config({ environment: 'sandbox', catalogEnvironment: 'sandbox', qaUserId: 'runtime-configuration-user' }), now: () => nowMs,
   });
   assert.equal(result.response.statusCode, 502);
   assert.equal(result.response.error, 'provider_unavailable');

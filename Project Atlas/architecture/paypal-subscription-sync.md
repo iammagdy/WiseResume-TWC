@@ -1,7 +1,7 @@
 # WiseResume PayPal Subscription Synchronization & Entitlement Resolution
 
 **Last Verified:** 2026-09-04
-**Status:** `PAYPAL_PHASE3_FINAL_FAILCLOSED_CONCURRENCY_CI_PASS_READY_TO_MERGE` — Phase 3 implementation for dedicated Appwrite Function webhook ingress (`paypal-webhook`), signature verification, canonical correlation bridge, idempotency ledger, single-winner reservation reclamation lease (`reclaimLedgerReservation` strictly via Appwrite transaction conflict detection; unsafe non-transactional fallback removed), memoized server-side PayPal subscription snapshot reuse, strict fail-closed authoritative paid-through expiry resolution (zero manufactured 30-day calendar dates), retry-safe HTTP 503 transient error classification, failed-payment grace invariant enforcement (no paid grace without prior verified payment; initial payment failure yields Free), terminal event grace preservation (provider `SUSPENDED`/`CANCELLED`/`EXPIRED` cannot shorten active 48-hour app grace), `BILLING.SUBSCRIPTION.UPDATED` entitlement-bearing duration freeze, Sandbox QA mutation boundary, two-stage deployment bootstrap contract, non-mutating preflight validation before schema mutation, explicit fail-closed environment contract (zero implicit sandbox default), webhook-ID anti-downgrade protection, remote CI PR validation wiring (`.github/workflows/pr-validation.yml`), and multi-provider subscription resolution is complete and verified locally via 128 automated test cases across all billing suites (66 tests in `paypal-webhook.test.cjs`).
+**Status:** `PAYPAL_PHASE4_FINAL_CORRECTIVE_SAFETY_PASS_PR_READY` — Phase 4 final corrective safety, contract hardening, idempotency lifecycle, and UI verification pass complete and verified locally via 101 automated Node hub tests and 19 Vitest tests.
 **Location:** `Project Atlas/architecture/paypal-subscription-sync.md`
 
 ## Scope and Preserved Contracts
@@ -241,5 +241,33 @@ The following actions must be performed explicitly by the owner before/during de
 - **PayPal Webhook Registration:** **NOT REGISTERED** in PayPal Sandbox or Live dashboard.
 - **PayPal Webhook ID:** **NOT CREATED**.
 - **Production PayPal:** **DISABLED**.
-- **Billing Checkout:** **`BILLING_CHECKOUT_DISABLED`**.
 - **External Runtime Boundaries:** Unverified against live Appwrite runtime, real PayPal webhook signature delivery, actual PayPal OAuth token requests from deployed function, and live database writes.
+
+### 13. Phase 4 Architecture: Checkout, Subscription UX, Cancellation & Entitlement Surfacing
+
+Phase 4 completes the end-to-end checkout and customer-facing subscription lifecycle:
+
+1. **Coupons Hub Subscription Lifecycle Contract (`getMySubscription`):**
+   - Resolves authoritative subscription plan via `@wiseresume/subscription-resolver`.
+   - Surfaces `can_subscribe` (boolean, false when provider disabled or unconfigured).
+   - Surfaces `can_cancel_subscription` (boolean, true strictly when status is `active` or `billing_issue` and `will_renew === true`).
+   - Surfaces `provider_expires_at`, `provider_source`, `provider_status`, `expires_at`, and `will_renew`.
+
+2. **Billing-Checkout Hub Provider Abstraction (`PayPalSubscriptionProvider`):**
+   - **OAuth Token Acquisition & Caching:** Requests client-credentials token from `/v1/oauth2/token` and caches in-memory with a 60-second safety margin before `expires_in`.
+   - **Idempotent Subscription Creation:** Sends `PayPal-Request-Id: wr_sub_<sha256(userId:plan:sessionKey)>` to PayPal `POST /v1/billing/subscriptions` to guarantee exactly-once subscription creation per checkout attempt.
+   - **Approved Origin Validation:** Validates PayPal approval URL against `PAYPAL_APPROVED_ORIGINS` (`https://www.sandbox.paypal.com`, `https://www.paypal.com`).
+   - **Session Error Isolation:** Distinguishes deterministic provider rejections (marked `failed`) from transient/ambiguous network and 5xx errors (marked `uncertain` via `markUncertain`), protecting session audit trails.
+   - **Subscription Cancellation Action:** Routed under `action === 'cancel-subscription'`. Verifies caller ownership via `paypal_subscription_state`. Calls PayPal `POST /v1/billing/subscriptions/{id}/cancel` with HTTP 204 success handling. If PayPal returns HTTP 400/422, verifies whether subscription is already cancelled via `GET /v1/billing/subscriptions/{id}` before failing.
+   - **Fail-Closed Provider Selection:** When `BILLING_CHECKOUT_PROVIDER === 'paddle'`, returns HTTP 403 `provider_unsupported`.
+
+3. **Frontend Billing Libs & Security Defense-in-Depth:**
+   - `src/lib/billing.ts`: Customer-facing copy cleaned up; retired provider references removed; `isSandboxTestMode() => false`.
+   - `src/lib/billingCheckout.ts`: Added `cancelBillingSubscription`. Defense-in-depth redirect validation checks `APPROVED_PAYPAL_ORIGINS` before navigating.
+
+4. **UI Workspaces (`PricingPage.tsx`, `SubscriptionPage.tsx`):**
+   - Pricing page: Removed sandbox test-mode warning banner; updated FAQ #3 with self-serve cancellation copy.
+   - Subscription page: Redesigned premium workspace. Enforced strict "Subscribe" CTA button. Disabled CTA with "Subscription enrollments are currently closed." when `can_subscribe === false`.
+   - Preparation state ("Preparing your subscription…") prevents double clicks.
+   - Return detection (`?billing=success`, `?billing=pending`, `?billing=canceled`). Immediate status check followed by 5-second polling interval (up to 90s timeout).
+   - Subscription Management card with cancellation trigger, accessible confirmation dialog, and formatted `provider_expires_at` retention notices.

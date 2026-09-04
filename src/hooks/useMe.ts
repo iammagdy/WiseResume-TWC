@@ -26,6 +26,13 @@ export interface MeSubscription {
   trial_plan?: string | null;
   trial_expires_at?: string | null;
   coupon_code?: string | null;
+  expires_at?: string | null;
+  provider_source?: string | null;
+  provider_status?: string | null;
+  provider_expires_at?: string | null;
+  can_cancel_subscription?: boolean;
+  will_renew?: boolean | null;
+  can_subscribe?: boolean;
 }
 
 const TODAY = () => new Date().toISOString().split('T')[0];
@@ -54,6 +61,13 @@ function mapSubscription(sub: Record<string, unknown>): MeSubscription {
     trial_plan: trialPlan,
     trial_expires_at: trialExpiresAt,
     coupon_code: (sub.coupon_code as string | null | undefined) ?? null,
+    expires_at: (sub.expires_at as string | null | undefined) ?? null,
+    provider_source: (sub.provider_source as string | null | undefined) ?? null,
+    provider_status: (sub.provider_status as string | null | undefined) ?? null,
+    provider_expires_at: (sub.provider_expires_at as string | null | undefined) ?? null,
+    can_cancel_subscription: Boolean(sub.can_cancel_subscription),
+    will_renew: typeof sub.will_renew === 'boolean' ? sub.will_renew : null,
+    can_subscribe: Boolean(sub.can_subscribe),
   };
 }
 
@@ -110,6 +124,13 @@ export function useMe() {
           trial_plan: string | null;
           trial_expires_at: string | null;
           coupon_code: string | null;
+          expires_at?: string | null;
+          provider_source?: string | null;
+          provider_status?: string | null;
+          provider_expires_at?: string | null;
+          can_cancel_subscription?: boolean;
+          will_renew?: boolean | null;
+          can_subscribe?: boolean;
         }>('get-subscription'),
         safeList('ai_credits', [Query.equal('user_id', user.id)]),
       ]);

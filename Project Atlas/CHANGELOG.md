@@ -1,5 +1,139 @@
 # WiseResume Atlas Master Changelog
 
+### 2026-09-04 - PayPal Sandbox Integration Phase 4: Final Docs Reconciliation Before Merge
+
+- **Workstream Verdict:** `PAYPAL_PHASE4_DOCS_RECONCILED_READY_FOR_MERGE`.
+- **Git Branch:** `feat/paypal-sandbox-phase4` (PR #287, head `c8dad009140c412b911d3927bf3f4eff0be38d34`).
+- **Commit Status:** `COMMITTED_NOT_MERGED`, **Push Status:** `PUSHED_PENDING_MERGE`.
+- **Scope:** Completed documentation-only reconciliation across `Project Atlas/WHERE_WE_STOPPED.md`, `Project Atlas/CURRENT_STATE.md`, and `Project Atlas/CHANGELOG.md` prior to owner merge approval:
+  1. **Operational State Reconciliation:** Documented exact factual state: PR #287 open/mergeable/not merged, head `c8dad009`, first-party CI passing (PR Validation, Security regression, Vercel Preview; TestSprite informational `No tests detected`), Appwrite functions not deployed, PayPal schema not applied, PayPal webhook not registered, Production PayPal catalog disabled / not configured (`OWNER_ACTION_REQUIRED`), public checkout disabled, live PayPal untouched.
+  2. **Test Counts Reconciliation:** Reconciled active operational summary with final verified counts: 150/150 Node hub tests (38 billing-checkout.paypal, 25 billing-checkout-deployment, 21 coupons-subscription, 66 paypal-webhook), 37/37 Vitest tests (9 billingCheckout, 28 SubscriptionPage), 42/42 Headless Chromium browser assertions across 14 scenarios, 0 TypeScript errors, 0 Vite production build errors, clean source hashes, clean git diff check.
+  3. **Deployment Contract & Catalog Alignment:** Reconciled active deployment documentation to match the final generic checkout catalog contract (`BILLING_SANDBOX_PRO_PRICE_ID`, `BILLING_SANDBOX_PREMIUM_PRICE_ID`, `BILLING_SANDBOX_PRO_PRODUCT_ID`, `BILLING_SANDBOX_PREMIUM_PRODUCT_ID`), removed stale references to `PAYPAL_PRO_PLAN_ID` / `PAYPAL_PREMIUM_PLAN_ID`, documented runtime credentials `PAYPAL_CLIENT_ID` / `PAYPAL_CLIENT_SECRET` (mapped from GitHub Sandbox secrets), and reiterated Production catalog as `OWNER_ACTION_REQUIRED`.
+  4. **Paid Plan Change Policy:** Reconciled clear policy documentation: supported new subscriptions are `Free -> Pro` and `Free -> Ultimate`; paid-to-paid Create-Subscription upgrades are strictly blocked on backend and frontend (0 provider calls) to prevent parallel recurring subscriptions / double billing; dedicated revision design deferred as `PAYPAL_PLAN_CHANGE_REVISION_OWNER_DECISION_REQUIRED`.
+  5. **History Separation:** Separated current active handover from historical completed workstreams (Phase 3, Phase 2, What's New revamp) in `WHERE_WE_STOPPED.md`.
+  6. **What's New Eligibility Decision:** `WHATS_NEW_NOT_REQUIRED` (Documentation-only reconciliation; no code, test, workflow, or deployment changes).
+
+### 2026-09-04 - PayPal Sandbox Integration Phase 4: Final Billing Safety Fix Before Merge
+
+- **Workstream Verdict:** `PAYPAL_PHASE4_SAFE_NEW_SUBSCRIPTIONS_READY_FOR_OWNER_MERGE_APPROVAL`.
+- **Git Branch:** `feat/paypal-sandbox-phase4` (PR #287, head `c8dad009140c412b911d3927bf3f4eff0be38d34`).
+- **Scope:** Completed final billing-safety correction on PR #287 prior to owner merge approval:
+  1. **P0 — Block Paid-to-Paid Create-Subscription Upgrades:**
+     - **Double-Billing Elimination:** Identified critical double-billing risk where Pro subscriber purchasing Ultimate would invoke `POST /v1/billing/subscriptions` to create a second concurrent subscription rather than revising the existing Pro subscription (`POST /v1/billing/subscriptions/{id}/revise`).
+     - **Authoritative Server Rule (`appwrite-hubs/billing-checkout/src/main.js`):**
+       - `Free -> Pro`: **ALLOWED** (provider called).
+       - `Free -> Premium/Ultimate`: **ALLOWED** (provider called).
+       - `Pro -> Premium`: **BLOCKED** with HTTP 409 `plan_change_unavailable` ("Plan changes are temporarily unavailable.") and **ZERO** provider calls.
+       - `Premium -> anything`: **BLOCKED** with HTTP 409 `already_entitled` / `plan_change_unavailable` and **ZERO** provider calls.
+       - Helper `hasActivePaypalSubscription(paypalState, userId, nowMs)`: rigorously validates user ID matching, paid plan (`pro` / `premium`), active status (`active` / `billing_issue`), `will_renew === true` or fail-closed null/undefined, or unexpired `will_renew === false`. Zero mutation to `paypal_subscription_state`.
+       - Preserves historical non-PayPal entitlements (manual/admin, coupon, trial, RevenueCat) without active PayPal subscriptions.
+     - **Frontend Subscription UX (`src/lib/billingCheckout.ts`, `src/pages/SubscriptionPage.tsx`):**
+       - Added `plan_change_unavailable` to error codes, fallback messages, and localization files (`locales/en/app.json`, `locales/ar/app.json`).
+       - For Pro subscribers: Ultimate card renders with Subscribe CTA **DISABLED** (`disabled={true}`, `aria-disabled="true"`) and neutral copy: *"Plan changes are temporarily unavailable."* (strictly zero mention of PayPal, Sandbox, Test, QA, or provider limitations).
+       - Guarded `beginCheckout`: returns immediately if `isPro || target === plan` without initiating checkout.
+       - Ultimate subscribers see zero upgrade cards or CTAs.
+     - **Revision Deferred:** Full PayPal subscription revision (`POST /v1/billing/subscriptions/{id}/revise`) deferred for future product decision: recorded `PAYPAL_PLAN_CHANGE_REVISION_OWNER_DECISION_REQUIRED`.
+  2. **P1 — Cancellation Verification GET Error Classification Fidelity (`appwrite-hubs/billing-checkout/src/main.js`):**
+     - When `POST /v1/billing/subscriptions/{id}/cancel` returns 400/422, verification `GET /v1/billing/subscriptions/{id}` now preserves exact error diagnostics:
+       - 200 + `CANCELLED` -> `{ status: 'success', canceled: true }`
+       - 200 + `ACTIVE` / other -> HTTP 400 `cancellation_failed`
+       - 429 -> `failProviderDiagnostic('provider.http_response', 'provider_rate_limited', { diagnosticStatus: 429 })` (retryable)
+       - 500..599 -> `failProviderDiagnostic('provider.http_response', 'provider_upstream_error', { diagnosticStatus: verifyStatus })` (retryable)
+       - 401/403 -> `failProviderDiagnostic('provider.http_response', 'provider_auth_rejected', { diagnosticStatus: verifyStatus })`
+       - 404 -> HTTP 404 `not_found`
+       - Network timeout -> `failProviderDiagnostic('provider.transport', 'transport_failure')` (retryable)
+       - Invalid JSON -> `failProviderDiagnostic('provider.response_json', 'invalid_json')`
+       - Zero false canceled results across all failure branches.
+  3. **No Phase 3 Webhook Modifications:** `appwrite-hubs/paypal-webhook/src/main.js` strictly unmodified (source hash unchanged: `886be7129e23af2b4afd02e384b152f39d66d89357f564298b11e04301cf9032`).
+  4. **Production Catalog & Runtime Activation:** Production PayPal catalog remains `DISABLED / NOT CONFIGURED (OWNER_ACTION_REQUIRED)`. Public checkout remains `DISABLED`.
+- **Tests & Verification:**
+  - 150/150 Node hub tests pass (38 paypal billing-checkout, 25 deployment, 21 coupons, 66 webhook).
+  - 37/37 Vitest tests pass (9 billingCheckout, 28 SubscriptionPage).
+  - Headless Chromium browser QA automation verified 14 scenarios (42/42 assertions passed), proving Pro upgrade CTA disabled with neutral notice and zero session calls, and Ultimate subscriber seeing zero upgrade CTAs.
+  - `tsc --noEmit` clean; `vite build` clean in production mode (44.95s).
+  - `git diff --check` clean.
+
+### 2026-09-04 - PayPal Sandbox Integration Phase 4: Final Micro-Fix Before Merge Pass
+
+- **Workstream Verdict:** `PAYPAL_PHASE4_CODE_COMPLETE_READY_FOR_OWNER_MERGE_APPROVAL`.
+- **Git Branch:** `feat/paypal-sandbox-phase4` (PR #287).
+- **Scope:** Completed the 3 final micro-fixes plus accuracy cleanup on PR #287 prior to owner merge approval:
+  1. **Frontend PayPal Environment Contract (`src/lib/billingCheckout.ts`):** Derived from canonical `VITE_BILLING_PUBLIC_MODE` with strict deterministic precedence (`sandbox` -> ONLY `https://www.sandbox.paypal.com`; `production` -> ONLY `https://www.paypal.com`; `disabled`/`unknown`/unset -> `[]` fail-closed). Explicit argument overrides env; `VITE_BILLING_PUBLIC_MODE` overrides legacy fallbacks.
+  2. **Cancellation Confirmation Authority (`src/pages/SubscriptionPage.tsx`):** Strictly requires `will_renew === false` explicitly. `can_cancel_subscription === false` with `null`, `undefined`, missing, or legacy fallback-shaped metadata never confirms; remains in updating state and transitions to `delayed` after 30s timeout.
+  3. **Verified Return Approval Contract (`src/pages/SubscriptionPage.tsx`):** Requires BOTH a known active local checkout attempt (`billing_pending_plan === 'pro' | 'premium'`) AND matching backend tier. Stale or unverified returns clean URL query parameters, refetch subscription, transition safely to idle, and never display `Payment Approved`. Attempting Premium while backend reports Pro keeps polling until timeout without false approval.
+  4. **Accuracy Cleanup:** Removed false claims of "60-second early expiry cache margin"; accurately documented on-demand client credentials OAuth token acquisition.
+- **Tests & Verification:**
+  - 139/139 Node hub tests pass (100%).
+  - 33/33 Vitest tests pass (8 billingCheckout, 25 SubscriptionPage lifecycle and cancellation authority).
+  - Headless Chromium browser QA automation verified 14 scenarios across 5 viewports/locales, including untrusted origin rejection and verified return gating.
+  - `tsc --noEmit` clean; `vite build` clean in production mode.
+
+### 2026-09-04 - PayPal Sandbox Integration Phase 4: Final Pre-Merge Safety Gate Pass
+
+- **Workstream Verdict:** `PAYPAL_PHASE4_FINAL_SAFETY_AND_BROWSER_PASS_READY_TO_MERGE`.
+- **Git Branch:** `feat/paypal-sandbox-phase4` (PR #287).
+- **Scope:** Completed final pre-merge safety gate hardening across cancellation, request validation, environment configuration, cancellation UI state machine, runtime readiness contract, global billing state, adversarial idempotency recovery, deployment wiring, and headless Chromium browser QA.
+- **Core Hardening & Fixes:**
+  - **Cancellation Provider-ID Exclusivity (`appwrite-hubs/billing-checkout`):** Eliminated legacy `subscriptions` document fallback in `service.cancel()`. The only authoritative source of provider subscription ID is `paypal_subscription_state` for the canonical user. Preflight fail-closed checks strictly enforce user matching, valid `^I-` ID format, exact environment matching, cancellable status (`active` / `billing_issue`), and `will_renew === true` with zero PayPal API calls on any failure.
+  - **Cancel Request Hardening (`appwrite-hubs/billing-checkout`):** Stripped `subscription_id` and `subscriptionId` from allowed request keys. Allowed keys are strictly `['action', 'reason']`. Injected keys (`user_id`, `plan_id`, `provider`, `environment`, etc.) return HTTP 400 `invalid_request`.
+  - **Environment Fail-Closed (`appwrite-hubs/billing-checkout`):** Removed default sandbox fallback in `PayPalSubscriptionProvider.cancelSubscription()`. Invalid or missing environment configuration immediately throws provider runtime failure with zero network calls.
+  - **Cancellation UI Delayed State Machine (`src/pages/SubscriptionPage.tsx`):** State machine updated to `'idle' | 'updating' | 'delayed' | 'confirmed'`. Polling timeout (30s) transitions to `delayed` with exact copy: *"Your cancellation request was received. Your subscription status is still updating. You can refresh this page in a moment."* Never fakes "Subscription Canceled" without authoritative proof from backend.
+  - **`can_subscribe` Runtime Readiness Contract (`appwrite-hubs/coupons`):** Expanded `can_subscribe` to require all 6 runtime conditions: `BILLING_CHECKOUT_ENABLED === true`, `BILLING_CHECKOUT_PROVIDER === 'paypal'`, `BILLING_CHECKOUT_PROVIDER_READY === true`, `PAYPAL_ACCESS_ENVIRONMENT === 'sandbox'`, QA user ID non-empty, matching QA user, and plan eligibility.
+  - **Coupons Deployment Contract Wiring (`scripts/deploy_hubs.cjs`, `.github/workflows/deploy-appwrite-hubs.yml`):** Wired `BILLING_CHECKOUT_ENABLED`, `BILLING_CHECKOUT_PROVIDER`, `BILLING_CHECKOUT_PROVIDER_READY`, `PAYPAL_ACCESS_ENVIRONMENT`, and `BILLING_CHECKOUT_QA_USER_ID` into `coupons` deployment contract; moved catalog synchronization strictly into `provider === 'paypal'`; documented `Production PayPal catalog = OWNER_ACTION_REQUIRED / NOT CONFIGURED`.
+  - **Global Billing State Restoration (`src/lib/billing.ts`):** Restored fail-closed internal configuration (`mode: 'disabled'`, `paymentStatus: 'unavailable'`, `paymentsEnabled: false`, `availablePaymentMethods: []`). Zero customer-facing sandbox/test wording.
+  - **Adversarial Idempotency Recovery (`tests/hubs/billing-checkout.paypal.test.cjs`):** Proven that persisted uncertain session key beats newly calculated retry key across bucket changes, and post-201 store completion recovery reuses the exact original `PayPal-Request-Id`.
+  - **Browser QA Automation:** Headless Chromium browser automation completed across Desktop English Light, Desktop English Dark, Mobile English, Desktop Arabic RTL, Mobile Arabic RTL, with 30/30 automated assertions passing (no horizontal overflow, plan cards, touch targets, focus visibility, keyboard navigation, dialog dismissal, neutral copy, updating, delayed, and confirmed states). Remote Vercel preview verified as protected by Vercel deployment protection SSO gate.
+  - **Tests:** 139/139 Node hub tests pass (27 paypal billing-checkout, 25 deployment, 21 coupons, 66 webhook); 14/14 SubscriptionPage Vitest tests pass; 7/7 billingCheckout Vitest tests pass; `tsc --noEmit` clean; `vite build` clean.
+
+### 2026-09-04 - PayPal Sandbox Integration Phase 4: Final Corrective Safety & UI Verification Pass
+
+- **Workstream Verdict:** `PAYPAL_PHASE4_FINAL_CORRECTIVE_SAFETY_PASS_PR_READY`.
+- **Git Branch:** `feat/paypal-sandbox-phase4` (PR #287).
+- **Scope:** Addressed all 20 owner review requirements on PR #287: Sandbox QA gate isolation, deterministic request ID derivation, ambiguous post-201 persistence classification, server-derived cancellation and envelope sanitization, deployment catalog wiring, environment-specific client origin defense, attempt key idempotency, two-stage cancellation UX, neutral timeout copy, fail-closed subscription defaults, and motion-safe styling.
+- **Core Improvements & Fixes:**
+  - **P0 Sandbox QA Gate Fail-Closed (`billing-checkout`):** `assertRuntimeEnabled` strictly requires non-empty `config.qaUserId` AND `userId === config.qaUserId` in sandbox mode, returning HTTP 403 `payments_disabled` before any provider call or DB write.
+  - **P0 Deterministic Request ID (`billing-checkout`):** `providerRequestId` derived deterministically from `hash(reservation.session.session_key).slice(0, 32)`.
+  - **P0 Ambiguous Provider Error Classification (`billing-checkout`):** Added `provider.persist_complete` and `persistence_failure` to ambiguous error classifier; `store.complete` failure after PayPal 201 classifies as `uncertain` (`markUncertain`), never terminal `failed`.
+  - **Cancellation Server-Derived & Sanitized (`billing-checkout`):** Removed client `subscriptionId` parameter; resolves subscription state solely by authenticated `userId`; response envelope returns `{ status: 'success', canceled: true, message: '...' }` with provider ID stripped.
+  - **Deploy Script & Workflow Hardening (`scripts/deploy_hubs.cjs`, `deploy-appwrite-hubs.yml`):** Wired exact Sandbox catalog IDs (`P-3A193536YV1432359NKM36QY`, `P-17M39010JR353545NNKM36RA`, `PROD-8XE5253028560521H`); removed dead plan IDs/URLs; missing `BILLING_CHECKOUT_PROVIDER` strictly throws error and fails closed.
+  - **Environment-Specific Client Origin Defense (`src/lib/billingCheckout.ts`):** `getApprovedPayPalOrigins` resolves only `https://www.sandbox.paypal.com` in sandbox, only `https://www.paypal.com` in production, and `[]` (fail-closed) for unknown environments.
+  - **Client Attempt Key Idempotency (`src/lib/billingCheckout.ts`, `src/pages/SubscriptionPage.tsx`):** `getOrCreatePlanAttemptKey` and `clearPlanAttemptKey` manage attempt keys in `sessionStorage`; retry reuses key; non-retryable error, plan switch, cancel, or payment approval clears key.
+  - **Two-Stage Cancellation UX & Copy Precision (`src/pages/SubscriptionPage.tsx`):** POST accepted -> "Cancellation requested. Updating your subscription…" -> 30s polling -> confirmed; neutral copy when `provider_expires_at` is missing (stops future renewals, never claims "until the end of your billing period").
+  - **Timeout Neutral Copy (`src/pages/SubscriptionPage.tsx`):** 90s polling timeout displays "Taking Longer Than Usual", never claiming "Payment Received".
+  - **Public Fail-Closed Default (`src/pages/SubscriptionPage.tsx`):** `can_subscribe` strictly defaults to `false` when missing/undefined.
+  - **Motion-Safe Styling (`src/pages/SubscriptionPage.tsx`):** Added `motion-reduce:animate-none` across loading spinners.
+  - **Tests:** 101/101 Node tests pass (adversarial isolation, persistence ambiguity, deterministic request ID, deployment validation, webhook concurrency, and grace invariant tests); 19/19 Vitest tests pass; `tsc --noEmit` clean; `vite build` clean in 41.37s.
+
+### 2026-09-04 - PayPal Sandbox Integration Phase 4: Full Checkout, Subscription UX, Cancellation, Premium UI
+
+- **Workstream Verdict:** `PAYPAL_PHASE4_FULL_IMPLEMENTATION_LOCAL_PASS_READY_FOR_PR`.
+- **Git Branch:** `feat/paypal-sandbox-phase4`.
+- **Scope:** Full implementation of PayPal Checkout, Subscription Management, and Cancellation across backend hubs, frontend libraries, UI workspaces, deployment scripts, and test suites.
+- **Core Improvements & Fixes:**
+  - **Coupons Hub & Authoritative Lifecycle Metadata (`appwrite-hubs/coupons`):** `getMySubscription` returns `can_subscribe` (boolean), `can_cancel_subscription` (boolean, true only for `active` or `billing_issue` with `will_renew === true`), `provider_expires_at`, `provider_source`, `provider_status`, `expires_at`, and `will_renew`.
+  - **Frontend Hook Contract (`src/hooks/useMe.ts`):** `SubscriptionData` interface expanded with additive fields and null-safe legacy fallbacks.
+  - **Billing-Checkout Hub (`appwrite-hubs/billing-checkout`):**
+    - `PayPalSubscriptionProvider` implemented with on-demand OAuth client credentials token acquisition.
+    - `createCheckout` with deterministic `PayPal-Request-Id: wr_sub_<hash>` and approved PayPal origin validation.
+    - `cancelSubscription` calling PayPal API `POST /v1/billing/subscriptions/{id}/cancel` with 204 handler and 400/422 verification fallback (`GET /v1/billing/subscriptions/{id}`).
+    - Session error handling hardened: ambiguous/transient network/5xx errors mark session uncertain (`markUncertain`) instead of definitive failure (`fail`).
+    - Handled `action === 'cancel-subscription'` verifying user subscription ownership.
+    - Fail-closed provider selection: Paddle returns HTTP 403, unconfigured returns HTTP 500.
+  - **Frontend Billing Libs (`src/lib/billing.ts`, `src/lib/billingCheckout.ts`):**
+    - Customer-facing copy cleaned up; retired provider references removed; `isSandboxTestMode() => false`.
+    - Added `cancelBillingSubscription` with origin validation and sanitized neutral error messaging.
+  - **Pricing & Subscription Pages (`src/pages/PricingPage.tsx`, `src/pages/SubscriptionPage.tsx`):**
+    - Removed test-mode warning banner; updated FAQ #3 with neutral self-serve cancellation copy.
+    - Full premium workspace redesign for SubscriptionPage.
+    - Strict "Subscribe" CTA button; disabled state with enrollment closed notice when `can_subscribe === false`.
+    - Checkout preparation state, cancellation card with confirmation dialog, and return polling (`?billing=success`, `?billing=canceled`).
+  - **Deployment Workflows & Hub Scripts (`deploy-appwrite-hubs.yml`, `deploy_hubs.cjs`, `pr-validation.yml`):**
+    - Configured PayPal checkout environment variables.
+    - Optional Paddle keys when provider is PayPal.
+    - Synchronized PayPal variables to `coupons` and `ai-gateway`.
+    - Added all Phase 4 contract and unit test suites to PR validation workflow.
+  - **Verification:** 150 hub contract tests pass (100%), 237 Vitest test suites pass (1,343 tests), `tsc --noEmit` clean, `vite build` clean in 38.73s.
+
 ### 2026-09-04 - PayPal Sandbox Integration Phase 3: Final Fail-Closed Concurrency & Unsafe Fallback Removal
 
 - **Workstream Verdict:** `PAYPAL_PHASE3_FINAL_FAILCLOSED_CONCURRENCY_CI_PASS_READY_TO_MERGE`.
