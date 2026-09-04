@@ -95,8 +95,8 @@ class MockCheckoutStore {
   }
 
   async findOptional(collection, userId) {
-    if (collection === 'subscriptions') return this.userSub;
-    if (collection === 'paypal_subscription_state') return this.paypalState;
+    if (collection === 'subscriptions') return this.userSub && (!this.userSub.user_id || this.userSub.user_id === userId) ? this.userSub : null;
+    if (collection === 'paypal_subscription_state') return this.paypalState && (!this.paypalState.user_id || this.paypalState.user_id === userId) ? this.paypalState : null;
     return null;
   }
 }
@@ -330,34 +330,49 @@ test('BillingCheckoutService enforces Sandbox QA user isolation', async () => {
   const env = validPayPalEnv(); // BILLING_CHECKOUT_QA_USER_ID = 'qa_user_456'
   const config = readConfig(env);
   const store = new MockCheckoutStore({ plan: 'free' });
+  let providerCalled = false;
   const provider = {
-    createCheckout: async (input) => ({
-      providerTransactionId: 'I-TEST_QA',
-      providerEnvironment: input.environment,
-      collectionMode: 'automatic',
-      checkoutReference: 'ref_123',
-      checkoutUrl: 'https://www.sandbox.paypal.com/checkoutnow?token=BA-TEST',
-    }),
+    createCheckout: async (input) => {
+      providerCalled = true;
+      return {
+        providerTransactionId: 'I-TEST_QA',
+        providerEnvironment: input.environment,
+        collectionMode: 'automatic',
+        checkoutReference: 'ref_123',
+        checkoutUrl: 'https://www.sandbox.paypal.com/checkoutnow?token=BA-TEST',
+      };
+    },
   };
 
   const service = new BillingCheckoutService({ store, provider, config });
 
-  // 1. Non-QA user in sandbox receives 403 payments_disabled
+  // 1. Non-QA user in sandbox receives 403 payments_disabled with zero provider calls
   await assert.rejects(
     () => service.create({ userId: 'regular_user_789', plan: 'pro' }),
     err => err instanceof BillingCheckoutError && err.status === 403 && err.code === 'payments_disabled'
   );
+  assert.equal(providerCalled, false);
 
-  // 2. QA user passes QA gate
+  // 2. Missing qaUserId in sandbox config fails closed with zero provider calls
+  const missingQaConfig = { ...config, qaUserId: '' };
+  const missingQaService = new BillingCheckoutService({ store, provider, config: missingQaConfig });
+  await assert.rejects(
+    () => missingQaService.create({ userId: 'qa_user_456', plan: 'pro' }),
+    err => err instanceof BillingCheckoutError && err.status === 403 && err.code === 'payments_disabled'
+  );
+  assert.equal(providerCalled, false);
+
+  // 3. QA user passes QA gate
   const goodResult = await service.create({
     userId: 'qa_user_456',
     plan: 'pro',
     idempotencyKey: 'qa_idem_1',
   });
   assert.ok(goodResult.data.session_reference);
+  assert.equal(providerCalled, true);
 });
 
-test('BillingCheckoutService.cancel cancels active PayPal subscription (204 success)', async () => {
+test('BillingCheckoutService.cancel cancels active PayPal subscription (204 success) with stripped envelope', async () => {
   const env = validPayPalEnv();
   const config = readConfig(env);
   const store = new MockCheckoutStore({
@@ -379,14 +394,14 @@ test('BillingCheckoutService.cancel cancels active PayPal subscription (204 succ
   const service = new BillingCheckoutService({ store, provider, config });
   const res = await service.cancel({
     userId: 'user_owner',
-    subscriptionId: 'I-SUB12345',
     reason: 'Testing cancel',
   });
 
   assert.ok(cancelCalled);
   assert.equal(res.status, 'success');
   assert.equal(res.canceled, true);
-  assert.equal(res.subscription_id, 'I-SUB12345');
+  assert.equal(res.message, 'Cancellation request accepted.');
+  assert.equal(res.subscription_id, undefined);
 });
 
 test('BillingCheckoutService.cancel rejects unauthorized subscription cancellation (ownership mismatch)', async () => {
@@ -404,7 +419,7 @@ test('BillingCheckoutService.cancel rejects unauthorized subscription cancellati
   });
 
   await assert.rejects(
-    () => service.cancel({ userId: 'attacker_user', subscriptionId: 'I-VICTIM_SUB', reason: 'Cancel' }),
+    () => service.cancel({ userId: 'attacker_user', reason: 'Cancel' }),
     err => err instanceof BillingCheckoutError && err.status === 404 && err.code === 'not_found'
   );
 });
@@ -507,7 +522,6 @@ test('handleBillingCheckout routes action cancel-subscription correctly', async 
     body: {
       data: {
         action: 'cancel-subscription',
-        subscription_id: 'I-TEST999',
         reason: 'User request',
       },
     },
@@ -527,5 +541,71 @@ test('handleBillingCheckout routes action cancel-subscription correctly', async 
   assert.equal(statusCode, 200);
   assert.equal(jsonResult.status, 'success');
   assert.equal(jsonResult.canceled, true);
-  assert.equal(jsonResult.subscription_id, 'I-TEST999');
+  assert.equal(jsonResult.message, 'Cancellation request accepted.');
+  assert.equal(jsonResult.subscription_id, undefined);
+});
+
+test('BillingCheckoutService classifies persistence failure after PayPal 201 as uncertain (markUncertain), never terminal failed', async () => {
+  const env = validPayPalEnv();
+  const config = readConfig(env);
+  const store = new MockCheckoutStore({ plan: 'free' });
+
+  // Store where complete() throws a database persistence error
+  store.complete = async () => {
+    throw new Error('Database connection reset during session completion write');
+  };
+
+  const provider = {
+    createCheckout: async (input) => ({
+      providerTransactionId: 'I-PAYPAL_CREATED_201',
+      providerEnvironment: input.environment,
+      collectionMode: 'automatic',
+      checkoutReference: 'ref_valid_123',
+      checkoutUrl: 'https://www.sandbox.paypal.com/checkoutnow?token=BA-CREATED201',
+    }),
+  };
+
+  const service = new BillingCheckoutService({ store, provider, config });
+
+  await assert.rejects(
+    () => service.create({ userId: 'qa_user_456', plan: 'pro', idempotencyKey: 'key_db_fail_after_201' }),
+    err => err instanceof BillingCheckoutError && err.code === 'provider_unavailable'
+  );
+
+  // Must be classified as uncertain because PayPal already created the subscription!
+  assert.equal(store.uncertain.length, 1, 'Must record uncertain session state on persistence failure');
+  assert.equal(store.failed.length, 0, 'Must NEVER classify persistence failure after 201 as definitive terminal failed');
+  assert.equal(store.uncertain[0].session.state, 'uncertain');
+});
+
+test('BillingCheckoutService derives providerRequestId deterministically from reservation session_key', async () => {
+  const env = validPayPalEnv();
+  const config = readConfig(env);
+  const store = new MockCheckoutStore({ plan: 'free' });
+
+  let capturedRequestId = null;
+  const provider = {
+    createCheckout: async (input) => {
+      capturedRequestId = input.providerRequestId;
+      return {
+        providerTransactionId: 'I-TEST_REQ_ID',
+        providerEnvironment: input.environment,
+        collectionMode: 'automatic',
+        checkoutReference: 'ref_123',
+        checkoutUrl: 'https://www.sandbox.paypal.com/checkoutnow?token=BA-TEST',
+      };
+    },
+  };
+
+  const service = new BillingCheckoutService({ store, provider, config });
+  await service.create({ userId: 'qa_user_456', plan: 'pro', idempotencyKey: 'test_fixed_attempt_key' });
+
+  assert.ok(capturedRequestId, 'providerRequestId must be supplied to provider');
+  assert.ok(capturedRequestId.startsWith('wr_sub_'), 'providerRequestId must follow wr_sub_ prefix format');
+
+  // Verify it matches hash of the stored reservation session_key
+  const storedSession = store.completed[0]?.session;
+  assert.ok(storedSession, 'Session must have been completed');
+  const expectedHash = billing.__test.hash(storedSession.session_key).slice(0, 32);
+  assert.equal(capturedRequestId, `wr_sub_${expectedHash}`);
 });

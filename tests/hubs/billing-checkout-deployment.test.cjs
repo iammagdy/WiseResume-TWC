@@ -26,6 +26,14 @@ test('deploy-appwrite-hubs workflow exposes Sandbox and Production billing varia
   assert.match(workflow, /BILLING_PRODUCTION_PRO_PRODUCT_ID:\s*pro_01m1924dqce7nd69khnakxftzw/);
   assert.match(workflow, /BILLING_PRODUCTION_PREMIUM_PRICE_ID:\s*pri_01m192m6bwzvarmcr05c78by7r/);
   assert.match(workflow, /BILLING_PRODUCTION_PREMIUM_PRODUCT_ID:\s*pro_01m192jr9nzd6k5ysa6yhk5aq7/);
+  assert.match(workflow, /BILLING_SANDBOX_PRO_PRICE_ID:\s*P-3A193536YV1432359NKM36QY/);
+  assert.match(workflow, /BILLING_SANDBOX_PRO_PRODUCT_ID:\s*PROD-8XE5253028560521H/);
+  assert.match(workflow, /BILLING_SANDBOX_PREMIUM_PRICE_ID:\s*P-17M39010JR353545NNKM36RA/);
+  assert.match(workflow, /BILLING_SANDBOX_PREMIUM_PRODUCT_ID:\s*PROD-8XE5253028560521H/);
+  assert.doesNotMatch(workflow, /PAYPAL_PRO_PLAN_ID/);
+  assert.doesNotMatch(workflow, /PAYPAL_PREMIUM_PLAN_ID/);
+  assert.doesNotMatch(workflow, /BILLING_CHECKOUT_RETURN_URL/);
+  assert.doesNotMatch(workflow, /BILLING_CHECKOUT_CANCEL_URL/);
 });
 
 test('scripts/deploy_hubs.cjs synchronizes billing secrets only for billing-checkout', () => {
@@ -48,7 +56,7 @@ test('scripts/deploy_hubs.cjs synchronizes billing secrets only for billing-chec
   assert.match(
     script,
     /ensureNonSecretCatalogVariable\('billing-checkout',\s*key,\s*value\)/,
-    'deploy_hubs.cjs must use ensureNonSecretCatalogVariable for Production catalog IDs',
+    'deploy_hubs.cjs must use ensureNonSecretCatalogVariable for catalog IDs',
   );
   // Verify other hubs do not receive billing secrets
   const nonBillingHubs = [
@@ -70,9 +78,28 @@ test('scripts/deploy_hubs.cjs synchronizes billing secrets only for billing-chec
   }
 });
 
-test('ensureBillingCheckoutVariables fails closed when Sandbox secret is absent', async () => {
+test('ensureBillingCheckoutVariables fails closed when BILLING_CHECKOUT_PROVIDER is absent', async () => {
   const deployHubs = require('../../scripts/deploy_hubs.cjs');
+  const originalProvider = process.env.BILLING_CHECKOUT_PROVIDER;
+  delete process.env.BILLING_CHECKOUT_PROVIDER;
+  try {
+    await assert.rejects(
+      async () => {
+        await deployHubs.ensureBillingCheckoutVariables();
+      },
+      /BILLING_CHECKOUT_PROVIDER is required to deploy billing-checkout/,
+    );
+  } finally {
+    if (originalProvider !== undefined) process.env.BILLING_CHECKOUT_PROVIDER = originalProvider;
+    else delete process.env.BILLING_CHECKOUT_PROVIDER;
+  }
+});
+
+test('ensureBillingCheckoutVariables fails closed when Sandbox secret is absent (provider=paddle)', async () => {
+  const deployHubs = require('../../scripts/deploy_hubs.cjs');
+  const originalProvider = process.env.BILLING_CHECKOUT_PROVIDER;
   const originalSandboxEnv = process.env.BILLING_SANDBOX_PADDLE_API_KEY;
+  process.env.BILLING_CHECKOUT_PROVIDER = 'paddle';
   delete process.env.BILLING_SANDBOX_PADDLE_API_KEY;
   try {
     await assert.rejects(
@@ -83,16 +110,21 @@ test('ensureBillingCheckoutVariables fails closed when Sandbox secret is absent'
       'Must fail closed with clear error message when Sandbox secret is absent',
     );
   } finally {
+    if (originalProvider !== undefined) process.env.BILLING_CHECKOUT_PROVIDER = originalProvider;
+    else delete process.env.BILLING_CHECKOUT_PROVIDER;
     if (originalSandboxEnv) process.env.BILLING_SANDBOX_PADDLE_API_KEY = originalSandboxEnv;
+    else delete process.env.BILLING_SANDBOX_PADDLE_API_KEY;
   }
 });
 
-test('ensureBillingCheckoutVariables fails closed when configured for Production and BILLING_PRODUCTION_PADDLE_API_KEY is absent', async () => {
+test('ensureBillingCheckoutVariables fails closed when configured for Production and BILLING_PRODUCTION_PADDLE_API_KEY is absent (provider=paddle)', async () => {
   const deployHubs = require('../../scripts/deploy_hubs.cjs');
+  const originalProvider = process.env.BILLING_CHECKOUT_PROVIDER;
   const originalProdKey = process.env.BILLING_PRODUCTION_PADDLE_API_KEY;
   const originalProPrice = process.env.BILLING_PRODUCTION_PRO_PRICE_ID;
   const originalSandboxKey = process.env.BILLING_SANDBOX_PADDLE_API_KEY;
 
+  process.env.BILLING_CHECKOUT_PROVIDER = 'paddle';
   process.env.BILLING_SANDBOX_PADDLE_API_KEY = 'sandbox-key-fixture';
   process.env.BILLING_PRODUCTION_PRO_PRICE_ID = 'pri_01m192gqtw1cxrkctafjcahmfe';
   delete process.env.BILLING_PRODUCTION_PADDLE_API_KEY;
@@ -106,6 +138,8 @@ test('ensureBillingCheckoutVariables fails closed when configured for Production
       'Must fail closed when Production catalog is configured but Production key is absent',
     );
   } finally {
+    if (originalProvider !== undefined) process.env.BILLING_CHECKOUT_PROVIDER = originalProvider;
+    else delete process.env.BILLING_CHECKOUT_PROVIDER;
     if (originalProdKey !== undefined) process.env.BILLING_PRODUCTION_PADDLE_API_KEY = originalProdKey;
     else delete process.env.BILLING_PRODUCTION_PADDLE_API_KEY;
     if (originalProPrice !== undefined) process.env.BILLING_PRODUCTION_PRO_PRICE_ID = originalProPrice;

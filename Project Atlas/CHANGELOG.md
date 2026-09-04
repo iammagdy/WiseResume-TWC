@@ -1,5 +1,24 @@
 # WiseResume Atlas Master Changelog
 
+### 2026-09-04 - PayPal Sandbox Integration Phase 4: Final Corrective Safety & UI Verification Pass
+
+- **Workstream Verdict:** `PAYPAL_PHASE4_FINAL_CORRECTIVE_SAFETY_PASS_PR_READY`.
+- **Git Branch:** `feat/paypal-sandbox-phase4` (PR #287).
+- **Scope:** Addressed all 20 owner review requirements on PR #287: Sandbox QA gate isolation, deterministic request ID derivation, ambiguous post-201 persistence classification, server-derived cancellation and envelope sanitization, deployment catalog wiring, environment-specific client origin defense, attempt key idempotency, two-stage cancellation UX, neutral timeout copy, fail-closed subscription defaults, and motion-safe styling.
+- **Core Improvements & Fixes:**
+  - **P0 Sandbox QA Gate Fail-Closed (`billing-checkout`):** `assertRuntimeEnabled` strictly requires non-empty `config.qaUserId` AND `userId === config.qaUserId` in sandbox mode, returning HTTP 403 `payments_disabled` before any provider call or DB write.
+  - **P0 Deterministic Request ID (`billing-checkout`):** `providerRequestId` derived deterministically from `hash(reservation.session.session_key).slice(0, 32)`.
+  - **P0 Ambiguous Provider Error Classification (`billing-checkout`):** Added `provider.persist_complete` and `persistence_failure` to ambiguous error classifier; `store.complete` failure after PayPal 201 classifies as `uncertain` (`markUncertain`), never terminal `failed`.
+  - **Cancellation Server-Derived & Sanitized (`billing-checkout`):** Removed client `subscriptionId` parameter; resolves subscription state solely by authenticated `userId`; response envelope returns `{ status: 'success', canceled: true, message: '...' }` with provider ID stripped.
+  - **Deploy Script & Workflow Hardening (`scripts/deploy_hubs.cjs`, `deploy-appwrite-hubs.yml`):** Wired exact Sandbox catalog IDs (`P-3A193536YV1432359NKM36QY`, `P-17M39010JR353545NNKM36RA`, `PROD-8XE5253028560521H`); removed dead plan IDs/URLs; missing `BILLING_CHECKOUT_PROVIDER` strictly throws error and fails closed.
+  - **Environment-Specific Client Origin Defense (`src/lib/billingCheckout.ts`):** `getApprovedPayPalOrigins` resolves only `https://www.sandbox.paypal.com` in sandbox, only `https://www.paypal.com` in production, and `[]` (fail-closed) for unknown environments.
+  - **Client Attempt Key Idempotency (`src/lib/billingCheckout.ts`, `src/pages/SubscriptionPage.tsx`):** `getOrCreatePlanAttemptKey` and `clearPlanAttemptKey` manage attempt keys in `sessionStorage`; retry reuses key; non-retryable error, plan switch, cancel, or payment approval clears key.
+  - **Two-Stage Cancellation UX & Copy Precision (`src/pages/SubscriptionPage.tsx`):** POST accepted -> "Cancellation requested. Updating your subscription…" -> 30s polling -> confirmed; neutral copy when `provider_expires_at` is missing (stops future renewals, never claims "until the end of your billing period").
+  - **Timeout Neutral Copy (`src/pages/SubscriptionPage.tsx`):** 90s polling timeout displays "Taking Longer Than Usual", never claiming "Payment Received".
+  - **Public Fail-Closed Default (`src/pages/SubscriptionPage.tsx`):** `can_subscribe` strictly defaults to `false` when missing/undefined.
+  - **Motion-Safe Styling (`src/pages/SubscriptionPage.tsx`):** Added `motion-reduce:animate-none` across loading spinners.
+  - **Tests:** 101/101 Node tests pass (adversarial isolation, persistence ambiguity, deterministic request ID, deployment validation, webhook concurrency, and grace invariant tests); 19/19 Vitest tests pass; `tsc --noEmit` clean; `vite build` clean in 41.37s.
+
 ### 2026-09-04 - PayPal Sandbox Integration Phase 4: Full Checkout, Subscription UX, Cancellation, Premium UI
 
 - **Workstream Verdict:** `PAYPAL_PHASE4_FULL_IMPLEMENTATION_LOCAL_PASS_READY_FOR_PR`.

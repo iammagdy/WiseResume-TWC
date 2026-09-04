@@ -32,7 +32,7 @@ export type BillingCheckoutResult =
   | { ok: false; code: BillingCheckoutErrorCode; message: string; retryable: boolean };
 
 export type CancelSubscriptionResult =
-  | { ok: true; canceled: boolean; subscriptionId: string }
+  | { ok: true; canceled: boolean }
   | { ok: false; code: BillingCheckoutErrorCode; message: string };
 
 type CheckoutEnvelope = {
@@ -49,10 +49,68 @@ const RETRYABLE_CODES = new Set<BillingCheckoutErrorCode>([
   'rate_limited',
 ]);
 
+export const PAYPAL_ENVIRONMENT_ORIGINS = Object.freeze({
+  sandbox: 'https://www.sandbox.paypal.com',
+  production: 'https://www.paypal.com',
+} as const);
+
 export const APPROVED_PAYPAL_ORIGINS = Object.freeze([
   'https://www.sandbox.paypal.com',
   'https://www.paypal.com',
 ]);
+
+export function getApprovedPayPalOrigins(environment?: string): readonly string[] {
+  const env = (
+    environment ||
+    (import.meta.env.VITE_BILLING_ENVIRONMENT as string | undefined) ||
+    (import.meta.env.VITE_CHECKOUT_ENVIRONMENT as string | undefined) ||
+    (import.meta.env.DEV ? 'sandbox' : '')
+  ).trim().toLowerCase();
+
+  if (env === 'sandbox') return Object.freeze([PAYPAL_ENVIRONMENT_ORIGINS.sandbox]);
+  if (env === 'production') return Object.freeze([PAYPAL_ENVIRONMENT_ORIGINS.production]);
+  return Object.freeze([]);
+}
+
+export function isValidCheckoutUrl(urlString: string, environment?: string): boolean {
+  try {
+    const url = new URL(urlString);
+    const approved = getApprovedPayPalOrigins(environment);
+    return url.protocol === 'https:' && approved.includes(url.origin);
+  } catch {
+    return false;
+  }
+}
+
+export const BILLING_ATTEMPT_STORAGE_PREFIX = 'wr_billing_attempt_';
+
+export function getPlanAttemptStorageKey(plan: BillingCheckoutPlan): string {
+  return `${BILLING_ATTEMPT_STORAGE_PREFIX}${plan}`;
+}
+
+export function getOrCreatePlanAttemptKey(plan: BillingCheckoutPlan): string {
+  const storageKey = getPlanAttemptStorageKey(plan);
+  try {
+    const existing = sessionStorage.getItem(storageKey);
+    if (existing && /^[A-Za-z0-9._:-]{1,128}$/.test(existing)) return existing;
+    const newKey = makeIdempotencyKey();
+    sessionStorage.setItem(storageKey, newKey);
+    return newKey;
+  } catch {
+    return makeIdempotencyKey();
+  }
+}
+
+export function clearPlanAttemptKey(plan?: BillingCheckoutPlan): void {
+  try {
+    if (plan) {
+      sessionStorage.removeItem(getPlanAttemptStorageKey(plan));
+    } else {
+      sessionStorage.removeItem(getPlanAttemptStorageKey('pro'));
+      sessionStorage.removeItem(getPlanAttemptStorageKey('premium'));
+    }
+  } catch {}
+}
 
 function normalizeErrorCode(value: unknown): BillingCheckoutErrorCode {
   const code = typeof value === 'string' ? value : '';
@@ -95,27 +153,22 @@ function makeIdempotencyKey(): string {
   return `web-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
 }
 
-function isSafeSession(value: unknown): value is BillingCheckoutSession {
+function isSafeSession(value: unknown, environment?: string): value is BillingCheckoutSession {
   if (!value || typeof value !== 'object') return false;
   const session = value as Partial<BillingCheckoutSession>;
   if (!session.session_reference || !session.expires_at || !session.plan || session.state !== 'created_or_reused') return false;
   if (session.plan !== 'pro' && session.plan !== 'premium') return false;
   if (session.checkout_url !== undefined) {
-    try {
-      const url = new URL(session.checkout_url);
-      if (url.protocol !== 'https:' || !APPROVED_PAYPAL_ORIGINS.includes(url.origin)) return false;
-    } catch {
-      return false;
-    }
+    if (!isValidCheckoutUrl(session.checkout_url, environment)) return false;
   }
   return true;
 }
 
 export async function createBillingCheckoutSession(
   plan: BillingCheckoutPlan,
-  options: { idempotencyKey?: string } = {},
+  options: { idempotencyKey?: string; environment?: string } = {},
 ): Promise<BillingCheckoutResult> {
-  const idempotencyKey = options.idempotencyKey ?? makeIdempotencyKey();
+  const idempotencyKey = options.idempotencyKey ?? getOrCreatePlanAttemptKey(plan);
   const result = await appwriteFunctions.invoke<CheckoutEnvelope>('billing-checkout', {
     body: {
       action: 'create-session',
@@ -135,7 +188,7 @@ export async function createBillingCheckoutSession(
   }
 
   const envelope = result.data;
-  if (!envelope || envelope.status !== 'success' || !isSafeSession(envelope.data)) {
+  if (!envelope || envelope.status !== 'success' || !isSafeSession(envelope.data, options.environment)) {
     return {
       ok: false,
       code: 'unknown',
@@ -149,18 +202,15 @@ export async function createBillingCheckoutSession(
 
 export async function cancelBillingSubscription(options: {
   reason?: string;
-  subscriptionId?: string;
 } = {}): Promise<CancelSubscriptionResult> {
   const result = await appwriteFunctions.invoke<{
     status?: string;
     canceled?: boolean;
-    subscription_id?: string;
     error?: string;
     message?: string;
   }>('billing-checkout', {
     body: {
       action: 'cancel-subscription',
-      subscription_id: options.subscriptionId,
       reason: options.reason,
     },
   });
@@ -186,16 +236,14 @@ export async function cancelBillingSubscription(options: {
   return {
     ok: true,
     canceled: true,
-    subscriptionId: envelope.subscription_id || options.subscriptionId || '',
   };
 }
 
-export function openServerCheckout(session: BillingCheckoutSession): boolean {
+export function openServerCheckout(session: BillingCheckoutSession, environment?: string): boolean {
   if (!session.checkout_url) return false;
+  if (!isValidCheckoutUrl(session.checkout_url, environment)) return false;
   try {
-    const url = new URL(session.checkout_url);
-    if (url.protocol !== 'https:' || !APPROVED_PAYPAL_ORIGINS.includes(url.origin)) return false;
-    window.location.assign(url.toString());
+    window.location.assign(session.checkout_url);
     return true;
   } catch {
     return false;
@@ -205,7 +253,13 @@ export function openServerCheckout(session: BillingCheckoutSession): boolean {
 export const billingCheckoutTestHelpers = {
   fallbackMessage,
   isSafeSession,
+  isValidCheckoutUrl,
+  getApprovedPayPalOrigins,
   makeIdempotencyKey,
   normalizeErrorCode,
   APPROVED_PAYPAL_ORIGINS,
+  PAYPAL_ENVIRONMENT_ORIGINS,
+  getOrCreatePlanAttemptKey,
+  clearPlanAttemptKey,
+  getPlanAttemptStorageKey,
 };

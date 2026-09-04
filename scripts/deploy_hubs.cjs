@@ -882,10 +882,11 @@ async function ensureBillingCheckoutVariables() {
         ''
     ).trim().toLowerCase();
 
-    const provider = rawProvider || (process.env.PAYPAL_CLIENT_ID ? 'paypal' : 'paddle');
-    if (provider) {
-        await ensureVariable('billing-checkout', 'BILLING_CHECKOUT_PROVIDER', provider);
+    if (!rawProvider) {
+        throw new Error('BILLING_CHECKOUT_PROVIDER is required to deploy billing-checkout');
     }
+    const provider = rawProvider;
+    await ensureVariable('billing-checkout', 'BILLING_CHECKOUT_PROVIDER', provider);
 
     if (provider === 'paypal') {
         const accessEnv = (
@@ -903,53 +904,38 @@ async function ensureBillingCheckoutVariables() {
             await existingVariableValue('billing-checkout', 'PAYPAL_CLIENT_SECRET');
         if (clientSecret) await ensureVariable('billing-checkout', 'PAYPAL_CLIENT_SECRET', clientSecret);
 
-        const proPlanId = process.env.PAYPAL_PRO_PLAN_ID ||
-            await existingVariableValue('billing-checkout', 'PAYPAL_PRO_PLAN_ID');
-        if (proPlanId) await ensureVariable('billing-checkout', 'PAYPAL_PRO_PLAN_ID', proPlanId);
-
-        const premiumPlanId = process.env.PAYPAL_PREMIUM_PLAN_ID ||
-            await existingVariableValue('billing-checkout', 'PAYPAL_PREMIUM_PLAN_ID');
-        if (premiumPlanId) await ensureVariable('billing-checkout', 'PAYPAL_PREMIUM_PLAN_ID', premiumPlanId);
-
         const qaUserId = process.env.BILLING_CHECKOUT_QA_USER_ID ||
             await existingVariableValue('billing-checkout', 'BILLING_CHECKOUT_QA_USER_ID');
         if (qaUserId) await ensureVariable('billing-checkout', 'BILLING_CHECKOUT_QA_USER_ID', qaUserId);
-
-        const returnUrl = process.env.BILLING_CHECKOUT_RETURN_URL ||
-            await existingVariableValue('billing-checkout', 'BILLING_CHECKOUT_RETURN_URL') ||
-            'https://wiseresume.app/subscription?billing=success';
-        await ensureVariable('billing-checkout', 'BILLING_CHECKOUT_RETURN_URL', returnUrl);
-
-        const cancelUrl = process.env.BILLING_CHECKOUT_CANCEL_URL ||
-            await existingVariableValue('billing-checkout', 'BILLING_CHECKOUT_CANCEL_URL') ||
-            'https://wiseresume.app/subscription?billing=canceled';
-        await ensureVariable('billing-checkout', 'BILLING_CHECKOUT_CANCEL_URL', cancelUrl);
-    }
-
-    const sandboxPaddleKey = process.env.BILLING_SANDBOX_PADDLE_API_KEY ||
-        await existingVariableValue('billing-checkout', 'BILLING_SANDBOX_PADDLE_API_KEY');
-    if (!sandboxPaddleKey) {
-        if (provider !== 'paypal') {
+    } else if (provider === 'paddle') {
+        const sandboxPaddleKey = process.env.BILLING_SANDBOX_PADDLE_API_KEY ||
+            await existingVariableValue('billing-checkout', 'BILLING_SANDBOX_PADDLE_API_KEY');
+        if (!sandboxPaddleKey) {
             throw new Error('BILLING_SANDBOX_PADDLE_API_KEY is required to deploy billing-checkout');
         }
-    } else {
         await ensureVariable('billing-checkout', 'BILLING_SANDBOX_PADDLE_API_KEY', sandboxPaddleKey);
+
+        const productionConfigured = await isProductionBillingConfigured();
+        const productionPaddleKey = process.env.BILLING_PRODUCTION_PADDLE_API_KEY ||
+            await existingVariableValue('billing-checkout', 'BILLING_PRODUCTION_PADDLE_API_KEY');
+
+        if (productionConfigured && !productionPaddleKey) {
+            throw new Error('BILLING_PRODUCTION_PADDLE_API_KEY is required to deploy billing-checkout when configured for Production');
+        }
+
+        if (productionPaddleKey) {
+            await ensureVariable('billing-checkout', 'BILLING_PRODUCTION_PADDLE_API_KEY', productionPaddleKey);
+        }
+    } else {
+        throw new Error(`Unsupported BILLING_CHECKOUT_PROVIDER: "${provider}"`);
     }
 
-    const productionConfigured = await isProductionBillingConfigured();
-    const productionPaddleKey = process.env.BILLING_PRODUCTION_PADDLE_API_KEY ||
-        await existingVariableValue('billing-checkout', 'BILLING_PRODUCTION_PADDLE_API_KEY');
-
-    if (productionConfigured && !productionPaddleKey && provider !== 'paypal') {
-        throw new Error('BILLING_PRODUCTION_PADDLE_API_KEY is required to deploy billing-checkout when configured for Production');
-    }
-
-    if (productionPaddleKey) {
-        await ensureVariable('billing-checkout', 'BILLING_PRODUCTION_PADDLE_API_KEY', productionPaddleKey);
-    }
-
-    // Sync Production catalog IDs (strict non-secret helper with explicit secret=false and readback).
+    // Sync Sandbox & Production catalog IDs (strict non-secret helper with explicit secret=false and readback).
     for (const [key, value] of [
+        ['BILLING_SANDBOX_PRO_PRICE_ID', process.env.BILLING_SANDBOX_PRO_PRICE_ID || 'P-3A193536YV1432359NKM36QY'],
+        ['BILLING_SANDBOX_PRO_PRODUCT_ID', process.env.BILLING_SANDBOX_PRO_PRODUCT_ID || 'PROD-8XE5253028560521H'],
+        ['BILLING_SANDBOX_PREMIUM_PRICE_ID', process.env.BILLING_SANDBOX_PREMIUM_PRICE_ID || 'P-17M39010JR353545NNKM36RA'],
+        ['BILLING_SANDBOX_PREMIUM_PRODUCT_ID', process.env.BILLING_SANDBOX_PREMIUM_PRODUCT_ID || 'PROD-8XE5253028560521H'],
         ['BILLING_PRODUCTION_PRO_PRICE_ID', process.env.BILLING_PRODUCTION_PRO_PRICE_ID],
         ['BILLING_PRODUCTION_PRO_PRODUCT_ID', process.env.BILLING_PRODUCTION_PRO_PRODUCT_ID],
         ['BILLING_PRODUCTION_PREMIUM_PRICE_ID', process.env.BILLING_PRODUCTION_PREMIUM_PRICE_ID],
@@ -1235,19 +1221,41 @@ async function run() {
     }
 
     if (hubsToDeploy.some(hub => hub.id === 'billing-checkout')) {
-        const sandboxPaddleKey = process.env.BILLING_SANDBOX_PADDLE_API_KEY ||
-            await existingVariableValue('billing-checkout', 'BILLING_SANDBOX_PADDLE_API_KEY');
-        if (!sandboxPaddleKey) {
-            throw new Error('BILLING_SANDBOX_PADDLE_API_KEY is required before deploying billing-checkout');
+        const provider = (
+            process.env.BILLING_CHECKOUT_PROVIDER ||
+            await existingVariableValue('billing-checkout', 'BILLING_CHECKOUT_PROVIDER') ||
+            ''
+        ).trim().toLowerCase();
+
+        if (!provider) {
+            throw new Error('BILLING_CHECKOUT_PROVIDER is required before deploying billing-checkout');
         }
 
-        const productionConfigured = await isProductionBillingConfigured();
-        if (productionConfigured) {
-            const productionPaddleKey = process.env.BILLING_PRODUCTION_PADDLE_API_KEY ||
-                await existingVariableValue('billing-checkout', 'BILLING_PRODUCTION_PADDLE_API_KEY');
-            if (!productionPaddleKey) {
-                throw new Error('BILLING_PRODUCTION_PADDLE_API_KEY is required before deploying billing-checkout when configured for Production');
+        if (provider === 'paypal') {
+            const clientId = process.env.PAYPAL_CLIENT_ID ||
+                await existingVariableValue('billing-checkout', 'PAYPAL_CLIENT_ID');
+            const clientSecret = process.env.PAYPAL_CLIENT_SECRET ||
+                await existingVariableValue('billing-checkout', 'PAYPAL_CLIENT_SECRET');
+            if (!clientId || !clientSecret) {
+                throw new Error('PAYPAL_CLIENT_ID and PAYPAL_CLIENT_SECRET are required before deploying billing-checkout with provider=paypal');
             }
+        } else if (provider === 'paddle') {
+            const sandboxPaddleKey = process.env.BILLING_SANDBOX_PADDLE_API_KEY ||
+                await existingVariableValue('billing-checkout', 'BILLING_SANDBOX_PADDLE_API_KEY');
+            if (!sandboxPaddleKey) {
+                throw new Error('BILLING_SANDBOX_PADDLE_API_KEY is required before deploying billing-checkout');
+            }
+
+            const productionConfigured = await isProductionBillingConfigured();
+            if (productionConfigured) {
+                const productionPaddleKey = process.env.BILLING_PRODUCTION_PADDLE_API_KEY ||
+                    await existingVariableValue('billing-checkout', 'BILLING_PRODUCTION_PADDLE_API_KEY');
+                if (!productionPaddleKey) {
+                    throw new Error('BILLING_PRODUCTION_PADDLE_API_KEY is required before deploying billing-checkout when configured for Production');
+                }
+            }
+        } else {
+            throw new Error(`Unsupported BILLING_CHECKOUT_PROVIDER: "${provider}"`);
         }
     }
 

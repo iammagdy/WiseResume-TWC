@@ -184,10 +184,10 @@ jobs:
           PAYPAL_WEBHOOK_ID: ${{ secrets.PAYPAL_SANDBOX_WEBHOOK_ID || vars.PAYPAL_SANDBOX_WEBHOOK_ID }}
           BILLING_CHECKOUT_QA_USER_ID: ${{ secrets.BILLING_CHECKOUT_QA_USER_ID || vars.BILLING_CHECKOUT_QA_USER_ID }}
           BILLING_CHECKOUT_PROVIDER: ${{ secrets.BILLING_CHECKOUT_PROVIDER || vars.BILLING_CHECKOUT_PROVIDER || 'paypal' }}
-          PAYPAL_PRO_PLAN_ID: ${{ secrets.PAYPAL_PRO_PLAN_ID || vars.PAYPAL_PRO_PLAN_ID }}
-          PAYPAL_PREMIUM_PLAN_ID: ${{ secrets.PAYPAL_PREMIUM_PLAN_ID || vars.PAYPAL_PREMIUM_PLAN_ID }}
-          BILLING_CHECKOUT_RETURN_URL: https://wiseresume.app/subscription?billing=success
-          BILLING_CHECKOUT_CANCEL_URL: https://wiseresume.app/subscription?billing=canceled
+          BILLING_SANDBOX_PRO_PRICE_ID: P-3A193536YV1432359NKM36QY
+          BILLING_SANDBOX_PRO_PRODUCT_ID: PROD-8XE5253028560521H
+          BILLING_SANDBOX_PREMIUM_PRICE_ID: P-17M39010JR353545NNKM36RA
+          BILLING_SANDBOX_PREMIUM_PRODUCT_ID: PROD-8XE5253028560521H
           HUB_TARGET: ${{ steps.targets.outputs.targets_csv }}
         run: node scripts/deploy_hubs.cjs --only="${HUB_TARGET}"
 

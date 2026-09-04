@@ -125,7 +125,9 @@ function isAmbiguousProviderError(error) {
   const diagnostic = providerDiagnostic(error);
   if (!diagnostic) return false;
   if (diagnostic.stage === 'provider.transport') return true;
+  if (diagnostic.stage === 'provider.persist_complete') return true;
   if (diagnostic.category === 'transport_failure') return true;
+  if (diagnostic.category === 'persistence_failure') return true;
   if (diagnostic.category === 'provider_upstream_error') return true;
   if (diagnostic.category === 'provider_rate_limited') return true;
   if (Number.isInteger(diagnostic.status) && diagnostic.status >= 500 && diagnostic.status <= 599) return true;
@@ -199,13 +201,8 @@ function validateRequest(body) {
     if (Object.keys(logicalBody).some(key => !allowedKeys.has(key))) {
       fail('invalid_request', 400, 'Invalid checkout request.');
     }
-    const subscriptionId = asString(logicalBody.subscription_id || logicalBody.subscriptionId).trim();
-    if (subscriptionId && (!subscriptionId.startsWith('I-') || subscriptionId.length > 128)) {
-      fail('invalid_request', 400, 'Invalid subscription ID for cancellation.');
-    }
     return {
       action: 'cancel-subscription',
-      subscriptionId: subscriptionId || null,
       reason: asString(logicalBody.reason).slice(0, 128),
     };
   }
@@ -301,9 +298,9 @@ function assertRuntimeEnabled(config, plan, userId) {
   }
   if (!config.providerReady) fail('payments_disabled', 403, 'Checkout is not available.');
 
-  // Sandbox QA gate: restrict checkout creation to configured QA user when present
-  if (config.environment === 'sandbox' && config.qaUserId) {
-    if (userId !== config.qaUserId) {
+  // Sandbox QA gate: restrict checkout creation to configured QA user; missing QA user ID or non-matching user fails closed
+  if (config.environment === 'sandbox') {
+    if (!config.qaUserId || userId !== config.qaUserId) {
       fail('payments_disabled', 403, 'Checkout is not available.');
     }
   }
@@ -985,7 +982,7 @@ class BillingCheckoutService {
     };
     const reservation = await this.store.reserve(sessionInput);
     if (reservation.outcome === 'reused') return publicSessionResponse(reservation.session, null);
-    const providerRequestId = `wr_sub_${hash(sessionKey).slice(0, 32)}`;
+    const providerRequestId = `wr_sub_${hash(reservation.session.session_key).slice(0, 32)}`;
     const providerInput = {
       environment: this.config.environment,
       plan,
@@ -1022,33 +1019,37 @@ class BillingCheckoutService {
     }
   }
 
-  async cancel({ userId, subscriptionId, reason }) {
+  async cancel({ userId, reason }) {
     if (!userId) fail('unauthorized', 401, 'Authentication is required.');
-    let targetSubId = subscriptionId ? asString(subscriptionId).trim() : '';
+    let targetSubId = '';
     if (typeof this.store.findOptional === 'function') {
       const [sub, paypalState] = await Promise.all([
         this.store.findOptional('subscriptions', userId),
         this.store.findOptional('paypal_subscription_state', userId),
       ]);
-      const availableSubId = paypalState?.subscription_id || sub?.subscription_id || '';
-      if (!targetSubId) {
-        targetSubId = availableSubId;
-      }
-      const matchesUser = (paypalState?.subscription_id === targetSubId) || (sub?.subscription_id === targetSubId);
-      if (!matchesUser || !targetSubId) {
-        fail('not_found', 404, 'Subscription not found.');
+      if (paypalState && (!paypalState.user_id || paypalState.user_id === userId)) {
+        targetSubId = paypalState.subscription_id || '';
+      } else if (sub && (!sub.user_id || sub.user_id === userId)) {
+        targetSubId = sub.subscription_id || '';
       }
     }
-    if (!targetSubId) fail('bad_request', 400, 'Subscription ID is required.');
+    if (!targetSubId) {
+      fail('not_found', 404, 'No active subscription found to cancel.');
+    }
     if (typeof this.provider.cancelSubscription !== 'function') {
       fail('configuration_error', 500, 'Cancellation is not supported by current checkout provider.');
     }
-    return await this.provider.cancelSubscription({
+    await this.provider.cancelSubscription({
       subscriptionId: targetSubId,
       reason,
       environment: this.config.environment,
       userId,
     });
+    return {
+      status: 'success',
+      canceled: true,
+      message: 'Cancellation request accepted.',
+    };
   }
 }
 
@@ -1101,7 +1102,6 @@ async function handleBillingCheckout({ req, res, error }, dependencies = {}) {
     if (request.action === 'cancel-subscription') {
       const response = await service.cancel({
         userId: user.$id,
-        subscriptionId: request.subscriptionId,
         reason: request.reason,
       });
       return res.json(response, 200);
