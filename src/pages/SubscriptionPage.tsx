@@ -199,23 +199,33 @@ export default function SubscriptionPage() {
 
     if (!hasApprovalParams) return;
 
+    const rawPending = sessionStorage.getItem('billing_pending_plan');
+    const pendingPlan = rawPending === 'pro' || rawPending === 'premium' ? rawPending : null;
+
+    if (!pendingPlan) {
+      // Stale or unverified return without an active checkout attempt in this session
+      try {
+        window.history.replaceState({}, document.title, window.location.pathname);
+      } catch {}
+      void refetchMe();
+      setCheckoutStatus('idle');
+      return;
+    }
+
+    setCheckoutPlan(pendingPlan);
     setCheckoutStatus('confirming');
     setCheckoutMessage(t('app.aiStudio.subscriptionPage.checkoutConfirming', 'Confirming your subscription…'));
-
-    const pendingPlan = sessionStorage.getItem('billing_pending_plan');
-    if (pendingPlan === 'pro' || pendingPlan === 'premium') setCheckoutPlan(pendingPlan);
 
     let isMounted = true;
     const checkStatus = async () => {
       const result = await refetchMe();
       if (!isMounted) return false;
       const resolved = String(result.data?.subscription?.effective_plan ?? '').toLowerCase();
-      const isPaidPlan = resolved === 'pro' || resolved === 'premium';
       const targetReached = pendingPlan === 'premium'
         ? resolved === 'premium'
         : pendingPlan === 'pro'
-          ? isPaidPlan
-          : isPaidPlan;
+          ? resolved === 'pro' || resolved === 'premium'
+          : false;
 
       if (targetReached) {
         clearPlanAttemptKey();
@@ -302,7 +312,7 @@ export default function SubscriptionPage() {
 
     const initialRes = await refetchMe();
     const initialSub = initialRes?.data?.subscription;
-    if (initialSub?.will_renew === false || (initialSub && initialSub.can_cancel_subscription === false && initialSub.will_renew !== true)) {
+    if (initialSub?.will_renew === false) {
       const expiry = initialSub?.provider_expires_at || initialSub?.expires_at || providerExpiresAt || effectiveExpiresAt;
       const expiryFormatted = formatDate(expiry);
       const successText = expiryFormatted
@@ -317,7 +327,7 @@ export default function SubscriptionPage() {
     cancelPollTimerRef.current = window.setInterval(async () => {
       const res = await refetchMe();
       const sub = res?.data?.subscription;
-      const isSettled = sub?.will_renew === false || (sub && sub.can_cancel_subscription === false && sub.will_renew !== true);
+      const isSettled = sub?.will_renew === false;
       if (isSettled) {
         if (cancelPollTimerRef.current !== null) {
           window.clearInterval(cancelPollTimerRef.current);

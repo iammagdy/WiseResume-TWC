@@ -1,12 +1,12 @@
 # Project Atlas — Active Operational & Handover State
 
 **Last Verified:** 2026-09-04
-**Status:** `PAYPAL_PHASE4_FINAL_SAFETY_AND_BROWSER_PASS_READY_TO_MERGE` (Branch: `feat/paypal-sandbox-phase4`, PR: #287, Target: `main`) — Phase 4 final pre-merge safety gate and contract hardening pass complete: (1) Cancellation provider-ID exclusivity eliminates legacy fallback and enforces strict preflight validation with zero calls on failure. (2) Cancel request strictly rejects client subscription IDs and injection keys. (3) Invalid/missing environment configuration fails closed without sandbox fallback. (4) Cancellation polling timeout transitions to delayed state, never fakes confirmed. (5) can_subscribe strictly validates full 6-point runtime readiness contract. (6) Coupons deployment contract receives availability variables. (7) Global billing state restored to fail-closed internal configuration model. (8) Adversarial idempotency tests prove persisted uncertain key preservation and post-201 recovery. (9) Headless Chromium browser automation completed 30/30 assertions across 5 viewports and locales. (10) Deployment scripts synchronize catalog only in PayPal path and document Production PayPal catalog as OWNER_ACTION_REQUIRED / NOT CONFIGURED. 139 Node hub tests pass; 14 SubscriptionPage Vitest tests pass; 7 billingCheckout Vitest tests pass; tsc and vite build pass cleanly.
+**Status:** `PAYPAL_PHASE4_CODE_COMPLETE_READY_FOR_OWNER_MERGE_APPROVAL` (Branch: `feat/paypal-sandbox-phase4`, PR: #287, Target: `main`) — Phase 4 final micro-fix pass complete: (1) Derived frontend PayPal environment contract from canonical `VITE_BILLING_PUBLIC_MODE` with strict deterministic precedence and zero sandbox/live overlap. (2) Required explicit authoritative `will_renew === false` for cancellation confirmation in `SubscriptionPage.tsx` (null/undefined/legacy metadata never confirms; transitions to delayed after 30s timeout). (3) Required known local checkout attempt (`billing_pending_plan === 'pro' | 'premium'`) AND matching backend tier before showing `Payment Approved` (unverified return cleans URL and stays idle). (4) Cleaned PR body and Atlas documentation to accurately reflect on-demand OAuth client credentials token acquisition without false caching claims. 139 Node tests pass; 33 Vitest tests pass; browser QA automation verified 14 scenarios; tsc and vite build pass cleanly.
 **Location:** `Project Atlas/WHERE_WE_STOPPED.md`
 
-## PayPal Sandbox Integration Phase 4 (Final Pre-Merge Safety Gate Complete) — 2026-09-04
+## PayPal Sandbox Integration Phase 4 (Final Micro-Fix Pass Complete) — 2026-09-04
 
-* **Workstream Verdict:** `PAYPAL_PHASE4_FINAL_SAFETY_AND_BROWSER_PASS_READY_TO_MERGE`.
+* **Workstream Verdict:** `PAYPAL_PHASE4_CODE_COMPLETE_READY_FOR_OWNER_MERGE_APPROVAL`.
 * **Git Branch:** `feat/paypal-sandbox-phase4` (branched from clean `main` at `a64e8ca7822e7c407fd016bfbbfad6a7442d4528`).
 * **Commit Status:** **PENDING FINAL SCOPED CORRECTIVE COMMIT**.
 * **Push Status:** **PENDING PUSH TO ORIGIN**.
@@ -23,7 +23,7 @@
      - Created `tests/hubs/coupons-subscription.test.cjs`: 12/12 passing test cases covering active renewal, canceled renewal, billing issue grace, and non-provider subscriptions.
   2. **Sub-Phase P4-B: Billing-Checkout Hub (`billing-checkout`):**
      - Updated `appwrite-hubs/billing-checkout/src/main.js`:
-       - Integrated `PayPalSubscriptionProvider` with client-credentials OAuth token acquisition and 60-second early expiry cache margin.
+       - Integrated `PayPalSubscriptionProvider` with client-credentials OAuth token acquisition (fetched on-demand per request using HTTP Basic client credentials).
        - Implemented `createCheckout` issuing deterministic `PayPal-Request-Id: wr_sub_<hash>` and validating approval URL strictly against `PAYPAL_APPROVED_ORIGINS` (`https://www.sandbox.paypal.com`, `https://www.paypal.com`).
        - Implemented `cancelSubscription` calling PayPal `POST /v1/billing/subscriptions/{id}/cancel` with HTTP 204 handler and idempotent fallback checking `GET /v1/billing/subscriptions/{id}` on HTTP 400/422 to verify already-cancelled state.
        - Routed `action === 'cancel-subscription'` in `handleBillingCheckout`, verifying subscription ownership against the authenticated user's `paypal_subscription_state` before calling provider cancellation.

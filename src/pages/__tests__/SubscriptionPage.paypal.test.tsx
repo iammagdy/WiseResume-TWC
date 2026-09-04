@@ -477,6 +477,7 @@ describe('SubscriptionPage PayPal Lifecycle & Cancellation', () => {
 
   it('displays neutral copy on checkout polling timeout without false claim of payment received', async () => {
     vi.useFakeTimers();
+    sessionStorage.setItem('billing_pending_plan', 'pro');
     mockLocation.search = '?billing=success';
 
     // refetch never changes plan to simulate timeout
@@ -664,5 +665,364 @@ describe('SubscriptionPage PayPal Lifecycle & Cancellation', () => {
     expect(screen.getByText(/your subscription has been canceled. you retain full access until/i)).toBeInTheDocument();
 
     vi.useRealTimers();
+  });
+
+  describe('Cancellation confirmation authority (Issue 2)', () => {
+    const setupProSubscription = () => {
+      vi.mocked(useMe).mockReturnValue({
+        data: {
+          subscription: {
+            plan: 'pro',
+            effective_plan: 'pro',
+            status: 'active',
+            can_subscribe: true,
+            can_cancel_subscription: true,
+            provider_source: 'paypal',
+            provider_status: 'active',
+            provider_expires_at: '2026-10-15T00:00:00Z',
+            expires_at: '2026-10-15T00:00:00Z',
+            will_renew: true,
+          },
+        },
+        refetch: mockRefetchMe,
+      } as unknown as ReturnType<typeof useMe>);
+
+      vi.mocked(usePlan).mockReturnValue({
+        plan: 'pro',
+        isPro: true,
+        isPremium: false,
+        isLoading: false,
+      } as unknown as ReturnType<typeof usePlan>);
+
+      vi.mocked(cancelBillingSubscription).mockResolvedValue({
+        ok: true,
+        canceled: true,
+      });
+    };
+
+    it('confirms cancellation immediately when initial refetch returns will_renew === false (A)', async () => {
+      setupProSubscription();
+      mockRefetchMe.mockResolvedValueOnce({
+        data: {
+          subscription: {
+            plan: 'pro',
+            effective_plan: 'pro',
+            status: 'active',
+            can_subscribe: true,
+            can_cancel_subscription: false,
+            provider_source: 'paypal',
+            provider_status: 'active',
+            provider_expires_at: '2026-10-15T00:00:00Z',
+            expires_at: '2026-10-15T00:00:00Z',
+            will_renew: false,
+          },
+        },
+      });
+
+      renderWithProviders(<SubscriptionPage />);
+      fireEvent.click(screen.getByRole('button', { name: /cancel subscription/i }));
+      fireEvent.click(screen.getByRole('button', { name: /confirm cancellation/i }));
+
+      await waitFor(() => {
+        expect(screen.getByText('Subscription Canceled')).toBeInTheDocument();
+      });
+    });
+
+    it('does NOT confirm when can_cancel_subscription === false with will_renew === null, transitioning to delayed after 30s (B, F)', async () => {
+      vi.useFakeTimers();
+      setupProSubscription();
+      mockRefetchMe.mockResolvedValue({
+        data: {
+          subscription: {
+            plan: 'pro',
+            effective_plan: 'pro',
+            status: 'active',
+            can_subscribe: true,
+            can_cancel_subscription: false,
+            provider_source: 'paypal',
+            provider_status: 'active',
+            provider_expires_at: '2026-10-15T00:00:00Z',
+            expires_at: '2026-10-15T00:00:00Z',
+            will_renew: null,
+          },
+        },
+      });
+
+      renderWithProviders(<SubscriptionPage />);
+      fireEvent.click(screen.getByRole('button', { name: /cancel subscription/i }));
+      fireEvent.click(screen.getByRole('button', { name: /confirm cancellation/i }));
+
+      // Immediately after click, must be in updating/canceling, NOT confirmed
+      expect(screen.queryByText('Subscription Canceled')).not.toBeInTheDocument();
+
+      // Advance past 30-second timeout
+      await vi.advanceTimersByTimeAsync(35_000);
+
+      expect(screen.getByText('Cancellation Status Updating')).toBeInTheDocument();
+      expect(screen.queryByText('Subscription Canceled')).not.toBeInTheDocument();
+
+      vi.useRealTimers();
+    });
+
+    it('does NOT confirm when can_cancel_subscription === false with will_renew === undefined (C)', async () => {
+      vi.useFakeTimers();
+      setupProSubscription();
+      mockRefetchMe.mockResolvedValue({
+        data: {
+          subscription: {
+            plan: 'pro',
+            effective_plan: 'pro',
+            status: 'active',
+            can_subscribe: true,
+            can_cancel_subscription: false,
+            provider_source: 'paypal',
+            provider_status: 'active',
+            provider_expires_at: '2026-10-15T00:00:00Z',
+            expires_at: '2026-10-15T00:00:00Z',
+            will_renew: undefined,
+          },
+        },
+      });
+
+      renderWithProviders(<SubscriptionPage />);
+      fireEvent.click(screen.getByRole('button', { name: /cancel subscription/i }));
+      fireEvent.click(screen.getByRole('button', { name: /confirm cancellation/i }));
+
+      expect(screen.queryByText('Subscription Canceled')).not.toBeInTheDocument();
+      await vi.advanceTimersByTimeAsync(35_000);
+      expect(screen.getByText('Cancellation Status Updating')).toBeInTheDocument();
+      expect(screen.queryByText('Subscription Canceled')).not.toBeInTheDocument();
+
+      vi.useRealTimers();
+    });
+
+    it('does NOT confirm when subscription metadata is missing or null (D)', async () => {
+      vi.useFakeTimers();
+      setupProSubscription();
+      mockRefetchMe.mockResolvedValue({
+        data: {
+          subscription: null,
+        },
+      });
+
+      renderWithProviders(<SubscriptionPage />);
+      fireEvent.click(screen.getByRole('button', { name: /cancel subscription/i }));
+      fireEvent.click(screen.getByRole('button', { name: /confirm cancellation/i }));
+
+      expect(screen.queryByText('Subscription Canceled')).not.toBeInTheDocument();
+      await vi.advanceTimersByTimeAsync(35_000);
+      expect(screen.getByText('Cancellation Status Updating')).toBeInTheDocument();
+      expect(screen.queryByText('Subscription Canceled')).not.toBeInTheDocument();
+
+      vi.useRealTimers();
+    });
+
+    it('does NOT confirm on legacy fallback-shaped payload without explicit will_renew === false (E)', async () => {
+      vi.useFakeTimers();
+      setupProSubscription();
+      mockRefetchMe.mockResolvedValue({
+        data: {
+          subscription: {
+            plan: 'pro',
+            effective_plan: 'pro',
+            status: 'canceled',
+            can_subscribe: true,
+            can_cancel_subscription: false,
+            provider_source: 'paypal',
+            provider_status: 'CANCELLED',
+            provider_expires_at: null,
+            expires_at: null,
+            will_renew: null,
+          },
+        },
+      });
+
+      renderWithProviders(<SubscriptionPage />);
+      fireEvent.click(screen.getByRole('button', { name: /cancel subscription/i }));
+      fireEvent.click(screen.getByRole('button', { name: /confirm cancellation/i }));
+
+      expect(screen.queryByText('Subscription Canceled')).not.toBeInTheDocument();
+      await vi.advanceTimersByTimeAsync(35_000);
+      expect(screen.getByText('Cancellation Status Updating')).toBeInTheDocument();
+      expect(screen.queryByText('Subscription Canceled')).not.toBeInTheDocument();
+
+      vi.useRealTimers();
+    });
+  });
+
+  describe('Verified return approval contract (Issue 3)', () => {
+    it('does NOT show Payment Approved when returning with ?billing=pending or ?billing=success if already Pro without active session pending plan (clears query params and stays neutral) (A)', async () => {
+      const replaceStateSpy = vi.spyOn(window.history, 'replaceState');
+      vi.mocked(useMe).mockReturnValue({
+        data: {
+          subscription: {
+            plan: 'pro',
+            effective_plan: 'pro',
+            status: 'active',
+            can_subscribe: true,
+            can_cancel_subscription: true,
+          },
+        },
+        refetch: mockRefetchMe,
+      } as unknown as ReturnType<typeof useMe>);
+
+      vi.mocked(usePlan).mockReturnValue({
+        plan: 'pro',
+        isPro: true,
+        isPremium: false,
+        isLoading: false,
+      } as unknown as ReturnType<typeof usePlan>);
+
+      mockLocation.search = '?billing=pending';
+
+      renderWithProviders(<SubscriptionPage />, { initialPath: '/subscription?billing=pending' });
+
+      expect(screen.queryByText(/payment approved/i)).not.toBeInTheDocument();
+      expect(replaceStateSpy).toHaveBeenCalledWith({}, expect.any(String), expect.any(String));
+      replaceStateSpy.mockRestore();
+    });
+
+    it('does NOT show Payment Approved when returning with ?billing=pending if already Ultimate without active session pending plan (B)', async () => {
+      const replaceStateSpy = vi.spyOn(window.history, 'replaceState');
+      vi.mocked(useMe).mockReturnValue({
+        data: {
+          subscription: {
+            plan: 'premium',
+            effective_plan: 'premium',
+            status: 'active',
+            can_subscribe: true,
+            can_cancel_subscription: true,
+          },
+        },
+        refetch: mockRefetchMe,
+      } as unknown as ReturnType<typeof useMe>);
+
+      vi.mocked(usePlan).mockReturnValue({
+        plan: 'premium',
+        isPro: false,
+        isPremium: true,
+        isLoading: false,
+      } as unknown as ReturnType<typeof usePlan>);
+
+      mockLocation.search = '?billing=pending';
+
+      renderWithProviders(<SubscriptionPage />, { initialPath: '/subscription?billing=pending' });
+
+      expect(screen.queryByText(/payment approved/i)).not.toBeInTheDocument();
+      expect(replaceStateSpy).toHaveBeenCalled();
+      replaceStateSpy.mockRestore();
+    });
+
+    it('shows Payment Approved when user attempts Pro and backend reports Pro (C)', async () => {
+      sessionStorage.setItem('billing_pending_plan', 'pro');
+      mockLocation.search = '?billing=success';
+
+      mockRefetchMe.mockResolvedValueOnce({
+        data: {
+          subscription: {
+            plan: 'pro',
+            effective_plan: 'pro',
+            status: 'active',
+            can_subscribe: true,
+            can_cancel_subscription: true,
+            provider_source: 'paypal',
+            provider_status: 'active',
+          },
+        },
+      });
+
+      renderWithProviders(<SubscriptionPage />, { initialPath: '/subscription?billing=success' });
+
+      await waitFor(() => {
+        expect(screen.getByText(/payment approved/i)).toBeInTheDocument();
+      });
+      expect(sessionStorage.getItem('billing_pending_plan')).toBeNull();
+    });
+
+    it('shows Payment Approved when user attempts Pro and backend reports Premium (D)', async () => {
+      sessionStorage.setItem('billing_pending_plan', 'pro');
+      mockLocation.search = '?billing=success';
+
+      mockRefetchMe.mockResolvedValueOnce({
+        data: {
+          subscription: {
+            plan: 'premium',
+            effective_plan: 'premium',
+            status: 'active',
+            can_subscribe: true,
+            can_cancel_subscription: true,
+            provider_source: 'paypal',
+            provider_status: 'active',
+          },
+        },
+      });
+
+      renderWithProviders(<SubscriptionPage />, { initialPath: '/subscription?billing=success' });
+
+      await waitFor(() => {
+        expect(screen.getByText(/payment approved/i)).toBeInTheDocument();
+      });
+      expect(sessionStorage.getItem('billing_pending_plan')).toBeNull();
+    });
+
+    it('does NOT show Payment Approved when user attempts Premium but backend only reports Pro (E)', async () => {
+      vi.useFakeTimers();
+      sessionStorage.setItem('billing_pending_plan', 'premium');
+      mockLocation.search = '?billing=success';
+
+      mockRefetchMe.mockResolvedValue({
+        data: {
+          subscription: {
+            plan: 'pro',
+            effective_plan: 'pro',
+            status: 'active',
+            can_subscribe: true,
+            can_cancel_subscription: true,
+            provider_source: 'paypal',
+            provider_status: 'active',
+          },
+        },
+      });
+
+      renderWithProviders(<SubscriptionPage />, { initialPath: '/subscription?billing=success' });
+
+      expect(screen.getByText(/confirming your subscription…/i)).toBeInTheDocument();
+
+      // Advance past polling timeout (95 seconds)
+      await act(async () => {
+        vi.advanceTimersByTime(95_000);
+      });
+
+      expect(screen.queryByText(/payment approved/i)).not.toBeInTheDocument();
+      expect(screen.getByText('Taking Longer Than Usual')).toBeInTheDocument();
+
+      vi.useRealTimers();
+    });
+
+    it('shows Payment Approved when user attempts Premium and backend reports Premium (F)', async () => {
+      sessionStorage.setItem('billing_pending_plan', 'premium');
+      mockLocation.search = '?billing=success';
+
+      mockRefetchMe.mockResolvedValueOnce({
+        data: {
+          subscription: {
+            plan: 'premium',
+            effective_plan: 'premium',
+            status: 'active',
+            can_subscribe: true,
+            can_cancel_subscription: true,
+            provider_source: 'paypal',
+            provider_status: 'active',
+          },
+        },
+      });
+
+      renderWithProviders(<SubscriptionPage />, { initialPath: '/subscription?billing=success' });
+
+      await waitFor(() => {
+        expect(screen.getByText(/payment approved/i)).toBeInTheDocument();
+      });
+      expect(sessionStorage.getItem('billing_pending_plan')).toBeNull();
+    });
   });
 });

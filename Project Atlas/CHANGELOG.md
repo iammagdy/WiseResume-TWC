@@ -1,5 +1,20 @@
 # WiseResume Atlas Master Changelog
 
+### 2026-09-04 - PayPal Sandbox Integration Phase 4: Final Micro-Fix Before Merge Pass
+
+- **Workstream Verdict:** `PAYPAL_PHASE4_CODE_COMPLETE_READY_FOR_OWNER_MERGE_APPROVAL`.
+- **Git Branch:** `feat/paypal-sandbox-phase4` (PR #287).
+- **Scope:** Completed the 3 final micro-fixes plus accuracy cleanup on PR #287 prior to owner merge approval:
+  1. **Frontend PayPal Environment Contract (`src/lib/billingCheckout.ts`):** Derived from canonical `VITE_BILLING_PUBLIC_MODE` with strict deterministic precedence (`sandbox` -> ONLY `https://www.sandbox.paypal.com`; `production` -> ONLY `https://www.paypal.com`; `disabled`/`unknown`/unset -> `[]` fail-closed). Explicit argument overrides env; `VITE_BILLING_PUBLIC_MODE` overrides legacy fallbacks.
+  2. **Cancellation Confirmation Authority (`src/pages/SubscriptionPage.tsx`):** Strictly requires `will_renew === false` explicitly. `can_cancel_subscription === false` with `null`, `undefined`, missing, or legacy fallback-shaped metadata never confirms; remains in updating state and transitions to `delayed` after 30s timeout.
+  3. **Verified Return Approval Contract (`src/pages/SubscriptionPage.tsx`):** Requires BOTH a known active local checkout attempt (`billing_pending_plan === 'pro' | 'premium'`) AND matching backend tier. Stale or unverified returns clean URL query parameters, refetch subscription, transition safely to idle, and never display `Payment Approved`. Attempting Premium while backend reports Pro keeps polling until timeout without false approval.
+  4. **Accuracy Cleanup:** Removed false claims of "60-second early expiry cache margin"; accurately documented on-demand client credentials OAuth token acquisition.
+- **Tests & Verification:**
+  - 139/139 Node hub tests pass (100%).
+  - 33/33 Vitest tests pass (8 billingCheckout, 25 SubscriptionPage lifecycle and cancellation authority).
+  - Headless Chromium browser QA automation verified 14 scenarios across 5 viewports/locales, including untrusted origin rejection and verified return gating.
+  - `tsc --noEmit` clean; `vite build` clean in production mode.
+
 ### 2026-09-04 - PayPal Sandbox Integration Phase 4: Final Pre-Merge Safety Gate Pass
 
 - **Workstream Verdict:** `PAYPAL_PHASE4_FINAL_SAFETY_AND_BROWSER_PASS_READY_TO_MERGE`.
@@ -45,7 +60,7 @@
   - **Coupons Hub & Authoritative Lifecycle Metadata (`appwrite-hubs/coupons`):** `getMySubscription` returns `can_subscribe` (boolean), `can_cancel_subscription` (boolean, true only for `active` or `billing_issue` with `will_renew === true`), `provider_expires_at`, `provider_source`, `provider_status`, `expires_at`, and `will_renew`.
   - **Frontend Hook Contract (`src/hooks/useMe.ts`):** `SubscriptionData` interface expanded with additive fields and null-safe legacy fallbacks.
   - **Billing-Checkout Hub (`appwrite-hubs/billing-checkout`):**
-    - `PayPalSubscriptionProvider` implemented with cached OAuth credentials (`expires_in - 60s`).
+    - `PayPalSubscriptionProvider` implemented with on-demand OAuth client credentials token acquisition.
     - `createCheckout` with deterministic `PayPal-Request-Id: wr_sub_<hash>` and approved PayPal origin validation.
     - `cancelSubscription` calling PayPal API `POST /v1/billing/subscriptions/{id}/cancel` with 204 handler and 400/422 verification fallback (`GET /v1/billing/subscriptions/{id}`).
     - Session error handling hardened: ambiguous/transient network/5xx errors mark session uncertain (`markUncertain`) instead of definitive failure (`fail`).

@@ -99,6 +99,57 @@ describe('server-owned billing checkout client', () => {
     expect(isValidCheckoutUrl('https://malicious-site.com/checkout', 'sandbox')).toBe(false);
   });
 
+  it('derives approved origins from VITE_BILLING_PUBLIC_MODE with deterministic precedence', async () => {
+    const { getApprovedPayPalOrigins, isValidCheckoutUrl } = await import('./billingCheckout');
+    const originalPublicMode = import.meta.env.VITE_BILLING_PUBLIC_MODE;
+    const originalBillingEnv = import.meta.env.VITE_BILLING_ENVIRONMENT;
+    const originalCheckoutEnv = import.meta.env.VITE_CHECKOUT_ENVIRONMENT;
+
+    try {
+      // 1. VITE_BILLING_PUBLIC_MODE=sandbox -> Sandbox allowed, Live rejected
+      import.meta.env.VITE_BILLING_PUBLIC_MODE = 'sandbox';
+      delete import.meta.env.VITE_BILLING_ENVIRONMENT;
+      delete import.meta.env.VITE_CHECKOUT_ENVIRONMENT;
+      expect(getApprovedPayPalOrigins()).toEqual(['https://www.sandbox.paypal.com']);
+      expect(isValidCheckoutUrl('https://www.sandbox.paypal.com/checkoutnow?token=BA-TEST')).toBe(true);
+      expect(isValidCheckoutUrl('https://www.paypal.com/checkoutnow?token=BA-TEST')).toBe(false);
+
+      // 2. VITE_BILLING_PUBLIC_MODE=production -> Live allowed, Sandbox rejected
+      import.meta.env.VITE_BILLING_PUBLIC_MODE = 'production';
+      expect(getApprovedPayPalOrigins()).toEqual(['https://www.paypal.com']);
+      expect(isValidCheckoutUrl('https://www.paypal.com/checkoutnow?token=BA-PROD')).toBe(true);
+      expect(isValidCheckoutUrl('https://www.sandbox.paypal.com/checkoutnow?token=BA-PROD')).toBe(false);
+
+      // 3. disabled -> both rejected
+      import.meta.env.VITE_BILLING_PUBLIC_MODE = 'disabled';
+      expect(getApprovedPayPalOrigins()).toEqual([]);
+      expect(isValidCheckoutUrl('https://www.sandbox.paypal.com/checkoutnow?token=BA-TEST')).toBe(false);
+      expect(isValidCheckoutUrl('https://www.paypal.com/checkoutnow?token=BA-PROD')).toBe(false);
+
+      // 4. unknown / empty -> both rejected
+      import.meta.env.VITE_BILLING_PUBLIC_MODE = 'unknown_env';
+      expect(getApprovedPayPalOrigins()).toEqual([]);
+      expect(isValidCheckoutUrl('https://www.sandbox.paypal.com/checkoutnow?token=BA-TEST')).toBe(false);
+      expect(isValidCheckoutUrl('https://www.paypal.com/checkoutnow?token=BA-PROD')).toBe(false);
+
+      import.meta.env.VITE_BILLING_PUBLIC_MODE = '';
+      expect(getApprovedPayPalOrigins()).toEqual([]);
+
+      // 5. Precedence: explicit argument overrides VITE_BILLING_PUBLIC_MODE
+      import.meta.env.VITE_BILLING_PUBLIC_MODE = 'production';
+      expect(getApprovedPayPalOrigins('sandbox')).toEqual(['https://www.sandbox.paypal.com']);
+
+      // 6. Precedence: VITE_BILLING_PUBLIC_MODE takes precedence over fallback VITE_BILLING_ENVIRONMENT
+      import.meta.env.VITE_BILLING_PUBLIC_MODE = 'sandbox';
+      import.meta.env.VITE_BILLING_ENVIRONMENT = 'production';
+      expect(getApprovedPayPalOrigins()).toEqual(['https://www.sandbox.paypal.com']);
+    } finally {
+      import.meta.env.VITE_BILLING_PUBLIC_MODE = originalPublicMode;
+      import.meta.env.VITE_BILLING_ENVIRONMENT = originalBillingEnv;
+      import.meta.env.VITE_CHECKOUT_ENVIRONMENT = originalCheckoutEnv;
+    }
+  });
+
   it('manages plan attempt keys in sessionStorage correctly across lifecycle', async () => {
     const { getOrCreatePlanAttemptKey, clearPlanAttemptKey, getPlanAttemptStorageKey } = await import('./billingCheckout');
 

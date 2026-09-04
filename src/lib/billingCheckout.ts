@@ -60,15 +60,24 @@ export const APPROVED_PAYPAL_ORIGINS = Object.freeze([
 ]);
 
 export function getApprovedPayPalOrigins(environment?: string): readonly string[] {
-  const env = (
-    environment ||
-    (import.meta.env.VITE_BILLING_ENVIRONMENT as string | undefined) ||
-    (import.meta.env.VITE_CHECKOUT_ENVIRONMENT as string | undefined) ||
-    (import.meta.env.DEV ? 'sandbox' : '')
-  ).trim().toLowerCase();
+  let env = environment;
 
-  if (env === 'sandbox') return Object.freeze([PAYPAL_ENVIRONMENT_ORIGINS.sandbox]);
-  if (env === 'production') return Object.freeze([PAYPAL_ENVIRONMENT_ORIGINS.production]);
+  if (typeof env === 'undefined' || env === '') {
+    if (typeof import.meta.env.VITE_BILLING_PUBLIC_MODE !== 'undefined') {
+      env = import.meta.env.VITE_BILLING_PUBLIC_MODE as string;
+    } else if (typeof import.meta.env.VITE_BILLING_ENVIRONMENT !== 'undefined') {
+      env = import.meta.env.VITE_BILLING_ENVIRONMENT as string;
+    } else if (typeof import.meta.env.VITE_CHECKOUT_ENVIRONMENT !== 'undefined') {
+      env = import.meta.env.VITE_CHECKOUT_ENVIRONMENT as string;
+    } else if (import.meta.env.DEV) {
+      env = 'sandbox';
+    }
+  }
+
+  const normalized = (env || '').trim().toLowerCase();
+
+  if (normalized === 'sandbox') return Object.freeze([PAYPAL_ENVIRONMENT_ORIGINS.sandbox]);
+  if (normalized === 'production') return Object.freeze([PAYPAL_ENVIRONMENT_ORIGINS.production]);
   return Object.freeze([]);
 }
 
