@@ -2,7 +2,7 @@
 
 const crypto = require('crypto');
 const sdk = require('node-appwrite');
-const { resolveEffectivePlan } = require('@wiseresume/subscription-resolver');
+const { resolveEffectivePlan, isFutureTimestamp } = require('@wiseresume/subscription-resolver');
 
 const DB_ID = 'main';
 const SESSION_COLLECTION = 'billing_checkout_sessions';
@@ -309,6 +309,22 @@ function assertRuntimeEnabled(config, plan, userId) {
 function normalizeEffectivePlan(value) {
   const plan = value === 'ultimate' ? 'premium' : value;
   return Object.prototype.hasOwnProperty.call(PLAN_RANK, plan) ? plan : 'free';
+}
+
+function hasActivePaypalSubscription(paypalState, userId, nowMs = Date.now()) {
+  if (!isRecord(paypalState)) return false;
+  if (!userId || asString(paypalState.user_id).trim() !== userId) return false;
+  const plan = normalizeEffectivePlan(paypalState.plan);
+  if (!['pro', 'premium'].includes(plan)) return false;
+  const status = asString(paypalState.status).trim().toLowerCase();
+  if (!['active', 'billing_issue'].includes(status)) return false;
+  if (paypalState.will_renew === true || paypalState.will_renew === null || paypalState.will_renew === undefined) {
+    return true;
+  }
+  if (paypalState.will_renew === false && isFutureTimestamp(paypalState.expires_at, nowMs)) {
+    return true;
+  }
+  return false;
 }
 
 function assertNotAlreadyEntitled(currentPlan, requestedPlan) {
@@ -912,6 +928,8 @@ class PayPalSubscriptionProvider {
         failProviderDiagnostic('provider.transport', 'transport_failure');
       }
 
+      const verifyStatus = Number(verifyResponse?.status);
+
       if (verifyResponse?.ok) {
         let subData;
         try {
@@ -922,8 +940,28 @@ class PayPalSubscriptionProvider {
         if (asString(subData?.status).toUpperCase() === 'CANCELLED') {
           return { status: 'success', canceled: true, subscription_id: cleanSubId };
         }
+        fail('cancellation_failed', 400, 'Unable to cancel subscription. Please verify your subscription status.');
       }
-      fail('cancellation_failed', 400, 'Unable to cancel subscription. Please verify your subscription status.');
+
+      if (verifyStatus === 429) {
+        failProviderDiagnostic('provider.http_response', 'provider_rate_limited', { diagnosticStatus: 429 });
+      }
+
+      if (verifyStatus >= 500 && verifyStatus <= 599) {
+        failProviderDiagnostic('provider.http_response', 'provider_upstream_error', { diagnosticStatus: verifyStatus });
+      }
+
+      if (verifyStatus === 401 || verifyStatus === 403) {
+        failProviderDiagnostic('provider.http_response', 'provider_auth_rejected', { diagnosticStatus: verifyStatus });
+      }
+
+      if (verifyStatus === 404) {
+        fail('not_found', 404, 'Subscription not found at provider.');
+      }
+
+      failProviderDiagnostic('provider.http_response', 'provider_upstream_error', {
+        diagnosticStatus: Number.isInteger(verifyStatus) && verifyStatus >= 100 && verifyStatus <= 599 ? verifyStatus : null,
+      });
     }
 
     if (response?.status === 404) {
@@ -964,10 +1002,16 @@ class BillingCheckoutService {
     if (!userId) fail('unauthorized', 401, 'Authentication is required.');
     if (!ALLOWED_PLANS.has(plan)) fail('invalid_plan', 400, 'This checkout plan is not available.');
     assertRuntimeEnabled(this.config, plan, userId);
+    const nowMs = this.now();
     const currentPlan = await this.store.getEffectivePlan(userId);
     assertNotAlreadyEntitled(currentPlan, plan);
+    if (typeof this.store.findOptional === 'function') {
+      const paypalState = await this.store.findOptional('paypal_subscription_state', userId);
+      if (hasActivePaypalSubscription(paypalState, userId, nowMs)) {
+        fail('plan_change_unavailable', 409, 'Plan changes are temporarily unavailable.');
+      }
+    }
     const catalog = this.config.catalog[plan];
-    const nowMs = this.now();
     const replayBucket = Math.floor(nowMs / IDEMPOTENCY_WINDOW_MS);
     // Explicit keys provide replay/recovery semantics. Without one, each request
     // gets a unique server-generated attempt key; the plan lock still coalesces
@@ -1167,6 +1211,7 @@ module.exports.__test = {
   providerDiagnostic,
   providerKeyVariable,
   assertNotAlreadyEntitled,
+  hasActivePaypalSubscription,
   assertRuntimeEnabled,
   buildCatalog,
   hash,

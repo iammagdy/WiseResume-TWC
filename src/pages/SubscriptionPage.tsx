@@ -263,7 +263,7 @@ export default function SubscriptionPage() {
   }, [location.search, refetchMe, t]);
 
   const beginCheckout = async (target: BillingCheckoutPlan) => {
-    if (!canSubscribe) return;
+    if (!canSubscribe || isPro || target === plan) return;
     if (checkoutPlan && checkoutPlan !== target) {
       clearPlanAttemptKey(checkoutPlan);
     }
@@ -795,22 +795,36 @@ export default function SubscriptionPage() {
                     );
                   })}
                 </div>
-                <Button
-                  className={`w-full mt-1 gap-2 font-semibold ${target === 'premium' ? 'bg-amber-500 hover:bg-amber-600 text-white' : 'bg-primary hover:bg-primary/90 text-primary-foreground'}`}
-                  disabled={!canSubscribe || checkoutStatus === 'preparing' || target === plan}
-                  onClick={() => beginCheckout(target as BillingCheckoutPlan)}
-                  data-track={`subscription-subscribe-cta-${target}`}
-                >
-                  {checkoutStatus === 'preparing' && checkoutPlan === target && (
-                    <Loader2 className="w-4 h-4 animate-spin motion-reduce:animate-none" />
-                  )}
-                  {t('app.aiStudio.subscriptionPage.subscribe', 'Subscribe')}
-                </Button>
-                {!canSubscribe && (
-                  <p className="text-xs text-muted-foreground text-center mt-1">
-                    {t('app.aiStudio.subscriptionPage.enrollmentClosed', 'Subscription enrollments are currently closed.')}
-                  </p>
-                )}
+                {(() => {
+                  const isPlanChangeBlocked = isPro && target === 'premium';
+                  const isButtonDisabled = !canSubscribe || checkoutStatus === 'preparing' || target === plan || isPlanChangeBlocked;
+
+                  return (
+                    <>
+                      <Button
+                        className={`w-full mt-1 gap-2 font-semibold ${target === 'premium' ? 'bg-amber-500 hover:bg-amber-600 text-white' : 'bg-primary hover:bg-primary/90 text-primary-foreground'}`}
+                        disabled={isButtonDisabled}
+                        aria-disabled={isButtonDisabled}
+                        onClick={() => beginCheckout(target as BillingCheckoutPlan)}
+                        data-track={`subscription-subscribe-cta-${target}`}
+                      >
+                        {checkoutStatus === 'preparing' && checkoutPlan === target && (
+                          <Loader2 className="w-4 h-4 animate-spin motion-reduce:animate-none" />
+                        )}
+                        {t('app.aiStudio.subscriptionPage.subscribe', 'Subscribe')}
+                      </Button>
+                      {isPlanChangeBlocked ? (
+                        <p className="text-xs text-muted-foreground text-center mt-1">
+                          {t('app.aiStudio.subscriptionPage.planChangesUnavailable', 'Plan changes are temporarily unavailable.')}
+                        </p>
+                      ) : !canSubscribe ? (
+                        <p className="text-xs text-muted-foreground text-center mt-1">
+                          {t('app.aiStudio.subscriptionPage.enrollmentClosed', 'Subscription enrollments are currently closed.')}
+                        </p>
+                      ) : null}
+                    </>
+                  );
+                })()}
               </CardContent>
             </Card>
           );

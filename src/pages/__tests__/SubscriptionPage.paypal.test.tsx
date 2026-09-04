@@ -1025,4 +1025,118 @@ describe('SubscriptionPage PayPal Lifecycle & Cancellation', () => {
       expect(sessionStorage.getItem('billing_pending_plan')).toBeNull();
     });
   });
+
+  describe('P0 Paid-to-Paid Upgrade Protection (Frontend)', () => {
+    it('Frontend Pro subscriber: no enabled Ultimate Subscribe CTA and displays planChangesUnavailable (Test 6)', () => {
+      vi.mocked(usePlan).mockReturnValue({
+        plan: 'pro',
+        isFree: false,
+        isPro: true,
+        isPremium: false,
+        loading: false,
+      } as any);
+
+      vi.mocked(useMe).mockReturnValue({
+        data: {
+          $id: 'user_pro',
+          subscription: {
+            plan: 'pro',
+            effective_plan: 'pro',
+            status: 'active',
+            can_subscribe: true,
+            can_cancel_subscription: true,
+            provider_source: 'paypal',
+            provider_status: 'active',
+            will_renew: true,
+          },
+        },
+        refetch: mockRefetchMe,
+      } as any);
+
+      renderWithProviders(<SubscriptionPage />);
+
+      // Ultimate card is shown
+      expect(screen.getByText(/power users/i)).toBeInTheDocument();
+
+      // Subscribe button on Ultimate card is disabled
+      const subscribeButtons = screen.getAllByRole('button', { name: /subscribe/i });
+      expect(subscribeButtons.length).toBe(1);
+      const ultimateBtn = subscribeButtons[0];
+      expect(ultimateBtn).toBeDisabled();
+
+      // Notice below button informs user without mentioning PayPal/Sandbox/QA
+      expect(screen.getByText('Plan changes are temporarily unavailable.')).toBeInTheDocument();
+    });
+
+    it('Frontend Pro subscriber cannot trigger createBillingCheckoutSession(premium) even if clicked (Test 7)', async () => {
+      vi.mocked(usePlan).mockReturnValue({
+        plan: 'pro',
+        isFree: false,
+        isPro: true,
+        isPremium: false,
+        loading: false,
+      } as any);
+
+      vi.mocked(useMe).mockReturnValue({
+        data: {
+          $id: 'user_pro',
+          subscription: {
+            plan: 'pro',
+            effective_plan: 'pro',
+            status: 'active',
+            can_subscribe: true,
+            can_cancel_subscription: true,
+            provider_source: 'paypal',
+            provider_status: 'active',
+            will_renew: true,
+          },
+        },
+        refetch: mockRefetchMe,
+      } as any);
+
+      renderWithProviders(<SubscriptionPage />);
+
+      const subscribeButtons = screen.getAllByRole('button', { name: /subscribe/i });
+      const ultimateBtn = subscribeButtons[0];
+      fireEvent.click(ultimateBtn);
+
+      // Verify createBillingCheckoutSession was NOT called
+      expect(createBillingCheckoutSession).not.toHaveBeenCalled();
+    });
+
+    it('Ultimate subscriber has no upgrade CTA (Test 8)', () => {
+      vi.mocked(usePlan).mockReturnValue({
+        plan: 'premium',
+        isFree: false,
+        isPro: false,
+        isPremium: true,
+        loading: false,
+      } as any);
+
+      vi.mocked(useMe).mockReturnValue({
+        data: {
+          $id: 'user_premium',
+          subscription: {
+            plan: 'premium',
+            effective_plan: 'premium',
+            status: 'active',
+            can_subscribe: true,
+            can_cancel_subscription: true,
+            provider_source: 'paypal',
+            provider_status: 'active',
+            will_renew: true,
+          },
+        },
+        refetch: mockRefetchMe,
+      } as any);
+
+      renderWithProviders(<SubscriptionPage />);
+
+      // Zero subscribe buttons rendered
+      expect(screen.queryByRole('button', { name: /subscribe/i })).not.toBeInTheDocument();
+      // Zero upgrade targets
+      expect(screen.queryByText(/power users/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/popular/i)).not.toBeInTheDocument();
+    });
+  });
 });

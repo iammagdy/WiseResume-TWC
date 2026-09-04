@@ -375,6 +375,8 @@
       "checkoutTestOnly": "Sandbox test checkout",
       "checkoutPendingShort": "Waiting for provider confirmation",
       "checkoutNoLocalGrant": "Your plan updates only after verified provider confirmation.",
+      "planChangesUnavailable": "Plan changes are temporarily unavailable.",
+      "enrollmentClosed": "Subscription enrollments are currently closed.",
       "shareTitle": "Share WiseResume",
       "shareDescription": "Send the app link to a friend",
       "share": "Share"

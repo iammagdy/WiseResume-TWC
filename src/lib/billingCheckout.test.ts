@@ -209,4 +209,19 @@ describe('server-owned billing checkout client', () => {
     }, 'sandbox');
     expect(invalid).toBe(false);
   });
+
+  it('maps plan_change_unavailable to a non-retryable error with correct fallback message', async () => {
+    invokeMock.mockResolvedValue({
+      data: null,
+      error: { code: 'plan_change_unavailable' },
+    });
+    const { createBillingCheckoutSession } = await import('./billingCheckout');
+    const result = await createBillingCheckoutSession('premium');
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.code).toBe('plan_change_unavailable');
+      expect(result.retryable).toBe(false);
+      expect(result.message).toBe('Plan changes are temporarily unavailable.');
+    }
+  });
 });

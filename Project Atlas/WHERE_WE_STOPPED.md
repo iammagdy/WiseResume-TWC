@@ -1,12 +1,12 @@
 # Project Atlas — Active Operational & Handover State
 
 **Last Verified:** 2026-09-04
-**Status:** `PAYPAL_PHASE4_CODE_COMPLETE_READY_FOR_OWNER_MERGE_APPROVAL` (Branch: `feat/paypal-sandbox-phase4`, PR: #287, Target: `main`) — Phase 4 final micro-fix pass complete: (1) Derived frontend PayPal environment contract from canonical `VITE_BILLING_PUBLIC_MODE` with strict deterministic precedence and zero sandbox/live overlap. (2) Required explicit authoritative `will_renew === false` for cancellation confirmation in `SubscriptionPage.tsx` (null/undefined/legacy metadata never confirms; transitions to delayed after 30s timeout). (3) Required known local checkout attempt (`billing_pending_plan === 'pro' | 'premium'`) AND matching backend tier before showing `Payment Approved` (unverified return cleans URL and stays idle). (4) Cleaned PR body and Atlas documentation to accurately reflect on-demand OAuth client credentials token acquisition without false caching claims. 139 Node tests pass; 33 Vitest tests pass; browser QA automation verified 14 scenarios; tsc and vite build pass cleanly.
+**Status:** `PAYPAL_PHASE4_SAFE_NEW_SUBSCRIPTIONS_READY_FOR_OWNER_MERGE_APPROVAL` (Branch: `feat/paypal-sandbox-phase4`, PR: #287, Target: `main`) — Phase 4 final billing safety fix complete: (1) Blocked paid-to-paid Create-Subscription upgrades on backend and frontend to eliminate double recurring billing risk; Free->Pro and Free->Ultimate supported; paid-to-paid plan changes fail-closed with `plan_change_unavailable` (ZERO provider calls); full PayPal revision deferred (`PAYPAL_PLAN_CHANGE_REVISION_OWNER_DECISION_REQUIRED`). (2) Preserved retryable and upstream failure classifications (429, 5xx, 401/403, 404, transport, JSON) on cancellation verification GET in `PayPalSubscriptionProvider.cancelSubscription()`. (3) Phase 3 webhook strictly unmodified. (4) Production PayPal catalog `DISABLED / NOT CONFIGURED (OWNER_ACTION_REQUIRED)`; public checkout `DISABLED`. 150 Node hub tests pass; 37 Vitest tests pass; browser QA verified 14 scenarios (42/42 assertions passed); tsc and vite build pass cleanly.
 **Location:** `Project Atlas/WHERE_WE_STOPPED.md`
 
-## PayPal Sandbox Integration Phase 4 (Final Micro-Fix Pass Complete) — 2026-09-04
+## PayPal Sandbox Integration Phase 4 (Final Billing Safety Fix Complete) — 2026-09-04
 
-* **Workstream Verdict:** `PAYPAL_PHASE4_CODE_COMPLETE_READY_FOR_OWNER_MERGE_APPROVAL`.
+* **Workstream Verdict:** `PAYPAL_PHASE4_SAFE_NEW_SUBSCRIPTIONS_READY_FOR_OWNER_MERGE_APPROVAL`.
 * **Git Branch:** `feat/paypal-sandbox-phase4` (branched from clean `main` at `a64e8ca7822e7c407fd016bfbbfad6a7442d4528`).
 * **Commit Status:** **PENDING FINAL SCOPED CORRECTIVE COMMIT**.
 * **Push Status:** **PENDING PUSH TO ORIGIN**.

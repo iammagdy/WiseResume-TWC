@@ -14,6 +14,7 @@ export type BillingCheckoutErrorCode =
   | 'provider_unavailable'
   | 'rate_limited'
   | 'invalid_request'
+  | 'plan_change_unavailable'
   | 'cancellation_failed'
   | 'not_found'
   | 'unknown';
@@ -135,6 +136,7 @@ function normalizeErrorCode(value: unknown): BillingCheckoutErrorCode {
     'provider_unavailable',
     'rate_limited',
     'invalid_request',
+    'plan_change_unavailable',
     'cancellation_failed',
     'not_found',
   ].includes(code) ? code as BillingCheckoutErrorCode : 'unknown';
@@ -149,6 +151,7 @@ function fallbackMessage(code: BillingCheckoutErrorCode): string {
     case 'state_unavailable': return 'Subscription status is temporarily unavailable. Please try again.';
     case 'rate_limited': return 'Too many checkout attempts. Please wait and try again.';
     case 'idempotency_conflict': return 'This checkout attempt cannot be replayed.';
+    case 'plan_change_unavailable': return 'Plan changes are temporarily unavailable.';
     case 'cancellation_failed': return 'Unable to cancel subscription. Please verify your subscription status or try again later.';
     case 'not_found': return 'Subscription not found.';
     default: return 'Checkout is temporarily unavailable. Please try again later.';

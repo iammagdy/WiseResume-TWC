@@ -375,6 +375,8 @@
       "checkoutTestOnly": "تجربة دفع Sandbox",
       "checkoutPendingShort": "في انتظار تأكيد مزود الدفع",
       "checkoutNoLocalGrant": "يتم تحديث خطتك فقط بعد تأكيد مزود الدفع والتحقق منه.",
+      "planChangesUnavailable": "تغيير الخطة غير متاح حالياً.",
+      "enrollmentClosed": "الاشتراكات مغلقة حالياً.",
       "shareTitle": "شارك WiseResume",
       "shareDescription": "أرسل رابط التطبيق إلى صديق",
       "share": "مشاركة"

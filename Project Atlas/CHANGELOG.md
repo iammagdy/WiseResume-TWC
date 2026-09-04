@@ -1,5 +1,45 @@
 # WiseResume Atlas Master Changelog
 
+### 2026-09-04 - PayPal Sandbox Integration Phase 4: Final Billing Safety Fix Before Merge
+
+- **Workstream Verdict:** `PAYPAL_PHASE4_SAFE_NEW_SUBSCRIPTIONS_READY_FOR_OWNER_MERGE_APPROVAL`.
+- **Git Branch:** `feat/paypal-sandbox-phase4` (PR #287).
+- **Scope:** Completed final billing-safety correction on PR #287 prior to owner merge approval:
+  1. **P0 — Block Paid-to-Paid Create-Subscription Upgrades:**
+     - **Double-Billing Elimination:** Identified critical double-billing risk where Pro subscriber purchasing Ultimate would invoke `POST /v1/billing/subscriptions` to create a second concurrent subscription rather than revising the existing Pro subscription (`POST /v1/billing/subscriptions/{id}/revise`).
+     - **Authoritative Server Rule (`appwrite-hubs/billing-checkout/src/main.js`):**
+       - `Free -> Pro`: **ALLOWED** (provider called).
+       - `Free -> Premium/Ultimate`: **ALLOWED** (provider called).
+       - `Pro -> Premium`: **BLOCKED** with HTTP 409 `plan_change_unavailable` ("Plan changes are temporarily unavailable.") and **ZERO** provider calls.
+       - `Premium -> anything`: **BLOCKED** with HTTP 409 `already_entitled` / `plan_change_unavailable` and **ZERO** provider calls.
+       - Helper `hasActivePaypalSubscription(paypalState, userId, nowMs)`: rigorously validates user ID matching, paid plan (`pro` / `premium`), active status (`active` / `billing_issue`), `will_renew === true` or fail-closed null/undefined, or unexpired `will_renew === false`. Zero mutation to `paypal_subscription_state`.
+       - Preserves historical non-PayPal entitlements (manual/admin, coupon, trial, RevenueCat) without active PayPal subscriptions.
+     - **Frontend Subscription UX (`src/lib/billingCheckout.ts`, `src/pages/SubscriptionPage.tsx`):**
+       - Added `plan_change_unavailable` to error codes, fallback messages, and localization files (`locales/en/app.json`, `locales/ar/app.json`).
+       - For Pro subscribers: Ultimate card renders with Subscribe CTA **DISABLED** (`disabled={true}`, `aria-disabled="true"`) and neutral copy: *"Plan changes are temporarily unavailable."* (strictly zero mention of PayPal, Sandbox, Test, QA, or provider limitations).
+       - Guarded `beginCheckout`: returns immediately if `isPro || target === plan` without initiating checkout.
+       - Ultimate subscribers see zero upgrade cards or CTAs.
+     - **Revision Deferred:** Full PayPal subscription revision (`POST /v1/billing/subscriptions/{id}/revise`) deferred for future product decision: recorded `PAYPAL_PLAN_CHANGE_REVISION_OWNER_DECISION_REQUIRED`.
+  2. **P1 — Cancellation Verification GET Error Classification Fidelity (`appwrite-hubs/billing-checkout/src/main.js`):**
+     - When `POST /v1/billing/subscriptions/{id}/cancel` returns 400/422, verification `GET /v1/billing/subscriptions/{id}` now preserves exact error diagnostics:
+       - 200 + `CANCELLED` -> `{ status: 'success', canceled: true }`
+       - 200 + `ACTIVE` / other -> HTTP 400 `cancellation_failed`
+       - 429 -> `failProviderDiagnostic('provider.http_response', 'provider_rate_limited', { diagnosticStatus: 429 })` (retryable)
+       - 500..599 -> `failProviderDiagnostic('provider.http_response', 'provider_upstream_error', { diagnosticStatus: verifyStatus })` (retryable)
+       - 401/403 -> `failProviderDiagnostic('provider.http_response', 'provider_auth_rejected', { diagnosticStatus: verifyStatus })`
+       - 404 -> HTTP 404 `not_found`
+       - Network timeout -> `failProviderDiagnostic('provider.transport', 'transport_failure')` (retryable)
+       - Invalid JSON -> `failProviderDiagnostic('provider.response_json', 'invalid_json')`
+       - Zero false canceled results across all failure branches.
+  3. **No Phase 3 Webhook Modifications:** `appwrite-hubs/paypal-webhook/src/main.js` strictly unmodified (source hash unchanged: `886be7129e23af2b4afd02e384b152f39d66d89357f564298b11e04301cf9032`).
+  4. **Production Catalog & Runtime Activation:** Production PayPal catalog remains `DISABLED / NOT CONFIGURED (OWNER_ACTION_REQUIRED)`. Public checkout remains `DISABLED`.
+- **Tests & Verification:**
+  - 150/150 Node hub tests pass (38 paypal billing-checkout, 25 deployment, 21 coupons, 66 webhook).
+  - 37/37 Vitest tests pass (9 billingCheckout, 28 SubscriptionPage).
+  - Headless Chromium browser QA automation verified 14 scenarios (42/42 assertions passed), proving Pro upgrade CTA disabled with neutral notice and zero session calls, and Ultimate subscriber seeing zero upgrade CTAs.
+  - `tsc --noEmit` clean; `vite build` clean in production mode (44.95s).
+  - `git diff --check` clean.
+
 ### 2026-09-04 - PayPal Sandbox Integration Phase 4: Final Micro-Fix Before Merge Pass
 
 - **Workstream Verdict:** `PAYPAL_PHASE4_CODE_COMPLETE_READY_FOR_OWNER_MERGE_APPROVAL`.

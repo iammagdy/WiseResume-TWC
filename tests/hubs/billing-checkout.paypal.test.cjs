@@ -978,3 +978,354 @@ test('Adversarial Idempotency 2: PayPal 201 -> store.complete throws -> uncertai
   assert.equal(response.status, 'success');
   assert.ok(response.data.checkout_url.includes('token=BA-201'));
 });
+
+test('P0 Plan Change 1: Free user -> Pro: provider Create Subscription called', async () => {
+  const env = validPayPalEnv();
+  const config = readConfig(env);
+  const store = new MockCheckoutStore({ plan: 'free' });
+  let providerCalled = false;
+  const provider = {
+    createCheckout: async (input) => {
+      providerCalled = true;
+      return {
+        providerTransactionId: 'I-SUB-FREE-PRO',
+        providerEnvironment: input.environment,
+        collectionMode: 'automatic',
+        checkoutReference: 'ref_free_pro',
+        checkoutUrl: 'https://www.sandbox.paypal.com/checkoutnow?token=BA-FREE-PRO',
+      };
+    },
+  };
+  const service = new BillingCheckoutService({ store, provider, config });
+  const response = await service.create({ userId: 'qa_user_456', plan: 'pro' });
+  assert.ok(providerCalled, 'Provider Create Subscription MUST be called for Free -> Pro');
+  assert.equal(response.status, 'success');
+  assert.equal(response.data.plan, 'pro');
+});
+
+test('P0 Plan Change 2: Free user -> Premium: provider Create Subscription called', async () => {
+  const env = validPayPalEnv();
+  const config = readConfig(env);
+  const store = new MockCheckoutStore({ plan: 'free' });
+  let providerCalled = false;
+  const provider = {
+    createCheckout: async (input) => {
+      providerCalled = true;
+      return {
+        providerTransactionId: 'I-SUB-FREE-PREM',
+        providerEnvironment: input.environment,
+        collectionMode: 'automatic',
+        checkoutReference: 'ref_free_prem',
+        checkoutUrl: 'https://www.sandbox.paypal.com/checkoutnow?token=BA-FREE-PREM',
+      };
+    },
+  };
+  const service = new BillingCheckoutService({ store, provider, config });
+  const response = await service.create({ userId: 'qa_user_456', plan: 'premium' });
+  assert.ok(providerCalled, 'Provider Create Subscription MUST be called for Free -> Premium');
+  assert.equal(response.status, 'success');
+  assert.equal(response.data.plan, 'premium');
+});
+
+test('P0 Plan Change 3: Existing PayPal Pro + will_renew=true -> Premium request rejected with plan_change_unavailable, ZERO provider calls', async () => {
+  const env = validPayPalEnv();
+  const config = readConfig(env);
+  let providerCallCount = 0;
+  const store = new MockCheckoutStore({
+    plan: 'pro',
+    paypalState: {
+      user_id: 'qa_user_456',
+      subscription_id: 'I-PRO-EXISTING',
+      plan: 'pro',
+      status: 'active',
+      will_renew: true,
+      environment: 'sandbox',
+    },
+  });
+  const provider = {
+    createCheckout: async () => {
+      providerCallCount += 1;
+      return {};
+    },
+  };
+  const service = new BillingCheckoutService({ store, provider, config });
+  await assert.rejects(
+    () => service.create({ userId: 'qa_user_456', plan: 'premium' }),
+    err => err instanceof BillingCheckoutError && err.code === 'plan_change_unavailable' && err.status === 409
+  );
+  assert.equal(providerCallCount, 0, 'Provider call count MUST remain ZERO for Pro -> Premium plan change');
+  assert.equal(store.sessions.size, 0, 'Zero checkout sessions created or mutated');
+});
+
+test('P0 Plan Change 4: Existing PayPal Premium -> Pro rejected, ZERO provider calls', async () => {
+  const env = validPayPalEnv();
+  const config = readConfig(env);
+  let providerCallCount = 0;
+  const store = new MockCheckoutStore({
+    plan: 'premium',
+    paypalState: {
+      user_id: 'qa_user_456',
+      subscription_id: 'I-PREM-EXISTING',
+      plan: 'premium',
+      status: 'active',
+      will_renew: true,
+      environment: 'sandbox',
+    },
+  });
+  const provider = {
+    createCheckout: async () => {
+      providerCallCount += 1;
+      return {};
+    },
+  };
+  const service = new BillingCheckoutService({ store, provider, config });
+  await assert.rejects(
+    () => service.create({ userId: 'qa_user_456', plan: 'pro' }),
+    err => err instanceof BillingCheckoutError && (err.code === 'already_entitled' || err.code === 'plan_change_unavailable') && err.status === 409
+  );
+  assert.equal(providerCallCount, 0, 'Provider call count MUST remain ZERO for Premium -> Pro');
+});
+
+test('P0 Plan Change 5: Existing PayPal Premium -> Premium rejected, ZERO provider calls', async () => {
+  const env = validPayPalEnv();
+  const config = readConfig(env);
+  let providerCallCount = 0;
+  const store = new MockCheckoutStore({
+    plan: 'premium',
+    paypalState: {
+      user_id: 'qa_user_456',
+      subscription_id: 'I-PREM-EXISTING',
+      plan: 'premium',
+      status: 'active',
+      will_renew: true,
+      environment: 'sandbox',
+    },
+  });
+  const provider = {
+    createCheckout: async () => {
+      providerCallCount += 1;
+      return {};
+    },
+  };
+  const service = new BillingCheckoutService({ store, provider, config });
+  await assert.rejects(
+    () => service.create({ userId: 'qa_user_456', plan: 'premium' }),
+    err => err instanceof BillingCheckoutError && (err.code === 'already_entitled' || err.code === 'plan_change_unavailable') && err.status === 409
+  );
+  assert.equal(providerCallCount, 0, 'Provider call count MUST remain ZERO for Premium -> Premium');
+});
+
+test('P1 Cancellation Verify: cancel 422 -> GET 429 -> retryable provider failure (rate limited)', async () => {
+  const env = validPayPalEnv();
+  const fetchImpl = mockFetch({
+    'https://api-m.sandbox.paypal.com/v1/oauth2/token': async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({ access_token: 'mock_token' }),
+    }),
+    'https://api-m.sandbox.paypal.com/v1/billing/subscriptions/I-SUB-429/cancel': async () => ({
+      ok: false,
+      status: 422,
+      json: async () => ({ message: 'Cannot cancel' }),
+    }),
+    'https://api-m.sandbox.paypal.com/v1/billing/subscriptions/I-SUB-429': async () => ({
+      ok: false,
+      status: 429,
+      json: async () => ({ message: 'Rate limited' }),
+    }),
+  });
+  const provider = new PayPalSubscriptionProvider({ env, fetchImpl });
+  await assert.rejects(
+    () => provider.cancelSubscription({ subscriptionId: 'I-SUB-429', reason: 'Cancel test', environment: 'sandbox' }),
+    (err) => {
+      assert.ok(isAmbiguousProviderError(err), '429 verify GET MUST be classified as retryable provider failure');
+      const diag = billing.__test.providerDiagnostic(err);
+      assert.equal(diag?.category, 'provider_rate_limited');
+      assert.equal(diag?.stage, 'provider.http_response');
+      assert.equal(diag?.status, 429);
+      return true;
+    }
+  );
+});
+
+test('P1 Cancellation Verify: cancel 422 -> GET 500 -> retryable provider failure (upstream error)', async () => {
+  const env = validPayPalEnv();
+  const fetchImpl = mockFetch({
+    'https://api-m.sandbox.paypal.com/v1/oauth2/token': async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({ access_token: 'mock_token' }),
+    }),
+    'https://api-m.sandbox.paypal.com/v1/billing/subscriptions/I-SUB-500/cancel': async () => ({
+      ok: false,
+      status: 422,
+      json: async () => ({ message: 'Cannot cancel' }),
+    }),
+    'https://api-m.sandbox.paypal.com/v1/billing/subscriptions/I-SUB-500': async () => ({
+      ok: false,
+      status: 500,
+      json: async () => ({ message: 'Internal Server Error' }),
+    }),
+  });
+  const provider = new PayPalSubscriptionProvider({ env, fetchImpl });
+  await assert.rejects(
+    () => provider.cancelSubscription({ subscriptionId: 'I-SUB-500', reason: 'Cancel test', environment: 'sandbox' }),
+    (err) => {
+      assert.ok(isAmbiguousProviderError(err), '500 verify GET MUST be classified as retryable upstream error');
+      const diag = billing.__test.providerDiagnostic(err);
+      assert.equal(diag?.category, 'provider_upstream_error');
+      assert.equal(diag?.stage, 'provider.http_response');
+      assert.equal(diag?.status, 500);
+      return true;
+    }
+  );
+});
+
+test('P1 Cancellation Verify: cancel 422 -> GET 401 -> auth/provider failure', async () => {
+  const env = validPayPalEnv();
+  const fetchImpl = mockFetch({
+    'https://api-m.sandbox.paypal.com/v1/oauth2/token': async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({ access_token: 'mock_token' }),
+    }),
+    'https://api-m.sandbox.paypal.com/v1/billing/subscriptions/I-SUB-401/cancel': async () => ({
+      ok: false,
+      status: 422,
+      json: async () => ({ message: 'Cannot cancel' }),
+    }),
+    'https://api-m.sandbox.paypal.com/v1/billing/subscriptions/I-SUB-401': async () => ({
+      ok: false,
+      status: 401,
+      json: async () => ({ message: 'Unauthorized' }),
+    }),
+  });
+  const provider = new PayPalSubscriptionProvider({ env, fetchImpl });
+  await assert.rejects(
+    () => provider.cancelSubscription({ subscriptionId: 'I-SUB-401', reason: 'Cancel test', environment: 'sandbox' }),
+    (err) => {
+      const diag = billing.__test.providerDiagnostic(err);
+      assert.equal(diag?.category, 'provider_auth_rejected');
+      assert.equal(diag?.stage, 'provider.http_response');
+      assert.equal(diag?.status, 401);
+      return true;
+    }
+  );
+});
+
+test('P1 Cancellation Verify: cancel 422 -> GET network timeout -> retryable provider failure', async () => {
+  const env = validPayPalEnv();
+  const fetchImpl = mockFetch({
+    'https://api-m.sandbox.paypal.com/v1/oauth2/token': async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({ access_token: 'mock_token' }),
+    }),
+    'https://api-m.sandbox.paypal.com/v1/billing/subscriptions/I-SUB-TIMEOUT/cancel': async () => ({
+      ok: false,
+      status: 422,
+      json: async () => ({ message: 'Cannot cancel' }),
+    }),
+    'https://api-m.sandbox.paypal.com/v1/billing/subscriptions/I-SUB-TIMEOUT': async () => {
+      const err = new Error('ETIMEDOUT');
+      err.code = 'ETIMEDOUT';
+      throw err;
+    },
+  });
+  const provider = new PayPalSubscriptionProvider({ env, fetchImpl });
+  await assert.rejects(
+    () => provider.cancelSubscription({ subscriptionId: 'I-SUB-TIMEOUT', reason: 'Cancel test', environment: 'sandbox' }),
+    (err) => {
+      assert.ok(isAmbiguousProviderError(err), 'Network timeout on verify GET MUST be retryable');
+      const diag = billing.__test.providerDiagnostic(err);
+      assert.equal(diag?.category, 'transport_failure');
+      assert.equal(diag?.stage, 'provider.transport');
+      return true;
+    }
+  );
+});
+
+test('P1 Cancellation Verify: cancel 422 -> GET invalid JSON -> safe failure, no false canceled result', async () => {
+  const env = validPayPalEnv();
+  const fetchImpl = mockFetch({
+    'https://api-m.sandbox.paypal.com/v1/oauth2/token': async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({ access_token: 'mock_token' }),
+    }),
+    'https://api-m.sandbox.paypal.com/v1/billing/subscriptions/I-SUB-CORRUPT/cancel': async () => ({
+      ok: false,
+      status: 422,
+      json: async () => ({ message: 'Cannot cancel' }),
+    }),
+    'https://api-m.sandbox.paypal.com/v1/billing/subscriptions/I-SUB-CORRUPT': async () => ({
+      ok: true,
+      status: 200,
+      json: async () => { throw new Error('Unexpected token < in JSON at position 0'); },
+    }),
+  });
+  const provider = new PayPalSubscriptionProvider({ env, fetchImpl });
+  await assert.rejects(
+    () => provider.cancelSubscription({ subscriptionId: 'I-SUB-CORRUPT', reason: 'Cancel test', environment: 'sandbox' }),
+    (err) => {
+      const diag = billing.__test.providerDiagnostic(err);
+      assert.equal(diag?.category, 'invalid_json');
+      assert.equal(diag?.stage, 'provider.response_json');
+      return true;
+    }
+  );
+});
+
+test('hasActivePaypalSubscription unit evaluations (fail-closed & lifecycle boundaries)', () => {
+  const { hasActivePaypalSubscription } = billing.__test;
+  const nowMs = 1700000000000;
+  const futureIso = new Date(nowMs + 86400000).toISOString();
+  const pastIso = new Date(nowMs - 86400000).toISOString();
+
+  // 1. Non-matching user
+  assert.equal(
+    hasActivePaypalSubscription({ user_id: 'user_other', plan: 'pro', status: 'active', will_renew: true }, 'user_current', nowMs),
+    false,
+    'Mismatched user ID must return false'
+  );
+
+  // 2. Active recurring Pro/Premium
+  assert.equal(
+    hasActivePaypalSubscription({ user_id: 'user_1', plan: 'pro', status: 'active', will_renew: true }, 'user_1', nowMs),
+    true,
+    'Active recurring Pro must return true'
+  );
+  assert.equal(
+    hasActivePaypalSubscription({ user_id: 'user_1', plan: 'premium', status: 'billing_issue', will_renew: true }, 'user_1', nowMs),
+    true,
+    'Billing issue recurring Premium must return true'
+  );
+
+  // 3. Ambiguous will_renew (null/undefined) fails closed -> true
+  assert.equal(
+    hasActivePaypalSubscription({ user_id: 'user_1', plan: 'pro', status: 'active' }, 'user_1', nowMs),
+    true,
+    'Missing will_renew fails closed to true'
+  );
+
+  // 4. Canceled (will_renew = false) but unexpired -> returns true
+  assert.equal(
+    hasActivePaypalSubscription({ user_id: 'user_1', plan: 'pro', status: 'active', will_renew: false, expires_at: futureIso }, 'user_1', nowMs),
+    true,
+    'Canceled Pro with future expires_at remains active until expiry'
+  );
+
+  // 5. Canceled and expired -> returns false
+  assert.equal(
+    hasActivePaypalSubscription({ user_id: 'user_1', plan: 'pro', status: 'active', will_renew: false, expires_at: pastIso }, 'user_1', nowMs),
+    false,
+    'Canceled Pro with past expires_at returns false'
+  );
+
+  // 6. Inactive/cancelled status -> returns false
+  assert.equal(
+    hasActivePaypalSubscription({ user_id: 'user_1', plan: 'pro', status: 'cancelled', will_renew: false }, 'user_1', nowMs),
+    false,
+    'Cancelled status returns false'
+  );
+});
