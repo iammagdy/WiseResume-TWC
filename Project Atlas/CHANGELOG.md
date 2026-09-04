@@ -1,9 +1,22 @@
 # WiseResume Atlas Master Changelog
 
+### 2026-09-04 - PayPal Sandbox Integration Phase 4: Final Docs Reconciliation Before Merge
+
+- **Workstream Verdict:** `PAYPAL_PHASE4_DOCS_RECONCILED_READY_FOR_MERGE`.
+- **Git Branch:** `feat/paypal-sandbox-phase4` (PR #287, head `c8dad009140c412b911d3927bf3f4eff0be38d34`).
+- **Commit Status:** `COMMITTED_NOT_MERGED`, **Push Status:** `PUSHED_PENDING_MERGE`.
+- **Scope:** Completed documentation-only reconciliation across `Project Atlas/WHERE_WE_STOPPED.md`, `Project Atlas/CURRENT_STATE.md`, and `Project Atlas/CHANGELOG.md` prior to owner merge approval:
+  1. **Operational State Reconciliation:** Documented exact factual state: PR #287 open/mergeable/not merged, head `c8dad009`, first-party CI passing (PR Validation, Security regression, Vercel Preview; TestSprite informational `No tests detected`), Appwrite functions not deployed, PayPal schema not applied, PayPal webhook not registered, Production PayPal catalog disabled / not configured (`OWNER_ACTION_REQUIRED`), public checkout disabled, live PayPal untouched.
+  2. **Test Counts Reconciliation:** Reconciled active operational summary with final verified counts: 150/150 Node hub tests (38 billing-checkout.paypal, 25 billing-checkout-deployment, 21 coupons-subscription, 66 paypal-webhook), 37/37 Vitest tests (9 billingCheckout, 28 SubscriptionPage), 42/42 Headless Chromium browser assertions across 14 scenarios, 0 TypeScript errors, 0 Vite production build errors, clean source hashes, clean git diff check.
+  3. **Deployment Contract & Catalog Alignment:** Reconciled active deployment documentation to match the final generic checkout catalog contract (`BILLING_SANDBOX_PRO_PRICE_ID`, `BILLING_SANDBOX_PREMIUM_PRICE_ID`, `BILLING_SANDBOX_PRO_PRODUCT_ID`, `BILLING_SANDBOX_PREMIUM_PRODUCT_ID`), removed stale references to `PAYPAL_PRO_PLAN_ID` / `PAYPAL_PREMIUM_PLAN_ID`, documented runtime credentials `PAYPAL_CLIENT_ID` / `PAYPAL_CLIENT_SECRET` (mapped from GitHub Sandbox secrets), and reiterated Production catalog as `OWNER_ACTION_REQUIRED`.
+  4. **Paid Plan Change Policy:** Reconciled clear policy documentation: supported new subscriptions are `Free -> Pro` and `Free -> Ultimate`; paid-to-paid Create-Subscription upgrades are strictly blocked on backend and frontend (0 provider calls) to prevent parallel recurring subscriptions / double billing; dedicated revision design deferred as `PAYPAL_PLAN_CHANGE_REVISION_OWNER_DECISION_REQUIRED`.
+  5. **History Separation:** Separated current active handover from historical completed workstreams (Phase 3, Phase 2, What's New revamp) in `WHERE_WE_STOPPED.md`.
+  6. **What's New Eligibility Decision:** `WHATS_NEW_NOT_REQUIRED` (Documentation-only reconciliation; no code, test, workflow, or deployment changes).
+
 ### 2026-09-04 - PayPal Sandbox Integration Phase 4: Final Billing Safety Fix Before Merge
 
 - **Workstream Verdict:** `PAYPAL_PHASE4_SAFE_NEW_SUBSCRIPTIONS_READY_FOR_OWNER_MERGE_APPROVAL`.
-- **Git Branch:** `feat/paypal-sandbox-phase4` (PR #287).
+- **Git Branch:** `feat/paypal-sandbox-phase4` (PR #287, head `c8dad009140c412b911d3927bf3f4eff0be38d34`).
 - **Scope:** Completed final billing-safety correction on PR #287 prior to owner merge approval:
   1. **P0 — Block Paid-to-Paid Create-Subscription Upgrades:**
      - **Double-Billing Elimination:** Identified critical double-billing risk where Pro subscriber purchasing Ultimate would invoke `POST /v1/billing/subscriptions` to create a second concurrent subscription rather than revising the existing Pro subscription (`POST /v1/billing/subscriptions/{id}/revise`).
