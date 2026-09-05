@@ -536,13 +536,28 @@ async function smokeFunction(hubId, smoke) {
             'X-Internal-Gateway-Token': gatewayInternalToken('gateway-smoke'),
         };
     }
-    const execution = await functions.createExecution({
-        functionId,
-        body: JSON.stringify(body),
-        async: false,
-        path: '/',
-        method: 'POST',
-    });
+    let execution;
+    let attempts = 0;
+    while (attempts < 3) {
+        attempts++;
+        try {
+            execution = await functions.createExecution({
+                functionId,
+                body: JSON.stringify(body),
+                async: false,
+                path: '/',
+                method: 'POST',
+            });
+            break;
+        } catch (err) {
+            if (attempts < 3 && /timeout|timed out|504/i.test(err?.message || '')) {
+                console.warn(`  [smoke] ${hubId} execution timed out on cold start (attempt ${attempts}/3). Retrying in 5s...`);
+                await sleep(5000);
+                continue;
+            }
+            throw err;
+        }
+    }
     if (execution.status === 'failed') {
         throw new Error(`${hubId} smoke execution failed: ${execution.errors || 'execution failed'}`);
     }
