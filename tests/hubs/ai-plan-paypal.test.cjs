@@ -31,7 +31,7 @@ test('AI gateway resolves active PayPal Pro state for QA user under isolated PAY
             documents: [{
               user_id: QA_USER_ID,
               plan: 'pro',
-              plan_id: 'P-3A193536YV1432359NKM36QY',
+              plan_id: 'P-62G07996SG1490118NKN6I3Q',
               environment: 'sandbox',
               status: 'active',
               expires_at: new Date(Date.now() + 86400000).toISOString(),

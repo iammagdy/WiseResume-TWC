@@ -26,10 +26,10 @@ test('deploy-appwrite-hubs workflow exposes Sandbox and Production billing varia
   assert.match(workflow, /BILLING_PRODUCTION_PRO_PRODUCT_ID:\s*pro_01m1924dqce7nd69khnakxftzw/);
   assert.match(workflow, /BILLING_PRODUCTION_PREMIUM_PRICE_ID:\s*pri_01m192m6bwzvarmcr05c78by7r/);
   assert.match(workflow, /BILLING_PRODUCTION_PREMIUM_PRODUCT_ID:\s*pro_01m192jr9nzd6k5ysa6yhk5aq7/);
-  assert.match(workflow, /BILLING_SANDBOX_PRO_PRICE_ID:\s*P-3A193536YV1432359NKM36QY/);
-  assert.match(workflow, /BILLING_SANDBOX_PRO_PRODUCT_ID:\s*PROD-8XE5253028560521H/);
-  assert.match(workflow, /BILLING_SANDBOX_PREMIUM_PRICE_ID:\s*P-17M39010JR353545NNKM36RA/);
-  assert.match(workflow, /BILLING_SANDBOX_PREMIUM_PRODUCT_ID:\s*PROD-8XE5253028560521H/);
+  assert.match(workflow, /BILLING_SANDBOX_PRO_PRICE_ID:\s*P-62G07996SG1490118NKN6I3Q/);
+  assert.match(workflow, /BILLING_SANDBOX_PRO_PRODUCT_ID:\s*PROD-1XU04121YA801240V/);
+  assert.match(workflow, /BILLING_SANDBOX_PREMIUM_PRICE_ID:\s*P-56D04005HN592501XNKN6I3Q/);
+  assert.match(workflow, /BILLING_SANDBOX_PREMIUM_PRODUCT_ID:\s*PROD-1XU04121YA801240V/);
   assert.doesNotMatch(workflow, /PAYPAL_PRO_PLAN_ID/);
   assert.doesNotMatch(workflow, /PAYPAL_PREMIUM_PLAN_ID/);
   assert.doesNotMatch(workflow, /BILLING_CHECKOUT_RETURN_URL/);

@@ -18,8 +18,8 @@ const pastExpiry = new Date(nowMs - 1000).toISOString();
 const graceExpiry = new Date(nowMs + 48 * 3600000).toISOString();
 
 // Verified Live Sandbox Plan IDs
-const SANDBOX_PRO_PLAN_ID = 'P-3A193536YV1432359NKM36QY';
-const SANDBOX_ULTIMATE_PLAN_ID = 'P-17M39010JR353545NNKM36RA';
+const SANDBOX_PRO_PLAN_ID = 'P-62G07996SG1490118NKN6I3Q';
+const SANDBOX_ULTIMATE_PLAN_ID = 'P-56D04005HN592501XNKN6I3Q';
 
 function paypalState(overrides = {}) {
   return {
