@@ -1,5 +1,19 @@
 # WiseResume Atlas Master Changelog
 
+### 2026-09-05 - PayPal US Sandbox Integration: Pro E2E Verification & Ultimate $10 Price Alignment
+
+- **Workstream Verdict:** `US_SANDBOX_ULTIMATE_10_READY_FOR_QA`.
+- **Branch:** `fix/paypal-us-sandbox-ultimate-10` (Target: `main`).
+- **Scope & Accomplishments:**
+  1. **US Sandbox Merchant Switch (Approved):** Migrated runtime Sandbox merchant catalog to an owner-approved US-based PayPal Sandbox Business App (`PROD-1XU04121YA801240V`) to eliminate recurring payment decline issues associated with the prior Egypt Sandbox merchant.
+  2. **Pro E2E Subscription & Payment Verified:** Successfully executed a real Free -> Pro subscription (`I-16N4WPDDPWJW`) with real $5.00 USD payment completion in Microsoft Edge automation using a verified US buyer account (`sb-bewbg52785550@personal.example.com`).
+  3. **Cryptographic Webhook Signature Verification:** Verified live postback signature verification (`SUCCESS`) for real PayPal Sandbox lifecycle events (`BILLING.SUBSCRIPTION.ACTIVATED` and `PAYMENT.SALE.COMPLETED`) delivered to `https://paypal-webhook.wiseresume.app`.
+  4. **Appwrite Server-State & Resolver Authority:** Verified `paypal_event_ledger` and `paypal_subscription_state` record `plan = pro`, `status = active`, and `environment = sandbox` for QA user `qa_pp_a91504a8`. Authoritative subscription resolver resolves `pro` (50 AI credits/day quota in `ai-gateway`).
+  5. **UI & Quota Persistence Verified:** Live Subscription page UI verified in browser; Pro tier persists across page reloads and dashboard navigation.
+  6. **US Sandbox Ultimate Plan Price Alignment:** Audited US Sandbox catalog pricing. Corrected the Ultimate plan (`P-56D04005HN592501XNKN6I3Q`) from $15.00/mo to the approved WiseResume commercial contract of **$10.00 USD/month** via PayPal in-place pricing update (`PRICE_UPDATED`).
+  7. **Safety & Boundaries:** Public checkout preserved as fail-closed (`BILLING_CHECKOUT_ENABLED=false`); Production PayPal remains untouched; Ultimate real E2E remains not tested.
+  8. **What's New Eligibility Decision:** `WHATS_NEW_DEFER_UNTIL_PRODUCTION` (Internal Sandbox QA and catalog alignment; public release notes deferred until production launch).
+
 ### 2026-09-04 - PayPal Sandbox Integration: Stage A Reconciliation & Domain Recovery
 
 - **Workstream Verdict:** `PAYPAL_STAGE_A_RECONCILED_DOMAIN_RECOVERY_PENDING_STAGE_B`.

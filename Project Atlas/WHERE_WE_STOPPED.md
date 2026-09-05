@@ -1,27 +1,25 @@
 # Project Atlas — Active Operational & Handover State
 
-**Last Verified:** 2026-09-04
-**Status:** `PAYPAL_STAGE_A_RECONCILED_DOMAIN_RECOVERY_PENDING_STAGE_B` (Branch: `fix/paypal-stage-a-reconciliation`, Target: `main`) — PayPal Stage A deployment and schema applied on live Appwrite cluster via workflow runs 33917547251 & 33918098250; diagnostic direct-main commit reverted cleanly on recovery branch; runtime preflight and domain probe completed: (1) Stage A paypal-webhook function DEPLOYED in bootstrap mode (smoke check HTTP 400 fail-closed verified). (2) Schema APPLIED / VERIFIED on live cluster (paypal_subscription_state and paypal_event_ledger provisioned server-only). (3) Secrets PROVISIONED (PAYPAL_SANDBOX_CLIENT_ID, PAYPAL_SANDBOX_CLIENT_SECRET, BILLING_CHECKOUT_QA_USER_ID configured). (4) PayPal MCP HEALTHY (Product PROD-8XE5253028560521H, Pro P-3A193536YV1432359NKM36QY $5/mo, Ultimate P-17M39010JR353545NNKM36RA $10/mo verified ACTIVE). (5) Webhook registration NOT PERFORMED (0 webhooks in Sandbox; candidate https://paypal-webhook.fra.appwrite.run probed returning HTTP 404 router rule not found; exact generated domain retrieval requires Appwrite Console OWNER_ACTION_REQUIRED_FUNCTION_DOMAIN). (6) Stage B PENDING; consumers (billing-checkout, coupons, ai-gateway) NOT DEPLOYED; real signed webhook NOT VERIFIED; E2E NOT RUN; non-QA runtime checkout safety NOT_YET_VERIFIED. (7) Pro credit policy: 50 AI credits/day, Ultimate unlimited. (8) Production PayPal UNTOUCHED; public checkout DISABLED (`BILLING_CHECKOUT_ENABLED=false`); plan revision DEFERRED (`PAYPAL_PLAN_CHANGE_REVISION_OWNER_DECISION_REQUIRED`). (9) What's New decision: `WHATS_NEW_DEFER_UNTIL_PRODUCTION`.
+**Last Verified:** 2026-09-05
+**Status:** `US_SANDBOX_ULTIMATE_10_READY_FOR_QA` (Branch: `fix/paypal-us-sandbox-ultimate-10`, Target: `main`) — PayPal US Sandbox integration verified: (1) US Sandbox merchant app (`PROD-1XU04121YA801240V`) approved & configured. (2) Pro ($5.00/mo) real Free -> Pro subscription (`I-16N4WPDDPWJW`) with real $5 USD payment E2E VERIFIED. (3) Real cryptographic webhook signatures (`BILLING.SUBSCRIPTION.ACTIVATED`, `PAYMENT.SALE.COMPLETED`) verified with postback `SUCCESS`. (4) Appwrite `paypal_event_ledger` and `paypal_subscription_state` verified active for QA user `qa_pp_a91504a8`. (5) Effective plan resolver & `ai-gateway` verified (50 AI credits/day). (6) UI persistence verified on live subscription page. (7) US Sandbox Ultimate plan (`P-56D04005HN592501XNKN6I3Q`) aligned from $15/mo to approved commercial contract of **$10.00 USD/month** via PayPal in-place pricing update (`PRICE_UPDATED`). (8) Ultimate real E2E remains NOT TESTED. (9) Production PayPal UNTOUCHED; public checkout DISABLED (`BILLING_CHECKOUT_ENABLED=false`). (10) What's New decision: `WHATS_NEW_DEFER_UNTIL_PRODUCTION`.
 **Location:** `Project Atlas/WHERE_WE_STOPPED.md`
 
-## Current Active Handover — PayPal Sandbox Integration: Stage A Reconciliation & Domain Recovery
+## Current Active Handover — PayPal US Sandbox: Pro E2E Verified & Ultimate $10 Price Aligned
 
-* **Workstream:** `PAYPAL_STAGE_A_RECONCILED_DOMAIN_RECOVERY_PENDING_STAGE_B`.
-* **Recovery Branch:** `fix/paypal-stage-a-reconciliation` (Target: `main`).
-* **Base Merge Commits:** PR #287 merged at `4ad21fc4bf5eb2b28c983f152e49d50149e3cfcc`; PR #288 (Docs Closeout) merged at `174af382c399ba4d72e37dbb0bb9d4d6d6112c38`.
-* **Direct-Main Reconciliation:** Reverted unnecessary `Proxy.listRules()` diagnostic addition from `scripts/deploy_hubs.cjs` cleanly on recovery branch without force-pushing or rewriting history.
-* **Stage A Appwrite Deployment:** **`DEPLOYED / VERIFIED`** via canonical GitHub Actions workflow `deploy-appwrite-hubs.yml` (Runs: `33917547251` and `33918098250`).
-* **Appwrite PayPal Schema:** **`APPLIED / VERIFIED`** on live cluster (`paypal_subscription_state` and `paypal_event_ledger` provisioned server-only with unique/ordering indexes).
-* **Fail-Closed Smoke Verification:** `paypal-webhook` returns HTTP `400 (expected — fail-closed)` on unsigned ingress.
-* **GitHub Repository Secrets:** `PAYPAL_SANDBOX_CLIENT_ID`, `PAYPAL_SANDBOX_CLIENT_SECRET`, and `BILLING_CHECKOUT_QA_USER_ID` (dedicated clean QA fixture) securely set in GitHub Secrets.
-* **GitHub Repository Variables:** `BILLING_CHECKOUT_PROVIDER=paypal`, `BILLING_CHECKOUT_ENABLED=false`, `BILLING_CHECKOUT_PROVIDER_READY=false`.
-* **PayPal MCP Health & Catalog:** **`HEALTHY / VERIFIED`** via live tool calls (Product `PROD-8XE5253028560521H`, Pro `P-3A193536YV1432359NKM36QY` $5/mo, Ultimate `P-17M39010JR353545NNKM36RA` $10/mo ACTIVE).
-* **PayPal Webhook Ingress Audit:** **0 webhooks currently registered** in PayPal Sandbox (clean baseline, zero conflicts).
-* **Function Domain Probe & Next Gate:** Candidate `https://paypal-webhook.fra.appwrite.run` DNS/TLS passed, returned HTTP 404 router rule not found; exact generated domain retrieval requires Appwrite Console (`OWNER_ACTION_REQUIRED_FUNCTION_DOMAIN`).
-* **Stage B & Consumer Status:** Stage B `PENDING`; consumers (`billing-checkout`, `coupons`, `ai-gateway`) `NOT DEPLOYED`; real signed webhook `NOT VERIFIED`; E2E `NOT RUN`; non-QA runtime checkout safety `NOT_YET_VERIFIED`.
-* **Pro Credit Policy:** `50 AI credits/day`; Ultimate = unlimited.
-* **Production Boundary:** Production PayPal `DISABLED / UNTOUCHED`; public checkout `DISABLED`; plan revision `DEFERRED (PAYPAL_PLAN_CHANGE_REVISION_OWNER_DECISION_REQUIRED)`.
-* **What's New Eligibility Decision:** `WHATS_NEW_DEFER_UNTIL_PRODUCTION` (Stage A runtime configuration is internal; public release notes deferred until production launch).
+* **Workstream:** `US_SANDBOX_ULTIMATE_10_READY_FOR_QA`.
+* **Feature Branch:** `fix/paypal-us-sandbox-ultimate-10` (Target: `main`).
+* **Base Merge Commits:** Commit `0fbc04a11b6648a7385f81f8ef3cf94bd4016fc5` (`main`).
+* **US Merchant Configuration:** Approved US Sandbox Business App (`PROD-1XU04121YA801240V`).
+* **Pro Plan ID:** `P-62G07996SG1490118NKN6I3Q` ($5.00 USD/month, `ACTIVE`).
+* **Ultimate Plan ID:** `P-56D04005HN592501XNKN6I3Q` ($10.00 USD/month, `ACTIVE`, aligned via `PRICE_UPDATED`).
+* **Pro E2E Subscription:** Real subscription `I-16N4WPDDPWJW` executed and verified `ACTIVE` with completed $5.00 USD payment.
+* **Webhook Delivery & Signature:** Real `BILLING.SUBSCRIPTION.ACTIVATED` and `PAYMENT.SALE.COMPLETED` events processed with cryptographic postback signature verification `SUCCESS`.
+* **Appwrite Server-State:** `paypal_event_ledger` and `paypal_subscription_state` verified for QA user `qa_pp_a91504a8` (`plan = pro`, `status = active`, `environment = sandbox`).
+* **Resolver & AI Quota:** Server-side resolver evaluates `pro`; `ai-gateway` grants 50 AI credits/day quota.
+* **UI Persistence:** Live Subscription page UI verified in browser; Pro tier persists across reloads and navigation.
+* **Ultimate QA Readiness:** US Sandbox Ultimate plan pricing is now aligned to $10/mo; ready for fresh Free -> Ultimate E2E QA.
+* **Production Boundary:** Production PayPal `DISABLED / UNTOUCHED`; public checkout `DISABLED`; plan revision `DEFERRED`.
+* **What's New Eligibility Decision:** `WHATS_NEW_DEFER_UNTIL_PRODUCTION` (Internal Sandbox QA and catalog alignment; public release notes deferred until production launch).
 
 ### Paid Plan Change Policy
 * **Supported new subscriptions:**
