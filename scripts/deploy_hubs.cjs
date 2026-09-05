@@ -888,6 +888,28 @@ async function ensureBillingCheckoutVariables() {
     const provider = rawProvider;
     await ensureVariable('billing-checkout', 'BILLING_CHECKOUT_PROVIDER', provider);
 
+    const checkoutEnabled = (
+        process.env.BILLING_CHECKOUT_ENABLED ||
+        await existingVariableValue('billing-checkout', 'BILLING_CHECKOUT_ENABLED') ||
+        'false'
+    ).trim().toLowerCase();
+    await ensureVariable('billing-checkout', 'BILLING_CHECKOUT_ENABLED', checkoutEnabled);
+
+    const providerReady = (
+        process.env.BILLING_CHECKOUT_PROVIDER_READY ||
+        await existingVariableValue('billing-checkout', 'BILLING_CHECKOUT_PROVIDER_READY') ||
+        'false'
+    ).trim().toLowerCase();
+    await ensureVariable('billing-checkout', 'BILLING_CHECKOUT_PROVIDER_READY', providerReady);
+
+    const checkoutEnvironment = (
+        process.env.BILLING_CHECKOUT_ENVIRONMENT ||
+        process.env.PAYPAL_ACCESS_ENVIRONMENT ||
+        await existingVariableValue('billing-checkout', 'BILLING_CHECKOUT_ENVIRONMENT') ||
+        'sandbox'
+    ).trim().toLowerCase();
+    await ensureVariable('billing-checkout', 'BILLING_CHECKOUT_ENVIRONMENT', checkoutEnvironment);
+
     if (provider === 'paypal') {
         const accessEnv = (
             process.env.PAYPAL_ACCESS_ENVIRONMENT ||
