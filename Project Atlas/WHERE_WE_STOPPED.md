@@ -1,10 +1,74 @@
 # Project Atlas — Active Operational & Handover State
 
 **Last Verified:** 2026-09-06
-**Status:** `US_SANDBOX_PRO_AND_ULTIMATE_E2E_VERIFIED` (Branch: `docs/paypal-us-sandbox-ultimate-e2e-closeout`, Target: `main`) — PayPal US Sandbox integration fully verified: (1) US Sandbox merchant app approved & configured. (2) Pro ($5.00/mo) real Free -> Pro subscription with real $5 USD payment E2E VERIFIED. (3) Ultimate ($10.00/mo) real Free -> Ultimate subscription with real $10 USD payment E2E VERIFIED. (4) Real provider-generated lifecycle events (`BILLING.SUBSCRIPTION.ACTIVATED`, `PAYMENT.SALE.COMPLETED`) were successfully processed after provider re-delivery following targeted synchronization of the active Sandbox QA webhook fixture into `paypal-webhook`. Cryptographic PayPal POSTBACK signature verification returned `SUCCESS`. (5) Appwrite `paypal_event_ledger` and `paypal_subscription_state` verified active for designated QA users (Pro stored as `pro`, Ultimate stored strictly as internal `premium`, NEVER `ultimate`, status `active`, environment `sandbox`). (6) Effective plan resolver & `ai-gateway` verified (Ultimate = unlimited AI quota; Pro = 50 AI credits/day). (7) UI persistence verified on live subscription page across reloads and navigation. (8) Non-QA isolation verified (HTTP 403 `payments_disabled`). (9) Public checkout returned to fail-closed (`BILLING_CHECKOUT_ENABLED=false`, `BILLING_CHECKOUT_PROVIDER_READY=false`). (10) Production PayPal UNTOUCHED; cancellation, renewal failure, and refunds NOT TESTED (`READY_FOR_CANCELLATION_QA = YES`). (11) What's New decision: `WHATS_NEW_DEFER_UNTIL_PRODUCTION`.
+**Status:** `PAYPAL_CANCELLATION_FIX_RUNTIME_VERIFIED` (Branch: `docs/paypal-cancellation-fix-runtime-verification`, Target: `main`) — PayPal cancellation paid-through fix & runtime re-verification complete: (1) PR #294 merged (`5c9ec9e2`): Preserves paid access through cancellation period without clearing `expires_at` to null. (2) PR #295 merged (`6e04c246`): Webhook activation supersession guard. (3) PR #296 merged (`26b1faea`): Allowed ledger reclaim of events previously ignored under `different_subscription_ignored`. (4) PR #297 merged (`291c5c69`): Allowed initial payment (`PAYMENT.SALE.COMPLETED`) to complete `pending_initial_payment` subscriptions even when PayPal timestamp is slightly older than `ACTIVATED`, and allow redelivery reclaim of stale sale events. (5) Targeted deployment of `paypal-webhook` and `billing-checkout` via GitHub Actions completed cleanly. (6) Real WiseResume customer UI cancellation executed on live site (`https://wiseresume.app/subscription`) via automated browser run by QA user `qa_pp_afbf725e` on subscription `I-58K84FGAFFHL`. Cancel confirmation modal confirmed in UI. (7) PayPal Direct REST API verified: status is `CANCELLED`, note `"User requested cancellation in subscription settings"`, update time `2026-09-06T10:59:18Z`. (8) Authentic PayPal `BILLING.SUBSCRIPTION.CANCELLED` webhook (`WH-9AA0732263469183V-35B12222V7015642N`) delivered automatically at `2026-09-06T10:59:22.000Z` and processed with cryptographic signature verification. (9) Canonical Appwrite state verified: `status: "canceled"`, `effective_plan: "premium"`, `expires_at: "2026-10-06T10:00:00.000Z"` (PRESERVED!), `provider_status: "canceled"`, `provider_expires_at: "2026-10-06T10:00:00.000Z"`, `will_renew: false`, `can_cancel_subscription: false`. (10) WiseResume UI shows "Ultimate [Canceled]", "Access ends on October 6, 2026", with unlimited AI quota and unlimited resumes remaining completely active. (11) Public checkout fail-closed restored (`BILLING_CHECKOUT_ENABLED=false`, `BILLING_CHECKOUT_PROVIDER_READY=false`). Redeployed `billing-checkout` and verified HTTP 403 `payments_disabled` for both non-QA and QA users. (12) Zero regressions across 180 Node tests and 28 Vitest tests.
 **Location:** `Project Atlas/WHERE_WE_STOPPED.md`
 
-## Current Active Handover — PayPal US Sandbox: Pro & Ultimate E2E Verified
+## Current Active Handover — PayPal Cancellation Fix & Runtime Re-Verification (2026-09-06)
+
+* **Workstream:** `PAYPAL_CANCELLATION_FIX_RUNTIME_VERIFIED`.
+* **Docs Branch:** `docs/paypal-cancellation-fix-runtime-verification` (Target: `main`).
+* **Merged Fix PRs on `main`:**
+  - **PR #294 (`5c9ec9e2`):** `fix(billing): preserve paid access through PayPal cancellation period`. Corrected the regression where cancellation webhooks wiped `expires_at` to null; ensured authoritative paid expiry is preserved until end of paid billing cycle.
+  - **PR #295 (`6e04c246`):** `fix(billing): allow new subscription activation to supersede previous canceled subscription state`. Added supersession guard allowing active new subscriptions to replace prior canceled documents.
+  - **PR #296 (`26b1faea`):** `fix(billing): allow redelivery reclaim of events previously ignored as different_subscription_ignored`. Fixed ledger reclamation to enable idempotent replay recovery.
+  - **PR #297 (`291c5c69`):** `fix(billing): permit initial payment completion on pending subscriptions regardless of slight timestamp inversion`. Allowed authoritative `PAYMENT.SALE.COMPLETED` events to transition `pending_initial_payment` to `active` even when PayPal timestamp is slightly older than `ACTIVATED`, and allowed redelivery reclaim of stale sale events.
+* **Targeted Appwrite Hub Deployments:**
+  - `paypal-webhook` deployed via workflow run `34028770031` (`SUCCESS`).
+  - `billing-checkout` deployed via workflow run `34029085832` (`SUCCESS`).
+* **Customer UI Cancellation Verification:**
+  - Real browser automation executed on live `https://wiseresume.app/subscription`.
+  - QA user `qa_pp_afbf725e` logged in, inspected active Ultimate subscription with renewal date `October 6, 2026`.
+  - Clicked "Cancel Subscription" button; modal opened with explicit disclosure: *"Your access will remain active until October 6, 2026. After this date, your account will downgrade to the Free plan and no further charges will occur."*
+  - Clicked "Confirm Cancellation". Function `billing-checkout` accepted cancellation with HTTP 200 `{"status":"success","canceled":true,"message":"Cancellation request accepted."}`.
+* **Direct PayPal API Confirmation:**
+  - Queried `GET /v1/billing/subscriptions/I-58K84FGAFFHL`:
+    * `status: "CANCELLED"`
+    * `status_change_note: "User requested cancellation in subscription settings"`
+    * `status_update_time: "2026-09-06T10:59:18Z"`
+* **Authentic PayPal Webhook Processing:**
+  - First automatic delivery of event `WH-9AA0732263469183V-35B12222V7015642N` (`BILLING.SUBSCRIPTION.CANCELLED`, created `2026-09-06T10:59:22.000Z`).
+  - Cryptographic signature verification succeeded.
+  - Ledger doc recorded status `processed`.
+* **Authoritative Appwrite State & Resolver Contract:**
+  - `coupons` `get-subscription` returns:
+    ```json
+    {
+      "status": "success",
+      "data": {
+        "plan": "free",
+        "effective_plan": "premium",
+        "status": "canceled",
+        "expires_at": "2026-10-06T10:00:00.000Z",
+        "provider_source": "paypal",
+        "provider_status": "canceled",
+        "provider_expires_at": "2026-10-06T10:00:00.000Z",
+        "can_cancel_subscription": false,
+        "will_renew": false,
+        "can_subscribe": false
+      }
+    }
+    ```
+  - **Paid-Through Invariant:** `expires_at` is preserved as `2026-10-06T10:00:00.000Z` (NOT NULL!). Effective plan remains `premium`. Unlimited AI quota in `ai-gateway` remains fully accessible until expiration date.
+* **Live UI Settlement & Persistence:**
+  - Live page shows "Ultimate [Canceled]", "Access ends on October 6, 2026", Resumes: Unlimited, AI Credits: Unlimited.
+  - "Cancel Subscription" button is cleanly hidden.
+  - Persists across reloads, tab switches, and dashboard navigation.
+* **Public Checkout Restored Fail-Closed:**
+  - Repository variables: `BILLING_CHECKOUT_ENABLED=false`, `BILLING_CHECKOUT_PROVIDER_READY=false`.
+  - Redeployed `billing-checkout`. Verified anonymous/non-QA attempt returns HTTP 403 `payments_disabled`. Verified QA user attempt also returns HTTP 403 `payments_disabled`.
+* **Test Matrix Verification:**
+  - Node test suites: **180 / 180** passing across `paypal-webhook`, `billing-checkout.paypal`, `billing-checkout`, `paypal-subscription-resolver`, `coupons-subscription`, `paypal-schema`.
+  - Vitest frontend suite: **28 / 28** passing in `SubscriptionPage.paypal.test.tsx`.
+* **Remaining Scope / Untested Scenarios:**
+  - Failed renewal handling (grace period and suspension) remains `NOT TESTED`.
+  - Refund / reversal webhook handling remains `NOT TESTED`.
+  - Production PayPal remains strictly `UNTOUCHED / DISABLED`.
+  - PR #293 remains `DO_NOT_MERGE`.
+
+---
+
+## Historical Handover — PayPal US Sandbox: Pro & Ultimate E2E Verified (2026-09-06)
 
 * **Workstream:** `US_SANDBOX_PRO_AND_ULTIMATE_E2E_VERIFIED`.
 * **Feature Branch:** `docs/paypal-us-sandbox-ultimate-e2e-closeout` (Target: `main`).
