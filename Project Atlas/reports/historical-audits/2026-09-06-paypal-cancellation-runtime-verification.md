@@ -46,7 +46,7 @@ Public checkout remains strictly fail-closed. WiseResume PayPal is verified in S
 4. **Subscription Paid-Through Preservation (PR #294):**
    - When a customer cancels their subscription during a paid billing cycle, their `expires_at` timestamp is **strictly preserved**.
    - The customer retains access to paid entitlements (including unlimited AI credits for Ultimate) until the end of the prepaid period.
-   - Immediate drop to Free occurs only if the subscription was in `pending_initial_payment` (never paid) or an active `billing_issue` grace period expired.
+   - Paid access is granted only while an authoritative future entitlement window exists under the canonical resolver contract. `pending_initial_payment`, suspended/expired states outside active grace, expired grace, or cancellation without a preserved paid-through expiry do not qualify for paid access.
 5. **Anti-Double-Billing Safeguard:**
    - Direct `paid -> paid` checkout attempts (`Pro -> Ultimate`, `Premium -> Pro`) are blocked at the server level with HTTP 409 `plan_change_unavailable` with **zero** provider calls. Future plan changes will require PayPal's dedicated revision API (`POST /v1/billing/subscriptions/{id}/revise`).
 
