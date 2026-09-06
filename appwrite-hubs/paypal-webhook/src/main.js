@@ -532,7 +532,7 @@ async function reclaimLedgerReservation(databases, ledgerDocId, payload, nowMs) 
 
     // Verify still eligible for reclamation inside the transaction
     if (existing.processing_status === 'processed' ||
-        existing.processing_status === 'ignored' ||
+        (existing.processing_status === 'ignored' && existing.outcome_code !== 'different_subscription_ignored') ||
         existing.processing_status === 'rejected') {
       await databases.updateTransaction(transaction.$id, false, true);
       return { ok: false, reason: 'already_recorded' };
@@ -654,7 +654,9 @@ async function processWebhookEvent({
       if (!existing) {
         return { outcome: 'duplicate', code: 'already_recorded', mutated: false };
       }
-      if (existing.processing_status === 'processed' || existing.processing_status === 'ignored' || existing.processing_status === 'rejected') {
+      if (existing.processing_status === 'processed' ||
+          (existing.processing_status === 'ignored' && existing.outcome_code !== 'different_subscription_ignored') ||
+          existing.processing_status === 'rejected') {
         return { outcome: 'duplicate', code: 'already_recorded', mutated: false };
       }
       if (existing.processing_status === 'processing') {
@@ -682,8 +684,9 @@ async function processWebhookEvent({
           const code = reclaim.reason === 'already_recorded' ? 'already_recorded' : 'concurrent_processing';
           return { outcome: 'duplicate', code, mutated: false };
         }
-      } else if (existing.processing_status === 'failed') {
-        // Recoverable retry after a previous processor crashed or experienced transient failure.
+      } else if (existing.processing_status === 'failed' || existing.outcome_code === 'different_subscription_ignored') {
+        // Recoverable retry after a previous processor crashed or experienced transient failure,
+        // or redelivery of an event that was previously ignored under different_subscription_ignored.
         // Conflict-aware conditional reclaim via Appwrite transaction.
         const reclaim = await reclaimLedgerReservation(databases, ledgerDocId, {
           event_id: event.id,
