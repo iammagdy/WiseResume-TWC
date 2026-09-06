@@ -392,3 +392,63 @@ test('Case 19: Provider Environment Isolation decouples PayPal Sandbox from Reve
   });
   assert.equal(paypalFailsClosed.plan, 'free');
 });
+
+// 20. Exact Grace Boundary: billing_issue evaluated at exactly G (nowMs === Date.parse(G)) => drops to Free
+test('Case 20: billing_issue evaluated at exactly G (nowMs === Date.parse(G)) drops to Free', () => {
+  const G = graceExpiry;
+  const exactGraceExpiryMs = Date.parse(G);
+  const result = resolveEffectivePlan({
+    paypalProviderState: paypalState({
+      status: 'billing_issue',
+      expires_at: G,
+      grace_period_expires_at: G,
+      plan: 'premium',
+      will_renew: true,
+    }),
+    paypalProviderEnvironment: 'sandbox',
+    qaUserId: QA_USER_ID,
+    userId: QA_USER_ID,
+    nowMs: exactGraceExpiryMs,
+  });
+  assert.equal(result.plan, 'free');
+});
+
+// 21. Multi-provider fallback: expired PayPal grace does not force Free when another valid entitlement exists
+test('Case 21: expired PayPal grace does not force Free when another valid entitlement exists', () => {
+  const expiredG = pastExpiry;
+
+  // Expired PayPal Premium (billing_issue) + Active RevenueCat Pro => RevenueCat Pro wins
+  const rcFallback = resolveEffectivePlan({
+    providerState: rcState({ plan: 'pro', status: 'active', expires_at: futureExpiry }),
+    paypalProviderState: paypalState({
+      status: 'billing_issue',
+      plan: 'premium',
+      expires_at: expiredG,
+      grace_period_expires_at: expiredG,
+    }),
+    providerEnvironment: 'sandbox',
+    paypalProviderEnvironment: 'sandbox',
+    qaUserId: QA_USER_ID,
+    userId: QA_USER_ID,
+    nowMs,
+  });
+  assert.equal(rcFallback.plan, 'pro');
+  assert.equal(rcFallback.source, 'revenuecat');
+
+  // Expired PayPal Premium (billing_issue) + Manual/Admin Pro => Manual/Admin Pro wins
+  const manualFallback = resolveEffectivePlan({
+    subscription: { plan: 'pro' },
+    paypalProviderState: paypalState({
+      status: 'billing_issue',
+      plan: 'premium',
+      expires_at: expiredG,
+      grace_period_expires_at: expiredG,
+    }),
+    paypalProviderEnvironment: 'sandbox',
+    qaUserId: QA_USER_ID,
+    userId: QA_USER_ID,
+    nowMs,
+  });
+  assert.equal(manualFallback.plan, 'pro');
+  assert.equal(manualFallback.source, 'manual/admin');
+});
