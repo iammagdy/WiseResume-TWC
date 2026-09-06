@@ -1,5 +1,19 @@
 # WiseResume Atlas Master Changelog
 
+### 2026-09-06 - PayPal US Sandbox Integration: Free -> Ultimate $10 E2E Verification & Closeout
+
+- **Workstream Verdict:** `US_SANDBOX_PRO_AND_ULTIMATE_E2E_VERIFIED`.
+- **Branch:** `docs/paypal-us-sandbox-ultimate-e2e-closeout` (Target: `main`).
+- **Scope & Accomplishments:**
+  1. **Ultimate E2E Subscription & Payment Verified:** Successfully executed a real Free -> Ultimate subscription through WiseResume production UI with real $10.00 USD payment completion in browser automation using a verified US sandbox buyer account.
+  2. **Cryptographic Webhook Signature Verification:** Verified live postback signature verification (`SUCCESS`) for real PayPal Sandbox lifecycle events (`BILLING.SUBSCRIPTION.ACTIVATED` and `PAYMENT.SALE.COMPLETED`) delivered to `https://paypal-webhook.wiseresume.app`.
+  3. **Appwrite Server-State & Resolver Authority:** Verified `paypal_event_ledger` and `paypal_subscription_state` record `plan = premium` (strictly internal `premium`, NEVER `ultimate`), `status = active`, and `environment = sandbox` for the designated QA user. Authoritative subscription resolver resolves `premium` (unlimited AI credits quota in `ai-gateway`).
+  4. **UI & Quota Persistence Verified:** Live Subscription page UI verified in browser; Ultimate tier persists across page reloads and dashboard navigation.
+  5. **Non-QA Isolation Verified:** Non-QA accounts receive HTTP 403 `payments_disabled` on all checkout attempts.
+  6. **Fail-Closed Checkout Restored:** Restored public checkout to fail-closed (`BILLING_CHECKOUT_ENABLED=false`, `BILLING_CHECKOUT_PROVIDER_READY=false`). Verified all users are blocked from creating checkout sessions.
+  7. **Safety & Boundaries:** Production PayPal remains untouched; cancellation, renewal failure, and refunds remain not tested (`READY_FOR_CANCELLATION_QA = YES`).
+  8. **What's New Eligibility Decision:** `WHATS_NEW_DEFER_UNTIL_PRODUCTION` (Internal Sandbox QA and catalog alignment; public release notes deferred until production launch).
+
 ### 2026-09-05 - PayPal US Sandbox Integration: Pro E2E Verification & Ultimate $10 Price Alignment
 
 - **Workstream Verdict:** `US_SANDBOX_ULTIMATE_10_READY_FOR_QA`.

@@ -1,24 +1,27 @@
 # Project Atlas — Active Operational & Handover State
 
-**Last Verified:** 2026-09-05
-**Status:** `US_SANDBOX_ULTIMATE_10_READY_FOR_QA` (Branch: `fix/paypal-us-sandbox-ultimate-10`, Target: `main`) — PayPal US Sandbox integration verified: (1) US Sandbox merchant app approved & configured. (2) Pro ($5.00/mo) real Free -> Pro subscription with real $5 USD payment E2E VERIFIED. (3) Real cryptographic webhook signatures (`BILLING.SUBSCRIPTION.ACTIVATED`, `PAYMENT.SALE.COMPLETED`) verified with postback `SUCCESS`. (4) Appwrite `paypal_event_ledger` and `paypal_subscription_state` verified active for designated QA user. (5) Effective plan resolver & `ai-gateway` verified (50 AI credits/day). (6) UI persistence verified on live subscription page. (7) US Sandbox Ultimate plan aligned from $15/mo to approved commercial contract of **$10.00 USD/month** via PayPal in-place pricing update (`PRICE_UPDATED`). (8) Ultimate real E2E remains NOT TESTED. (9) Production PayPal UNTOUCHED; public checkout DISABLED (`BILLING_CHECKOUT_ENABLED=false`). (10) What's New decision: `WHATS_NEW_DEFER_UNTIL_PRODUCTION`.
+**Last Verified:** 2026-09-06
+**Status:** `US_SANDBOX_PRO_AND_ULTIMATE_E2E_VERIFIED` (Branch: `docs/paypal-us-sandbox-ultimate-e2e-closeout`, Target: `main`) — PayPal US Sandbox integration fully verified: (1) US Sandbox merchant app approved & configured. (2) Pro ($5.00/mo) real Free -> Pro subscription with real $5 USD payment E2E VERIFIED. (3) Ultimate ($10.00/mo) real Free -> Ultimate subscription with real $10 USD payment E2E VERIFIED. (4) Real cryptographic webhook signatures (`BILLING.SUBSCRIPTION.ACTIVATED`, `PAYMENT.SALE.COMPLETED`) verified with postback `SUCCESS`. (5) Appwrite `paypal_event_ledger` and `paypal_subscription_state` verified active for designated QA user (stored plan = `premium`, NEVER `ultimate`). (6) Effective plan resolver & `ai-gateway` verified (Ultimate = unlimited AI quota; Pro = 50/day). (7) UI persistence verified on live subscription page across reloads and navigation. (8) Non-QA isolation verified (HTTP 403 `payments_disabled`). (9) Public checkout returned to fail-closed (`BILLING_CHECKOUT_ENABLED=false`). (10) Production PayPal UNTOUCHED; cancellation, renewal failure, and refunds NOT TESTED (`READY_FOR_CANCELLATION_QA = YES`). (11) What's New decision: `WHATS_NEW_DEFER_UNTIL_PRODUCTION`.
 **Location:** `Project Atlas/WHERE_WE_STOPPED.md`
 
-## Current Active Handover — PayPal US Sandbox: Pro E2E Verified & Ultimate $10 Price Aligned
+## Current Active Handover — PayPal US Sandbox: Pro & Ultimate E2E Verified
 
-* **Workstream:** `US_SANDBOX_ULTIMATE_10_READY_FOR_QA`.
-* **Feature Branch:** `fix/paypal-us-sandbox-ultimate-10` (Target: `main`).
-* **Base Merge Commits:** Commit `0fbc04a11b6648a7385f81f8ef3cf94bd4016fc5` (`main`).
+* **Workstream:** `US_SANDBOX_PRO_AND_ULTIMATE_E2E_VERIFIED`.
+* **Feature Branch:** `docs/paypal-us-sandbox-ultimate-e2e-closeout` (Target: `main`).
+* **Base Merge Commits:** Commit `819f75caf03c2f5e6385aa71686c157d3709dc70` (`main`).
 * **US Merchant Configuration:** Approved US Sandbox Business App.
 * **Pro Plan:** US Sandbox Pro plan ($5.00 USD/month, `ACTIVE`).
-* **Ultimate Plan:** US Sandbox Ultimate plan ($10.00 USD/month, `ACTIVE`, aligned via `PRICE_UPDATED`).
+* **Ultimate Plan:** US Sandbox Ultimate plan ($10.00 USD/month, `ACTIVE`).
 * **Pro E2E Subscription:** Real Free -> Pro subscription executed and verified `ACTIVE` with completed $5.00 USD payment.
+* **Ultimate E2E Subscription:** Real Free -> Ultimate subscription executed and verified `ACTIVE` with completed $10.00 USD payment.
 * **Webhook Delivery & Signature:** Real `BILLING.SUBSCRIPTION.ACTIVATED` and `PAYMENT.SALE.COMPLETED` events processed with cryptographic postback signature verification `SUCCESS`.
-* **Appwrite Server-State:** `paypal_event_ledger` and `paypal_subscription_state` verified for designated QA user (`plan = pro`, `status = active`, `environment = sandbox`).
-* **Resolver & AI Quota:** Server-side resolver evaluates `pro`; `ai-gateway` grants 50 AI credits/day quota.
-* **UI Persistence:** Live Subscription page UI verified in browser; Pro tier persists across reloads and navigation.
-* **Ultimate QA Readiness:** US Sandbox Ultimate plan pricing is now aligned to $10/mo; ready for fresh Free -> Ultimate E2E QA.
-* **Production Boundary:** Production PayPal `DISABLED / UNTOUCHED`; public checkout `DISABLED`; plan revision `DEFERRED`.
+* **Appwrite Server-State:** `paypal_event_ledger` and `paypal_subscription_state` verified for designated QA users (Pro stored as `pro`, Ultimate stored strictly as `premium`, status `active`, environment `sandbox`).
+* **Resolver & AI Quota:** Server-side resolver evaluates `pro` (50 AI credits/day) and `premium` (unlimited AI credits in `ai-gateway`).
+* **UI Persistence:** Live Subscription page UI verified in browser; both Pro and Ultimate tiers persist across reloads and navigation.
+* **Non-QA Isolation:** Verified non-QA users receive HTTP 403 `payments_disabled` on all checkout attempts.
+* **Fail-Closed Gate:** Public checkout restored to strictly fail-closed (`BILLING_CHECKOUT_ENABLED=false`, `BILLING_CHECKOUT_PROVIDER_READY=false`).
+* **Production Boundary:** Production PayPal `DISABLED / UNTOUCHED`; plan revision `DEFERRED`.
+* **Untested Scenarios:** Cancellation, failed renewal, and refunds/reversals remain `NOT TESTED` (`READY_FOR_CANCELLATION_QA = YES`).
 * **What's New Eligibility Decision:** `WHATS_NEW_DEFER_UNTIL_PRODUCTION` (Internal Sandbox QA and catalog alignment; public release notes deferred until production launch).
 
 ### Paid Plan Change Policy
