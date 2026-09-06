@@ -793,22 +793,40 @@ async function processWebhookEvent({
       previous = candidateState;
     } else {
       previous = null;
-      // If subscription IDs differ, record specialized different_subscription_ignored
+      // If subscription IDs differ:
+      // A new subscription is allowed to supersede a prior subscription ONLY if:
+      // 1. The prior state is not active (e.g. canceled, expired, suspended), AND
+      // 2. The incoming event is a subscription start/payment event (ACTIVATED or PAYMENT.SALE.COMPLETED).
       if (!isSameSub) {
+        const isActivationOrPayment = event.type === 'BILLING.SUBSCRIPTION.ACTIVATED' || event.type === 'PAYMENT.SALE.COMPLETED';
+        const isPriorStateInactive = !candidateState.status || candidateState.status !== 'active';
+
+        if (isSameUser && isSameEnv && isActivationOrPayment && isPriorStateInactive) {
+          // Valid new subscription superseding prior inactive state.
+          // Reuse candidateState.$id so upsertProviderState updates the existing user document,
+          // but do NOT inherit the prior subscription's plan/status/grace period.
+          previous = {
+            $id: candidateState.$id,
+            user_id: candidateState.user_id,
+            latest_event_timestamp_ms: candidateState.latest_event_timestamp_ms,
+          };
+        } else {
+          await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
+            user_id: userId,
+            processing_status: 'ignored',
+            outcome_code: 'different_subscription_ignored',
+          }, serverOnlyPermissions());
+          return { outcome: 'ignored', code: 'different_subscription_ignored', mutated: false };
+        }
+      } else {
+        // If user or environment mismatches, record state_identity_mismatch_ignored and do NOT mutate state
         await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
           user_id: userId,
           processing_status: 'ignored',
-          outcome_code: 'different_subscription_ignored',
+          outcome_code: 'state_identity_mismatch_ignored',
         }, serverOnlyPermissions());
-        return { outcome: 'ignored', code: 'different_subscription_ignored', mutated: false };
+        return { outcome: 'ignored', code: 'state_identity_mismatch_ignored', mutated: false };
       }
-      // If user or environment mismatches, record state_identity_mismatch_ignored and do NOT mutate state
-      await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
-        user_id: userId,
-        processing_status: 'ignored',
-        outcome_code: 'state_identity_mismatch_ignored',
-      }, serverOnlyPermissions());
-      return { outcome: 'ignored', code: 'state_identity_mismatch_ignored', mutated: false };
     }
   } else {
     previous = null;
@@ -906,10 +924,17 @@ async function processWebhookEvent({
   switch (event.type) {
     case 'BILLING.SUBSCRIPTION.ACTIVATED':
       // CRITICAL: ACTIVATED alone grants NO paid entitlement.
-      stateUpdate.status = 'pending_initial_payment';
-      stateUpdate.will_renew = true;
-      stateUpdate.grace_period_expires_at = null;
-      stateUpdate.expires_at = null;
+      // If this same subscription was already verified active by payment, preserve active state.
+      if (previous?.status === 'active' && previous.subscription_id === event.subscriptionId) {
+        stateUpdate.status = previous.status;
+        stateUpdate.will_renew = previous.will_renew !== undefined ? previous.will_renew : true;
+        stateUpdate.expires_at = previous.expires_at;
+      } else {
+        stateUpdate.status = 'pending_initial_payment';
+        stateUpdate.will_renew = true;
+        stateUpdate.grace_period_expires_at = null;
+        stateUpdate.expires_at = null;
+      }
       break;
 
     case 'PAYMENT.SALE.COMPLETED': {
