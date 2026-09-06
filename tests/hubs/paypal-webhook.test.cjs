@@ -3339,3 +3339,149 @@ test('State Identity Guard C: correct user + subscription + environment preserve
   assert.equal(finalState.will_renew, false);
   assert.equal(finalState.expires_at, futureExpiryIso, 'Authoritative future expiry must be preserved');
 });
+
+test('State Identity Guard D: new subscription ACTIVATED and SALE.COMPLETED supersedes prior canceled subscription in state', async () => {
+  const db = createMockDatabases();
+  const users = createMockUsers();
+  const stateDocId = paypalWebhook.__test.stateDocumentId(QA_USER_ID);
+  const oldSubId = 'I-OLD-CANCELED-SUB';
+  const newSubId = 'I-NEW-ACTIVE-SUB';
+  const newExpiryIso = '2026-11-06T10:00:00.000Z';
+
+  // Seed state with old canceled subscription
+  db.collections.paypal_subscription_state.set(stateDocId, {
+    $id: stateDocId,
+    user_id: QA_USER_ID,
+    subscription_id: oldSubId,
+    status: 'canceled',
+    will_renew: false,
+    expires_at: null,
+    plan: 'free',
+    plan_id: '',
+    environment: 'sandbox',
+    latest_event_timestamp_ms: 1000000,
+  });
+
+  // 1. BILLING.SUBSCRIPTION.ACTIVATED for newSubId arrives
+  const activateEvent = normalizeEvent({
+    id: 'EVT-NEW-SUB-ACTIVATED',
+    event_type: 'BILLING.SUBSCRIPTION.ACTIVATED',
+    create_time: new Date(2000000).toISOString(),
+    resource: {
+      id: newSubId,
+      custom_id: QA_USER_ID,
+      plan_id: SANDBOX_ULTIMATE_PLAN_ID,
+      status: 'ACTIVE',
+    },
+  });
+
+  const actResult = await processWebhookEvent({
+    databases: db,
+    users,
+    event: activateEvent,
+    nowMs: 2000000,
+    env: TEST_ENV,
+  });
+
+  assert.equal(actResult.outcome, 'processed');
+  assert.equal(actResult.status, 'pending_initial_payment');
+  assert.equal(actResult.mutated, true);
+
+  let currentState = db.collections.paypal_subscription_state.get(stateDocId);
+  assert.equal(currentState.subscription_id, newSubId, 'State must be updated to new subscription ID');
+  assert.equal(currentState.status, 'pending_initial_payment');
+
+  // 2. PAYMENT.SALE.COMPLETED for newSubId arrives
+  const payEvent = normalizeEvent({
+    id: 'EVT-NEW-SUB-PAID',
+    event_type: 'PAYMENT.SALE.COMPLETED',
+    create_time: new Date(3000000).toISOString(),
+    resource: {
+      id: 'TX-NEW-SUB-PAY',
+      billing_agreement_id: newSubId,
+      custom_id: QA_USER_ID,
+      plan_id: SANDBOX_ULTIMATE_PLAN_ID,
+      billing_info: { next_billing_time: newExpiryIso },
+    },
+  });
+
+  const payResult = await processWebhookEvent({
+    databases: db,
+    users,
+    event: payEvent,
+    nowMs: 3000000,
+    env: TEST_ENV,
+  });
+
+  assert.equal(payResult.outcome, 'processed');
+  assert.equal(payResult.status, 'active');
+  assert.equal(payResult.effectivePlan, 'premium');
+
+  currentState = db.collections.paypal_subscription_state.get(stateDocId);
+  assert.equal(currentState.subscription_id, newSubId);
+  assert.equal(currentState.status, 'active');
+  assert.equal(currentState.expires_at, newExpiryIso);
+});
+
+test('State Identity Guard E: ACTIVATED event arriving after SALE.COMPLETED does not regress active status back to pending_initial_payment', async () => {
+  const db = createMockDatabases();
+  const users = createMockUsers();
+  const stateDocId = paypalWebhook.__test.stateDocumentId(QA_USER_ID);
+  const subId = 'I-ORDER-INVERTED-SUB';
+  const expiryIso = '2026-11-10T12:00:00.000Z';
+
+  // 1. PAYMENT.SALE.COMPLETED arrives first
+  const payEvent = normalizeEvent({
+    id: 'EVT-INVERT-PAY',
+    event_type: 'PAYMENT.SALE.COMPLETED',
+    create_time: new Date(1000000).toISOString(),
+    resource: {
+      id: 'TX-INVERT-PAY',
+      billing_agreement_id: subId,
+      custom_id: QA_USER_ID,
+      plan_id: SANDBOX_ULTIMATE_PLAN_ID,
+      billing_info: { next_billing_time: expiryIso },
+    },
+  });
+
+  const payResult = await processWebhookEvent({
+    databases: db,
+    users,
+    event: payEvent,
+    nowMs: 1000000,
+    env: TEST_ENV,
+  });
+
+  assert.equal(payResult.outcome, 'processed');
+  assert.equal(payResult.status, 'active');
+
+  // 2. BILLING.SUBSCRIPTION.ACTIVATED arrives later with higher timestamp
+  const actEvent = normalizeEvent({
+    id: 'EVT-INVERT-ACT',
+    event_type: 'BILLING.SUBSCRIPTION.ACTIVATED',
+    create_time: new Date(1001000).toISOString(),
+    resource: {
+      id: subId,
+      custom_id: QA_USER_ID,
+      plan_id: SANDBOX_ULTIMATE_PLAN_ID,
+      status: 'ACTIVE',
+    },
+  });
+
+  const actResult = await processWebhookEvent({
+    databases: db,
+    users,
+    event: actEvent,
+    nowMs: 1001000,
+    env: TEST_ENV,
+  });
+
+  assert.equal(actResult.outcome, 'processed');
+
+  // Must remain active and retain authoritative expiry
+  const finalState = db.collections.paypal_subscription_state.get(stateDocId);
+  assert.equal(finalState.status, 'active', 'Status must not regress to pending_initial_payment');
+  assert.equal(finalState.expires_at, expiryIso, 'Authoritative expiry must not be wiped out');
+  assert.equal(finalState.will_renew, true);
+});
+
