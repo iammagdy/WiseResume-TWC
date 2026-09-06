@@ -623,119 +623,90 @@ class AppwriteCheckoutStore {
     const cleanExpiry = asString(expiresAt).trim();
     if (!cleanExpiry) fail('bad_request', 400, 'Invalid expiration timestamp.');
 
-    if (this.databases) {
-      if (typeof this.databases.createTransaction === 'function') {
-        let transaction;
-        try {
-          transaction = await this.databases.createTransaction(CHECKOUT_TRANSACTION_TTL_SECONDS);
-        } catch (_) {
-          fail('state_unavailable', 503, 'Subscription state is temporarily unavailable.');
-        }
+    if (
+      !this.databases ||
+      typeof this.databases.createTransaction !== 'function' ||
+      typeof this.databases.getDocument !== 'function' ||
+      typeof this.databases.updateDocument !== 'function' ||
+      typeof this.databases.updateTransaction !== 'function'
+    ) {
+      fail('state_unavailable', 503, 'Subscription state is temporarily unavailable.');
+    }
 
-        if (!transaction?.$id) {
-          fail('state_unavailable', 503, 'Subscription state is temporarily unavailable.');
-        }
+    let transaction;
+    try {
+      transaction = await this.databases.createTransaction(CHECKOUT_TRANSACTION_TTL_SECONDS);
+    } catch (_) {
+      fail('state_unavailable', 503, 'Subscription state is temporarily unavailable.');
+    }
 
-        let committed = false;
-        try {
-          let currentDoc;
-          try {
-            currentDoc = await this.databases.getDocument(
-              DB_ID,
-              'paypal_subscription_state',
-              cleanDocId,
-              [],
-              transaction.$id
-            );
-          } catch (_) {
-            fail('state_unavailable', 503, 'Subscription state is temporarily unavailable.');
-          }
+    if (!transaction?.$id) {
+      fail('state_unavailable', 503, 'Subscription state is temporarily unavailable.');
+    }
 
-          if (!currentDoc) {
-            fail('not_found', 404, 'Subscription state not found.');
-          }
-          if (userId && asString(currentDoc.user_id).trim() !== asString(userId).trim()) {
-            fail('forbidden', 403, 'Subscription state does not belong to the authenticated user.');
-          }
-          if (subscriptionId && asString(currentDoc.subscription_id).trim() !== asString(subscriptionId).trim()) {
-            fail('bad_request', 400, 'Subscription state ID mismatch.');
-          }
-          if (environment && normalizeEnvironment(currentDoc.environment) !== normalizeEnvironment(environment)) {
-            fail('bad_request', 400, 'Subscription state environment mismatch.');
-          }
-          if (expectedPlan && normalizeEffectivePlan(currentDoc.plan) !== normalizeEffectivePlan(expectedPlan)) {
-            fail('bad_request', 400, 'Subscription state plan mismatch.');
-          }
-          const docStatus = asString(currentDoc.status).trim().toLowerCase();
-          if (!['active', 'billing_issue'].includes(docStatus)) {
-            fail('bad_request', 400, 'Subscription state is not in a cancellable status.');
-          }
-          if (currentDoc.will_renew !== true) {
-            fail('bad_request', 400, 'Subscription is not set to renew.');
-          }
-
-          const updated = await this.databases.updateDocument(
-            DB_ID,
-            'paypal_subscription_state',
-            cleanDocId,
-            { expires_at: cleanExpiry },
-            [],
-            transaction.$id
-          );
-
-          await this.databases.updateTransaction(transaction.$id, true, false);
-          committed = true;
-          return updated;
-        } catch (error) {
-          if (!committed) {
-            try { await this.databases.updateTransaction(transaction.$id, false, true); } catch (_) {}
-          }
-          if (error instanceof BillingCheckoutError) throw error;
-          fail('state_unavailable', 503, 'Subscription state is temporarily unavailable.');
-        }
-      } else {
-        let currentDoc;
-        try {
-          currentDoc = await this.databases.getDocument(DB_ID, 'paypal_subscription_state', cleanDocId);
-        } catch (_) {
-          fail('state_unavailable', 503, 'Subscription state is temporarily unavailable.');
-        }
-
-        if (!currentDoc) {
-          fail('not_found', 404, 'Subscription state not found.');
-        }
-        if (userId && asString(currentDoc.user_id).trim() !== asString(userId).trim()) {
-          fail('forbidden', 403, 'Subscription state does not belong to the authenticated user.');
-        }
-        if (subscriptionId && asString(currentDoc.subscription_id).trim() !== asString(subscriptionId).trim()) {
-          fail('bad_request', 400, 'Subscription state ID mismatch.');
-        }
-        if (environment && normalizeEnvironment(currentDoc.environment) !== normalizeEnvironment(environment)) {
-          fail('bad_request', 400, 'Subscription state environment mismatch.');
-        }
-        if (expectedPlan && normalizeEffectivePlan(currentDoc.plan) !== normalizeEffectivePlan(expectedPlan)) {
-          fail('bad_request', 400, 'Subscription state plan mismatch.');
-        }
-        const docStatus = asString(currentDoc.status).trim().toLowerCase();
-        if (!['active', 'billing_issue'].includes(docStatus)) {
-          fail('bad_request', 400, 'Subscription state is not in a cancellable status.');
-        }
-        if (currentDoc.will_renew !== true) {
-          fail('bad_request', 400, 'Subscription is not set to renew.');
-        }
-
-        try {
-          return await this.databases.updateDocument(
-            DB_ID,
-            'paypal_subscription_state',
-            cleanDocId,
-            { expires_at: cleanExpiry },
-            []
-          );
-        } catch (_) {
-          fail('state_unavailable', 503, 'Subscription state is temporarily unavailable.');
-        }
+    let committed = false;
+    try {
+      let currentDoc;
+      try {
+        currentDoc = await this.databases.getDocument(
+          DB_ID,
+          'paypal_subscription_state',
+          cleanDocId,
+          [],
+          transaction.$id
+        );
+      } catch (docErr) {
+        if (docErr instanceof BillingCheckoutError) throw docErr;
+        fail('state_unavailable', 503, 'Subscription state is temporarily unavailable.');
       }
+
+      if (!currentDoc) {
+        fail('not_found', 404, 'Subscription state not found.');
+      }
+      if (userId && asString(currentDoc.user_id).trim() !== asString(userId).trim()) {
+        fail('forbidden', 403, 'Subscription state does not belong to the authenticated user.');
+      }
+      if (subscriptionId && asString(currentDoc.subscription_id).trim() !== asString(subscriptionId).trim()) {
+        fail('bad_request', 400, 'Subscription state ID mismatch.');
+      }
+      if (environment && normalizeEnvironment(currentDoc.environment) !== normalizeEnvironment(environment)) {
+        fail('bad_request', 400, 'Subscription state environment mismatch.');
+      }
+      if (expectedPlan && normalizeEffectivePlan(currentDoc.plan) !== normalizeEffectivePlan(expectedPlan)) {
+        fail('bad_request', 400, 'Subscription state plan mismatch.');
+      }
+      const docStatus = asString(currentDoc.status).trim().toLowerCase();
+      if (!['active', 'billing_issue'].includes(docStatus)) {
+        fail('bad_request', 400, 'Subscription state is not in a cancellable status.');
+      }
+      if (currentDoc.will_renew !== true) {
+        fail('bad_request', 400, 'Subscription is not set to renew.');
+      }
+
+      let updated;
+      try {
+        updated = await this.databases.updateDocument(
+          DB_ID,
+          'paypal_subscription_state',
+          cleanDocId,
+          { expires_at: cleanExpiry },
+          [],
+          transaction.$id
+        );
+      } catch (updErr) {
+        if (updErr instanceof BillingCheckoutError) throw updErr;
+        fail('state_unavailable', 503, 'Subscription state is temporarily unavailable.');
+      }
+
+      await this.databases.updateTransaction(transaction.$id, true, false);
+      committed = true;
+      return updated;
+    } catch (error) {
+      if (!committed) {
+        try { await this.databases.updateTransaction(transaction.$id, false, true); } catch (_) {}
+      }
+      if (error instanceof BillingCheckoutError) throw error;
+      fail('state_unavailable', 503, 'Subscription state is temporarily unavailable.');
     }
   }
 }
@@ -1355,6 +1326,12 @@ class BillingCheckoutService {
       }
       if (currentState.will_renew !== true) {
         fail('bad_request', 400, 'Subscription is not renewable or already canceled.');
+      }
+      if (!currentState.expires_at || !isFutureTimestamp(currentState.expires_at, nowMs)) {
+        fail('cancellation_failed', 400, 'Unable to cancel subscription. Please verify your subscription status or try again later.');
+      }
+      if (new Date(currentState.expires_at).toISOString() !== authoritativeExpiry) {
+        fail('cancellation_failed', 400, 'Unable to cancel subscription. Please verify your subscription status or try again later.');
       }
     }
 

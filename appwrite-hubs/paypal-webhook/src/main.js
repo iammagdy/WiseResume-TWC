@@ -793,9 +793,8 @@ async function processWebhookEvent({
       previous = candidateState;
     } else {
       previous = null;
-      // If the user already has a state document belonging to a DIFFERENT subscription,
-      // do NOT allow an event from an older/different subscription to mutate or overwrite the newer state.
-      if (candidateState.subscription_id && String(candidateState.subscription_id).trim() !== String(event.subscriptionId).trim()) {
+      // If subscription IDs differ, record specialized different_subscription_ignored
+      if (!isSameSub) {
         await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
           user_id: userId,
           processing_status: 'ignored',
@@ -803,6 +802,13 @@ async function processWebhookEvent({
         }, serverOnlyPermissions());
         return { outcome: 'ignored', code: 'different_subscription_ignored', mutated: false };
       }
+      // If user or environment mismatches, record state_identity_mismatch_ignored and do NOT mutate state
+      await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
+        user_id: userId,
+        processing_status: 'ignored',
+        outcome_code: 'state_identity_mismatch_ignored',
+      }, serverOnlyPermissions());
+      return { outcome: 'ignored', code: 'state_identity_mismatch_ignored', mutated: false };
     }
   } else {
     previous = null;

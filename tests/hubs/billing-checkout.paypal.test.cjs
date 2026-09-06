@@ -2179,3 +2179,230 @@ test('Hardening F: updatePaypalExpiry rejects non-renewing subscription with ZER
 
   assert.equal(cancelCallCount, 0, 'ZERO provider cancel calls when will_renew is false at write time');
 });
+
+test('AppwriteCheckoutStore.updatePaypalExpiry: missing transaction capabilities fails closed with state_unavailable', async () => {
+  const futureIso = new Date(Date.now() + 86400000).toISOString();
+
+  // Test missing databases entirely
+  const storeNoDb = new AppwriteCheckoutStore(null, 'sandbox');
+  await assert.rejects(
+    () => storeNoDb.updatePaypalExpiry({ documentId: 'doc_1', userId: 'user_1', expiresAt: futureIso }),
+    err => err instanceof BillingCheckoutError && err.status === 503 && err.code === 'state_unavailable'
+  );
+
+  // Test missing createTransaction
+  const storeNoCreateTx = new AppwriteCheckoutStore({
+    getDocument: async () => ({}),
+    updateDocument: async () => ({}),
+    updateTransaction: async () => ({}),
+  }, 'sandbox');
+  await assert.rejects(
+    () => storeNoCreateTx.updatePaypalExpiry({ documentId: 'doc_1', userId: 'user_1', expiresAt: futureIso }),
+    err => err instanceof BillingCheckoutError && err.status === 503 && err.code === 'state_unavailable'
+  );
+
+  // Test missing updateTransaction
+  const storeNoUpdateTx = new AppwriteCheckoutStore({
+    createTransaction: async () => ({ $id: 'tx_1' }),
+    getDocument: async () => ({}),
+    updateDocument: async () => ({}),
+  }, 'sandbox');
+  await assert.rejects(
+    () => storeNoUpdateTx.updatePaypalExpiry({ documentId: 'doc_1', userId: 'user_1', expiresAt: futureIso }),
+    err => err instanceof BillingCheckoutError && err.status === 503 && err.code === 'state_unavailable'
+  );
+});
+
+test('BillingCheckoutService.cancel preflight FAIL-CLOSED: AppwriteCheckoutStore missing transaction capability aborts cancellation with provider cancel call count = 0', async () => {
+  const env = validPayPalEnv();
+  const config = readConfig(env);
+  const nowMs = 1700000000000;
+  const futureIso = new Date(nowMs + 30 * 86400000).toISOString();
+
+  let cancelCallCount = 0;
+
+  // Real AppwriteCheckoutStore with mock databases missing createTransaction
+  const mockDatabases = {
+    listDocuments: async () => ({
+      documents: [{
+        $id: 'state_doc_notx_1',
+        user_id: 'qa_user_456',
+        subscription_id: 'I-NOTX123',
+        environment: 'sandbox',
+        status: 'active',
+        will_renew: true,
+        expires_at: null,
+        plan: 'pro',
+      }],
+    }),
+    getDocument: async () => ({}),
+    updateDocument: async () => ({}),
+    // createTransaction is intentionally missing
+  };
+
+  const store = new AppwriteCheckoutStore(mockDatabases, 'sandbox', {
+    paypalProviderEnvironment: 'sandbox',
+    qaUserId: 'qa_user_456',
+  });
+
+  const provider = {
+    getSubscriptionDetails: async () => ({
+      id: 'I-NOTX123',
+      status: 'ACTIVE',
+      billing_info: { next_billing_time: futureIso },
+    }),
+    cancelSubscription: async () => {
+      cancelCallCount += 1;
+      return { status: 'success' };
+    },
+  };
+
+  const service = new BillingCheckoutService({ store, provider, config, now: () => nowMs });
+
+  await assert.rejects(
+    () => service.cancel({ userId: 'qa_user_456', reason: 'Cancel attempt' }),
+    err => err instanceof BillingCheckoutError && err.status === 503 && err.code === 'state_unavailable'
+  );
+
+  assert.equal(cancelCallCount, 0, 'FAIL-CLOSED: Provider cancel call count MUST remain ZERO when database lacks transaction support');
+});
+
+test('BillingCheckoutService.cancel future-expiry revalidation FAIL-CLOSED A: current state expires_at becomes null before final revalidation -> provider cancel ZERO', async () => {
+  const env = validPayPalEnv();
+  const config = readConfig(env);
+  const nowMs = 1700000000000;
+  const futureIso = new Date(nowMs + 30 * 86400000).toISOString();
+
+  let cancelCallCount = 0;
+  let findCount = 0;
+
+  const store = new MockCheckoutStore({
+    paypalState: {
+      $id: 'state_doc_reval_null_expiry',
+      user_id: 'qa_user_456',
+      subscription_id: 'I-REVALNULLEXP123',
+      environment: 'sandbox',
+      status: 'active',
+      will_renew: true,
+      expires_at: futureIso,
+      plan: 'pro',
+    },
+  });
+
+  const originalFind = store.findOptional.bind(store);
+  store.findOptional = async (collection, userId) => {
+    findCount += 1;
+    const doc = await originalFind(collection, userId);
+    if (findCount > 1 && doc) {
+      // Expiry was wiped by concurrent action
+      return { ...doc, expires_at: null };
+    }
+    return doc;
+  };
+
+  const provider = {
+    cancelSubscription: async () => {
+      cancelCallCount += 1;
+      return { status: 'success' };
+    },
+  };
+
+  const service = new BillingCheckoutService({ store, provider, config, now: () => nowMs });
+
+  await assert.rejects(
+    () => service.cancel({ userId: 'qa_user_456', reason: 'Cancel attempt' }),
+    err => err instanceof BillingCheckoutError && err.code === 'cancellation_failed' && err.status === 400
+  );
+
+  assert.equal(cancelCallCount, 0, 'FAIL-CLOSED: Provider cancel call count MUST remain ZERO when current state expires_at becomes null');
+});
+
+test('BillingCheckoutService.cancel future-expiry revalidation FAIL-CLOSED B: current state expires_at changes to unexpected timestamp -> provider cancel ZERO', async () => {
+  const env = validPayPalEnv();
+  const config = readConfig(env);
+  const nowMs = 1700000000000;
+  const initialFutureIso = new Date(nowMs + 30 * 86400000).toISOString();
+  const changedFutureIso = new Date(nowMs + 60 * 86400000).toISOString();
+
+  let cancelCallCount = 0;
+  let findCount = 0;
+
+  const store = new MockCheckoutStore({
+    paypalState: {
+      $id: 'state_doc_reval_changed_expiry',
+      user_id: 'qa_user_456',
+      subscription_id: 'I-REVALCHGEXP123',
+      environment: 'sandbox',
+      status: 'active',
+      will_renew: true,
+      expires_at: initialFutureIso,
+      plan: 'pro',
+    },
+  });
+
+  const originalFind = store.findOptional.bind(store);
+  store.findOptional = async (collection, userId) => {
+    findCount += 1;
+    const doc = await originalFind(collection, userId);
+    if (findCount > 1 && doc) {
+      // Expiry timestamp changed unexpectedly
+      return { ...doc, expires_at: changedFutureIso };
+    }
+    return doc;
+  };
+
+  const provider = {
+    cancelSubscription: async () => {
+      cancelCallCount += 1;
+      return { status: 'success' };
+    },
+  };
+
+  const service = new BillingCheckoutService({ store, provider, config, now: () => nowMs });
+
+  await assert.rejects(
+    () => service.cancel({ userId: 'qa_user_456', reason: 'Cancel attempt' }),
+    err => err instanceof BillingCheckoutError && err.code === 'cancellation_failed' && err.status === 400
+  );
+
+  assert.equal(cancelCallCount, 0, 'FAIL-CLOSED: Provider cancel call count MUST remain ZERO when current state expires_at unexpectedly changes');
+});
+
+test('BillingCheckoutService.cancel future-expiry revalidation C: unchanged authoritative future expiry proceeds -> cancel exactly once', async () => {
+  const env = validPayPalEnv();
+  const config = readConfig(env);
+  const nowMs = 1700000000000;
+  const futureIso = new Date(nowMs + 30 * 86400000).toISOString();
+
+  let cancelCallCount = 0;
+
+  const store = new MockCheckoutStore({
+    paypalState: {
+      $id: 'state_doc_reval_unchanged',
+      user_id: 'qa_user_456',
+      subscription_id: 'I-REVALOK123',
+      environment: 'sandbox',
+      status: 'active',
+      will_renew: true,
+      expires_at: futureIso,
+      plan: 'premium',
+    },
+  });
+
+  let capturedInput = null;
+  const provider = {
+    cancelSubscription: async (input) => {
+      cancelCallCount += 1;
+      capturedInput = input;
+      return { status: 'success', canceled: true, subscription_id: input.subscriptionId };
+    },
+  };
+
+  const service = new BillingCheckoutService({ store, provider, config, now: () => nowMs });
+  const result = await service.cancel({ userId: 'qa_user_456', reason: 'Normal cancellation' });
+
+  assert.equal(result.status, 'success');
+  assert.equal(result.canceled, true);
+  assert.equal(cancelCallCount, 1, 'Provider cancel must be called exactly once for valid unchanged future expiry');
+  assert.equal(capturedInput.subscriptionId, 'I-REVALOK123');
+});
