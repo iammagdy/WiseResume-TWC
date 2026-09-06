@@ -9,14 +9,14 @@
   1. **Option B Refund & Reversal Backend Implementation (`paypal-webhook`):**
      - Full refund of current entitlement-bearing payment: Revokes paid entitlement immediately (`expires_at = null`, `grace_period_expires_at = null`), retains payment identity (`last_entitlement_payment_id`, `last_entitlement_payment_timestamp_ms`), flags `renewal_cancellation_pending = true`, and initiates server-side cancellation of future automatic PayPal renewals (`POST /v1/billing/subscriptions/{id}/cancel`).
      - Truthful provider state: Retains authentic provider state while cancellation converges; settles to `status = 'canceled'`, `will_renew = false`, `renewal_cancellation_pending = false` upon confirmed cancellation or subsequent provider cancel webhook.
-     - Partial refund: Preserves current entitlement and recurring renewals; recorded in ledger only (`partial_refund_recorded`). Cumulative partial refunds totaling or exceeding gross amount escalate to full refund policy.
+     - Partial refund: Preserves current entitlement and recurring renewals; recorded in ledger only (`partial_refund_recorded`). Relies strictly on PayPal's authoritative transaction status (`PARTIALLY_REFUNDED` preserves entitlement, `REFUNDED` triggers full refund policy) without local balance arithmetic.
      - Historical refund/reversal: When refunded/reversed `payment_id` is older than `last_entitlement_payment_id` and provider evidence shows newer payment supports entitlement, provider state remains untouched (`historical_refund_ignored` / `historical_reversal_ignored`).
      - Payment reversal: Revokes entitlement immediately (`expires_at = null`), preserves truthful provider status (remains `active` if provider has not suspended/cancelled), preserves payment identity.
      - Cancellation-pending guard on sales: `PAYMENT.SALE.COMPLETED` events arriving while `renewal_cancellation_pending === true` are blocked from granting paid entitlement (`unexpected_payment_during_cancellation_pending`) and flag operational alert `UNEXPECTED_PAYMENT_DURING_REFUND_CLOSURE = OWNER/OPERATIONS_REVIEW_REQUIRED`.
      - Tombstone lookup on sales: `PAYMENT.SALE.COMPLETED` checks ledger for refund/reversal tombstones; if found and Transactions API confirms `REFUNDED` or `REVERSED`, drops activation (`sale_already_refunded`).
      - HATEOAS Transactions API pagination: Calls `GET /v1/billing/subscriptions/{id}/transactions` strictly with required `start_time` and `end_time`, follows HTTPS `rel="next"` links with route prefix verification, and enforces safety boundary `MAX_TRANSACTION_PAGE_FOLLOWS = 5`.
   2. **Additive Schema Definition (`setup_paypal_schema.cjs`):**
-     - Added optional attributes `last_entitlement_payment_id`, `last_entitlement_payment_timestamp_ms`, and `renewal_cancellation_pending` (default `false`) with index `last_payment_idx` to `paypal_subscription_state`.
+     - Added optional attributes `last_entitlement_payment_id` (with index `last_payment_idx` ASC), `last_entitlement_payment_timestamp_ms`, and `renewal_cancellation_pending` (default `false`) to `paypal_subscription_state`.
      - Added optional attribute `payment_id` with index `payment_idx` to `paypal_event_ledger`.
      - Non-destructive and idempotent; backward-compatible.
   3. **Coupons Hub Surface (`coupons/src/main.js`):**

@@ -213,9 +213,11 @@ function normalizeEvent(body) {
   if (type === 'PAYMENT.SALE.COMPLETED') {
     paymentId = String(resource.id || '').trim();
   } else if (type === 'PAYMENT.SALE.REFUNDED') {
-    paymentId = String(resource.sale_id || resource.parent_payment || resource.id || '').trim();
+    // Strictly require resource.sale_id (the refunded sale transaction ID)
+    paymentId = String(resource.sale_id || '').trim();
   } else if (type === 'PAYMENT.SALE.REVERSED') {
-    paymentId = String(resource.parent_payment || resource.sale_id || resource.id || '').trim();
+    // Strictly require resource.parent_payment (the reversed sale transaction ID)
+    paymentId = String(resource.parent_payment || '').trim();
   }
 
   const planId = String(resource.plan_id || '').trim();
@@ -296,36 +298,69 @@ async function findLedger(databases, eventId) {
 
 async function findStateByPaymentId(databases, paymentId) {
   if (!databases || !paymentId) return null;
+  let result;
   try {
-    const result = await databases.listDocuments(DB_ID, STATE_COLLECTION_ID, [
+    result = await databases.listDocuments(DB_ID, STATE_COLLECTION_ID, [
       sdk.Query.equal('last_entitlement_payment_id', paymentId),
-      sdk.Query.limit(1),
+      sdk.Query.limit(2),
     ]);
-    const doc = result.documents?.[0] || null;
-    if (doc && doc.last_entitlement_payment_id === paymentId) return doc;
-    return null;
-  } catch {
-    return null;
+  } catch (err) {
+    if (err?.code === 404 || /attribute.*not found|index.*not found/i.test(err?.message || '')) {
+      return null;
+    }
+    throw err;
   }
+
+  const docs = Array.isArray(result?.documents) ? result.documents : [];
+  if (docs.length === 0) return null;
+  if (docs.length > 1) {
+    const err = new Error(`Ambiguous payment correlation: multiple states found for paymentId ${paymentId}`);
+    err.code = 'ambiguous_payment_state_correlation';
+    err.isTransient = false;
+    err.status = 400;
+    throw err;
+  }
+
+  const doc = docs[0];
+  if (doc && doc.last_entitlement_payment_id === paymentId) return doc;
+  return null;
 }
 
 async function findLedgerByPaymentId(databases, paymentId, eventType = null) {
   if (!databases || !paymentId) return null;
-  try {
-    const queries = [
-      sdk.Query.equal('payment_id', paymentId),
-      sdk.Query.limit(1),
-    ];
-    if (eventType) {
-      queries.unshift(sdk.Query.equal('event_type', eventType));
-    }
-    const result = await databases.listDocuments(DB_ID, LEDGER_COLLECTION_ID, queries);
-    const doc = result.documents?.[0] || null;
-    if (doc && doc.payment_id === paymentId && (!eventType || doc.event_type === eventType)) return doc;
-    return null;
-  } catch {
-    return null;
+  const queries = [
+    sdk.Query.equal('payment_id', paymentId),
+    sdk.Query.limit(2),
+  ];
+  if (eventType) {
+    queries.unshift(sdk.Query.equal('event_type', eventType));
   }
+  let result;
+  try {
+    result = await databases.listDocuments(DB_ID, LEDGER_COLLECTION_ID, queries);
+  } catch (err) {
+    if (err?.code === 404 || /attribute.*not found|index.*not found/i.test(err?.message || '')) {
+      return null;
+    }
+    throw err;
+  }
+
+  const docs = Array.isArray(result?.documents) ? result.documents : [];
+  if (docs.length === 0) return null;
+  if (docs.length > 1) {
+    const subs = new Set(docs.map(d => d.subscription_id).filter(Boolean));
+    if (subs.size > 1) {
+      const err = new Error(`Ambiguous payment correlation: multiple subscriptions found in ledger for paymentId ${paymentId}`);
+      err.code = 'ambiguous_payment_ledger_correlation';
+      err.isTransient = false;
+      err.status = 400;
+      throw err;
+    }
+  }
+
+  const doc = docs[0];
+  if (doc && doc.payment_id === paymentId && (!eventType || doc.event_type === eventType)) return doc;
+  return null;
 }
 
 async function findRefundOrReversalTombstone(databases, paymentId) {
@@ -966,6 +1001,7 @@ async function processWebhookEvent({
 
   const ledgerDocId = ledgerDocumentId(event.id);
   const nowIso = new Date(nowMs).toISOString();
+  let wasReclaimedFromFailed = false;
 
   // Subscription snapshot cache (memoized: fetched at most once per webhook event)
   let cachedSubDetails = null;
@@ -1075,6 +1111,9 @@ async function processWebhookEvent({
           const code = reclaim.reason === 'already_recorded' ? 'already_recorded' : 'concurrent_processing';
           return { outcome: 'duplicate', code, mutated: false };
         }
+        if (existing.processing_status === 'failed') {
+          wasReclaimedFromFailed = true;
+        }
       } else {
         return { outcome: 'duplicate', code: 'already_recorded', mutated: false };
       }
@@ -1083,17 +1122,53 @@ async function processWebhookEvent({
     }
   }
 
+  // Strict payment ID normalization check (Blocker E):
+  // PAYMENT.SALE.REFUNDED requires resource.sale_id and PAYMENT.SALE.REVERSED requires resource.parent_payment.
+  // If absent, do not attempt to guess or fall back to arbitrary IDs. Fail closed safely.
+  if ((event.type === 'PAYMENT.SALE.REFUNDED' || event.type === 'PAYMENT.SALE.REVERSED') && !event.paymentId) {
+    await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
+      processing_status: 'rejected',
+      outcome_code: 'unresolved_payment_correlation',
+    }, serverOnlyPermissions()).catch(() => {});
+    return { outcome: 'rejected', code: 'unresolved_payment_correlation', mutated: false };
+  }
+
   // Find previous state by subscription ID or user
   let previous = null;
 
   // For refunds and reversals, if subscriptionId was not in event, correlate from paymentId
   if ((event.type === 'PAYMENT.SALE.REFUNDED' || event.type === 'PAYMENT.SALE.REVERSED') && !event.subscriptionId) {
-    const matchedState = await findStateByPaymentId(databases, event.paymentId);
+    let matchedState = null;
+    try {
+      matchedState = await findStateByPaymentId(databases, event.paymentId);
+    } catch (err) {
+      if (err?.code === 'ambiguous_payment_state_correlation') {
+        await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
+          processing_status: 'rejected',
+          outcome_code: 'ambiguous_payment_state_correlation',
+        }, serverOnlyPermissions()).catch(() => {});
+        return { outcome: 'rejected', code: 'ambiguous_payment_state_correlation', mutated: false };
+      }
+      throw err;
+    }
+
     if (matchedState?.subscription_id) {
       event.subscriptionId = matchedState.subscription_id;
       previous = matchedState;
     } else {
-      const matchedLedger = await findLedgerByPaymentId(databases, event.paymentId, 'PAYMENT.SALE.COMPLETED');
+      let matchedLedger = null;
+      try {
+        matchedLedger = await findLedgerByPaymentId(databases, event.paymentId, 'PAYMENT.SALE.COMPLETED');
+      } catch (err) {
+        if (err?.code === 'ambiguous_payment_ledger_correlation') {
+          await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
+            processing_status: 'rejected',
+            outcome_code: 'ambiguous_payment_ledger_correlation',
+          }, serverOnlyPermissions()).catch(() => {});
+          return { outcome: 'rejected', code: 'ambiguous_payment_ledger_correlation', mutated: false };
+        }
+        throw err;
+      }
       if (matchedLedger?.subscription_id) {
         event.subscriptionId = matchedLedger.subscription_id;
       }
@@ -1249,7 +1324,14 @@ async function processWebhookEvent({
     if (event.eventTimestampMs === previousTimestamp) {
       const isPaymentCompletion = event.type === 'PAYMENT.SALE.COMPLETED';
       const isPreviousNotActive = previous.status !== 'active';
-      const allowEqualTimestampMutation = isPaymentCompletion && isPreviousNotActive;
+      const isRefundCancellationRetry =
+        event.type === 'PAYMENT.SALE.REFUNDED' &&
+        previous.renewal_cancellation_pending === true &&
+        (previous.expires_at === null || previous.expires_at === undefined) &&
+        wasReclaimedFromFailed === true &&
+        previous.latest_event_id === event.id;
+
+      const allowEqualTimestampMutation = (isPaymentCompletion && isPreviousNotActive) || isRefundCancellationRetry;
 
       if (!allowEqualTimestampMutation) {
         await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
@@ -1427,7 +1509,110 @@ async function processWebhookEvent({
     }
 
     case 'PAYMENT.SALE.REFUNDED': {
-      const targetPaymentTimestamp = previous?.last_entitlement_payment_timestamp_ms || event.eventTimestampMs;
+      // 1. RETRY / REDELIVERY FLOW (Blocker A):
+      // If cancellation is already pending from a prior attempt of this full refund:
+      if (previous?.renewal_cancellation_pending === true) {
+        let currentSubDetails = null;
+        try {
+          currentSubDetails = await getSubscriptionSnapshot();
+        } catch (err) {
+          if (err?.isTransient) {
+            await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
+              user_id: userId,
+              processing_status: 'failed',
+              outcome_code: 'provider_cancellation_pending_retry',
+            }, serverOnlyPermissions()).catch(() => {});
+            err.status = 503;
+            throw err;
+          }
+          throw err;
+        }
+
+        const isAlreadyCanceled = String(currentSubDetails?.status || '').toUpperCase() === 'CANCELLED';
+        if (isAlreadyCanceled) {
+          stateUpdate.status = 'canceled';
+          stateUpdate.will_renew = false;
+          stateUpdate.renewal_cancellation_pending = false;
+          stateUpdate.expires_at = null;
+          stateUpdate.grace_period_expires_at = null;
+          await upsertProviderState(databases, stateUpdate, previous);
+          await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
+            user_id: userId,
+            processing_status: 'processed',
+            outcome_code: 'refund_and_cancellation_settled',
+          }, serverOnlyPermissions());
+          return {
+            outcome: 'processed',
+            code: 'refund_and_cancellation_settled',
+            mutated: true,
+            plan: stateUpdate.plan,
+            status: stateUpdate.status,
+            effectivePlan: 'free',
+          };
+        }
+
+        // If still active at provider, retry cancellation
+        try {
+          await cancelSubscriptionAtProvider(event.subscriptionId, {
+            reason: 'Immediate refund closure retry',
+            env,
+            customCanceler: subscriptionCanceler,
+          });
+          stateUpdate.status = 'canceled';
+          stateUpdate.will_renew = false;
+          stateUpdate.renewal_cancellation_pending = false;
+          stateUpdate.expires_at = null;
+          stateUpdate.grace_period_expires_at = null;
+          await upsertProviderState(databases, stateUpdate, previous);
+          await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
+            user_id: userId,
+            processing_status: 'processed',
+            outcome_code: 'refund_and_cancellation_settled',
+          }, serverOnlyPermissions());
+          return {
+            outcome: 'processed',
+            code: 'refund_and_cancellation_settled',
+            mutated: true,
+            plan: stateUpdate.plan,
+            status: stateUpdate.status,
+            effectivePlan: 'free',
+          };
+        } catch (cancelErr) {
+          await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
+            user_id: userId,
+            processing_status: 'failed',
+            outcome_code: 'provider_cancellation_pending_retry',
+          }, serverOnlyPermissions()).catch(() => {});
+          cancelErr.isTransient = true;
+          cancelErr.status = 503;
+          throw cancelErr;
+        }
+      }
+
+      // 2. FIRST DELIVERY FLOW:
+      // HISTORICAL REFUND QUERY WINDOW (Blocker B):
+      let targetPaymentTimestamp = null;
+      if (previous?.last_entitlement_payment_id && event.paymentId === previous.last_entitlement_payment_id) {
+        // CASE A: Current entitlement payment
+        targetPaymentTimestamp = Number(previous.last_entitlement_payment_timestamp_ms);
+      } else {
+        // CASE B: Historical payment or state lacking payment ID - lookup historical sale in ledger
+        const historicalSale = await findLedgerByPaymentId(databases, event.paymentId, 'PAYMENT.SALE.COMPLETED');
+        if (historicalSale && Number.isSafeInteger(Number(historicalSale.event_timestamp_ms))) {
+          targetPaymentTimestamp = Number(historicalSale.event_timestamp_ms);
+        }
+      }
+
+      // CASE C: No authoritative payment timestamp is available -> FAIL CLOSED
+      if (!targetPaymentTimestamp || !Number.isSafeInteger(targetPaymentTimestamp) || targetPaymentTimestamp <= 0) {
+        await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
+          user_id: userId,
+          processing_status: 'ignored',
+          outcome_code: 'unresolved_historical_payment_timestamp',
+        }, serverOnlyPermissions());
+        return { outcome: 'ignored', code: 'unresolved_historical_payment_timestamp', mutated: false };
+      }
+
       let txResult;
       try {
         txResult = await fetchSubscriptionTransactions({
@@ -1478,9 +1663,29 @@ async function processWebhookEvent({
         throw err;
       }
 
-      const txTimeMs = new Date(tx?.time || event.eventTimestampMs).getTime();
+      // PARTIALLY_REFUNDED: Preserve entitlement and renewal without local arithmetic (Blocker D)
+      if (txStatus === 'PARTIALLY_REFUNDED') {
+        await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
+          user_id: userId,
+          processing_status: 'processed',
+          outcome_code: 'partial_refund_recorded',
+        }, serverOnlyPermissions());
+        return { outcome: 'processed', code: 'partial_refund_recorded', mutated: false };
+      }
 
-      // Historical refund check
+      // Any unexpected provider transaction status (neither PARTIALLY_REFUNDED nor REFUNDED)
+      if (txStatus !== 'REFUNDED') {
+        await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
+          user_id: userId,
+          processing_status: 'ignored',
+          outcome_code: 'unsupported_provider_transaction_status',
+        }, serverOnlyPermissions());
+        return { outcome: 'ignored', code: 'unsupported_provider_transaction_status', mutated: false };
+      }
+
+      const txTimeMs = new Date(tx?.time || targetPaymentTimestamp).getTime();
+
+      // Historical refund check:
       if (previous?.last_entitlement_payment_id && previous.last_entitlement_payment_id !== event.paymentId) {
         const prevPaymentMs = Number(previous.last_entitlement_payment_timestamp_ms || 0);
         if (prevPaymentMs > txTimeMs) {
@@ -1497,25 +1702,6 @@ async function processWebhookEvent({
       if (!previous?.last_entitlement_payment_id) {
         stateUpdate.last_entitlement_payment_id = event.paymentId;
         stateUpdate.last_entitlement_payment_timestamp_ms = txTimeMs;
-      }
-
-      // Check partial refund
-      let isPartial = txStatus === 'PARTIALLY_REFUNDED';
-      if (isPartial) {
-        const grossVal = parseFloat(tx?.amount_with_breakdown?.gross_amount?.value || tx?.amount?.value || '0');
-        const refundVal = parseFloat(tx?.amount_with_breakdown?.refunded_amount?.value || tx?.amount_refunded?.value || '0');
-        if (grossVal > 0 && refundVal >= grossVal) {
-          isPartial = false;
-        }
-      }
-
-      if (isPartial) {
-        await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
-          user_id: userId,
-          processing_status: 'processed',
-          outcome_code: 'partial_refund_recorded',
-        }, serverOnlyPermissions());
-        return { outcome: 'processed', code: 'partial_refund_recorded', mutated: false };
       }
 
       // FULL CURRENT-CYCLE REFUND

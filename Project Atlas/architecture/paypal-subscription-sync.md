@@ -33,8 +33,8 @@ The repository includes the idempotent, unexecuted provisioner script `scripts/s
 - `expires_at`: string(32), optional (ISO 8601)
 - `will_renew`: boolean, default `true`
 - `grace_period_expires_at`: string(32), optional (ISO 8601)
-- `last_entitlement_payment_id`: string(64), optional
-- `last_entitlement_payment_timestamp_ms`: integer, optional — **Index (`last_payment_idx` DESC)**
+- `last_entitlement_payment_id`: string(64), optional — **Index (`last_payment_idx` ASC)**
+- `last_entitlement_payment_timestamp_ms`: integer, optional
 - `renewal_cancellation_pending`: boolean, default `false`
 - `latest_event_id`: string(128), required
 - `latest_event_type`: string(64), required
@@ -312,7 +312,7 @@ The Option B refund and reversal policy is owner-locked and approved:
 2. **Partial Refund Policy:**
    - **Preserves Entitlement and Renewal:** Current paid access (`expires_at`, `grace_period_expires_at`) and future renewal (`will_renew`) remain completely untouched.
    - **Audit Record:** Recorded in `paypal_event_ledger` only with `outcome_code = 'partial_refund_recorded'`.
-   - **Cumulative Partial Refund Escalation:** The handler sums historical partial refunds for `parent_payment_id` from the ledger. If cumulative refunds equal or exceed the original gross payment amount, the event is escalated to the full refund policy (revoking entitlement and cancelling renewal).
+   - **Authoritative Provider Transaction Status:** The handler relies strictly on PayPal's authoritative transaction status (`PARTIALLY_REFUNDED` preserves entitlement, while `REFUNDED` triggers the full refund policy). No local arithmetic or cumulative summation is performed over ledger balances; if provider status is not converged or unsupported, it fails closed.
 
 3. **Historical Refund and Reversal Policy:**
    - When a refund or reversal event arrives for a `payment_id` that is not the subscription's `last_entitlement_payment_id` and provider transaction records / ledger confirm a newer payment supports current entitlement:

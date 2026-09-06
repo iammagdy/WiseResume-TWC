@@ -123,6 +123,7 @@ function createMockDatabases() {
       const col = collections[collectionId];
       if (!col) return { documents: [], total: 0 };
       let docs = Array.from(col.values());
+      let limit = null;
 
       for (const q of queries) {
         if (typeof q === 'string') {
@@ -132,17 +133,26 @@ function createMockDatabases() {
             if (parsed.method === 'equal') {
               key = parsed.attribute;
               val = Array.isArray(parsed.values) ? parsed.values[0] : parsed.values;
+            } else if (parsed.method === 'limit') {
+              limit = Array.isArray(parsed.values) ? parsed.values[0] : parsed.values;
             }
           } catch {
             const match = q.match(/equal\("([^"]+)",\s*\[?"?([^"\]]+)"?\]?\)/);
             if (match) {
               [, key, val] = match;
             }
+            const limitMatch = q.match(/limit\((\d+)\)/);
+            if (limitMatch) {
+              limit = Number(limitMatch[1]);
+            }
           }
           if (key !== undefined) {
             docs = docs.filter(d => d[key] === val);
           }
         }
+      }
+      if (typeof limit === 'number' && limit >= 0) {
+        docs = docs.slice(0, limit);
       }
       return { documents: docs.map(clone), total: docs.length };
     },
@@ -1444,10 +1454,7 @@ test('Option B 05: current partial refund preserves entitlement and renewal', as
       transaction: {
         id: 'TX-PAY-05',
         status: 'PARTIALLY_REFUNDED',
-        amount_with_breakdown: {
-          gross_amount: { value: '15.00' },
-          refunded_amount: { value: '5.00' },
-        },
+        amount: { value: '15.00' },
       },
     }),
     subscriptionCanceler: async () => {
@@ -1466,10 +1473,11 @@ test('Option B 05: current partial refund preserves entitlement and renewal', as
   assert.equal(state.will_renew, true);
 });
 
-test('Option B 06: cumulative partial refunds equal to gross triggers full refund policy', async () => {
+test('Option B 06: unexpected provider transaction status fails closed with zero entitlement mutation', async () => {
   const db = createMockDatabases();
   const users = createMockUsers();
   const nowMs = Date.parse('2026-09-03T12:00:00.000Z');
+  const expiryIso = '2026-10-03T12:00:00.000Z';
   const stateDocId = paypalWebhook.__test.stateDocumentId(QA_USER_ID);
 
   db.collections.paypal_subscription_state.set(stateDocId, {
@@ -1480,7 +1488,7 @@ test('Option B 06: cumulative partial refunds equal to gross triggers full refun
     plan_id: SANDBOX_ULTIMATE_PLAN_ID,
     environment: 'sandbox',
     status: 'active',
-    expires_at: '2026-10-03T12:00:00.000Z',
+    expires_at: expiryIso,
     will_renew: true,
     last_entitlement_payment_id: 'TX-PAY-06',
     last_entitlement_payment_timestamp_ms: nowMs,
@@ -1510,11 +1518,7 @@ test('Option B 06: cumulative partial refunds equal to gross triggers full refun
       found: true,
       transaction: {
         id: 'TX-PAY-06',
-        status: 'PARTIALLY_REFUNDED',
-        amount_with_breakdown: {
-          gross_amount: { value: '15.00' },
-          refunded_amount: { value: '15.00' },
-        },
+        status: 'DENIED',
       },
     }),
     subscriptionCanceler: async () => {
@@ -1523,19 +1527,23 @@ test('Option B 06: cumulative partial refunds equal to gross triggers full refun
     },
   });
 
-  assert.equal(cancelerCalled, true);
-  assert.equal(res.outcome, 'processed');
-  assert.equal(res.code, 'refund_and_cancellation_settled');
+  assert.equal(cancelerCalled, false);
+  assert.equal(res.outcome, 'ignored');
+  assert.equal(res.code, 'unsupported_provider_transaction_status');
+  assert.equal(res.mutated, false);
 
   const state = db.collections.paypal_subscription_state.get(stateDocId);
-  assert.equal(state.status, 'canceled');
-  assert.equal(state.expires_at, null);
+  assert.equal(state.status, 'active');
+  assert.equal(state.expires_at, expiryIso);
+  assert.equal(state.will_renew, true);
 });
 
 test('Option B 07: historical refund does not mutate active state', async () => {
   const db = createMockDatabases();
   const users = createMockUsers();
   const nowMs = Date.parse('2026-09-03T12:00:00.000Z');
+  const oldPaymentMs = Date.parse('2026-07-20T12:00:00.000Z'); // >30 days before
+  const newPaymentMs = Date.parse('2026-09-03T12:00:00.000Z');
   const expiryIso = '2026-10-03T12:00:00.000Z';
   const stateDocId = paypalWebhook.__test.stateDocumentId(QA_USER_ID);
 
@@ -1550,15 +1558,31 @@ test('Option B 07: historical refund does not mutate active state', async () => 
     expires_at: expiryIso,
     will_renew: true,
     last_entitlement_payment_id: 'TX-PAY-07-NEW',
-    last_entitlement_payment_timestamp_ms: nowMs + 10000,
+    last_entitlement_payment_timestamp_ms: newPaymentMs,
     renewal_cancellation_pending: false,
-    latest_event_timestamp_ms: nowMs + 10000,
+    latest_event_timestamp_ms: newPaymentMs,
   });
+
+  // Ledger contains authoritative historical sale with old timestamp
+  const saleDocId = paypalWebhook.__test.ledgerDocumentId('EVT-SALE-07-OLD');
+  db.collections.paypal_event_ledger.set(saleDocId, {
+    $id: saleDocId,
+    event_id: 'EVT-SALE-07-OLD',
+    event_type: 'PAYMENT.SALE.COMPLETED',
+    subscription_id: 'I-SUB-07',
+    payment_id: 'TX-PAY-07-OLD',
+    event_timestamp_ms: oldPaymentMs,
+    processing_status: 'processed',
+    outcome_code: 'sale_activated',
+  });
+
+  let fetchedTargetTimestampMs = null;
+  let cancelerCalled = false;
 
   const refundEvent = normalizeEvent({
     id: 'EVT-REFUND-07',
     event_type: 'PAYMENT.SALE.REFUNDED',
-    create_time: new Date(nowMs).toISOString(),
+    create_time: new Date(newPaymentMs + 5000).toISOString(),
     resource: {
       id: 'TX-REF-07-OLD',
       sale_id: 'TX-PAY-07-OLD',
@@ -1570,16 +1594,76 @@ test('Option B 07: historical refund does not mutate active state', async () => 
     databases: db,
     users,
     event: refundEvent,
-    nowMs: nowMs + 11000,
+    nowMs: newPaymentMs + 5000,
     env: TEST_ENV,
-    subscriptionTransactionsFetcher: async () => ({
-      found: true,
-      transaction: { id: 'TX-PAY-07-OLD', status: 'REFUNDED', time: new Date(nowMs).toISOString() },
-    }),
+    subscriptionTransactionsFetcher: async ({ targetTimestampMs }) => {
+      fetchedTargetTimestampMs = targetTimestampMs;
+      return {
+        found: true,
+        transaction: { id: 'TX-PAY-07-OLD', status: 'REFUNDED', time: new Date(oldPaymentMs).toISOString() },
+      };
+    },
+    subscriptionCanceler: async () => {
+      cancelerCalled = true;
+    },
+  });
+
+  assert.equal(fetchedTargetTimestampMs, oldPaymentMs, 'Transactions fetcher must receive OLD_TIMESTAMP, NOT NEW_TIMESTAMP');
+  assert.equal(cancelerCalled, false);
+  assert.equal(res.outcome, 'ignored');
+  assert.equal(res.code, 'historical_refund_ignored');
+  assert.equal(res.mutated, false);
+
+  const state = db.collections.paypal_subscription_state.get(stateDocId);
+  assert.equal(state.status, 'active');
+  assert.equal(state.expires_at, expiryIso);
+});
+
+test('Option B 07b: historical refund with missing old sale ledger timestamp fails closed without state mutation', async () => {
+  const db = createMockDatabases();
+  const users = createMockUsers();
+  const newPaymentMs = Date.parse('2026-09-03T12:00:00.000Z');
+  const expiryIso = '2026-10-03T12:00:00.000Z';
+  const stateDocId = paypalWebhook.__test.stateDocumentId(QA_USER_ID);
+
+  db.collections.paypal_subscription_state.set(stateDocId, {
+    $id: stateDocId,
+    user_id: QA_USER_ID,
+    subscription_id: 'I-SUB-07B',
+    plan: 'premium',
+    plan_id: SANDBOX_ULTIMATE_PLAN_ID,
+    environment: 'sandbox',
+    status: 'active',
+    expires_at: expiryIso,
+    will_renew: true,
+    last_entitlement_payment_id: 'TX-PAY-07B-NEW',
+    last_entitlement_payment_timestamp_ms: newPaymentMs,
+    renewal_cancellation_pending: false,
+    latest_event_timestamp_ms: newPaymentMs,
+  });
+
+  // No historical sale ledger entry present
+  const refundEvent = normalizeEvent({
+    id: 'EVT-REFUND-07B',
+    event_type: 'PAYMENT.SALE.REFUNDED',
+    create_time: new Date(newPaymentMs + 5000).toISOString(),
+    resource: {
+      id: 'TX-REF-07B-OLD',
+      sale_id: 'TX-PAY-07B-OLD',
+      billing_agreement_id: 'I-SUB-07B',
+    },
+  });
+
+  const res = await processWebhookEvent({
+    databases: db,
+    users,
+    event: refundEvent,
+    nowMs: newPaymentMs + 5000,
+    env: TEST_ENV,
   });
 
   assert.equal(res.outcome, 'ignored');
-  assert.equal(res.code, 'historical_refund_ignored');
+  assert.equal(res.code, 'unresolved_historical_payment_timestamp');
   assert.equal(res.mutated, false);
 
   const state = db.collections.paypal_subscription_state.get(stateDocId);
@@ -2242,6 +2326,18 @@ test('Option B 22: legacy migration-on-touch populates payment identity on refun
     latest_event_timestamp_ms: nowMs,
   });
 
+  const saleDocId = paypalWebhook.__test.ledgerDocumentId('EVT-SALE-22');
+  db.collections.paypal_event_ledger.set(saleDocId, {
+    $id: saleDocId,
+    event_id: 'EVT-SALE-22',
+    event_type: 'PAYMENT.SALE.COMPLETED',
+    subscription_id: 'I-SUB-22-LEGACY',
+    payment_id: 'TX-LEGACY-22',
+    event_timestamp_ms: nowMs,
+    processing_status: 'processed',
+    outcome_code: 'sale_activated',
+  });
+
   const refundEvent = normalizeEvent({
     id: 'EVT-REF-22',
     event_type: 'PAYMENT.SALE.REFUNDED',
@@ -2300,6 +2396,99 @@ test('Option B 23: ambiguous legacy correlation fails closed without state mutat
   assert.equal(res.outcome, 'rejected');
   assert.equal(res.code, 'unresolved_subscription_correlation');
   assert.equal(res.mutated, false);
+});
+
+test('Option B 23b: ambiguous payment correlation across multiple states fails closed without state mutation (Blocker C)', async () => {
+  const db = createMockDatabases();
+  const users = createMockUsers();
+  const nowMs = Date.parse('2026-09-03T12:00:00.000Z');
+
+  // Create two distinct user states that share the same last_entitlement_payment_id
+  const stateDocId1 = paypalWebhook.__test.stateDocumentId(QA_USER_ID);
+  const stateDocId2 = paypalWebhook.__test.stateDocumentId(OTHER_USER_ID);
+
+  db.collections.paypal_subscription_state.set(stateDocId1, {
+    $id: stateDocId1,
+    user_id: QA_USER_ID,
+    subscription_id: 'I-SUB-AMBIGUOUS-1',
+    plan: 'premium',
+    plan_id: SANDBOX_ULTIMATE_PLAN_ID,
+    environment: 'sandbox',
+    status: 'active',
+    expires_at: '2026-10-03T12:00:00.000Z',
+    will_renew: true,
+    last_entitlement_payment_id: 'TX-PAY-SHARED',
+    last_entitlement_payment_timestamp_ms: nowMs,
+    renewal_cancellation_pending: false,
+    latest_event_timestamp_ms: nowMs,
+  });
+
+  db.collections.paypal_subscription_state.set(stateDocId2, {
+    $id: stateDocId2,
+    user_id: OTHER_USER_ID,
+    subscription_id: 'I-SUB-AMBIGUOUS-2',
+    plan: 'pro',
+    plan_id: SANDBOX_PRO_PLAN_ID,
+    environment: 'sandbox',
+    status: 'active',
+    expires_at: '2026-10-03T12:00:00.000Z',
+    will_renew: true,
+    last_entitlement_payment_id: 'TX-PAY-SHARED',
+    last_entitlement_payment_timestamp_ms: nowMs,
+    renewal_cancellation_pending: false,
+    latest_event_timestamp_ms: nowMs,
+  });
+
+  let cancelerCalled = false;
+
+  // Direct test of findStateByPaymentId: must throw ambiguous_payment_state_correlation
+  await assert.rejects(
+    async () => {
+      await findStateByPaymentId(db, 'TX-PAY-SHARED');
+    },
+    (err) => {
+      assert.equal(err.code, 'ambiguous_payment_state_correlation');
+      return true;
+    }
+  );
+
+  // Refund arrives for TX-PAY-SHARED with no billing_agreement_id
+  const refundEvent = normalizeEvent({
+    id: 'EVT-REF-AMBIGUOUS',
+    event_type: 'PAYMENT.SALE.REFUNDED',
+    create_time: new Date(nowMs + 1000).toISOString(),
+    resource: {
+      id: 'TX-REF-AMB',
+      sale_id: 'TX-PAY-SHARED',
+      billing_agreement_id: null,
+    },
+  });
+
+  const res = await processWebhookEvent({
+    databases: db,
+    users,
+    event: refundEvent,
+    nowMs: nowMs + 1000,
+    env: TEST_ENV,
+    subscriptionCanceler: async () => {
+      cancelerCalled = true;
+    },
+  });
+
+  assert.equal(cancelerCalled, false, 'Must not call cancel on ambiguous correlation');
+  assert.equal(res.outcome, 'rejected');
+  assert.equal(res.code, 'ambiguous_payment_state_correlation');
+  assert.equal(res.mutated, false);
+
+  // Assert neither state was mutated
+  const state1 = db.collections.paypal_subscription_state.get(stateDocId1);
+  const state2 = db.collections.paypal_subscription_state.get(stateDocId2);
+  assert.equal(state1.status, 'active');
+  assert.equal(state1.expires_at, '2026-10-03T12:00:00.000Z');
+  assert.equal(state1.renewal_cancellation_pending, false);
+  assert.equal(state2.status, 'active');
+  assert.equal(state2.expires_at, '2026-10-03T12:00:00.000Z');
+  assert.equal(state2.renewal_cancellation_pending, false);
 });
 
 test('Option B 24: full refund sets cancellation pending before provider cancellation', async () => {
@@ -2473,6 +2662,186 @@ test('Option B 26: cancellation timeout preserves pending flag and null expires_
 
   const state = db.collections.paypal_subscription_state.get(stateDocId);
   assert.equal(state.renewal_cancellation_pending, true);
+  assert.equal(state.expires_at, null);
+});
+
+test('Option B 26b: same refund event redelivery retries cancellation and settles (Blocker A)', async () => {
+  const db = createMockDatabases();
+  const users = createMockUsers();
+  const nowMs = Date.parse('2026-09-03T12:00:00.000Z');
+  const stateDocId = paypalWebhook.__test.stateDocumentId(QA_USER_ID);
+
+  db.collections.paypal_subscription_state.set(stateDocId, {
+    $id: stateDocId,
+    user_id: QA_USER_ID,
+    subscription_id: 'I-SUB-26B',
+    plan: 'premium',
+    plan_id: SANDBOX_ULTIMATE_PLAN_ID,
+    environment: 'sandbox',
+    status: 'active',
+    expires_at: '2026-10-03T12:00:00.000Z',
+    will_renew: true,
+    last_entitlement_payment_id: 'TX-PAY-26B',
+    last_entitlement_payment_timestamp_ms: nowMs,
+    renewal_cancellation_pending: false,
+    latest_event_timestamp_ms: nowMs,
+  });
+
+  const eventPayload = {
+    id: 'EVT-REF-26B',
+    event_type: 'PAYMENT.SALE.REFUNDED',
+    create_time: new Date(nowMs + 1000).toISOString(),
+    resource: {
+      id: 'TX-REF-26B',
+      sale_id: 'TX-PAY-26B',
+      billing_agreement_id: 'I-SUB-26B',
+    },
+  };
+
+  // FIRST DELIVERY: cancel call throws transient timeout
+  await assert.rejects(async () => {
+    await processWebhookEvent({
+      databases: db,
+      users,
+      event: normalizeEvent(eventPayload),
+      nowMs: nowMs + 1000,
+      env: TEST_ENV,
+      subscriptionTransactionsFetcher: async () => ({
+        found: true,
+        transaction: { id: 'TX-PAY-26B', status: 'REFUNDED' },
+      }),
+      subscriptionCanceler: async () => {
+        const err = new Error('Timeout contacting PayPal cancel endpoint');
+        err.isTransient = true;
+        throw err;
+      },
+    });
+  });
+
+  // Assert after first delivery:
+  const state1 = db.collections.paypal_subscription_state.get(stateDocId);
+  assert.equal(state1.expires_at, null);
+  assert.equal(state1.renewal_cancellation_pending, true);
+  const ledgerDocId = paypalWebhook.__test.ledgerDocumentId('EVT-REF-26B');
+  const ledger1 = db.collections.paypal_event_ledger.get(ledgerDocId);
+  assert.equal(ledger1.processing_status, 'failed');
+  assert.equal(ledger1.outcome_code, 'provider_cancellation_pending_retry');
+
+  // SECOND DELIVERY OF EXACT SAME REFUND EVENT:
+  let cancelerCalledOnRetry = false;
+  const res2 = await processWebhookEvent({
+    databases: db,
+    users,
+    event: normalizeEvent(eventPayload),
+    nowMs: nowMs + 2000,
+    env: TEST_ENV,
+    subscriptionFetcher: async () => ({
+      id: 'I-SUB-26B',
+      status: 'ACTIVE',
+    }),
+    subscriptionCanceler: async () => {
+      cancelerCalledOnRetry = true;
+      return { ok: true, status: 'canceled' };
+    },
+  });
+
+  assert.notEqual(res2.code, 'equal_timestamp_ignored');
+  assert.equal(cancelerCalledOnRetry, true, 'Cancellation retry must be called');
+  assert.equal(res2.outcome, 'processed');
+  assert.equal(res2.code, 'refund_and_cancellation_settled');
+  assert.equal(res2.status, 'canceled');
+  assert.equal(res2.effectivePlan, 'free');
+
+  const state2 = db.collections.paypal_subscription_state.get(stateDocId);
+  assert.equal(state2.status, 'canceled');
+  assert.equal(state2.will_renew, false);
+  assert.equal(state2.renewal_cancellation_pending, false);
+  assert.equal(state2.expires_at, null);
+
+  const ledger2 = db.collections.paypal_event_ledger.get(ledgerDocId);
+  assert.equal(ledger2.processing_status, 'processed');
+  assert.equal(ledger2.outcome_code, 'refund_and_cancellation_settled');
+});
+
+test('Option B 26c: same refund event redelivery when provider already canceled settles without calling cancel', async () => {
+  const db = createMockDatabases();
+  const users = createMockUsers();
+  const nowMs = Date.parse('2026-09-03T12:00:00.000Z');
+  const stateDocId = paypalWebhook.__test.stateDocumentId(QA_USER_ID);
+
+  db.collections.paypal_subscription_state.set(stateDocId, {
+    $id: stateDocId,
+    user_id: QA_USER_ID,
+    subscription_id: 'I-SUB-26C',
+    plan: 'premium',
+    plan_id: SANDBOX_ULTIMATE_PLAN_ID,
+    environment: 'sandbox',
+    status: 'active',
+    expires_at: '2026-10-03T12:00:00.000Z',
+    will_renew: true,
+    last_entitlement_payment_id: 'TX-PAY-26C',
+    last_entitlement_payment_timestamp_ms: nowMs,
+    renewal_cancellation_pending: false,
+    latest_event_timestamp_ms: nowMs,
+  });
+
+  const eventPayload = {
+    id: 'EVT-REF-26C',
+    event_type: 'PAYMENT.SALE.REFUNDED',
+    create_time: new Date(nowMs + 1000).toISOString(),
+    resource: {
+      id: 'TX-REF-26C',
+      sale_id: 'TX-PAY-26C',
+      billing_agreement_id: 'I-SUB-26C',
+    },
+  };
+
+  // First delivery fails cancellation
+  await assert.rejects(async () => {
+    await processWebhookEvent({
+      databases: db,
+      users,
+      event: normalizeEvent(eventPayload),
+      nowMs: nowMs + 1000,
+      env: TEST_ENV,
+      subscriptionTransactionsFetcher: async () => ({
+        found: true,
+        transaction: { id: 'TX-PAY-26C', status: 'REFUNDED' },
+      }),
+      subscriptionCanceler: async () => {
+        const err = new Error('503 Service Unavailable');
+        err.isTransient = true;
+        throw err;
+      },
+    });
+  });
+
+  // Second delivery: provider already report CANCELLED
+  let cancelerCalledOnRetry = false;
+  const res2 = await processWebhookEvent({
+    databases: db,
+    users,
+    event: normalizeEvent(eventPayload),
+    nowMs: nowMs + 2000,
+    env: TEST_ENV,
+    subscriptionFetcher: async () => ({
+      id: 'I-SUB-26C',
+      status: 'CANCELLED',
+    }),
+    subscriptionCanceler: async () => {
+      cancelerCalledOnRetry = true;
+      return { ok: true, status: 'canceled' };
+    },
+  });
+
+  assert.equal(cancelerCalledOnRetry, false, 'Should not call cancel if provider already CANCELLED');
+  assert.equal(res2.outcome, 'processed');
+  assert.equal(res2.code, 'refund_and_cancellation_settled');
+
+  const state = db.collections.paypal_subscription_state.get(stateDocId);
+  assert.equal(state.status, 'canceled');
+  assert.equal(state.will_renew, false);
+  assert.equal(state.renewal_cancellation_pending, false);
   assert.equal(state.expires_at, null);
 });
 
@@ -3001,6 +3370,163 @@ test('Option B 38: production environment fails closed (sandbox only gate)', asy
   assert.equal(res.outcome, 'rejected');
   assert.equal(res.code, 'sandbox_only_phase3_gate');
   assert.equal(res.mutated, false);
+});
+
+test('Option B 39: normalizeEvent for PAYMENT.SALE.REFUNDED requires sale_id and does not fall back to resource.id', () => {
+  const eventWithSaleId = normalizeEvent({
+    id: 'EVT-NORM-REF-1',
+    event_type: 'PAYMENT.SALE.REFUNDED',
+    create_time: '2026-09-03T12:00:00Z',
+    resource: {
+      id: 'TX-REFUND-ID',
+      sale_id: 'TX-SALE-ID',
+      billing_agreement_id: 'I-SUB-NORM-1',
+    },
+  });
+  assert.equal(eventWithSaleId.paymentId, 'TX-SALE-ID');
+
+  const eventWithoutSaleId = normalizeEvent({
+    id: 'EVT-NORM-REF-2',
+    event_type: 'PAYMENT.SALE.REFUNDED',
+    create_time: '2026-09-03T12:00:00Z',
+    resource: {
+      id: 'TX-REFUND-ID-ONLY',
+      billing_agreement_id: 'I-SUB-NORM-2',
+    },
+  });
+  assert.equal(eventWithoutSaleId.paymentId, '');
+});
+
+test('Option B 40: PAYMENT.SALE.REFUNDED missing sale_id fails closed without state mutation', async () => {
+  const db = createMockDatabases();
+  const users = createMockUsers();
+  const nowMs = Date.parse('2026-09-03T12:00:00.000Z');
+  const expiryIso = '2026-10-03T12:00:00.000Z';
+  const stateDocId = paypalWebhook.__test.stateDocumentId(QA_USER_ID);
+
+  db.collections.paypal_subscription_state.set(stateDocId, {
+    $id: stateDocId,
+    user_id: QA_USER_ID,
+    subscription_id: 'I-SUB-40',
+    plan: 'premium',
+    plan_id: SANDBOX_ULTIMATE_PLAN_ID,
+    environment: 'sandbox',
+    status: 'active',
+    expires_at: expiryIso,
+    will_renew: true,
+    last_entitlement_payment_id: 'TX-PAY-40',
+    last_entitlement_payment_timestamp_ms: nowMs,
+    renewal_cancellation_pending: false,
+    latest_event_timestamp_ms: nowMs,
+  });
+
+  let cancelerCalled = false;
+  const refundEventWithoutSaleId = normalizeEvent({
+    id: 'EVT-REFUND-40',
+    event_type: 'PAYMENT.SALE.REFUNDED',
+    create_time: new Date(nowMs + 1000).toISOString(),
+    resource: {
+      id: 'TX-REF-40',
+      billing_agreement_id: 'I-SUB-40',
+    },
+  });
+
+  const res = await processWebhookEvent({
+    databases: db,
+    users,
+    event: refundEventWithoutSaleId,
+    nowMs: nowMs + 1000,
+    env: TEST_ENV,
+    subscriptionCanceler: async () => {
+      cancelerCalled = true;
+    },
+  });
+
+  assert.equal(cancelerCalled, false);
+  assert.equal(res.outcome, 'rejected');
+  assert.equal(res.code, 'unresolved_payment_correlation');
+  assert.equal(res.mutated, false);
+
+  const state = db.collections.paypal_subscription_state.get(stateDocId);
+  assert.equal(state.status, 'active');
+  assert.equal(state.expires_at, expiryIso);
+  assert.equal(state.will_renew, true);
+});
+
+test('Option B 41: normalizeEvent for PAYMENT.SALE.REVERSED requires parent_payment and does not fall back to resource.id', () => {
+  const eventWithParentPayment = normalizeEvent({
+    id: 'EVT-NORM-REV-1',
+    event_type: 'PAYMENT.SALE.REVERSED',
+    create_time: '2026-09-03T12:00:00Z',
+    resource: {
+      id: 'TX-DISPUTE-ID',
+      parent_payment: 'TX-ORIGINAL-SALE-ID',
+      billing_agreement_id: 'I-SUB-NORM-3',
+    },
+  });
+  assert.equal(eventWithParentPayment.paymentId, 'TX-ORIGINAL-SALE-ID');
+
+  const eventWithoutParentPayment = normalizeEvent({
+    id: 'EVT-NORM-REV-2',
+    event_type: 'PAYMENT.SALE.REVERSED',
+    create_time: '2026-09-03T12:00:00Z',
+    resource: {
+      id: 'TX-DISPUTE-ID-ONLY',
+      billing_agreement_id: 'I-SUB-NORM-4',
+    },
+  });
+  assert.equal(eventWithoutParentPayment.paymentId, '');
+});
+
+test('Option B 42: PAYMENT.SALE.REVERSED missing parent_payment fails closed without state mutation', async () => {
+  const db = createMockDatabases();
+  const users = createMockUsers();
+  const nowMs = Date.parse('2026-09-03T12:00:00.000Z');
+  const expiryIso = '2026-10-03T12:00:00.000Z';
+  const stateDocId = paypalWebhook.__test.stateDocumentId(QA_USER_ID);
+
+  db.collections.paypal_subscription_state.set(stateDocId, {
+    $id: stateDocId,
+    user_id: QA_USER_ID,
+    subscription_id: 'I-SUB-42',
+    plan: 'premium',
+    plan_id: SANDBOX_ULTIMATE_PLAN_ID,
+    environment: 'sandbox',
+    status: 'active',
+    expires_at: expiryIso,
+    will_renew: true,
+    last_entitlement_payment_id: 'TX-PAY-42',
+    last_entitlement_payment_timestamp_ms: nowMs,
+    renewal_cancellation_pending: false,
+    latest_event_timestamp_ms: nowMs,
+  });
+
+  const reverseEventWithoutParentPayment = normalizeEvent({
+    id: 'EVT-REV-42',
+    event_type: 'PAYMENT.SALE.REVERSED',
+    create_time: new Date(nowMs + 1000).toISOString(),
+    resource: {
+      id: 'TX-REV-42',
+      billing_agreement_id: 'I-SUB-42',
+    },
+  });
+
+  const res = await processWebhookEvent({
+    databases: db,
+    users,
+    event: reverseEventWithoutParentPayment,
+    nowMs: nowMs + 1000,
+    env: TEST_ENV,
+  });
+
+  assert.equal(res.outcome, 'rejected');
+  assert.equal(res.code, 'unresolved_payment_correlation');
+  assert.equal(res.mutated, false);
+
+  const state = db.collections.paypal_subscription_state.get(stateDocId);
+  assert.equal(state.status, 'active');
+  assert.equal(state.expires_at, expiryIso);
+  assert.equal(state.will_renew, true);
 });
 
 // ==================================================
