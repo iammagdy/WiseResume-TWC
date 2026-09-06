@@ -1,27 +1,27 @@
 # Project Atlas — Active Operational & Handover State
 
 **Last Verified:** 2026-09-06
-**Status:** `US_SANDBOX_PRO_AND_ULTIMATE_E2E_VERIFIED` (Branch: `docs/paypal-us-sandbox-ultimate-e2e-closeout`, Target: `main`) — PayPal US Sandbox integration fully verified: (1) US Sandbox merchant app approved & configured. (2) Pro ($5.00/mo) real Free -> Pro subscription with real $5 USD payment E2E VERIFIED. (3) Ultimate ($10.00/mo) real Free -> Ultimate subscription with real $10 USD payment E2E VERIFIED. (4) Real provider-generated lifecycle events (`BILLING.SUBSCRIPTION.ACTIVATED`, `PAYMENT.SALE.COMPLETED`) were successfully processed after provider re-delivery following targeted synchronization of the active Sandbox QA webhook fixture into `paypal-webhook`. Cryptographic PayPal POSTBACK signature verification returned `SUCCESS`. (5) Appwrite `paypal_event_ledger` and `paypal_subscription_state` verified active for designated QA users (Pro stored as `pro`, Ultimate stored strictly as internal `premium`, NEVER `ultimate`, status `active`, environment `sandbox`). (6) Effective plan resolver & `ai-gateway` verified (Ultimate = unlimited AI quota; Pro = 50 AI credits/day). (7) UI persistence verified on live subscription page across reloads and navigation. (8) Non-QA isolation verified (HTTP 403 `payments_disabled`). (9) Public checkout returned to fail-closed (`BILLING_CHECKOUT_ENABLED=false`, `BILLING_CHECKOUT_PROVIDER_READY=false`). (10) Production PayPal UNTOUCHED; cancellation, renewal failure, and refunds NOT TESTED (`READY_FOR_CANCELLATION_QA = YES`). (11) What's New decision: `WHATS_NEW_DEFER_UNTIL_PRODUCTION`.
+**Status:** `US_SANDBOX_CANCELLATION_E2E_VERIFIED` (Branch: `docs/paypal-us-sandbox-cancellation-e2e-closeout`, Target: `main`) — PayPal US Sandbox integration fully verified across active subscription creation, payment capture, and lifecycle cancellation: (1) PR #292 merged into `main` (`8622e52b11a8ea6d9b47f011787a624c75599888`). (2) Pro ($5.00/mo) real Free -> Pro subscription with real $5 USD payment E2E VERIFIED. (3) Ultimate ($10.00/mo) real Free -> Ultimate subscription with real $10 USD payment E2E VERIFIED. (4) Ultimate subscription cancellation lifecycle executed and verified: provider cancellation accepted via PayPal REST API (HTTP 204 No Content), provider status verified `CANCELLED`. (5) Real provider-generated lifecycle event `BILLING.SUBSCRIPTION.CANCELLED` processed with cryptographic PayPal POSTBACK signature verification returning `SUCCESS`. (6) Appwrite `paypal_event_ledger` and `paypal_subscription_state` updated to `status = canceled`, `will_renew = false`, with provider source `paypal`. (7) Authoritative resolver evaluates `will_renew: false`, `can_cancel_subscription: false`, and `status: canceled`. (8) Non-QA isolation verified (HTTP 403 `payments_disabled`). (9) Public checkout returned to fail-closed (`BILLING_CHECKOUT_ENABLED=false`, `BILLING_CHECKOUT_PROVIDER_READY=false`). (10) Production PayPal UNTOUCHED; renewal failure and refunds NOT TESTED. (11) What's New decision: `WHATS_NEW_DEFER_UNTIL_PRODUCTION`.
 **Location:** `Project Atlas/WHERE_WE_STOPPED.md`
 
-## Current Active Handover — PayPal US Sandbox: Pro & Ultimate E2E Verified
+## Current Active Handover — PayPal US Sandbox: Ultimate Subscription Cancellation Verified
 
-* **Workstream:** `US_SANDBOX_PRO_AND_ULTIMATE_E2E_VERIFIED`.
-* **Feature Branch:** `docs/paypal-us-sandbox-ultimate-e2e-closeout` (Target: `main`).
-* **Base Merge Commits:** Commit `819f75caf03c2f5e6385aa71686c157d3709dc70` (`main`).
+* **Workstream:** `US_SANDBOX_CANCELLATION_E2E_VERIFIED`.
+* **Feature Branch:** `docs/paypal-us-sandbox-cancellation-e2e-closeout` (Target: `main`).
+* **Base Merge Commits:** Commit `8622e52b11a8ea6d9b47f011787a624c75599888` (`main`).
 * **US Merchant Configuration:** Approved US Sandbox Business App.
 * **Pro Plan:** US Sandbox Pro plan ($5.00 USD/month, `ACTIVE`).
 * **Ultimate Plan:** US Sandbox Ultimate plan ($10.00 USD/month, `ACTIVE`).
 * **Pro E2E Subscription:** Real Free -> Pro subscription executed and verified `ACTIVE` with completed $5.00 USD payment.
 * **Ultimate E2E Subscription:** Real Free -> Ultimate subscription executed and verified `ACTIVE` with completed $10.00 USD payment.
-* **Webhook Delivery & Signature:** Real provider-generated `BILLING.SUBSCRIPTION.ACTIVATED` and `PAYMENT.SALE.COMPLETED` lifecycle events were successfully processed after provider re-delivery following targeted synchronization of the active Sandbox QA webhook fixture into `paypal-webhook`. Cryptographic PayPal POSTBACK signature verification returned `SUCCESS`.
-* **Appwrite Server-State:** `paypal_event_ledger` and `paypal_subscription_state` verified for designated QA users (Pro stored as `pro`, Ultimate stored strictly as internal `premium`, NEVER `ultimate`, status `active`, environment `sandbox`).
-* **Resolver & AI Quota:** Server-side resolver evaluates `pro` (50 AI credits/day) and `premium` (unlimited AI credits in `ai-gateway`).
-* **UI Persistence:** Live Subscription page UI verified in browser; both Pro and Ultimate tiers persist across reloads and navigation.
+* **Ultimate Cancellation Lifecycle:** Provider cancellation accepted via PayPal REST API `POST /v1/billing/subscriptions/{id}/cancel` returning HTTP 204 No Content; GET verified status transitioned from `ACTIVE` to `CANCELLED`.
+* **Webhook Delivery & Signature:** Real provider-generated `BILLING.SUBSCRIPTION.CANCELLED` lifecycle event was processed with live cryptographic PayPal POSTBACK signature verification returning `SUCCESS`.
+* **Appwrite Server-State:** `paypal_event_ledger` and `paypal_subscription_state` updated to `status = canceled`, `will_renew = false`, `provider_source = paypal`.
+* **Resolver & Non-Renewing Entitlement:** Server-side resolver evaluates `will_renew: false`, `can_cancel_subscription: false` (preventing redundant cancellation requests), and `status: canceled`.
 * **Non-QA Isolation:** Verified non-QA users receive HTTP 403 `payments_disabled` on all checkout attempts.
 * **Fail-Closed Gate:** Public checkout restored to strictly fail-closed (`BILLING_CHECKOUT_ENABLED=false`, `BILLING_CHECKOUT_PROVIDER_READY=false`).
 * **Production Boundary:** Production PayPal `DISABLED / UNTOUCHED`; plan revision `DEFERRED`.
-* **Untested Scenarios:** Cancellation, failed renewal, and refunds/reversals remain `NOT TESTED` (`READY_FOR_CANCELLATION_QA = YES`).
+* **Untested Scenarios:** Failed renewal and refunds/reversals remain `NOT TESTED`.
 * **What's New Eligibility Decision:** `WHATS_NEW_DEFER_UNTIL_PRODUCTION` (Internal Sandbox QA and catalog alignment; public release notes deferred until production launch).
 
 ### Paid Plan Change Policy

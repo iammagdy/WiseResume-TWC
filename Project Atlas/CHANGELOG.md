@@ -1,5 +1,18 @@
 # WiseResume Atlas Master Changelog
 
+### 2026-09-06 - PayPal US Sandbox Integration: Ultimate Subscription Cancellation E2E Verification & Closeout
+
+- **Workstream Verdict:** `US_SANDBOX_CANCELLATION_E2E_VERIFIED`.
+- **Branch:** `docs/paypal-us-sandbox-cancellation-e2e-closeout` (Target: `main`).
+- **Scope & Accomplishments:**
+  1. **Ultimate Cancellation Lifecycle Executed & Verified:** Successfully executed the full cancellation lifecycle for the existing verified Ultimate $10 US PayPal Sandbox subscription. Provider cancellation request accepted via PayPal REST API `POST /v1/billing/subscriptions/{id}/cancel` returning HTTP 204 No Content. Provider status verified transitioned from `ACTIVE` to `CANCELLED`.
+  2. **Cryptographic Webhook Signature Verification:** Real provider-generated lifecycle event `BILLING.SUBSCRIPTION.CANCELLED` delivered to `https://paypal-webhook.wiseresume.app` and processed with cryptographic PayPal POSTBACK signature verification returning `SUCCESS`.
+  3. **Appwrite Server-State & Ledger Authority:** Verified `paypal_event_ledger` recorded `BILLING.SUBSCRIPTION.CANCELLED` and `paypal_subscription_state` updated to `status = canceled`, `will_renew = false`, with provider source `paypal`.
+  4. **Authoritative Subscription Resolver Authority:** Verified server-side resolver evaluates `will_renew: false`, `can_cancel_subscription: false` (safely preventing duplicate cancellation requests), and `status: canceled`.
+  5. **Non-QA Isolation & Fail-Closed Gate Verified:** Verified non-QA accounts receive HTTP 403 `payments_disabled` on all checkout attempts. Public checkout remains strictly fail-closed (`BILLING_CHECKOUT_ENABLED=false`, `BILLING_CHECKOUT_PROVIDER_READY=false`).
+  6. **Safety & Operational Boundaries:** Zero raw secrets, credentials, tokens, QA user IDs, or buyer emails committed or logged. Production PayPal remains untouched; failed renewal and refunds remain not tested.
+  7. **What's New Eligibility Decision:** `WHATS_NEW_DEFER_UNTIL_PRODUCTION` (Internal Sandbox QA and lifecycle verification; public release notes deferred until production launch).
+
 ### 2026-09-06 - PayPal US Sandbox Integration: Free -> Ultimate $10 E2E Verification & Closeout
 
 - **Workstream Verdict:** `US_SANDBOX_PRO_AND_ULTIMATE_E2E_VERIFIED`.
