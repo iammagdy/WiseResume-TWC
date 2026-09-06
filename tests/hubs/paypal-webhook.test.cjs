@@ -3485,3 +3485,79 @@ test('State Identity Guard E: ACTIVATED event arriving after SALE.COMPLETED does
   assert.equal(finalState.will_renew, true);
 });
 
+test('State Identity Guard F: PAYMENT.SALE.COMPLETED with older timestamp than ACTIVATED on pending_initial_payment successfully transitions to active', async () => {
+  const db = createMockDatabases();
+  const users = createMockUsers();
+  const stateDocId = paypalWebhook.__test.stateDocumentId(QA_USER_ID);
+  const subId = 'I-OLDER-PAY-TEST';
+  const expiryIso = '2026-11-15T12:00:00.000Z';
+
+  // 1. ACTIVATED arrives first with higher timestamp (e.g. 2000ms)
+  const actEvent = normalizeEvent({
+    id: 'EVT-OLDER-PAY-ACT',
+    event_type: 'BILLING.SUBSCRIPTION.ACTIVATED',
+    create_time: new Date(2000).toISOString(),
+    resource: {
+      id: subId,
+      custom_id: QA_USER_ID,
+      plan_id: SANDBOX_ULTIMATE_PLAN_ID,
+      status: 'ACTIVE',
+    },
+  });
+
+  const actResult = await processWebhookEvent({
+    databases: db,
+    users,
+    event: actEvent,
+    nowMs: 2000,
+    env: TEST_ENV,
+  });
+
+  assert.equal(actResult.outcome, 'processed');
+  assert.equal(actResult.status, 'pending_initial_payment');
+
+  // Pre-seed payment ledger doc as stale_event (simulating prior delivery before fix)
+  const payLedgerDocId = paypalWebhook.__test.ledgerDocumentId('EVT-OLDER-PAY-SALE');
+  db.collections.paypal_event_ledger.set(payLedgerDocId, {
+    $id: payLedgerDocId,
+    event_id: 'EVT-OLDER-PAY-SALE',
+    event_type: 'PAYMENT.SALE.COMPLETED',
+    user_id: QA_USER_ID,
+    subscription_id: subId,
+    processing_status: 'ignored',
+    outcome_code: 'stale_event',
+  });
+
+  // 2. PAYMENT.SALE.COMPLETED arrives with older timestamp (e.g. 1000ms, as in real PayPal!)
+  const payEvent = normalizeEvent({
+    id: 'EVT-OLDER-PAY-SALE',
+    event_type: 'PAYMENT.SALE.COMPLETED',
+    create_time: new Date(1000).toISOString(),
+    resource: {
+      id: 'TX-OLDER-PAY-SALE',
+      billing_agreement_id: subId,
+      custom_id: QA_USER_ID,
+      plan_id: SANDBOX_ULTIMATE_PLAN_ID,
+      billing_info: { next_billing_time: expiryIso },
+    },
+  });
+
+  const payResult = await processWebhookEvent({
+    databases: db,
+    users,
+    event: payEvent,
+    nowMs: 3000,
+    env: TEST_ENV,
+  });
+
+  assert.equal(payResult.outcome, 'processed');
+  assert.equal(payResult.status, 'active');
+  assert.equal(payResult.effectivePlan, 'premium');
+
+  const finalState = db.collections.paypal_subscription_state.get(stateDocId);
+  assert.equal(finalState.status, 'active');
+  assert.equal(finalState.expires_at, expiryIso);
+  assert.equal(finalState.latest_event_timestamp_ms, 2000, 'Timestamp must not regress');
+});
+
+

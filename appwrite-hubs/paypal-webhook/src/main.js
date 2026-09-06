@@ -531,8 +531,10 @@ async function reclaimLedgerReservation(databases, ledgerDocId, payload, nowMs) 
     }
 
     // Verify still eligible for reclamation inside the transaction
+    const isReclaimableIgnored = existing.processing_status === 'ignored' &&
+      (existing.outcome_code === 'different_subscription_ignored' || (existing.outcome_code === 'stale_event' && payload.event_type === 'PAYMENT.SALE.COMPLETED'));
     if (existing.processing_status === 'processed' ||
-        (existing.processing_status === 'ignored' && existing.outcome_code !== 'different_subscription_ignored') ||
+        (existing.processing_status === 'ignored' && !isReclaimableIgnored) ||
         existing.processing_status === 'rejected') {
       await databases.updateTransaction(transaction.$id, false, true);
       return { ok: false, reason: 'already_recorded' };
@@ -654,8 +656,10 @@ async function processWebhookEvent({
       if (!existing) {
         return { outcome: 'duplicate', code: 'already_recorded', mutated: false };
       }
+      const isReclaimableIgnored = existing.processing_status === 'ignored' &&
+        (existing.outcome_code === 'different_subscription_ignored' || (existing.outcome_code === 'stale_event' && event.type === 'PAYMENT.SALE.COMPLETED'));
       if (existing.processing_status === 'processed' ||
-          (existing.processing_status === 'ignored' && existing.outcome_code !== 'different_subscription_ignored') ||
+          (existing.processing_status === 'ignored' && !isReclaimableIgnored) ||
           existing.processing_status === 'rejected') {
         return { outcome: 'duplicate', code: 'already_recorded', mutated: false };
       }
@@ -684,9 +688,9 @@ async function processWebhookEvent({
           const code = reclaim.reason === 'already_recorded' ? 'already_recorded' : 'concurrent_processing';
           return { outcome: 'duplicate', code, mutated: false };
         }
-      } else if (existing.processing_status === 'failed' || existing.outcome_code === 'different_subscription_ignored') {
+      } else if (existing.processing_status === 'failed' || isReclaimableIgnored) {
         // Recoverable retry after a previous processor crashed or experienced transient failure,
-        // or redelivery of an event that was previously ignored under different_subscription_ignored.
+        // or redelivery of an event that was previously ignored under different_subscription_ignored or stale_event.
         // Conflict-aware conditional reclaim via Appwrite transaction.
         const reclaim = await reclaimLedgerReservation(databases, ledgerDocId, {
           event_id: event.id,
@@ -840,12 +844,19 @@ async function processWebhookEvent({
   if (previous) {
     // 1. Strictly older event -> stale
     if (event.eventTimestampMs < previousTimestamp) {
-      await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
-        user_id: userId,
-        processing_status: 'ignored',
-        outcome_code: 'stale_event',
-      }, serverOnlyPermissions());
-      return { outcome: 'ignored', code: 'stale_event', mutated: false };
+      // EXCEPTION: Initial payment on pending_initial_payment.
+      // PayPal generates PAYMENT.SALE.COMPLETED slightly before (or concurrently with) ACTIVATED,
+      // so if ACTIVATED is recorded first, the initial payment timestamp is slightly older.
+      // This authoritative initial payment must be allowed to transition pending_initial_payment to active.
+      const isInitialPaymentOnPending = event.type === 'PAYMENT.SALE.COMPLETED' && previous.status === 'pending_initial_payment';
+      if (!isInitialPaymentOnPending) {
+        await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
+          user_id: userId,
+          processing_status: 'ignored',
+          outcome_code: 'stale_event',
+        }, serverOnlyPermissions());
+        return { outcome: 'ignored', code: 'stale_event', mutated: false };
+      }
     }
 
     // 2. Equal timestamp tie-break rule:
@@ -920,7 +931,7 @@ async function processWebhookEvent({
     grace_period_expires_at: previous?.grace_period_expires_at || null,
     latest_event_id: event.id,
     latest_event_type: event.type,
-    latest_event_timestamp_ms: event.eventTimestampMs,
+    latest_event_timestamp_ms: Math.max(event.eventTimestampMs, previousTimestamp),
     updated_at: new Date(nowMs).toISOString(),
   };
 
