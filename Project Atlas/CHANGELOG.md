@@ -1,5 +1,50 @@
 # WiseResume Atlas Master Changelog
 
+### 2026-09-06 - PayPal Refund & Reversal Policy Implementation (Option B)
+
+- **Workstream Verdict:** `PAYPAL_REFUND_REVERSAL_IMPLEMENTED_READY_FOR_OWNER_REVIEW` (`IMPLEMENTED_UNVERIFIED` / `TESTED_LOCAL`, `PAYPAL_PRODUCTION_READY = NO`).
+- **Branch:** `feat/paypal-refund-reversal-policy` (Target: `main`).
+- **Owner Policy:** `OPTION_B_APPROVED`.
+- **Scope & Accomplishments:**
+  1. **Option B Refund & Reversal Backend Implementation (`paypal-webhook`):**
+     - Full refund of current entitlement-bearing payment: Revokes paid entitlement immediately (`expires_at = null`, `grace_period_expires_at = null`), retains payment identity (`last_entitlement_payment_id`, `last_entitlement_payment_timestamp_ms`), flags `renewal_cancellation_pending = true`, and initiates server-side cancellation of future automatic PayPal renewals (`POST /v1/billing/subscriptions/{id}/cancel`).
+     - Truthful provider state: Retains authentic provider state while cancellation converges; settles to `status = 'canceled'`, `will_renew = false`, `renewal_cancellation_pending = false` upon confirmed cancellation or subsequent provider cancel webhook.
+     - Partial refund: Preserves current entitlement and recurring renewals; recorded in ledger only (`partial_refund_recorded`). Cumulative partial refunds totaling or exceeding gross amount escalate to full refund policy.
+     - Historical refund/reversal: When refunded/reversed `payment_id` is older than `last_entitlement_payment_id` and provider evidence shows newer payment supports entitlement, provider state remains untouched (`historical_refund_ignored` / `historical_reversal_ignored`).
+     - Payment reversal: Revokes entitlement immediately (`expires_at = null`), preserves truthful provider status (remains `active` if provider has not suspended/cancelled), preserves payment identity.
+     - Cancellation-pending guard on sales: `PAYMENT.SALE.COMPLETED` events arriving while `renewal_cancellation_pending === true` are blocked from granting paid entitlement (`unexpected_payment_during_cancellation_pending`) and flag operational alert `UNEXPECTED_PAYMENT_DURING_REFUND_CLOSURE = OWNER/OPERATIONS_REVIEW_REQUIRED`.
+     - Tombstone lookup on sales: `PAYMENT.SALE.COMPLETED` checks ledger for refund/reversal tombstones; if found and Transactions API confirms `REFUNDED` or `REVERSED`, drops activation (`sale_already_refunded`).
+     - HATEOAS Transactions API pagination: Calls `GET /v1/billing/subscriptions/{id}/transactions` strictly with required `start_time` and `end_time`, follows HTTPS `rel="next"` links with route prefix verification, and enforces safety boundary `MAX_TRANSACTION_PAGE_FOLLOWS = 5`.
+  2. **Additive Schema Definition (`setup_paypal_schema.cjs`):**
+     - Added optional attributes `last_entitlement_payment_id`, `last_entitlement_payment_timestamp_ms`, and `renewal_cancellation_pending` (default `false`) with index `last_payment_idx` to `paypal_subscription_state`.
+     - Added optional attribute `payment_id` with index `payment_idx` to `paypal_event_ledger`.
+     - Non-destructive and idempotent; backward-compatible.
+  3. **Coupons Hub Surface (`coupons/src/main.js`):**
+     - `getMySubscription` surfaces `renewal_cancellation_pending` boolean for frontend consumption.
+  4. **Frontend Surface Contract (`useMe.ts`, `SubscriptionPage.tsx`):**
+     - `useMe.ts` updated with `renewal_cancellation_pending?: boolean`.
+     - `SubscriptionPage.tsx` neutral copy: When `effectivePlan === 'free'` and `canCancelSubscription || renewalCancellationPending`, suppresses misleading "You have an active Free subscription" and displays neutral message: *"Your paid access has ended. Your subscription cancellation is still being confirmed."*
+  5. **Subscription Resolver Unchanged:**
+     - `@wiseresume/subscription-resolver` requires zero modifications; naturally handles revocation via `expires_at = null`.
+  6. **Comprehensive Test Suite & Verification:**
+     - Schema suite (`tests/hubs/paypal-schema.test.cjs`): 6 / 6 passing (100%).
+     - Coupons suite (`tests/hubs/coupons-subscription.test.cjs`): 23 / 23 passing (100%).
+     - Webhook suite (`tests/hubs/paypal-webhook.test.cjs`): 113 / 113 passing (100%), including 38-case refund/reversal/tombstone/pagination matrix.
+     - Full hubs suite: 341 / 341 passing across all hub test suites (100%).
+     - Frontend Vitest suite (`SubscriptionPage.paypal.test.tsx`): 30 / 30 passing (100%).
+     - TypeScript typecheck (`tsc --noEmit`): PASS (0 errors).
+     - Production build (`npm run build`): PASS (dist built, 0 sourcemaps).
+     - DevKit source hashes recomputed: `sourceHashes.generated.json` matching.
+  7. **Operational Boundaries:**
+     - Runtime: NOT DEPLOYED.
+     - Sandbox Runtime: NOT RUNTIME VERIFIED (all tests verified locally offline with mocks).
+     - Public checkout: DISABLED (`BILLING_CHECKOUT_ENABLED=false`, `BILLING_CHECKOUT_PROVIDER_READY=false`).
+     - Production PayPal: COMPLETELY UNTOUCHED.
+  8. **What's New Decision:**
+     - `WHATS_NEW_NOT_REQUIRED`: PR is not deployed or merged to production; customer-facing release notes are not eligible until production deployment and live browser QA.
+  9. **Next Step:**
+     - Awaiting owner review of feature PR.
+
 ### 2026-09-06 - PayPal Failed-Renewal Local Boundary Test Hardening (PR #299)
 
 - **Workstream Verdict:** `PAYPAL_FAILED_RENEWAL_LOCAL_CONTRACT_CLOSED` (`PAYPAL_FAILED_RENEWAL_LOCAL_CONTRACT_FULLY_TESTED`, `PAYPAL_PRODUCTION_READY = NO`).

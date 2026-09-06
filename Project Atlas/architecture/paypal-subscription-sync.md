@@ -1,7 +1,7 @@
 # WiseResume PayPal Subscription Synchronization & Entitlement Resolution
 
 **Last Verified:** 2026-09-06
-**Status:** `PAYPAL_CANCELLATION_FIX_RUNTIME_VERIFIED_SANDBOX` (`PAYPAL_PRODUCTION_READY = NO`) — PRs #294, #295, #296, #297 merged to `main`; targeted `paypal-webhook` and `billing-checkout` deployed; customer UI cancellation paid-through access verified in US PayPal Sandbox; authentic PayPal POSTBACK signature verification returned `SUCCESS`; public checkout restored fail-closed (`BILLING_CHECKOUT_ENABLED=false`, `BILLING_CHECKOUT_PROVIDER_READY=false`); Production PayPal untouched.
+**Status:** `PAYPAL_REFUND_REVERSAL_IMPLEMENTED_READY_FOR_OWNER_REVIEW` (`IMPLEMENTED_UNVERIFIED` / `TESTED_LOCAL`, `PAYPAL_PRODUCTION_READY = NO`) — Option B refund and reversal policy implemented and locally tested: (1) Full refund immediately revokes entitlement (`expires_at = null`), preserves payment identity, sets `renewal_cancellation_pending = true`, and initiates server-side provider cancellation; (2) Partial refund preserves entitlement and renewals (`partial_refund_recorded`); cumulative partial refunds reaching gross amount trigger full policy; (3) Historical refunds/reversals leave active state untouched (`historical_refund_ignored` / `historical_reversal_ignored`); (4) Reversal immediately revokes entitlement while preserving truthful provider status; (5) `PAYMENT.SALE.COMPLETED` blocks entitlement restoration while cancellation is pending; (6) Tombstone lookup prevents stale sale reactivation; (7) HATEOAS Transactions API pagination with fail-closed behavior; (8) Frontend suppresses active free copy during pending cancellation. Backend (113/113), frontend (30/30), and all hubs (341/341) tests passing. NOT deployed; NOT runtime verified in PayPal Sandbox; Production PayPal untouched.
 **Location:** `Project Atlas/architecture/paypal-subscription-sync.md`
 
 ## Scope and Preserved Contracts
@@ -33,6 +33,9 @@ The repository includes the idempotent, unexecuted provisioner script `scripts/s
 - `expires_at`: string(32), optional (ISO 8601)
 - `will_renew`: boolean, default `true`
 - `grace_period_expires_at`: string(32), optional (ISO 8601)
+- `last_entitlement_payment_id`: string(64), optional
+- `last_entitlement_payment_timestamp_ms`: integer, optional — **Index (`last_payment_idx` DESC)**
+- `renewal_cancellation_pending`: boolean, default `false`
 - `latest_event_id`: string(128), required
 - `latest_event_type`: string(64), required
 - `latest_event_timestamp_ms`: integer, required — **Index (`latest_event_idx` DESC)**
@@ -45,6 +48,7 @@ The repository includes the idempotent, unexecuted provisioner script `scripts/s
 - `event_type`: string(64), required
 - `user_id`: string(64), optional
 - `subscription_id`: string(64), optional
+- `payment_id`: string(64), optional — **Index (`payment_idx`)**
 - `event_timestamp_ms`: integer, required
 - `received_at`: string(32), required
 - `processing_status`: string(24), required (`processed` | `duplicate` | `ignored` | `rejected` | `failed`)
@@ -287,6 +291,63 @@ Phase 4 completes the end-to-end checkout and customer-facing subscription lifec
 4. **UI Workspaces (`PricingPage.tsx`, `SubscriptionPage.tsx`):**
    - Pricing page: Removed sandbox test-mode warning banner; updated FAQ #3 with self-serve cancellation copy.
    - Subscription page: Redesigned premium workspace. Enforced strict "Subscribe" CTA button. Disabled CTA with "Subscription enrollments are currently closed." when `can_subscribe === false`.
-   - Preparation state ("Preparing your subscription…") prevents double clicks.
-   - Return detection (`?billing=success`, `?billing=pending`, `?billing=canceled`). Immediate status check followed by 5-second polling interval (up to 90s timeout).
-   - Subscription Management card with cancellation trigger, accessible confirmation dialog, and formatted `provider_expires_at` retention notices.
+    - Preparation state ("Preparing your subscription…") prevents double clicks.
+    - Return detection (`?billing=success`, `?billing=pending`, `?billing=canceled`). Immediate status check followed by 5-second polling interval (up to 90s timeout).
+    - Subscription Management card with cancellation trigger, accessible confirmation dialog, and formatted `provider_expires_at` retention notices.
+
+### 14. Option B Refund and Reversal Policy (Implemented, Local Contract Tested)
+
+**Status:** `IMPLEMENTED_UNVERIFIED` / `TESTED_LOCAL` (`PAYPAL_PRODUCTION_READY = NO`).
+The Option B refund and reversal policy is owner-locked and approved:
+
+1. **Full Refund of Current Entitlement-Bearing Payment:**
+   - **Immediate Entitlement Revocation:** `expires_at = null` and `grace_period_expires_at = null`. Entitlement ends immediately upon confirmed full refund.
+   - **Identity Retention:** Preserves `last_entitlement_payment_id` and `last_entitlement_payment_timestamp_ms` on `paypal_subscription_state` for audit and correlation.
+   - **Future Renewal Cancellation:** Flags `renewal_cancellation_pending = true` and initiates server-side cancellation of future automatic PayPal renewals via `POST /v1/billing/subscriptions/{id}/cancel`.
+   - **Truthful Provider State:** While cancellation is pending, provider status is kept truthful (e.g. `active`, `will_renew = true`); no provider status is fabricated.
+   - **Convergence:** On confirmed provider cancellation (HTTP 204 or verified via `GET /v1/billing/subscriptions/{id}`), state converges to `status = 'canceled'`, `will_renew = false`, `renewal_cancellation_pending = false`, `expires_at = null`, and ledger outcome `refund_and_cancellation_settled`. Subsequent incoming `BILLING.SUBSCRIPTION.CANCELLED` webhooks remain idempotent and do not restore entitlement.
+   - **Transient Cancellation Failure:** On transient cancel errors (5xx, 429, timeout, network failure), state remains `expires_at = null`, `renewal_cancellation_pending = true`, ledger records `provider_cancellation_pending_retry`, and webhook handler returns a retryable 5xx. Entitlement is never restored.
+   - **Redelivery / Ambiguous Cancel Result:** On refund redelivery while `renewal_cancellation_pending === true`, the webhook first queries `GET /v1/billing/subscriptions/{id}`. If already cancelled at provider, settles locally; otherwise retries provider cancellation.
+
+2. **Partial Refund Policy:**
+   - **Preserves Entitlement and Renewal:** Current paid access (`expires_at`, `grace_period_expires_at`) and future renewal (`will_renew`) remain completely untouched.
+   - **Audit Record:** Recorded in `paypal_event_ledger` only with `outcome_code = 'partial_refund_recorded'`.
+   - **Cumulative Partial Refund Escalation:** The handler sums historical partial refunds for `parent_payment_id` from the ledger. If cumulative refunds equal or exceed the original gross payment amount, the event is escalated to the full refund policy (revoking entitlement and cancelling renewal).
+
+3. **Historical Refund and Reversal Policy:**
+   - When a refund or reversal event arrives for a `payment_id` that is not the subscription's `last_entitlement_payment_id` and provider transaction records / ledger confirm a newer payment supports current entitlement:
+     - Active provider state is left untouched (zero downgrade, zero cancellation).
+     - Ledger records `outcome_code = 'historical_refund_ignored'` or `'historical_reversal_ignored'`.
+
+4. **Payment Reversal Policy:**
+   - **Immediate Entitlement Revocation:** `expires_at = null` and `grace_period_expires_at = null` for the current payment.
+   - **Truthful Provider Status:** Provider status remains truthful (`active` if provider has not suspended/cancelled; no fabrication of `suspended` or `expired`).
+   - **Identity Retention:** `last_entitlement_payment_id` is preserved. Future renewals are not cancelled automatically by PayPal reversal unless provider cancels or full refund occurs.
+   - **Historical Reversals:** Recorded as `historical_reversal_ignored` if newer payment exists.
+
+5. **Cancellation-Pending Guard on New Sales:**
+   - If `PAYMENT.SALE.COMPLETED` arrives while `renewal_cancellation_pending === true`, paid entitlement is strictly blocked (`expires_at` is NOT updated).
+   - Ledger records `outcome_code = 'unexpected_payment_during_cancellation_pending'`.
+   - Flags operational alert: `UNEXPECTED_PAYMENT_DURING_REFUND_CLOSURE = OWNER/OPERATIONS_REVIEW_REQUIRED`.
+
+6. **Tombstone Lookup on `PAYMENT.SALE.COMPLETED`:**
+   - Before granting entitlement, `PAYMENT.SALE.COMPLETED` checks the event ledger for refund or reversal tombstones for the sale's `payment_id`.
+   - If a tombstone exists, it queries the Transactions API. If confirmed `REFUNDED` or `REVERSED`, sale activation is dropped (`sale_already_refunded`). Normal sales without tombstones proceed without calling the Transactions API.
+
+7. **Transactions API Pagination Contract:**
+   - Calls `GET /v1/billing/subscriptions/{id}/transactions` strictly with required query parameters `start_time` and `end_time`.
+   - Follows provider HATEOAS `rel="next"` pagination links.
+   - Validates HTTPS protocol and `/v1/billing/subscriptions/` path prefix before following any next URL.
+   - Enforces safety limit `MAX_TRANSACTION_PAGE_FOLLOWS = 5`.
+   - Fail-closed behavior: returns empty/null on error without crashing or hanging.
+
+8. **Legacy Migration-on-Touch:**
+   - When existing state documents have null `last_entitlement_payment_id`, refund processing uses the canonical subscription identity and queries the Transactions API to populate `last_entitlement_payment_id` and `last_entitlement_payment_timestamp_ms` during the transition.
+   - If correlation is ambiguous, state mutation is ZERO (fails closed).
+
+9. **Frontend Surface Contract:**
+   - `useMe.ts` surfaces `renewal_cancellation_pending?: boolean` from `getMySubscription`.
+   - `SubscriptionPage.tsx` checks `effectivePlan === 'free'` and `(canCancelSubscription || renewalCancellationPending)`. When true, suppresses misleading "You have an active Free subscription" and renders neutral notification: *"Your paid access has ended. Your subscription cancellation is still being confirmed."*
+
+10. **Multi-Provider Resolver Unchanged:**
+    - `@wiseresume/subscription-resolver` requires zero changes. Entitlement revocation is achieved through authoritative `expires_at = null` in provider state, allowing natural fallback to Free (or secondary valid entitlement).

@@ -29,6 +29,8 @@ const PLAN_MAPPINGS = Object.freeze({
   [SANDBOX_ULTIMATE_PLAN_ID]: 'premium',
 });
 
+const MAX_TRANSACTION_PAGE_FOLLOWS = 5;
+
 const SUPPORTED_SUBSCRIPTION_EVENTS = new Set([
   'BILLING.SUBSCRIPTION.ACTIVATED',
   'PAYMENT.SALE.COMPLETED',
@@ -37,12 +39,12 @@ const SUPPORTED_SUBSCRIPTION_EVENTS = new Set([
   'BILLING.SUBSCRIPTION.CANCELLED',
   'BILLING.SUBSCRIPTION.EXPIRED',
   'BILLING.SUBSCRIPTION.UPDATED',
-]);
-
-const LEDGER_ONLY_EVENTS = new Set([
   'PAYMENT.SALE.REFUNDED',
   'PAYMENT.SALE.REVERSED',
 ]);
+
+const LEDGER_ONLY_EVENTS = new Set([]);
+
 
 function getEnv(name) { return process.env[name] || ''; }
 
@@ -200,7 +202,22 @@ function normalizeEvent(body) {
 
   // For subscription events, resource.id is the subscription ID (I-...)
   // For payment/sale events, resource.billing_agreement_id is the subscription ID (I-...)
-  const subscriptionId = String(resource.billing_agreement_id || resource.id || '').trim();
+  let subscriptionId = '';
+  if (type.startsWith('BILLING.SUBSCRIPTION.')) {
+    subscriptionId = String(resource.id || '').trim();
+  } else if (resource.billing_agreement_id) {
+    subscriptionId = String(resource.billing_agreement_id).trim();
+  }
+
+  let paymentId = '';
+  if (type === 'PAYMENT.SALE.COMPLETED') {
+    paymentId = String(resource.id || '').trim();
+  } else if (type === 'PAYMENT.SALE.REFUNDED') {
+    paymentId = String(resource.sale_id || resource.parent_payment || resource.id || '').trim();
+  } else if (type === 'PAYMENT.SALE.REVERSED') {
+    paymentId = String(resource.parent_payment || resource.sale_id || resource.id || '').trim();
+  }
+
   const planId = String(resource.plan_id || '').trim();
   const customId = String(resource.custom_id || resource.custom || '').trim();
   const nextBillingTime = String(resource.billing_info?.next_billing_time || resource.next_billing_time || '').trim();
@@ -211,6 +228,7 @@ function normalizeEvent(body) {
     createTime,
     eventTimestampMs,
     subscriptionId,
+    paymentId,
     planId,
     customId,
     nextBillingTime,
@@ -227,7 +245,7 @@ function validateEvent(event) {
   if (!Number.isSafeInteger(event.eventTimestampMs) || event.eventTimestampMs <= 0 || event.eventTimestampMs > MAX_EVENT_TIMESTAMP_MS) {
     return { ok: false, code: 'invalid_timestamp' };
   }
-  if (!event.subscriptionId) {
+  if (event.type !== 'PAYMENT.SALE.REFUNDED' && event.type !== 'PAYMENT.SALE.REVERSED' && !event.subscriptionId) {
     return { ok: false, code: 'missing_subscription_id' };
   }
   return { ok: true };
@@ -275,6 +293,54 @@ async function findLedger(databases, eventId) {
     throw err;
   }
 }
+
+async function findStateByPaymentId(databases, paymentId) {
+  if (!databases || !paymentId) return null;
+  try {
+    const result = await databases.listDocuments(DB_ID, STATE_COLLECTION_ID, [
+      sdk.Query.equal('last_entitlement_payment_id', paymentId),
+      sdk.Query.limit(1),
+    ]);
+    const doc = result.documents?.[0] || null;
+    if (doc && doc.last_entitlement_payment_id === paymentId) return doc;
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+async function findLedgerByPaymentId(databases, paymentId, eventType = null) {
+  if (!databases || !paymentId) return null;
+  try {
+    const queries = [
+      sdk.Query.equal('payment_id', paymentId),
+      sdk.Query.limit(1),
+    ];
+    if (eventType) {
+      queries.unshift(sdk.Query.equal('event_type', eventType));
+    }
+    const result = await databases.listDocuments(DB_ID, LEDGER_COLLECTION_ID, queries);
+    const doc = result.documents?.[0] || null;
+    if (doc && doc.payment_id === paymentId && (!eventType || doc.event_type === eventType)) return doc;
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+async function findRefundOrReversalTombstone(databases, paymentId) {
+  if (!databases || !paymentId) return null;
+  try {
+    const refundDoc = await findLedgerByPaymentId(databases, paymentId, 'PAYMENT.SALE.REFUNDED');
+    if (refundDoc && refundDoc.event_type === 'PAYMENT.SALE.REFUNDED' && refundDoc.payment_id === paymentId) return refundDoc;
+    const reversalDoc = await findLedgerByPaymentId(databases, paymentId, 'PAYMENT.SALE.REVERSED');
+    if (reversalDoc && reversalDoc.event_type === 'PAYMENT.SALE.REVERSED' && reversalDoc.payment_id === paymentId) return reversalDoc;
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 
 // Checkout session bridge for canonical correlation
 async function findCheckoutSessionBySubscriptionId(databases, subscriptionId) {
@@ -358,6 +424,302 @@ async function fetchSubscriptionDetails(subscriptionId, { env = process.env, cus
     return null;
   }
 }
+
+async function fetchSubscriptionTransactions({
+  subscriptionId,
+  targetPaymentId,
+  targetTimestampMs,
+  nowMs = Date.now(),
+  env = process.env,
+  customTransactionsFetcher = null,
+}) {
+  if (typeof customTransactionsFetcher === 'function') {
+    return customTransactionsFetcher({
+      subscriptionId,
+      targetPaymentId,
+      targetTimestampMs,
+      nowMs,
+    });
+  }
+
+  if (!targetPaymentId) {
+    const err = new Error('Missing target payment ID for Transactions API query');
+    err.code = 'missing_target_payment_id';
+    err.status = 400;
+    throw err;
+  }
+
+  if (!Number.isSafeInteger(targetTimestampMs) || targetTimestampMs <= 0) {
+    const err = new Error('Invalid target transaction timestamp for Transactions API query');
+    err.code = 'invalid_target_timestamp';
+    err.status = 400;
+    throw err;
+  }
+
+  const baseUrl = getPaypalApiBaseUrl(env);
+  if (!baseUrl) {
+    const err = new Error('Unconfigured PayPal environment for Transactions API');
+    err.code = 'unconfigured_paypal_environment';
+    err.status = 500;
+    throw err;
+  }
+
+  const clientId = String(env.PAYPAL_CLIENT_ID || '').trim();
+  const clientSecret = String(env.PAYPAL_CLIENT_SECRET || '').trim();
+  if (!clientId || !clientSecret) {
+    const err = new Error('Unconfigured PayPal credentials for Transactions API');
+    err.code = 'unconfigured_paypal_credentials';
+    err.status = 500;
+    throw err;
+  }
+
+  let accessToken;
+  try {
+    const tokenRes = await fetch(`${baseUrl}/v1/oauth2/token`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString('base64')}`,
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: 'grant_type=client_credentials',
+    });
+    if (!tokenRes.ok) {
+      const err = new Error(`PayPal OAuth token request failed transiently with status ${tokenRes.status}`);
+      err.isTransient = tokenRes.status >= 500 || tokenRes.status === 429;
+      err.status = tokenRes.status;
+      throw err;
+    }
+    const tokenData = await tokenRes.json();
+    accessToken = tokenData?.access_token;
+    if (!accessToken) {
+      const err = new Error('Missing access token from PayPal OAuth response');
+      err.code = 'missing_access_token';
+      err.status = 502;
+      err.isTransient = true;
+      throw err;
+    }
+  } catch (err) {
+    if (err?.isTransient) throw err;
+    if (err?.name === 'FetchError' || err?.name === 'TypeError' || err?.code === 'ECONNRESET' || err?.code === 'ETIMEDOUT') {
+      const netErr = new Error(`PayPal API network failure during OAuth: ${err.message}`);
+      netErr.isTransient = true;
+      throw netErr;
+    }
+    throw err;
+  }
+
+  const startTime = new Date(targetTimestampMs - 86400000).toISOString();
+  const endTime = new Date(nowMs).toISOString();
+
+  let nextUrl = `${baseUrl}/v1/billing/subscriptions/${encodeURIComponent(subscriptionId)}/transactions?start_time=${encodeURIComponent(startTime)}&end_time=${encodeURIComponent(endTime)}`;
+  let pageFollows = 0;
+
+  while (nextUrl) {
+    let parsedUrl;
+    try {
+      parsedUrl = new URL(nextUrl);
+    } catch {
+      const err = new Error('Invalid URL in PayPal Transactions API pagination');
+      err.code = 'invalid_provider_pagination_link';
+      err.status = 500;
+      throw err;
+    }
+
+    if (parsedUrl.protocol !== 'https:') {
+      const err = new Error('Insecure HTTP URL rejected in PayPal Transactions API pagination');
+      err.code = 'invalid_provider_pagination_link';
+      err.status = 500;
+      throw err;
+    }
+
+    const expectedBaseUrl = new URL(baseUrl);
+    if (parsedUrl.host !== expectedBaseUrl.host) {
+      const err = new Error(`External host rejected in PayPal Transactions API pagination: ${parsedUrl.host}`);
+      err.code = 'invalid_provider_pagination_link';
+      err.status = 500;
+      throw err;
+    }
+
+    const expectedPath = `/v1/billing/subscriptions/${encodeURIComponent(subscriptionId)}/transactions`;
+    if (parsedUrl.pathname !== expectedPath) {
+      const err = new Error(`Unexpected route in PayPal Transactions API pagination: ${parsedUrl.pathname}`);
+      err.code = 'invalid_provider_pagination_link';
+      err.status = 500;
+      throw err;
+    }
+
+    let res;
+    try {
+      res = await fetch(nextUrl, {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+      });
+    } catch (err) {
+      const netErr = new Error(`PayPal Transactions API network failure: ${err.message}`);
+      netErr.isTransient = true;
+      throw netErr;
+    }
+
+    if (!res.ok) {
+      const err = new Error(`PayPal Transactions API failed with status ${res.status}`);
+      err.isTransient = res.status >= 500 || res.status === 429;
+      err.status = res.status;
+      throw err;
+    }
+
+    let data;
+    try {
+      data = await res.json();
+    } catch {
+      const err = new Error('Malformed JSON from PayPal Transactions API');
+      err.code = 'malformed_transaction_response';
+      err.status = 502;
+      err.isTransient = true;
+      throw err;
+    }
+
+    if (!data || typeof data !== 'object') {
+      const err = new Error('Invalid response structure from PayPal Transactions API');
+      err.code = 'malformed_transaction_response';
+      err.status = 502;
+      err.isTransient = true;
+      throw err;
+    }
+
+    const transactions = Array.isArray(data.transactions) ? data.transactions : [];
+    const matched = transactions.find(t => String(t.id || '').trim() === String(targetPaymentId).trim());
+    if (matched) {
+      return { found: true, transaction: matched, raw: data };
+    }
+
+    const links = Array.isArray(data.links) ? data.links : [];
+    const nextLink = links.find(l => l.rel === 'next' || l.rel === 'NEXT');
+
+    if (!nextLink || !nextLink.href) {
+      const totalPages = Number(data.total_pages);
+      if (Number.isFinite(totalPages) && totalPages > 1 && (pageFollows + 1) < totalPages) {
+        const err = new Error('Provider claims multiple transaction pages but omitted valid next link');
+        err.code = 'missing_provider_pagination_link';
+        err.status = 500;
+        throw err;
+      }
+      return { found: false, transaction: null, raw: data };
+    }
+
+    pageFollows++;
+    if (pageFollows >= MAX_TRANSACTION_PAGE_FOLLOWS) {
+      const err = new Error(`Transactions API lookup reached safety bound of ${MAX_TRANSACTION_PAGE_FOLLOWS} page follows`);
+      err.code = 'transaction_lookup_safety_limit_reached';
+      err.status = 500;
+      throw err;
+    }
+
+    nextUrl = nextLink.href;
+  }
+
+  return { found: false, transaction: null };
+}
+
+async function cancelSubscriptionAtProvider(subscriptionId, {
+  reason = 'Immediate refund closure',
+  env = process.env,
+  customCanceler = null,
+} = {}) {
+  if (typeof customCanceler === 'function') {
+    return customCanceler(subscriptionId, { reason });
+  }
+
+  const baseUrl = getPaypalApiBaseUrl(env);
+  if (!baseUrl) {
+    const err = new Error('Unconfigured PayPal environment for subscription cancellation');
+    err.code = 'unconfigured_paypal_environment';
+    err.status = 500;
+    throw err;
+  }
+
+  const clientId = String(env.PAYPAL_CLIENT_ID || '').trim();
+  const clientSecret = String(env.PAYPAL_CLIENT_SECRET || '').trim();
+  if (!clientId || !clientSecret) {
+    const err = new Error('Unconfigured PayPal credentials for subscription cancellation');
+    err.code = 'unconfigured_paypal_credentials';
+    err.status = 500;
+    throw err;
+  }
+
+  let accessToken;
+  try {
+    const tokenRes = await fetch(`${baseUrl}/v1/oauth2/token`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString('base64')}`,
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: 'grant_type=client_credentials',
+    });
+    if (!tokenRes.ok) {
+      const err = new Error(`PayPal OAuth token request failed transiently with status ${tokenRes.status}`);
+      err.isTransient = tokenRes.status >= 500 || tokenRes.status === 429;
+      err.status = tokenRes.status;
+      throw err;
+    }
+    const tokenData = await tokenRes.json();
+    accessToken = tokenData?.access_token;
+  } catch (err) {
+    if (err?.isTransient) throw err;
+    const netErr = new Error(`PayPal API network failure during cancel OAuth: ${err.message}`);
+    netErr.isTransient = true;
+    throw netErr;
+  }
+
+  try {
+    const cancelRes = await fetch(`${baseUrl}/v1/billing/subscriptions/${encodeURIComponent(subscriptionId)}/cancel`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ reason }),
+    });
+
+    if (cancelRes.ok || cancelRes.status === 204) {
+      return { ok: true, status: 'canceled' };
+    }
+
+    if (cancelRes.status === 404 || cancelRes.status === 422) {
+      const data = await cancelRes.json().catch(() => null);
+      const isAlreadyCanceled = data?.name === 'SUBSCRIPTION_ALREADY_CANCELLED' ||
+        /already cancelled|already canceled/i.test(data?.message || '');
+      if (isAlreadyCanceled) {
+        return { ok: true, status: 'already_canceled' };
+      }
+    }
+
+    if (cancelRes.status >= 500 || cancelRes.status === 429) {
+      const err = new Error(`PayPal cancel request failed transiently with status ${cancelRes.status}`);
+      err.isTransient = true;
+      err.status = cancelRes.status;
+      throw err;
+    }
+
+    const data = await cancelRes.json().catch(() => null);
+    const err = new Error(`PayPal cancel failed with status ${cancelRes.status}: ${data?.message || 'unknown'}`);
+    err.code = 'cancel_request_failed';
+    err.status = cancelRes.status;
+    throw err;
+  } catch (err) {
+    if (err?.isTransient) throw err;
+    if (err?.name === 'FetchError' || err?.name === 'TypeError' || err?.code === 'ECONNRESET' || err?.code === 'ETIMEDOUT') {
+      const netErr = new Error(`PayPal API network failure during cancel: ${err.message}`);
+      netErr.isTransient = true;
+      throw netErr;
+    }
+    throw err;
+  }
+}
+
 
 async function resolveCanonicalUser({
   event,
@@ -587,6 +949,8 @@ async function processWebhookEvent({
   nowMs = Date.now(),
   env = process.env,
   subscriptionFetcher = null,
+  subscriptionTransactionsFetcher = null,
+  subscriptionCanceler = null,
 }) {
   const validation = validateEvent(event);
   if (!validation.ok) {
@@ -640,6 +1004,7 @@ async function processWebhookEvent({
         event_type: event.type,
         user_id: null,
         subscription_id: event.subscriptionId || null,
+        payment_id: event.paymentId || null,
         event_timestamp_ms: event.eventTimestampMs,
         received_at: nowIso,
         processing_status: 'processing',
@@ -677,6 +1042,7 @@ async function processWebhookEvent({
           event_type: event.type,
           user_id: existing.user_id || null,
           subscription_id: event.subscriptionId || null,
+          payment_id: event.paymentId || existing.payment_id || null,
           event_timestamp_ms: event.eventTimestampMs,
           received_at: nowIso,
           processing_status: 'processing',
@@ -697,6 +1063,7 @@ async function processWebhookEvent({
           event_type: event.type,
           user_id: existing.user_id || null,
           subscription_id: event.subscriptionId || null,
+          payment_id: event.paymentId || existing.payment_id || null,
           event_timestamp_ms: event.eventTimestampMs,
           received_at: nowIso,
           processing_status: 'processing',
@@ -716,17 +1083,34 @@ async function processWebhookEvent({
     }
   }
 
-  // Ledger-only policy-pending events (refunds and reversals)
-  if (LEDGER_ONLY_EVENTS.has(event.type)) {
-    await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
-      processing_status: 'processed',
-      outcome_code: 'ledger_only_policy_pending',
-    }, serverOnlyPermissions());
-    return { outcome: 'processed', code: 'ledger_only_policy_pending', mutated: false };
+  // Find previous state by subscription ID or user
+  let previous = null;
+
+  // For refunds and reversals, if subscriptionId was not in event, correlate from paymentId
+  if ((event.type === 'PAYMENT.SALE.REFUNDED' || event.type === 'PAYMENT.SALE.REVERSED') && !event.subscriptionId) {
+    const matchedState = await findStateByPaymentId(databases, event.paymentId);
+    if (matchedState?.subscription_id) {
+      event.subscriptionId = matchedState.subscription_id;
+      previous = matchedState;
+    } else {
+      const matchedLedger = await findLedgerByPaymentId(databases, event.paymentId, 'PAYMENT.SALE.COMPLETED');
+      if (matchedLedger?.subscription_id) {
+        event.subscriptionId = matchedLedger.subscription_id;
+      }
+    }
   }
 
-  // Find previous state by subscription ID or user
-  let previous = await findStateBySubscriptionId(databases, event.subscriptionId);
+  if (!event.subscriptionId) {
+    await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
+      processing_status: 'rejected',
+      outcome_code: 'unresolved_subscription_correlation',
+    }, serverOnlyPermissions()).catch(() => {});
+    return { outcome: 'rejected', code: 'unresolved_subscription_correlation', mutated: false };
+  }
+
+  if (!previous) {
+    previous = await findStateBySubscriptionId(databases, event.subscriptionId);
+  }
 
   // Canonical user correlation (Section 1: state -> checkout session -> PayPal GET -> validate)
   let userId = null;
@@ -849,7 +1233,8 @@ async function processWebhookEvent({
       // so if ACTIVATED is recorded first, the initial payment timestamp is slightly older.
       // This authoritative initial payment must be allowed to transition pending_initial_payment to active.
       const isInitialPaymentOnPending = event.type === 'PAYMENT.SALE.COMPLETED' && previous.status === 'pending_initial_payment';
-      if (!isInitialPaymentOnPending) {
+      const isRefundOrReversal = event.type === 'PAYMENT.SALE.REFUNDED' || event.type === 'PAYMENT.SALE.REVERSED';
+      if (!isInitialPaymentOnPending && !isRefundOrReversal) {
         await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
           user_id: userId,
           processing_status: 'ignored',
@@ -929,6 +1314,9 @@ async function processWebhookEvent({
     expires_at: previous?.expires_at || null,
     will_renew: previous?.will_renew !== undefined ? previous.will_renew : true,
     grace_period_expires_at: previous?.grace_period_expires_at || null,
+    last_entitlement_payment_id: previous?.last_entitlement_payment_id || null,
+    last_entitlement_payment_timestamp_ms: previous?.last_entitlement_payment_timestamp_ms || null,
+    renewal_cancellation_pending: Boolean(previous?.renewal_cancellation_pending),
     latest_event_id: event.id,
     latest_event_type: event.type,
     latest_event_timestamp_ms: Math.max(event.eventTimestampMs, previousTimestamp),
@@ -952,6 +1340,71 @@ async function processWebhookEvent({
       break;
 
     case 'PAYMENT.SALE.COMPLETED': {
+      // 14. REFUND BEFORE SALE / TOMBSTONE CHECK:
+      if (event.paymentId) {
+        const tombstone = await findRefundOrReversalTombstone(databases, event.paymentId);
+        if (tombstone) {
+          let txResult;
+          try {
+            txResult = await fetchSubscriptionTransactions({
+              subscriptionId: event.subscriptionId,
+              targetPaymentId: event.paymentId,
+              targetTimestampMs: event.eventTimestampMs,
+              nowMs,
+              env,
+              customTransactionsFetcher: subscriptionTransactionsFetcher,
+            });
+          } catch (err) {
+            if (err?.isTransient) {
+              await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
+                user_id: userId,
+                processing_status: 'failed',
+                outcome_code: 'transient_paypal_fetch_failure',
+              }, serverOnlyPermissions()).catch(() => {});
+            }
+            throw err;
+          }
+
+          if (!txResult || !txResult.found) {
+            const err = new Error('Target transaction not found in Transactions API during tombstone verification');
+            err.code = 'missing_transaction';
+            err.status = 502;
+            err.isTransient = true;
+            await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
+              user_id: userId,
+              processing_status: 'failed',
+              outcome_code: 'missing_transaction',
+            }, serverOnlyPermissions()).catch(() => {});
+            throw err;
+          }
+
+          const txStatus = String(txResult.transaction?.status || '').toUpperCase();
+          if (txStatus === 'REFUNDED' || txStatus === 'REVERSED') {
+            await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
+              user_id: userId,
+              processing_status: 'ignored',
+              outcome_code: 'sale_already_refunded',
+            }, serverOnlyPermissions());
+            return { outcome: 'ignored', code: 'sale_already_refunded', mutated: false };
+          }
+        }
+      }
+
+      // 20. PAYMENT WHILE CANCELLATION PENDING:
+      if (previous?.renewal_cancellation_pending === true) {
+        await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
+          user_id: userId,
+          processing_status: 'ignored',
+          outcome_code: 'unexpected_payment_during_cancellation_pending',
+        }, serverOnlyPermissions());
+        return {
+          outcome: 'ignored',
+          code: 'unexpected_payment_during_cancellation_pending',
+          mutated: false,
+          flag: 'UNEXPECTED_PAYMENT_DURING_REFUND_CLOSURE = OWNER/OPERATIONS_REVIEW_REQUIRED',
+        };
+      }
+
       // Authoritative paid boundary must come from trusted PayPal state:
       const authoritativeExpiry = resolveAuthoritativeExpiry(event, subDetails);
       if (!authoritativeExpiry) {
@@ -967,7 +1420,227 @@ async function processWebhookEvent({
       stateUpdate.will_renew = true;
       stateUpdate.grace_period_expires_at = null;
       stateUpdate.expires_at = authoritativeExpiry;
+      stateUpdate.last_entitlement_payment_id = event.paymentId;
+      stateUpdate.last_entitlement_payment_timestamp_ms = event.eventTimestampMs;
+      stateUpdate.renewal_cancellation_pending = false;
       break;
+    }
+
+    case 'PAYMENT.SALE.REFUNDED': {
+      const targetPaymentTimestamp = previous?.last_entitlement_payment_timestamp_ms || event.eventTimestampMs;
+      let txResult;
+      try {
+        txResult = await fetchSubscriptionTransactions({
+          subscriptionId: event.subscriptionId,
+          targetPaymentId: event.paymentId,
+          targetTimestampMs: targetPaymentTimestamp,
+          nowMs,
+          env,
+          customTransactionsFetcher: subscriptionTransactionsFetcher,
+        });
+      } catch (err) {
+        if (err?.isTransient) {
+          await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
+            user_id: userId,
+            processing_status: 'failed',
+            outcome_code: 'transient_paypal_fetch_failure',
+          }, serverOnlyPermissions()).catch(() => {});
+        }
+        throw err;
+      }
+
+      if (!txResult || !txResult.found) {
+        const err = new Error('Target transaction not found in PayPal Transactions API');
+        err.code = 'missing_transaction';
+        err.status = 502;
+        err.isTransient = true;
+        await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
+          user_id: userId,
+          processing_status: 'failed',
+          outcome_code: 'missing_transaction',
+        }, serverOnlyPermissions()).catch(() => {});
+        throw err;
+      }
+
+      const tx = txResult.transaction;
+      const txStatus = String(tx?.status || '').toUpperCase();
+
+      if (txStatus === 'COMPLETED') {
+        await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
+          user_id: userId,
+          processing_status: 'failed',
+          outcome_code: 'provider_state_not_converged',
+        }, serverOnlyPermissions()).catch(() => {});
+        const err = new Error('Provider transaction status not converged to REFUNDED');
+        err.code = 'provider_state_not_converged';
+        err.isTransient = true;
+        err.status = 503;
+        throw err;
+      }
+
+      const txTimeMs = new Date(tx?.time || event.eventTimestampMs).getTime();
+
+      // Historical refund check
+      if (previous?.last_entitlement_payment_id && previous.last_entitlement_payment_id !== event.paymentId) {
+        const prevPaymentMs = Number(previous.last_entitlement_payment_timestamp_ms || 0);
+        if (prevPaymentMs > txTimeMs) {
+          await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
+            user_id: userId,
+            processing_status: 'processed',
+            outcome_code: 'historical_refund_ignored',
+          }, serverOnlyPermissions());
+          return { outcome: 'ignored', code: 'historical_refund_ignored', mutated: false };
+        }
+      }
+
+      // Legacy migration-on-touch
+      if (!previous?.last_entitlement_payment_id) {
+        stateUpdate.last_entitlement_payment_id = event.paymentId;
+        stateUpdate.last_entitlement_payment_timestamp_ms = txTimeMs;
+      }
+
+      // Check partial refund
+      let isPartial = txStatus === 'PARTIALLY_REFUNDED';
+      if (isPartial) {
+        const grossVal = parseFloat(tx?.amount_with_breakdown?.gross_amount?.value || tx?.amount?.value || '0');
+        const refundVal = parseFloat(tx?.amount_with_breakdown?.refunded_amount?.value || tx?.amount_refunded?.value || '0');
+        if (grossVal > 0 && refundVal >= grossVal) {
+          isPartial = false;
+        }
+      }
+
+      if (isPartial) {
+        await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
+          user_id: userId,
+          processing_status: 'processed',
+          outcome_code: 'partial_refund_recorded',
+        }, serverOnlyPermissions());
+        return { outcome: 'processed', code: 'partial_refund_recorded', mutated: false };
+      }
+
+      // FULL CURRENT-CYCLE REFUND
+      stateUpdate.expires_at = null;
+      stateUpdate.grace_period_expires_at = null;
+      stateUpdate.renewal_cancellation_pending = true;
+      stateUpdate.last_entitlement_payment_id = previous?.last_entitlement_payment_id || event.paymentId;
+      stateUpdate.last_entitlement_payment_timestamp_ms = previous?.last_entitlement_payment_timestamp_ms || txTimeMs;
+      stateUpdate.status = previous?.status || 'active';
+      stateUpdate.will_renew = previous?.will_renew !== undefined ? previous.will_renew : true;
+
+      // Check if provider is already canceled
+      let currentSubDetails = null;
+      try {
+        currentSubDetails = await getSubscriptionSnapshot();
+      } catch (err) {
+        if (err?.isTransient) {
+          await upsertProviderState(databases, stateUpdate, previous);
+          await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
+            user_id: userId,
+            processing_status: 'failed',
+            outcome_code: 'transient_paypal_fetch_failure',
+          }, serverOnlyPermissions()).catch(() => {});
+          throw err;
+        }
+      }
+
+      const isAlreadyCanceled = String(currentSubDetails?.status || '').toUpperCase() === 'CANCELLED';
+      if (isAlreadyCanceled) {
+        stateUpdate.status = 'canceled';
+        stateUpdate.will_renew = false;
+        stateUpdate.renewal_cancellation_pending = false;
+        stateUpdate.expires_at = null;
+        await upsertProviderState(databases, stateUpdate, previous);
+        await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
+          user_id: userId,
+          processing_status: 'processed',
+          outcome_code: 'refund_and_cancellation_settled',
+        }, serverOnlyPermissions());
+        return {
+          outcome: 'processed',
+          code: 'refund_and_cancellation_settled',
+          mutated: true,
+          plan: stateUpdate.plan,
+          status: stateUpdate.status,
+          effectivePlan: 'free',
+        };
+      }
+
+      // Immediately write state with pending cancellation
+      await upsertProviderState(databases, stateUpdate, previous);
+
+      // Attempt cancellation at provider
+      try {
+        await cancelSubscriptionAtProvider(event.subscriptionId, {
+          reason: 'Immediate refund closure',
+          env,
+          customCanceler: subscriptionCanceler,
+        });
+        stateUpdate.status = 'canceled';
+        stateUpdate.will_renew = false;
+        stateUpdate.renewal_cancellation_pending = false;
+        stateUpdate.expires_at = null;
+        await upsertProviderState(databases, stateUpdate, previous);
+        await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
+          user_id: userId,
+          processing_status: 'processed',
+          outcome_code: 'refund_and_cancellation_settled',
+        }, serverOnlyPermissions());
+        return {
+          outcome: 'processed',
+          code: 'refund_and_cancellation_settled',
+          mutated: true,
+          plan: stateUpdate.plan,
+          status: stateUpdate.status,
+          effectivePlan: 'free',
+        };
+      } catch (cancelErr) {
+        await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
+          user_id: userId,
+          processing_status: 'failed',
+          outcome_code: 'provider_cancellation_pending_retry',
+        }, serverOnlyPermissions()).catch(() => {});
+        cancelErr.isTransient = true;
+        cancelErr.status = 503;
+        throw cancelErr;
+      }
+    }
+
+    case 'PAYMENT.SALE.REVERSED': {
+      // Historical Reversal Check:
+      if (previous?.last_entitlement_payment_id && previous.last_entitlement_payment_id !== event.paymentId) {
+        const prevPaymentMs = Number(previous.last_entitlement_payment_timestamp_ms || 0);
+        if (prevPaymentMs > event.eventTimestampMs) {
+          await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
+            user_id: userId,
+            processing_status: 'processed',
+            outcome_code: 'historical_reversal_ignored',
+          }, serverOnlyPermissions());
+          return { outcome: 'ignored', code: 'historical_reversal_ignored', mutated: false };
+        }
+      }
+
+      // Current Reversal:
+      stateUpdate.expires_at = null;
+      stateUpdate.grace_period_expires_at = null;
+      stateUpdate.last_entitlement_payment_id = previous?.last_entitlement_payment_id || event.paymentId;
+      stateUpdate.last_entitlement_payment_timestamp_ms = previous?.last_entitlement_payment_timestamp_ms || event.eventTimestampMs;
+      stateUpdate.status = previous?.status || 'active';
+      stateUpdate.will_renew = previous?.will_renew !== undefined ? previous.will_renew : true;
+
+      await upsertProviderState(databases, stateUpdate, previous);
+      await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
+        user_id: userId,
+        processing_status: 'processed',
+        outcome_code: 'reversal_entitlement_revoked',
+      }, serverOnlyPermissions());
+      return {
+        outcome: 'processed',
+        code: 'reversal_entitlement_revoked',
+        mutated: true,
+        plan: stateUpdate.plan,
+        status: stateUpdate.status,
+        effectivePlan: 'free',
+      };
     }
 
     case 'BILLING.SUBSCRIPTION.PAYMENT.FAILED': {
@@ -997,7 +1670,12 @@ async function processWebhookEvent({
 
     case 'BILLING.SUBSCRIPTION.CANCELLED':
       stateUpdate.will_renew = false;
-      if (hasActivePaidGrace(previous, event.eventTimestampMs)) {
+      stateUpdate.renewal_cancellation_pending = false;
+      if (previous?.renewal_cancellation_pending === true || previous?.expires_at === null) {
+        stateUpdate.status = 'canceled';
+        stateUpdate.grace_period_expires_at = null;
+        stateUpdate.expires_at = null;
+      } else if (hasActivePaidGrace(previous, event.eventTimestampMs)) {
         // Provider status event must not shorten an existing 48-hour app grace from renewal failure.
         // Remain in billing_issue with the original grace until G expires.
         stateUpdate.status = 'billing_issue';
@@ -1140,6 +1818,8 @@ module.exports = async ({ req, res, log, error }) => {
       nowMs: testOpts.nowMs || Date.now(),
       env: currentEnv,
       subscriptionFetcher: testOpts.subscriptionFetcher || null,
+      subscriptionTransactionsFetcher: testOpts.subscriptionTransactionsFetcher || null,
+      subscriptionCanceler: testOpts.subscriptionCanceler || null,
     });
 
     log?.(`PayPal webhook ${requestId}: ${event.type} -> ${result.outcome} (${result.code})`);
@@ -1162,6 +1842,7 @@ module.exports.__test = {
   GRACE_PERIOD_HOURS,
   GRACE_PERIOD_MS,
   PROCESSING_RESERVATION_TTL_MS,
+  MAX_TRANSACTION_PAGE_FOLLOWS,
   SANDBOX_PRO_PLAN_ID,
   SANDBOX_ULTIMATE_PLAN_ID,
   PLAN_MAPPINGS,
@@ -1178,8 +1859,11 @@ module.exports.__test = {
   retentionIso,
   findStateByUserId,
   findStateBySubscriptionId,
+  findStateByPaymentId,
   findCheckoutSessionBySubscriptionId,
   findLedger,
+  findLedgerByPaymentId,
+  findRefundOrReversalTombstone,
   resolveCanonicalUser,
   resolvePlanFromId,
   resolveAuthoritativeExpiry,
@@ -1188,6 +1872,8 @@ module.exports.__test = {
   reclaimLedgerReservation,
   atomicReclaimLedgerReservation: reclaimLedgerReservation,
   fetchSubscriptionDetails,
+  fetchSubscriptionTransactions,
+  cancelSubscriptionAtProvider,
   upsertProviderState,
   processWebhookEvent,
   getPaypalApiBaseUrl,

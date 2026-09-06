@@ -492,3 +492,81 @@ test('can_subscribe permutation 9: Ultimate (premium) plan cannot subscribe/upgr
   assert.equal(res.result.payload.data.effective_plan, 'premium');
   assert.equal(res.result.payload.data.can_subscribe, false);
 });
+
+test('coupons getMySubscription - surfaces renewal_cancellation_pending true when active in paypalProviderState', async () => {
+  const res = createMockRes();
+  await getMySubscription({}, res, {
+    user: { $id: 'qa_user_1' },
+    subscription: null,
+    providerStates: {
+      providerState: null,
+      paypalProviderState: {
+        user_id: 'qa_user_1',
+        plan: 'pro',
+        subscription_id: 'I-PRO12345',
+        environment: 'sandbox',
+        status: 'active',
+        expires_at: null,
+        will_renew: false,
+        renewal_cancellation_pending: true,
+      },
+    },
+    paypalEnvironment: 'sandbox',
+    qaUserId: 'qa_user_1',
+    checkoutEnabled: true,
+    checkoutProvider: 'paypal',
+    checkoutProviderReady: true,
+  });
+  assert.equal(res.result.status, 200);
+  assert.equal(res.result.payload.data.renewal_cancellation_pending, true);
+});
+
+test('coupons getMySubscription - renewal_cancellation_pending is false when false or environment mismatched', async () => {
+  const res1 = createMockRes();
+  await getMySubscription({}, res1, {
+    user: { $id: 'qa_user_1' },
+    subscription: null,
+    providerStates: {
+      providerState: null,
+      paypalProviderState: {
+        user_id: 'qa_user_1',
+        plan: 'pro',
+        subscription_id: 'I-PRO12345',
+        environment: 'sandbox',
+        status: 'active',
+        expires_at: null,
+        will_renew: false,
+        renewal_cancellation_pending: false,
+      },
+    },
+    paypalEnvironment: 'sandbox',
+    qaUserId: 'qa_user_1',
+    checkoutEnabled: true,
+  });
+  assert.equal(res1.result.status, 200);
+  assert.equal(res1.result.payload.data.renewal_cancellation_pending, false);
+
+  const res2 = createMockRes();
+  await getMySubscription({}, res2, {
+    user: { $id: 'qa_user_1' },
+    subscription: null,
+    providerStates: {
+      providerState: null,
+      paypalProviderState: {
+        user_id: 'qa_user_1',
+        plan: 'pro',
+        subscription_id: 'I-PRO12345',
+        environment: 'production',
+        status: 'active',
+        expires_at: null,
+        will_renew: false,
+        renewal_cancellation_pending: true,
+      },
+    },
+    paypalEnvironment: 'sandbox',
+    qaUserId: 'qa_user_1',
+    checkoutEnabled: true,
+  });
+  assert.equal(res2.result.status, 200);
+  assert.equal(res2.result.payload.data.renewal_cancellation_pending, false);
+});

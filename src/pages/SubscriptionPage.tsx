@@ -171,6 +171,7 @@ export default function SubscriptionPage() {
   const subscriptionData = meData?.subscription;
   const canSubscribe = subscriptionData?.can_subscribe === true;
   const canCancelSubscription = subscriptionData?.can_cancel_subscription ?? false;
+  const renewalCancellationPending = subscriptionData?.renewal_cancellation_pending === true;
   const providerExpiresAt = subscriptionData?.provider_expires_at ?? null;
   const effectiveExpiresAt = subscriptionData?.expires_at ?? null;
   const willRenew = subscriptionData?.will_renew;
@@ -618,7 +619,7 @@ export default function SubscriptionPage() {
         )}
 
         {/* Subscription Management & Cancellation */}
-        {canCancelSubscription && (
+        {(canCancelSubscription || renewalCancellationPending) && (
           <Card className="border-border bg-card">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-semibold flex items-center gap-2">
@@ -628,23 +629,36 @@ export default function SubscriptionPage() {
             </CardHeader>
             <CardContent className="space-y-3 pt-1">
               <div className="text-sm text-muted-foreground space-y-1">
-                <p>
-                  {t('app.aiStudio.subscriptionPage.activePlanNote', 'You have an active {{plan}} subscription.', { plan: planLabel(plan) })}
-                </p>
-                {formattedExpiration && (
-                  <p className="text-xs">
-                    {t('app.aiStudio.subscriptionPage.renewalNotice', 'Next scheduled renewal: {{date}}', { date: formattedExpiration })}
+                {(plan === 'free' || subscriptionData?.effective_plan === 'free') ? (
+                  <p>
+                    {t(
+                      'app.aiStudio.subscriptionPage.paidAccessEndedPendingCancellation',
+                      'Your paid access has ended. Your subscription cancellation is still being confirmed.'
+                    )}
                   </p>
+                ) : (
+                  <>
+                    <p>
+                      {t('app.aiStudio.subscriptionPage.activePlanNote', 'You have an active {{plan}} subscription.', { plan: planLabel(plan) })}
+                    </p>
+                    {formattedExpiration && (
+                      <p className="text-xs">
+                        {t('app.aiStudio.subscriptionPage.renewalNotice', 'Next scheduled renewal: {{date}}', { date: formattedExpiration })}
+                      </p>
+                    )}
+                  </>
                 )}
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                className="text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30"
-                onClick={() => setCancelDialogOpen(true)}
-              >
-                {t('app.aiStudio.subscriptionPage.cancelSubscription', 'Cancel Subscription')}
-              </Button>
+              {canCancelSubscription && !renewalCancellationPending && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30"
+                  onClick={() => setCancelDialogOpen(true)}
+                >
+                  {t('app.aiStudio.subscriptionPage.cancelSubscription', 'Cancel Subscription')}
+                </Button>
+              )}
             </CardContent>
           </Card>
         )}
