@@ -1,10 +1,46 @@
 # Project Atlas — Active Operational & Handover State
 
 **Last Verified:** 2026-09-06
-**Status:** `PAYPAL_CANCELLATION_FIX_RUNTIME_VERIFIED_SANDBOX` (`PAYPAL_PRODUCTION_READY = NO`, Branch: `docs/paypal-cancellation-fix-runtime-verification`, Target: `main`) — PayPal cancellation paid-through fix & runtime re-verification complete in US PayPal Sandbox: (1) PR #294 merged (`5c9ec9e2`): Preserves paid access through cancellation period without clearing `expires_at` to null. (2) PR #295 merged (`6e04c246`): Webhook activation supersession guard. (3) PR #296 merged (`26b1faea`): Allowed ledger reclaim of events previously ignored under `different_subscription_ignored`. (4) PR #297 merged (`291c5c69`): Allowed initial payment (`PAYMENT.SALE.COMPLETED`) to complete `pending_initial_payment` subscriptions even when PayPal timestamp is slightly older than `ACTIVATED`, and allow redelivery reclaim of stale sale events. (5) Targeted deployment of `paypal-webhook` and `billing-checkout` via GitHub Actions completed cleanly. (6) Real WiseResume customer UI cancellation executed on live site (`https://wiseresume.app/subscription`) via automated browser run by designated Sandbox QA user on verified Ultimate Sandbox subscription. Cancel confirmation modal confirmed in UI. (7) PayPal Direct REST API verified: status is `CANCELLED`, note `"User requested cancellation in subscription settings"`, update time `2026-09-06T10:59:18Z`. (8) Authentic PayPal `BILLING.SUBSCRIPTION.CANCELLED` webhook event delivered automatically on first delivery (no manual resend) and processed with PayPal POSTBACK webhook signature verification returning SUCCESS (`POST /v1/notifications/verify-webhook-signature`). Note: Real provider-generated activation and payment events were successfully processed after provider re-delivery during runtime recovery. (9) Canonical Appwrite state verified: `status: "canceled"`, `effective_plan: "premium"`, `expires_at: "2026-10-06T10:00:00.000Z"` (PRESERVED), `provider_status: "canceled"`, `provider_expires_at: "2026-10-06T10:00:00.000Z"`, `will_renew: false`, `can_cancel_subscription: false`. (10) WiseResume UI shows "Ultimate [Canceled]", "Access ends on October 6, 2026", with unlimited AI quota and unlimited resumes remaining completely active; server-side AI entitlement follows the unchanged resolver contract (no post-cancellation AI execution run). (11) Public checkout fail-closed restored (`BILLING_CHECKOUT_ENABLED=false`, `BILLING_CHECKOUT_PROVIDER_READY=false`). Redeployed `billing-checkout` and verified HTTP 403 `payments_disabled` for both non-QA and QA users. (12) Zero regressions across 180 Node tests and 28 Vitest tests. Pre-existing gap retained: `BILLING_CHECKOUT_DEVKIT_SOURCE_HASH_NOT_TRACKED_PRE_EXISTING`. What's New decision: `WHATS_NEW_DEFER_UNTIL_PRODUCTION`. Pending production blockers: failed renewal/48h grace, refunds/reversals, and Live rollout.
+**Status:** `PAYPAL_FAILED_RENEWAL_LOCAL_CONTRACT_FULLY_TESTED` (`PAYPAL_PRODUCTION_READY = NO`, Branch: `docs/paypal-failed-renewal-local-contract-closeout`, Target: `main`) — PayPal failed-renewal local boundary test hardening complete & merged via PR #299 (`84a5f005`): (1) PR #299 merged: Test-only hardening of PayPal subscription entitlement resolver (`tests/hubs/paypal-subscription-resolver.test.cjs`). (2) Case 20 (Exact Grace Boundary): Proves evaluation timestamp at exact millisecond of grace expiration (`nowMs === Date.parse(G)`) rejects PayPal candidate (`isFutureTimestamp` strictly `parsed > nowMs`) and drops to `free`. (3) Case 21 (Multi-Provider Fallback): Proves expired PayPal grace candidate (`status: billing_issue`, `expires_at: expiredG`) is discarded and falls back to active secondary entitlement (RevenueCat Pro or Manual/Admin Pro) rather than forcing Free. (4) All 21 resolver tests, 76 webhook tests, 21 coupons tests, and 299 hub tests pass cleanly. (5) Official provider capability audit confirmed: On-demand recurring renewal trigger and deterministic recurring decline are `NO_DOCUMENTED_METHOD` in PayPal Sandbox; provider-runtime failed-renewal lifecycle remains `NOT VERIFIED` (`FAILED_RENEWAL_FULL_SANDBOX_RUNTIME_VERIFIED = NO`). (6) Zero application/production code modified; zero Appwrite or Vercel deployments performed; public checkout remains fail-closed (`BILLING_CHECKOUT_ENABLED=false`, `BILLING_CHECKOUT_PROVIDER_READY=false`); Production PayPal untouched. What's New decision: `WHATS_NEW_NOT_REQUIRED`. Next workstream: `PAYPAL_REFUND_REVERSAL_POLICY`.
 **Location:** `Project Atlas/WHERE_WE_STOPPED.md`
 
-## Current Active Handover — PayPal Cancellation Fix & Runtime Re-Verification (2026-09-06)
+## Current Active Handover — PayPal Failed-Renewal Local Contract Boundary Hardening (2026-09-06)
+
+* **Workstream:** `PAYPAL_FAILED_RENEWAL_LOCAL_CONTRACT_FULLY_TESTED` (`PAYPAL_PRODUCTION_READY = NO`).
+* **Docs Branch:** `docs/paypal-failed-renewal-local-contract-closeout` (Target: `main`).
+* **Base Merge Commit:** Commit `84a5f005c53b5983174b2e20f31fe9492fa2a788` (`main`).
+* **Merged Test PR:** [PR #299](https://github.com/iammagdy/WiseResume-TWC/pull/299) (`42e1ef5a73301c9cacb0451ddeed17afe2f1b5eb`): `test(billing): harden paypal grace boundary and fallback tests`.
+* **Scope of PR #299:**
+  - Strictly test-only: 1 file modified (`tests/hubs/paypal-subscription-resolver.test.cjs`), +60 lines, -0 lines.
+  - Zero application, resolver, or webhook production code modified.
+  - Case 20 (Exact-at-$G$ boundary): Proves that at the exact millisecond `nowMs === Date.parse(G)` where grace expires, `isFutureTimestamp` strictly rejects the candidate (`parsed > nowMs` is false), dropping entitlement cleanly to `free` when no other entitlement exists.
+  - Case 21 (Multi-provider fallback): Proves that when a PayPal candidate has an expired grace period (`status: billing_issue`, `expires_at: expiredG`), the candidate is discarded and the authoritative resolver naturally falls back to an active secondary entitlement (RevenueCat Pro or Manual/Admin Pro) rather than forcing Free.
+* **Test Verification Baseline:**
+  - `node --test tests/hubs/paypal-subscription-resolver.test.cjs`: 21 / 21 passing (100%).
+  - `node --test tests/hubs/paypal-webhook.test.cjs`: 76 / 76 passing (100%).
+  - `node --test tests/hubs/coupons-subscription.test.cjs`: 21 / 21 passing (100%).
+  - All 299 tests across all hub test suites pass: `node --test tests/hubs/*.test.cjs` (100%).
+* **Official Provider Capability Proof & Runtime Reality:**
+  - Comprehensive audit of official PayPal Developer documentation confirms:
+    - **On-Demand Recurring Renewal Trigger:** `NO_DOCUMENTED_METHOD` in PayPal Sandbox.
+    - **Simulated Clock Acceleration:** `NO_DOCUMENTED_METHOD` in PayPal Sandbox.
+    - **Deterministic Recurring Decline:** `NO_DOCUMENTED_METHOD` in PayPal Sandbox (negative testing cards only apply to direct REST `/v1/payments` or initial authorization, not scheduled subscription billing engine).
+    - **Natural Runtime Expiry:** Requires real-time wait (e.g. 1 month + 48 hours).
+  - **Provider Runtime Verification Status:** `FAILED_RENEWAL_FULL_SANDBOX_RUNTIME_VERIFIED = NO` (provider-runtime failed renewal lifecycle remains `NOT VERIFIED`).
+  - **Webhook Simulator Contract:** Webhook Simulator CANNOT be used for runtime verification; `POST /v1/notifications/verify-webhook-signature` returns `FAILURE` due to simulated payload mismatches and absence of cryptographic transmission headers.
+* **Zero Deployment Impact:**
+  - Zero Appwrite deployments performed or required.
+  - Zero Vercel deployments performed or required.
+  - Public checkout remains strictly fail-closed (`BILLING_CHECKOUT_ENABLED=false`, `BILLING_CHECKOUT_PROVIDER_READY=false`).
+  - Production PayPal remains completely untouched (`PAYPAL_PRODUCTION_READY = NO`).
+* **What's New Decision:**
+  - `WHATS_NEW_NOT_REQUIRED`: This task is strictly test-only; zero user-facing behavior changed.
+* **Next Workstream:**
+  - `PAYPAL_REFUND_REVERSAL_POLICY` (refund and reversal policy & ledger-to-state handling).
+
+---
+
+## Historical Handover — PayPal Cancellation Fix & Runtime Re-Verification (2026-09-06)
 
 * **Workstream:** `PAYPAL_CANCELLATION_FIX_RUNTIME_VERIFIED_SANDBOX` (`PAYPAL_PRODUCTION_READY = NO`).
 * **Docs Branch:** `docs/paypal-cancellation-fix-runtime-verification` (Target: `main`).

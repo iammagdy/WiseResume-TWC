@@ -178,7 +178,8 @@ To guarantee account ownership without trusting client-supplied data or payer em
 - **Initial Payment Failure (`pending_initial_payment` + `PAYMENT.FAILED`):** Sets `status = 'billing_issue'`, `grace_period_expires_at = null`, `expires_at = null`, `will_renew = false`. Zero paid entitlement is granted; resolver yields Free.
 - **Preserved Window:** Once an active grace window `G` has started, subsequent failure events (duplicate or distinct) cannot extend `G`.
 - **Terminal Event Grace Preservation:** Provider status events (`SUSPENDED`, `CANCELLED`, `EXPIRED`) arriving while `now < G` must **not** shorten the existing 48-hour window. The normalized state remains `billing_issue` with original grace `G` so the resolver continues to grant access until `G` expires.
-- **Natural Expiration:** Once `G` passes, `isFutureTimestamp(expires_at, nowMs)` evaluates to false, and the resolver naturally drops entitlement to Free.
+- **Natural Expiration & Exact-at-$G$ Boundary:** Once `G` passes, or at the exact millisecond `nowMs === Date.parse(G)`, `isFutureTimestamp(expires_at, nowMs)` evaluates to `false` (strictly enforcing `parsed > nowMs`), and the resolver candidate is rejected, cleanly dropping to `free` when no other entitlement exists.
+- **Multi-Provider Fallback:** If a PayPal subscription grace candidate is expired (`status: billing_issue`, `expires_at: expiredG`), the candidate is discarded and the authoritative resolver naturally falls back to an active secondary entitlement (such as an active RevenueCat Pro or Manual/Admin Pro grant) rather than forcing `free`.
 - **Recovery:** When a subsequent `PAYMENT.SALE.COMPLETED` arrives, `status = 'active'`, `grace_period_expires_at = null` (grace cleared), and `expires_at` is updated to the authoritative next billing time from PayPal.
 
 ### 8. Refund & Reversal Policy Status
@@ -233,8 +234,18 @@ The following actions must be performed explicitly by the owner before/during de
 *(Note: Never commit or expose actual secret values in repository files or commit messages).*
 
 ### 12. Operational Boundaries & Verification Status
-- **Current Status:** `PAYPAL_CANCELLATION_FIX_RUNTIME_VERIFIED_SANDBOX` (`PAYPAL_PRODUCTION_READY = NO`).
-- **Targeted Hub Deployments:** Deployed on `main` commit `291c5c69`: `paypal-webhook` (run `34028770031`) and `billing-checkout` (run `34029085832`).
+- **Current Status:** `PAYPAL_FAILED_RENEWAL_LOCAL_CONTRACT_FULLY_TESTED` (`PAYPAL_PRODUCTION_READY = NO`).
+- **Local Contract Verification Baseline:**
+  - Hardened and merged via PR #299 (`84a5f005`) in `tests/hubs/paypal-subscription-resolver.test.cjs` (+60 lines, -0 lines).
+  - Case 20 proves exact-at-$G$ evaluation drops to `free` when no other entitlement exists.
+  - Case 21 proves expired PayPal grace does not force Free when an active secondary entitlement (RevenueCat Pro or Manual/Admin Pro) exists.
+  - All local hub test suites pass (21/21 resolver, 76/76 webhook, 21/21 coupons, 299/299 hubs).
+- **Provider Capability Proof & Runtime Reality:**
+  - Audit of official PayPal Developer documentation confirms `ON_DEMAND_RENEWAL_TRIGGER = NO_DOCUMENTED_METHOD`, `CLOCK_ACCELERATION = NO_DOCUMENTED_METHOD`, and `DETERMINISTIC_RENEWAL_DECLINE = NO_DOCUMENTED_METHOD`.
+  - Immediate authentic runtime QA is not available; natural expiry requires real-time wait.
+  - Webhook Simulator cannot be used for runtime verification (`POST /v1/notifications/verify-webhook-signature` returns `FAILURE` due to simulated payload mismatches / absence of transmission headers).
+  - Provider-runtime failed-renewal lifecycle remains **NOT VERIFIED** (`FAILED_RENEWAL_FULL_SANDBOX_RUNTIME_VERIFIED = NO`).
+- **Targeted Hub Deployments:** Deployed on `main` commit `291c5c69`: `paypal-webhook` (run `34028770031`) and `billing-checkout` (run `34029085832`). For PR #299, zero deployments were performed or required.
 - **Appwrite Schema:** Server-only collections `paypal_subscription_state` and `paypal_event_ledger` provisioned and verified in live Appwrite cluster.
 - **US Sandbox Cancellation Paid-Through E2E:** Verified. Designated Sandbox QA user canceled verified Ultimate Sandbox subscription on live `https://wiseresume.app/subscription`. Direct PayPal REST API verified `CANCELLED`.
 - **Authoritative Paid Expiry Invariant:** `status = canceled`, `will_renew = false`, `expires_at` is preserved (not null), effective plan remains `premium` with unlimited AI quota retained until end of prepaid cycle; server-side AI entitlement follows unchanged resolver contract (no post-cancellation AI execution run).
@@ -245,7 +256,9 @@ The following actions must be performed explicitly by the owner before/during de
 - **Checkout Fail-Closed Gate:** Restored fail-closed (`BILLING_CHECKOUT_ENABLED=false`, `BILLING_CHECKOUT_PROVIDER_READY=false`). Verified HTTP 403 `payments_disabled` on `/create-session`.
 - **Retained Pre-Existing Gaps:** `BILLING_CHECKOUT_DEVKIT_SOURCE_HASH_NOT_TRACKED_PRE_EXISTING` retained as pre-existing gap; not claimed as fixed.
 - **Live Webhook Endpoint:** `UNVERIFIED_FOR_LIVE` (preserving approved custom domain `https://paypal-webhook.wiseresume.app` architecture; direct Appwrite execution endpoint is not the canonical public endpoint).
-- **Production Blockers:** Failed renewal / 48-hour grace, refund / reversal lifecycle, and Live PayPal rollout remain unverified. Production PayPal remains strictly disabled (`PAYPAL_PRODUCTION_READY = NO`).
+- **Production Blockers:** Refund / reversal lifecycle and Live PayPal rollout remain unverified. Provider-runtime failed renewal remains not verified. Production PayPal remains strictly disabled (`PAYPAL_PRODUCTION_READY = NO`).
+- **What's New Decision:** `WHATS_NEW_NOT_REQUIRED` (test-only change).
+- **Next Workstream:** `PAYPAL_REFUND_REVERSAL_POLICY`.
 
 ### 13. Phase 4 Architecture: Checkout, Subscription UX, Cancellation & Entitlement Surfacing
 
