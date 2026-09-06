@@ -927,7 +927,7 @@ async function processWebhookEvent({
         // If user was never active with verified payment, expires_at remains null and outcome is Free.
         stateUpdate.status = 'canceled';
         stateUpdate.grace_period_expires_at = null;
-        if ((previous?.status === 'active' || previous?.status === 'canceled') && previous?.expires_at) {
+        if ((previous?.status === 'active' || previous?.status === 'canceled' || previous?.status === 'billing_issue') && previous?.expires_at) {
           stateUpdate.expires_at = previous.expires_at;
         } else {
           stateUpdate.expires_at = null;
