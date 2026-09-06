@@ -24,10 +24,12 @@
   - Comprehensive audit of official PayPal Developer documentation confirms:
     - **On-Demand Recurring Renewal Trigger:** `NO_DOCUMENTED_METHOD` in PayPal Sandbox.
     - **Simulated Clock Acceleration:** `NO_DOCUMENTED_METHOD` in PayPal Sandbox.
-    - **Deterministic Recurring Decline:** `NO_DOCUMENTED_METHOD` in PayPal Sandbox (negative testing cards only apply to direct REST `/v1/payments` or initial authorization, not scheduled subscription billing engine).
-    - **Natural Runtime Expiry:** Requires real-time wait (e.g. 1 month + 48 hours).
-  - **Provider Runtime Verification Status:** `FAILED_RENEWAL_FULL_SANDBOX_RUNTIME_VERIFIED = NO` (provider-runtime failed renewal lifecycle remains `NOT VERIFIED`).
-  - **Webhook Simulator Contract:** Webhook Simulator CANNOT be used for runtime verification; `POST /v1/notifications/verify-webhook-signature` returns `FAILURE` due to simulated payload mismatches and absence of cryptographic transmission headers.
+    - **Deterministic Recurring Decline:** `NO_DOCUMENTED_METHOD` in PayPal Sandbox (PayPal official documentation exposes no documented method to deterministically force a scheduled recurring renewal decline in Sandbox; PayPal-Mock-Response / documented negative-testing mechanisms do not constitute a genuine provider-generated recurring renewal lifecycle proof).
+    - **Natural Runtime Expiry Timeline:** Authentic natural-expiry verification requires waiting for PayPal's real scheduled billing lifecycle to emit a genuine `BILLING.SUBSCRIPTION.PAYMENT.FAILED` event, then waiting until the WiseResume grace boundary $G = \text{eventTimestamp} + 48\text{ hours}$. The provider-side time from subscription creation to the genuine failure event is not deterministic for this QA plan.
+  - **Evidence Boundary Distinction:**
+    - **Local / Test Verified:** Initial failure zero grace; renewal failure exact 172,800,000ms (48h) grace calculation; repeated failure no grace extension; terminal events (`SUSPENDED`, `CANCELLED`, `EXPIRED`) preserve $G$; recovery transition on payment; before-$G$ paid access; exactly-at-$G$ expired to free; after-$G$ expired to free; secondary valid entitlement fallback (RevenueCat Pro or Manual/Admin Pro).
+    - **Not Provider-Runtime Verified (`FAILED_RENEWAL_FULL_SANDBOX_RUNTIME_VERIFIED = NO`):** Genuine recurring `PAYMENT.FAILED` lifecycle; first automatic failed-renewal webhook; natural real-time 48h expiry after genuine failure; provider recovery after genuine renewal failure.
+  - **Webhook Simulator Contract:** PayPal Webhook Simulator events are synthetic, are not associated with a real transaction/resource, and cannot be verified through `POST /v1/notifications/verify-webhook-signature`; therefore they are not accepted as WiseResume runtime lifecycle proof.
 * **Zero Deployment Impact:**
   - Zero Appwrite deployments performed or required.
   - Zero Vercel deployments performed or required.

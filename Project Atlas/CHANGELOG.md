@@ -19,10 +19,12 @@
      - Comprehensive audit of official PayPal Developer documentation confirms:
        - On-demand recurring renewal trigger: `NO_DOCUMENTED_METHOD` in PayPal Sandbox.
        - Simulated clock acceleration: `NO_DOCUMENTED_METHOD` in PayPal Sandbox.
-       - Deterministic recurring renewal decline control: `NO_DOCUMENTED_METHOD` in PayPal Sandbox.
-       - Natural runtime expiry requires real-time wait.
-     - Webhook Simulator cannot be used for runtime verification (`POST /v1/notifications/verify-webhook-signature` returns `FAILURE` due to simulated payload mismatches / absence of signed headers).
-     - Provider-runtime failed-renewal lifecycle remains **NOT VERIFIED** (`FAILED_RENEWAL_FULL_SANDBOX_RUNTIME_VERIFIED = NO`).
+       - Deterministic recurring renewal decline control: `NO_DOCUMENTED_METHOD` in PayPal Sandbox (official documentation exposes no documented method to deterministically force a scheduled recurring renewal decline in Sandbox; PayPal-Mock-Response / documented negative-testing mechanisms do not constitute genuine provider-generated recurring renewal lifecycle proof).
+       - Natural runtime expiry timeline: Authentic natural-expiry verification requires waiting for PayPal's real scheduled billing lifecycle to emit a genuine `BILLING.SUBSCRIPTION.PAYMENT.FAILED` event, then waiting until the WiseResume grace boundary $G = \text{eventTimestamp} + 48\text{ hours}$. The provider-side time from subscription creation to the genuine failure event is not deterministic for this QA plan.
+     - Webhook Simulator cannot be used for runtime verification: PayPal Webhook Simulator events are synthetic, are not associated with a real transaction/resource, and cannot be verified through `POST /v1/notifications/verify-webhook-signature`; therefore they are not accepted as WiseResume runtime lifecycle proof.
+     - Evidence Boundary Distinction:
+       - Local / Test Verified: Initial failure zero grace; renewal failure exact 172,800,000ms (48h) grace calculation; repeated failure no grace extension; terminal events (`SUSPENDED`, `CANCELLED`, `EXPIRED`) preserve $G$; recovery transition on payment; before-$G$ paid access; exactly-at-$G$ expired to free; after-$G$ expired to free; secondary valid entitlement fallback (RevenueCat Pro or Manual/Admin Pro).
+       - Not Provider-Runtime Verified (`FAILED_RENEWAL_FULL_SANDBOX_RUNTIME_VERIFIED = NO`): Genuine recurring `PAYMENT.FAILED` lifecycle; first automatic failed-renewal webhook; natural real-time 48h expiry after genuine failure; provider recovery after genuine renewal failure.
   5. **Zero Deployment & Fail-Closed Safety:**
      - Zero Appwrite or Vercel deployments performed or required.
      - Public checkout remains strictly fail-closed (`BILLING_CHECKOUT_ENABLED=false`, `BILLING_CHECKOUT_PROVIDER_READY=false`).
