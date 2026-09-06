@@ -2888,3 +2888,454 @@ test('Concurrency 11: createTransaction returning invalid transaction ID throws 
   assert.equal(threw, true, 'Must throw when transaction ID is invalid');
   assert.equal(db.collections.paypal_subscription_state.size, 0, 'Zero provider state mutation');
 });
+
+test('E2E Lifecycle: ACTIVATED -> PAYMENT.SALE.COMPLETED -> CANCELLED preserves paid-through access until expiry', async () => {
+  const db = createMockDatabases();
+  const users = createMockUsers();
+  const subId = 'I-E2E-LIFECYCLE-ULTIMATE';
+  const subExpiryIso = '2026-10-06T08:38:00.000Z';
+  const subExpiryMs = Date.parse(subExpiryIso);
+
+  // Step 1: BILLING.SUBSCRIPTION.ACTIVATED
+  const actTimeMs = Date.parse('2026-09-06T08:35:00.000Z');
+  const actEvent = normalizeEvent({
+    id: 'EVT-ACT-001',
+    event_type: 'BILLING.SUBSCRIPTION.ACTIVATED',
+    create_time: new Date(actTimeMs).toISOString(),
+    resource: {
+      id: subId,
+      custom_id: QA_USER_ID,
+      plan_id: SANDBOX_ULTIMATE_PLAN_ID,
+      status: 'ACTIVE',
+    },
+  });
+
+  const actResult = await processWebhookEvent({
+    databases: db,
+    users,
+    event: actEvent,
+    nowMs: actTimeMs,
+    env: TEST_ENV,
+  });
+
+  assert.equal(actResult.outcome, 'processed');
+  assert.equal(actResult.status, 'pending_initial_payment');
+  assert.equal(actResult.effectivePlan, 'free', 'ACTIVATED alone must result in Free effective plan');
+
+  // Step 2: PAYMENT.SALE.COMPLETED
+  const payTimeMs = Date.parse('2026-09-06T08:38:00.000Z');
+  const payEvent = normalizeEvent({
+    id: 'EVT-PAY-001',
+    event_type: 'PAYMENT.SALE.COMPLETED',
+    create_time: new Date(payTimeMs).toISOString(),
+    resource: {
+      id: 'TX-PAY-001',
+      billing_agreement_id: subId,
+      custom_id: QA_USER_ID,
+      plan_id: SANDBOX_ULTIMATE_PLAN_ID,
+      billing_info: { next_billing_time: subExpiryIso },
+    },
+  });
+
+  const payResult = await processWebhookEvent({
+    databases: db,
+    users,
+    event: payEvent,
+    nowMs: payTimeMs,
+    env: TEST_ENV,
+  });
+
+  assert.equal(payResult.outcome, 'processed');
+  assert.equal(payResult.status, 'active');
+  assert.equal(payResult.plan, 'premium');
+  assert.equal(payResult.effectivePlan, 'premium', 'Payment completion grants Premium effective plan');
+
+  // Verify DB state after payment
+  const stateAfterPay = Array.from(db.collections.paypal_subscription_state.values())[0];
+  assert.equal(stateAfterPay.status, 'active');
+  assert.equal(stateAfterPay.will_renew, true);
+  assert.equal(stateAfterPay.expires_at, subExpiryIso);
+  assert.equal(stateAfterPay.plan, 'premium');
+
+  // Step 3: BILLING.SUBSCRIPTION.CANCELLED (PayPal clears billing_info.next_billing_time)
+  const cancelTimeMs = Date.parse('2026-09-06T12:00:00.000Z');
+  const cancelEvent = normalizeEvent({
+    id: 'EVT-CANCEL-001',
+    event_type: 'BILLING.SUBSCRIPTION.CANCELLED',
+    create_time: new Date(cancelTimeMs).toISOString(),
+    resource: {
+      id: subId,
+      custom_id: QA_USER_ID,
+      plan_id: SANDBOX_ULTIMATE_PLAN_ID,
+      status: 'CANCELLED',
+      billing_info: {}, // PayPal clears next_billing_time to null on cancellation
+    },
+  });
+
+  const cancelResult = await processWebhookEvent({
+    databases: db,
+    users,
+    event: cancelEvent,
+    nowMs: cancelTimeMs,
+    env: TEST_ENV,
+  });
+
+  assert.equal(cancelResult.outcome, 'processed');
+  assert.equal(cancelResult.status, 'canceled');
+  assert.equal(cancelResult.plan, 'premium');
+
+  // Verify DB state after cancellation
+  const stateAfterCancel = Array.from(db.collections.paypal_subscription_state.values())[0];
+  assert.equal(stateAfterCancel.status, 'canceled');
+  assert.equal(stateAfterCancel.will_renew, false);
+  assert.equal(stateAfterCancel.expires_at, subExpiryIso, 'CRITICAL: Must preserve authoritative expires_at from verified active payment');
+  assert.equal(stateAfterCancel.plan, 'premium');
+
+  // Verify Effective Plan before expiry (paid-through access preserved)
+  const effectiveBeforeExpiry = resolveEffectivePlan({
+    paypalProviderState: stateAfterCancel,
+    paypalProviderEnvironment: 'sandbox',
+    qaUserId: QA_USER_ID,
+    userId: QA_USER_ID,
+    nowMs: cancelTimeMs,
+  });
+  assert.equal(effectiveBeforeExpiry.plan, 'premium', 'Must preserve Premium access before expiration date');
+
+  // Verify Effective Plan at expiry midpoint
+  const effectiveMidpoint = resolveEffectivePlan({
+    paypalProviderState: stateAfterCancel,
+    paypalProviderEnvironment: 'sandbox',
+    qaUserId: QA_USER_ID,
+    userId: QA_USER_ID,
+    nowMs: subExpiryMs - 1000,
+  });
+  assert.equal(effectiveMidpoint.plan, 'premium', 'Must preserve Premium access right before expiration');
+
+  // Verify Effective Plan after expiry (automatically drops to Free)
+  const effectiveAfterExpiry = resolveEffectivePlan({
+    paypalProviderState: stateAfterCancel,
+    paypalProviderEnvironment: 'sandbox',
+    qaUserId: QA_USER_ID,
+    userId: QA_USER_ID,
+    nowMs: subExpiryMs + 1000,
+  });
+  assert.equal(effectiveAfterExpiry.plan, 'free', 'Must drop to Free after expiration date has passed');
+});
+
+test('Lifecycle: CANCELLED on pending_initial_payment (never paid) drops immediately to Free with null expires_at', async () => {
+  const db = createMockDatabases();
+  const users = createMockUsers();
+  const subId = 'I-UNPAID-CANCEL';
+
+  // Seed pending initial payment state
+  const stateDocId = paypalWebhook.__test.stateDocumentId(QA_USER_ID);
+  db.collections.paypal_subscription_state.set(stateDocId, {
+    $id: stateDocId,
+    user_id: QA_USER_ID,
+    subscription_id: subId,
+    status: 'pending_initial_payment',
+    will_renew: true,
+    expires_at: null,
+    plan: 'pro',
+    environment: 'sandbox',
+    latest_event_timestamp_ms: 1700000000000,
+  });
+
+  const cancelEvent = normalizeEvent({
+    id: 'EVT-CANCEL-UNPAID',
+    event_type: 'BILLING.SUBSCRIPTION.CANCELLED',
+    create_time: new Date(1700000100000).toISOString(),
+    resource: {
+      id: subId,
+      custom_id: QA_USER_ID,
+      status: 'CANCELLED',
+    },
+  });
+
+  const result = await processWebhookEvent({
+    databases: db,
+    users,
+    event: cancelEvent,
+    nowMs: 1700000100000,
+    env: TEST_ENV,
+  });
+
+  assert.equal(result.status, 'canceled');
+  assert.equal(result.effectivePlan, 'free', 'Unpaid subscription cancellation must have Free effective plan');
+  const finalState = Array.from(db.collections.paypal_subscription_state.values())[0];
+  assert.equal(finalState.expires_at, null);
+});
+
+test('Regression: missing-previous index lag recovers via direct deterministic document lookup and preserves paid expiry', async () => {
+  const db = createMockDatabases();
+  const users = createMockUsers();
+  const subId = 'I-SUB-RECOVER-DIRECT';
+  const stateDocId = paypalWebhook.__test.stateDocumentId(QA_USER_ID);
+  const futureExpiryIso = '2026-10-06T12:00:00.000Z';
+
+  // Seed state in direct document location
+  db.collections.paypal_subscription_state.set(stateDocId, {
+    $id: stateDocId,
+    user_id: QA_USER_ID,
+    subscription_id: subId,
+    status: 'active',
+    will_renew: true,
+    expires_at: futureExpiryIso,
+    plan: 'premium',
+    plan_id: SANDBOX_ULTIMATE_PLAN_ID,
+    environment: 'sandbox',
+    latest_event_timestamp_ms: 1700000000000,
+  });
+
+  // Simulate index lag by intercepting listDocuments on STATE_COLLECTION_ID to return empty array
+  const origList = db.listDocuments.bind(db);
+  db.listDocuments = async (dbId, collId, queries) => {
+    if (collId === 'paypal_subscription_state') {
+      return { total: 0, documents: [] };
+    }
+    return origList(dbId, collId, queries);
+  };
+
+  const cancelEvent = normalizeEvent({
+    id: 'EVT-CANCEL-INDEX-LAG',
+    event_type: 'BILLING.SUBSCRIPTION.CANCELLED',
+    create_time: new Date(1700000100000).toISOString(),
+    resource: {
+      id: subId,
+      custom_id: QA_USER_ID,
+      status: 'CANCELLED',
+      billing_info: {}, // PayPal clears next_billing_time on cancellation
+    },
+  });
+
+  const result = await processWebhookEvent({
+    databases: db,
+    users,
+    event: cancelEvent,
+    nowMs: 1700000100000,
+    env: TEST_ENV,
+  });
+
+  assert.equal(result.outcome, 'processed');
+  assert.equal(result.status, 'canceled');
+  assert.equal(result.effectivePlan, 'premium', 'Must recover previous state and preserve Premium effective plan');
+
+  const finalState = db.collections.paypal_subscription_state.get(stateDocId);
+  assert.equal(finalState.status, 'canceled');
+  assert.equal(finalState.will_renew, false);
+  assert.equal(finalState.expires_at, futureExpiryIso, 'Authoritative future expiry must be preserved despite index lag');
+});
+
+test('Regression: old subscription CANCELLED event does NOT mutate or overwrite newer active subscription state', async () => {
+  const db = createMockDatabases();
+  const users = createMockUsers();
+  const oldSubId = 'I-OLD-SUB-111';
+  const newSubId = 'I-NEW-SUB-999';
+  const stateDocId = paypalWebhook.__test.stateDocumentId(QA_USER_ID);
+  const newExpiryIso = '2026-11-01T12:00:00.000Z';
+
+  // User has active newer subscription in state
+  const initialNewState = {
+    $id: stateDocId,
+    user_id: QA_USER_ID,
+    subscription_id: newSubId,
+    status: 'active',
+    will_renew: true,
+    expires_at: newExpiryIso,
+    plan: 'premium',
+    plan_id: SANDBOX_ULTIMATE_PLAN_ID,
+    environment: 'sandbox',
+    latest_event_timestamp_ms: 1700000500000,
+  };
+  db.collections.paypal_subscription_state.set(stateDocId, { ...initialNewState });
+
+  // Webhook arrives for old subscription cancellation
+  const oldCancelEvent = normalizeEvent({
+    id: 'EVT-CANCEL-OLD-SUB',
+    event_type: 'BILLING.SUBSCRIPTION.CANCELLED',
+    create_time: new Date(1700000600000).toISOString(),
+    resource: {
+      id: oldSubId,
+      custom_id: QA_USER_ID,
+      status: 'CANCELLED',
+    },
+  });
+
+  const result = await processWebhookEvent({
+    databases: db,
+    users,
+    event: oldCancelEvent,
+    nowMs: 1700000600000,
+    env: TEST_ENV,
+  });
+
+  assert.equal(result.outcome, 'ignored');
+  assert.equal(result.code, 'different_subscription_ignored');
+  assert.equal(result.mutated, false);
+
+  // Assert user's current newer subscription state is COMPLETELY UNTOUCHED
+  const finalState = db.collections.paypal_subscription_state.get(stateDocId);
+  assert.equal(finalState.subscription_id, newSubId, 'subscription_id must remain newer subscription');
+  assert.equal(finalState.status, 'active', 'status must remain active');
+  assert.equal(finalState.will_renew, true, 'will_renew must remain true');
+  assert.equal(finalState.expires_at, newExpiryIso, 'expires_at must remain newer expiry');
+  assert.equal(finalState.plan, 'premium');
+});
+
+test('State Identity Guard A: same subscription, wrong environment -> state_identity_mismatch_ignored and zero state mutation', async () => {
+  const db = createMockDatabases();
+  const users = createMockUsers();
+  const subId = 'I-SUB-ENV-MISMATCH';
+  const stateDocId = paypalWebhook.__test.stateDocumentId(QA_USER_ID);
+  const futureExpiryIso = '2026-10-06T12:00:00.000Z';
+
+  // Seed state with environment = 'production' while test environment is 'sandbox'
+  const initialDoc = {
+    $id: stateDocId,
+    user_id: QA_USER_ID,
+    subscription_id: subId,
+    status: 'active',
+    will_renew: true,
+    expires_at: futureExpiryIso,
+    plan: 'premium',
+    plan_id: SANDBOX_ULTIMATE_PLAN_ID,
+    environment: 'production', // Mismatch against sandbox
+    latest_event_timestamp_ms: 1700000000000,
+  };
+  db.collections.paypal_subscription_state.set(stateDocId, { ...initialDoc });
+
+  const cancelEvent = normalizeEvent({
+    id: 'EVT-CANCEL-ENV-MISMATCH',
+    event_type: 'BILLING.SUBSCRIPTION.CANCELLED',
+    create_time: new Date(1700000100000).toISOString(),
+    resource: {
+      id: subId,
+      custom_id: QA_USER_ID,
+      status: 'CANCELLED',
+    },
+  });
+
+  const result = await processWebhookEvent({
+    databases: db,
+    users,
+    event: cancelEvent,
+    nowMs: 1700000100000,
+    env: TEST_ENV,
+  });
+
+  assert.equal(result.outcome, 'ignored');
+  assert.equal(result.code, 'state_identity_mismatch_ignored');
+  assert.equal(result.mutated, false);
+
+  const finalState = db.collections.paypal_subscription_state.get(stateDocId);
+  assert.deepEqual(finalState, initialDoc, 'State must remain completely untouched when environment mismatches');
+});
+
+test('State Identity Guard B: same subscription, wrong user -> state_identity_mismatch_ignored and zero state mutation', async () => {
+  const db = createMockDatabases();
+  const users = createMockUsers();
+  const subId = 'I-SUB-USER-MISMATCH';
+  const stateDocId = paypalWebhook.__test.stateDocumentId(QA_USER_ID);
+  const futureExpiryIso = '2026-10-06T12:00:00.000Z';
+
+  // Seed state at QA user's deterministic document ID with mismatched user_id
+  const mismatchedDoc = {
+    $id: stateDocId,
+    user_id: 'mismatched_other_user',
+    subscription_id: subId,
+    status: 'active',
+    will_renew: true,
+    expires_at: futureExpiryIso,
+    plan: 'premium',
+    plan_id: SANDBOX_ULTIMATE_PLAN_ID,
+    environment: 'sandbox',
+    latest_event_timestamp_ms: 1700000000000,
+  };
+  db.collections.paypal_subscription_state.set(stateDocId, { ...mismatchedDoc });
+
+  // Simulate subscription index returning empty so resolveCanonicalUser resolves QA_USER_ID via custom_id
+  const origList = db.listDocuments.bind(db);
+  db.listDocuments = async (dbId, collId, queries) => {
+    if (collId === 'paypal_subscription_state') {
+      return { total: 0, documents: [] };
+    }
+    return origList(dbId, collId, queries);
+  };
+
+  // Event resolves canonical user as QA_USER_ID (from custom_id)
+  const cancelEvent = normalizeEvent({
+    id: 'EVT-CANCEL-USER-MISMATCH',
+    event_type: 'BILLING.SUBSCRIPTION.CANCELLED',
+    create_time: new Date(1700000100000).toISOString(),
+    resource: {
+      id: subId,
+      custom_id: QA_USER_ID,
+      status: 'CANCELLED',
+    },
+  });
+
+  const result = await processWebhookEvent({
+    databases: db,
+    users,
+    event: cancelEvent,
+    nowMs: 1700000100000,
+    env: TEST_ENV,
+  });
+
+  assert.equal(result.outcome, 'ignored');
+  assert.equal(result.code, 'state_identity_mismatch_ignored');
+  assert.equal(result.mutated, false);
+
+  const finalState = db.collections.paypal_subscription_state.get(stateDocId);
+  assert.deepEqual(finalState, mismatchedDoc, 'Mismatched user state must remain completely untouched on user mismatch');
+});
+
+test('State Identity Guard C: correct user + subscription + environment preserves existing paid expiry', async () => {
+  const db = createMockDatabases();
+  const users = createMockUsers();
+  const subId = 'I-SUB-MATCH-VALID';
+  const stateDocId = paypalWebhook.__test.stateDocumentId(QA_USER_ID);
+  const futureExpiryIso = '2026-10-06T12:00:00.000Z';
+
+  const validDoc = {
+    $id: stateDocId,
+    user_id: QA_USER_ID,
+    subscription_id: subId,
+    status: 'active',
+    will_renew: true,
+    expires_at: futureExpiryIso,
+    plan: 'premium',
+    plan_id: SANDBOX_ULTIMATE_PLAN_ID,
+    environment: 'sandbox',
+    latest_event_timestamp_ms: 1700000000000,
+  };
+  db.collections.paypal_subscription_state.set(stateDocId, { ...validDoc });
+
+  const cancelEvent = normalizeEvent({
+    id: 'EVT-CANCEL-MATCH-VALID',
+    event_type: 'BILLING.SUBSCRIPTION.CANCELLED',
+    create_time: new Date(1700000100000).toISOString(),
+    resource: {
+      id: subId,
+      custom_id: QA_USER_ID,
+      status: 'CANCELLED',
+    },
+  });
+
+  const result = await processWebhookEvent({
+    databases: db,
+    users,
+    event: cancelEvent,
+    nowMs: 1700000100000,
+    env: TEST_ENV,
+  });
+
+  assert.equal(result.outcome, 'processed');
+  assert.equal(result.status, 'canceled');
+  assert.equal(result.effectivePlan, 'premium');
+
+  const finalState = db.collections.paypal_subscription_state.get(stateDocId);
+  assert.equal(finalState.status, 'canceled');
+  assert.equal(finalState.will_renew, false);
+  assert.equal(finalState.expires_at, futureExpiryIso, 'Authoritative future expiry must be preserved');
+});
