@@ -1,5 +1,39 @@
 # WiseResume Atlas Master Changelog
 
+### 2026-09-06 - PayPal Failed-Renewal Local Boundary Test Hardening (PR #299)
+
+- **Workstream Verdict:** `PAYPAL_FAILED_RENEWAL_LOCAL_CONTRACT_CLOSED` (`PAYPAL_FAILED_RENEWAL_LOCAL_CONTRACT_FULLY_TESTED`, `PAYPAL_PRODUCTION_READY = NO`).
+- **Branch:** `docs/paypal-failed-renewal-local-contract-closeout` (Target: `main`).
+- **Scope & Accomplishments:**
+  1. **Merged Test PR on `main`:**
+     - PR #299 (`42e1ef5a73301c9cacb0451ddeed17afe2f1b5eb`): Merged into `main` at `84a5f005c53b5983174b2e20f31fe9492fa2a788`. Strictly test-only: 1 file modified (`tests/hubs/paypal-subscription-resolver.test.cjs`), +60 lines, -0 lines. Zero application/production code modified.
+  2. **Boundary & Fallback Test Coverage:**
+     - Case 20 (Exact Grace Boundary): Proves that at the exact millisecond `nowMs === Date.parse(G)` where grace expires, `isFutureTimestamp` strictly rejects the PayPal candidate (`parsed > nowMs` is false), dropping entitlement cleanly to `free` when no other entitlement exists.
+     - Case 21 (Multi-Provider Fallback): Proves that when a PayPal candidate has an expired grace period (`status: billing_issue`, `expires_at: expiredG`), the candidate is discarded and the authoritative resolver naturally falls back to an active secondary entitlement (RevenueCat Pro or Manual/Admin Pro) rather than forcing Free.
+  3. **Test Suite Verification Baseline:**
+     - `paypal-subscription-resolver.test.cjs`: 21 / 21 passing (100%).
+     - `paypal-webhook.test.cjs`: 76 / 76 passing (100%).
+     - `coupons-subscription.test.cjs`: 21 / 21 passing (100%).
+     - Full hubs suite: 299 / 299 passing across all hub test suites (100%).
+  4. **Official Provider Capability Proof & Runtime Reality:**
+     - Comprehensive audit of official PayPal Developer documentation confirms:
+       - On-demand recurring renewal trigger: `NO_DOCUMENTED_METHOD` in PayPal Sandbox.
+       - Simulated clock acceleration: `NO_DOCUMENTED_METHOD` in PayPal Sandbox.
+       - Deterministic recurring renewal decline control: `NO_DOCUMENTED_METHOD` in PayPal Sandbox (official documentation exposes no documented method to deterministically force a scheduled recurring renewal decline in Sandbox; PayPal-Mock-Response / documented negative-testing mechanisms do not constitute genuine provider-generated recurring renewal lifecycle proof).
+       - Natural runtime expiry timeline: Authentic natural-expiry verification requires waiting for PayPal's real scheduled billing lifecycle to emit a genuine `BILLING.SUBSCRIPTION.PAYMENT.FAILED` event, then waiting until the WiseResume grace boundary $G = \text{eventTimestamp} + 48\text{ hours}$. The provider-side time from subscription creation to the genuine failure event is not deterministic for this QA plan.
+     - Webhook Simulator cannot be used for runtime verification: PayPal Webhook Simulator events are synthetic, are not associated with a real transaction/resource, and cannot be verified through `POST /v1/notifications/verify-webhook-signature`; therefore they are not accepted as WiseResume runtime lifecycle proof.
+     - Evidence Boundary Distinction:
+       - Local / Test Verified: Initial failure zero grace; renewal failure exact 172,800,000ms (48h) grace calculation; repeated failure no grace extension; terminal events (`SUSPENDED`, `CANCELLED`, `EXPIRED`) preserve $G$; recovery transition on payment; before-$G$ paid access; exactly-at-$G$ expired to free; after-$G$ expired to free; secondary valid entitlement fallback (RevenueCat Pro or Manual/Admin Pro).
+       - Not Provider-Runtime Verified (`FAILED_RENEWAL_FULL_SANDBOX_RUNTIME_VERIFIED = NO`): Genuine recurring `PAYMENT.FAILED` lifecycle; first automatic failed-renewal webhook; natural real-time 48h expiry after genuine failure; provider recovery after genuine renewal failure.
+  5. **Zero Deployment & Fail-Closed Safety:**
+     - Zero Appwrite or Vercel deployments performed or required.
+     - Public checkout remains strictly fail-closed (`BILLING_CHECKOUT_ENABLED=false`, `BILLING_CHECKOUT_PROVIDER_READY=false`).
+     - Production PayPal remains completely untouched (`PAYPAL_PRODUCTION_READY = NO`).
+  6. **What's New Decision:**
+     - `WHATS_NEW_NOT_REQUIRED`: Test-only change, zero customer-facing change.
+  7. **Next Workstream:**
+     - `PAYPAL_REFUND_REVERSAL_POLICY`.
+
 ### 2026-09-06 - PayPal Cancellation Fix & Runtime Re-Verification: Paid-Through Preservation & Hardening
 
 - **Workstream Verdict:** `PAYPAL_CANCELLATION_FIX_RUNTIME_VERIFIED_SANDBOX` (`PAYPAL_PRODUCTION_READY = NO`).

@@ -56,6 +56,7 @@ Appwrite Functions are deployed independently from the frontend application usin
 * **Live Webhook Endpoint:** `UNVERIFIED_FOR_LIVE` (preserving approved custom domain `https://paypal-webhook.wiseresume.app` architecture; direct Appwrite execution endpoint is not the canonical public endpoint).
 * **Retained Pre-Existing Gaps:** `BILLING_CHECKOUT_DEVKIT_SOURCE_HASH_NOT_TRACKED_PRE_EXISTING` retained.
 * **Production Status:** `PAYPAL_PRODUCTION_READY = NO` (Production PayPal untouched).
+* **PR #299 Failed-Renewal Local Contract Hardening:** Merged to `main` at `84a5f005`. Strictly test-only hardening (+60 lines in `tests/hubs/paypal-subscription-resolver.test.cjs`). Zero Appwrite and zero Vercel deployments were performed or required.
 
 ### WiseResume PayPal Targeted Deployments & Runtime Verification — 2026-09-06
 
