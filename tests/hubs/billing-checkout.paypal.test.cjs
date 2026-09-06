@@ -129,6 +129,12 @@ class MockCheckoutStore {
     if (expectedPlan && currentDoc.plan && currentDoc.plan !== expectedPlan) {
       throw new BillingCheckoutError('bad_request', 400, 'Subscription state plan mismatch.');
     }
+    if (currentDoc.status && !['active', 'billing_issue'].includes(currentDoc.status)) {
+      throw new BillingCheckoutError('bad_request', 400, 'Subscription state status mismatch.');
+    }
+    if (currentDoc.will_renew !== true) {
+      throw new BillingCheckoutError('bad_request', 400, 'Subscription state will_renew mismatch.');
+    }
 
     currentDoc.expires_at = expiresAt;
     this.updatedPaypalExpiry = { documentId, userId, subscriptionId, environment, expectedPlan, expiresAt };
@@ -1645,7 +1651,7 @@ test('BillingCheckoutService.cancel preflight FAIL-CLOSED: missing/invalid next_
 
   await assert.rejects(
     () => service.cancel({ userId: 'qa_user_456', reason: 'Cancel attempt' }),
-    err => err instanceof BillingCheckoutError && err.code === 'cancellation_preflight_failed' && err.status === 400
+    err => err instanceof BillingCheckoutError && err.code === 'cancellation_failed' && err.status === 400
   );
 
   assert.equal(cancelCallCount, 0, 'FAIL-CLOSED: Provider cancel call count MUST remain ZERO when next_billing_time is missing');
@@ -1694,6 +1700,193 @@ test('BillingCheckoutService.cancel preflight FAIL-CLOSED: store persistence fai
   );
 
   assert.equal(cancelCallCount, 0, 'FAIL-CLOSED: Provider cancel call count MUST remain ZERO when store write fails');
+});
+
+test('BillingCheckoutService.cancel preflight FAIL-CLOSED: missing initial document ID aborts cancellation with provider cancel call count = 0', async () => {
+  const env = validPayPalEnv();
+  const config = readConfig(env);
+  const nowMs = 1700000000000;
+  const futureIso = new Date(nowMs + 30 * 86400000).toISOString();
+
+  let cancelCallCount = 0;
+
+  const store = new MockCheckoutStore({
+    paypalState: {
+      // $id is deliberately missing
+      user_id: 'qa_user_456',
+      subscription_id: 'I-NODOCID123',
+      environment: 'sandbox',
+      status: 'active',
+      will_renew: true,
+      expires_at: null,
+      plan: 'pro',
+    },
+  });
+
+  const provider = {
+    getSubscriptionDetails: async () => ({
+      id: 'I-NODOCID123',
+      status: 'ACTIVE',
+      billing_info: { next_billing_time: futureIso },
+    }),
+    cancelSubscription: async () => {
+      cancelCallCount += 1;
+      return { status: 'success' };
+    },
+  };
+
+  const service = new BillingCheckoutService({ store, provider, config, now: () => nowMs });
+
+  await assert.rejects(
+    () => service.cancel({ userId: 'qa_user_456', reason: 'Cancel attempt' }),
+    err => err instanceof BillingCheckoutError && err.code === 'cancellation_failed' && err.status === 400
+  );
+
+  assert.equal(cancelCallCount, 0, 'FAIL-CLOSED: Provider cancel call count MUST remain ZERO when state doc ID is missing');
+});
+
+test('BillingCheckoutService.cancel preflight FAIL-CLOSED: store missing updatePaypalExpiry capability aborts cancellation with provider cancel call count = 0', async () => {
+  const env = validPayPalEnv();
+  const config = readConfig(env);
+  const nowMs = 1700000000000;
+  const futureIso = new Date(nowMs + 30 * 86400000).toISOString();
+
+  let cancelCallCount = 0;
+
+  const store = new MockCheckoutStore({
+    paypalState: {
+      $id: 'state_doc_nocap_1',
+      user_id: 'qa_user_456',
+      subscription_id: 'I-NOCAP123',
+      environment: 'sandbox',
+      status: 'active',
+      will_renew: true,
+      expires_at: null,
+      plan: 'pro',
+    },
+  });
+  // Disable updatePaypalExpiry capability on instance
+  store.updatePaypalExpiry = null;
+
+  const provider = {
+    getSubscriptionDetails: async () => ({
+      id: 'I-NOCAP123',
+      status: 'ACTIVE',
+      billing_info: { next_billing_time: futureIso },
+    }),
+    cancelSubscription: async () => {
+      cancelCallCount += 1;
+      return { status: 'success' };
+    },
+  };
+
+  const service = new BillingCheckoutService({ store, provider, config, now: () => nowMs });
+
+  await assert.rejects(
+    () => service.cancel({ userId: 'qa_user_456', reason: 'Cancel attempt' }),
+    err => err instanceof BillingCheckoutError && err.code === 'cancellation_failed' && err.status === 400
+  );
+
+  assert.equal(cancelCallCount, 0, 'FAIL-CLOSED: Provider cancel call count MUST remain ZERO when store lacks updatePaypalExpiry capability');
+});
+
+test('BillingCheckoutService.cancel future-expiry revalidation FAIL-CLOSED: concurrent mutation (will_renew flipped to false) aborts cancellation with provider cancel call count = 0', async () => {
+  const env = validPayPalEnv();
+  const config = readConfig(env);
+  const nowMs = 1700000000000;
+  const futureIso = new Date(nowMs + 30 * 86400000).toISOString();
+
+  let cancelCallCount = 0;
+  let findCount = 0;
+
+  const store = new MockCheckoutStore({
+    paypalState: {
+      $id: 'state_doc_reval_1',
+      user_id: 'qa_user_456',
+      subscription_id: 'I-REVAL123',
+      environment: 'sandbox',
+      status: 'active',
+      will_renew: true,
+      expires_at: futureIso,
+      plan: 'pro',
+    },
+  });
+
+  // On second lookup (revalidation), simulate concurrent webhook execution that already marked will_renew = false
+  const originalFind = store.findOptional.bind(store);
+  store.findOptional = async (collection, userId) => {
+    findCount += 1;
+    const doc = await originalFind(collection, userId);
+    if (findCount > 1 && doc) {
+      return { ...doc, will_renew: false, status: 'canceled' };
+    }
+    return doc;
+  };
+
+  const provider = {
+    cancelSubscription: async () => {
+      cancelCallCount += 1;
+      return { status: 'success' };
+    },
+  };
+
+  const service = new BillingCheckoutService({ store, provider, config, now: () => nowMs });
+
+  await assert.rejects(
+    () => service.cancel({ userId: 'qa_user_456', reason: 'Cancel attempt' }),
+    err => err instanceof BillingCheckoutError && err.code === 'bad_request' && err.status === 400
+  );
+
+  assert.equal(cancelCallCount, 0, 'FAIL-CLOSED: Provider cancel call count MUST remain ZERO when revalidation detects state mutation');
+});
+
+test('BillingCheckoutService.cancel future-expiry revalidation FAIL-CLOSED: concurrent mutation (plan changed) aborts cancellation with provider cancel call count = 0', async () => {
+  const env = validPayPalEnv();
+  const config = readConfig(env);
+  const nowMs = 1700000000000;
+  const futureIso = new Date(nowMs + 30 * 86400000).toISOString();
+
+  let cancelCallCount = 0;
+  let findCount = 0;
+
+  const store = new MockCheckoutStore({
+    paypalState: {
+      $id: 'state_doc_reval_2',
+      user_id: 'qa_user_456',
+      subscription_id: 'I-REVAL456',
+      environment: 'sandbox',
+      status: 'active',
+      will_renew: true,
+      expires_at: futureIso,
+      plan: 'pro',
+    },
+  });
+
+  const originalFind = store.findOptional.bind(store);
+  store.findOptional = async (collection, userId) => {
+    findCount += 1;
+    const doc = await originalFind(collection, userId);
+    if (findCount > 1 && doc) {
+      return { ...doc, plan: 'free' };
+    }
+    return doc;
+  };
+
+  const provider = {
+    cancelSubscription: async () => {
+      cancelCallCount += 1;
+      return { status: 'success' };
+    },
+  };
+
+  const service = new BillingCheckoutService({ store, provider, config, now: () => nowMs });
+
+  await assert.rejects(
+    () => service.cancel({ userId: 'qa_user_456', reason: 'Cancel attempt' }),
+    err => err instanceof BillingCheckoutError && err.code === 'bad_request' && err.status === 400
+  );
+
+  assert.equal(cancelCallCount, 0, 'FAIL-CLOSED: Provider cancel call count MUST remain ZERO when revalidation detects plan change');
 });
 
 test('Hardening A: updatePaypalExpiry rejects state belonging to another user with ZERO PayPal cancel calls', async () => {
@@ -1893,4 +2086,96 @@ test('Hardening D: updatePaypalExpiry modifies ONLY expires_at and preserves all
   assert.equal(updatedState.latest_event_type, originalState.latest_event_type, 'latest_event_type must remain unchanged');
   assert.equal(updatedState.latest_event_timestamp_ms, originalState.latest_event_timestamp_ms, 'latest_event_timestamp_ms must remain unchanged');
   assert.equal(updatedState.latest_event_ordering_key, originalState.latest_event_ordering_key, 'latest_event_ordering_key must remain unchanged');
+});
+
+test('Hardening E: updatePaypalExpiry rejects inactive status with ZERO PayPal cancel calls', async () => {
+  const env = validPayPalEnv();
+  const config = readConfig(env);
+  const nowMs = 1700000000000;
+  const futureIso = new Date(nowMs + 30 * 86400000).toISOString();
+
+  let cancelCallCount = 0;
+
+  const store = new MockCheckoutStore({
+    paypalState: {
+      $id: 'state_doc_inactive',
+      user_id: 'qa_user_456',
+      subscription_id: 'I-INACTIVESUB123',
+      environment: 'sandbox',
+      status: 'active',
+      will_renew: true,
+      expires_at: null,
+      plan: 'pro',
+    },
+  });
+
+  const provider = {
+    getSubscriptionDetails: async () => {
+      store.paypalState.status = 'canceled';
+      return {
+        id: 'I-INACTIVESUB123',
+        status: 'ACTIVE',
+        billing_info: { next_billing_time: futureIso },
+      };
+    },
+    cancelSubscription: async () => {
+      cancelCallCount += 1;
+      return { status: 'success' };
+    },
+  };
+
+  const service = new BillingCheckoutService({ store, provider, config, now: () => nowMs });
+
+  await assert.rejects(
+    () => service.cancel({ userId: 'qa_user_456', reason: 'Cancel attempt' }),
+    err => err instanceof BillingCheckoutError && err.status === 400 && err.code === 'bad_request'
+  );
+
+  assert.equal(cancelCallCount, 0, 'ZERO provider cancel calls when state status is non-active at write time');
+});
+
+test('Hardening F: updatePaypalExpiry rejects non-renewing subscription with ZERO PayPal cancel calls', async () => {
+  const env = validPayPalEnv();
+  const config = readConfig(env);
+  const nowMs = 1700000000000;
+  const futureIso = new Date(nowMs + 30 * 86400000).toISOString();
+
+  let cancelCallCount = 0;
+
+  const store = new MockCheckoutStore({
+    paypalState: {
+      $id: 'state_doc_nonrenewing',
+      user_id: 'qa_user_456',
+      subscription_id: 'I-NONRENEWSUB123',
+      environment: 'sandbox',
+      status: 'active',
+      will_renew: true,
+      expires_at: null,
+      plan: 'pro',
+    },
+  });
+
+  const provider = {
+    getSubscriptionDetails: async () => {
+      store.paypalState.will_renew = false;
+      return {
+        id: 'I-NONRENEWSUB123',
+        status: 'ACTIVE',
+        billing_info: { next_billing_time: futureIso },
+      };
+    },
+    cancelSubscription: async () => {
+      cancelCallCount += 1;
+      return { status: 'success' };
+    },
+  };
+
+  const service = new BillingCheckoutService({ store, provider, config, now: () => nowMs });
+
+  await assert.rejects(
+    () => service.cancel({ userId: 'qa_user_456', reason: 'Cancel attempt' }),
+    err => err instanceof BillingCheckoutError && err.status === 400 && err.code === 'bad_request'
+  );
+
+  assert.equal(cancelCallCount, 0, 'ZERO provider cancel calls when will_renew is false at write time');
 });

@@ -3065,3 +3065,119 @@ test('Lifecycle: CANCELLED on pending_initial_payment (never paid) drops immedia
   const finalState = Array.from(db.collections.paypal_subscription_state.values())[0];
   assert.equal(finalState.expires_at, null);
 });
+
+test('Regression: missing-previous index lag recovers via direct deterministic document lookup and preserves paid expiry', async () => {
+  const db = createMockDatabases();
+  const users = createMockUsers();
+  const subId = 'I-SUB-RECOVER-DIRECT';
+  const stateDocId = paypalWebhook.__test.stateDocumentId(QA_USER_ID);
+  const futureExpiryIso = '2026-10-06T12:00:00.000Z';
+
+  // Seed state in direct document location
+  db.collections.paypal_subscription_state.set(stateDocId, {
+    $id: stateDocId,
+    user_id: QA_USER_ID,
+    subscription_id: subId,
+    status: 'active',
+    will_renew: true,
+    expires_at: futureExpiryIso,
+    plan: 'premium',
+    plan_id: SANDBOX_ULTIMATE_PLAN_ID,
+    environment: 'sandbox',
+    latest_event_timestamp_ms: 1700000000000,
+  });
+
+  // Simulate index lag by intercepting listDocuments on STATE_COLLECTION_ID to return empty array
+  const origList = db.listDocuments.bind(db);
+  db.listDocuments = async (dbId, collId, queries) => {
+    if (collId === 'paypal_subscription_state') {
+      return { total: 0, documents: [] };
+    }
+    return origList(dbId, collId, queries);
+  };
+
+  const cancelEvent = normalizeEvent({
+    id: 'EVT-CANCEL-INDEX-LAG',
+    event_type: 'BILLING.SUBSCRIPTION.CANCELLED',
+    create_time: new Date(1700000100000).toISOString(),
+    resource: {
+      id: subId,
+      custom_id: QA_USER_ID,
+      status: 'CANCELLED',
+      billing_info: {}, // PayPal clears next_billing_time on cancellation
+    },
+  });
+
+  const result = await processWebhookEvent({
+    databases: db,
+    users,
+    event: cancelEvent,
+    nowMs: 1700000100000,
+    env: TEST_ENV,
+  });
+
+  assert.equal(result.outcome, 'processed');
+  assert.equal(result.status, 'canceled');
+  assert.equal(result.effectivePlan, 'premium', 'Must recover previous state and preserve Premium effective plan');
+
+  const finalState = db.collections.paypal_subscription_state.get(stateDocId);
+  assert.equal(finalState.status, 'canceled');
+  assert.equal(finalState.will_renew, false);
+  assert.equal(finalState.expires_at, futureExpiryIso, 'Authoritative future expiry must be preserved despite index lag');
+});
+
+test('Regression: old subscription CANCELLED event does NOT mutate or overwrite newer active subscription state', async () => {
+  const db = createMockDatabases();
+  const users = createMockUsers();
+  const oldSubId = 'I-OLD-SUB-111';
+  const newSubId = 'I-NEW-SUB-999';
+  const stateDocId = paypalWebhook.__test.stateDocumentId(QA_USER_ID);
+  const newExpiryIso = '2026-11-01T12:00:00.000Z';
+
+  // User has active newer subscription in state
+  const initialNewState = {
+    $id: stateDocId,
+    user_id: QA_USER_ID,
+    subscription_id: newSubId,
+    status: 'active',
+    will_renew: true,
+    expires_at: newExpiryIso,
+    plan: 'premium',
+    plan_id: SANDBOX_ULTIMATE_PLAN_ID,
+    environment: 'sandbox',
+    latest_event_timestamp_ms: 1700000500000,
+  };
+  db.collections.paypal_subscription_state.set(stateDocId, { ...initialNewState });
+
+  // Webhook arrives for old subscription cancellation
+  const oldCancelEvent = normalizeEvent({
+    id: 'EVT-CANCEL-OLD-SUB',
+    event_type: 'BILLING.SUBSCRIPTION.CANCELLED',
+    create_time: new Date(1700000600000).toISOString(),
+    resource: {
+      id: oldSubId,
+      custom_id: QA_USER_ID,
+      status: 'CANCELLED',
+    },
+  });
+
+  const result = await processWebhookEvent({
+    databases: db,
+    users,
+    event: oldCancelEvent,
+    nowMs: 1700000600000,
+    env: TEST_ENV,
+  });
+
+  assert.equal(result.outcome, 'ignored');
+  assert.equal(result.code, 'different_subscription_ignored');
+  assert.equal(result.mutated, false);
+
+  // Assert user's current newer subscription state is COMPLETELY UNTOUCHED
+  const finalState = db.collections.paypal_subscription_state.get(stateDocId);
+  assert.equal(finalState.subscription_id, newSubId, 'subscription_id must remain newer subscription');
+  assert.equal(finalState.status, 'active', 'status must remain active');
+  assert.equal(finalState.will_renew, true, 'will_renew must remain true');
+  assert.equal(finalState.expires_at, newExpiryIso, 'expires_at must remain newer expiry');
+  assert.equal(finalState.plan, 'premium');
+});

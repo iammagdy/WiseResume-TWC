@@ -766,9 +766,46 @@ async function processWebhookEvent({
     return { outcome: 'ignored', code: outcomeCode, mutated: false };
   }
 
-  // If previous wasn't found by subscription ID, check by resolved userId
-  if (!previous) {
-    previous = await findStateByUserId(databases, userId);
+  // Previous-state discovery:
+  // A. findStateBySubscriptionId(event.subscriptionId) was attempted first.
+  // B. If previous is still missing, attempt findStateByUserId(userId).
+  // C. If still missing, attempt direct server-owned getDocument using stateDocumentId(userId).
+  let candidateState = previous;
+  if (!candidateState) {
+    candidateState = await findStateByUserId(databases, userId);
+    if (!candidateState) {
+      try {
+        candidateState = await databases.getDocument(DB_ID, STATE_COLLECTION_ID, stateDocumentId(userId));
+      } catch (err) {
+        if (err?.code !== 404 && !/not found/i.test(err?.message || '')) throw err;
+      }
+    }
+  }
+
+  // D. Subscription identity guard:
+  // Require: user_id === canonical userId, subscription_id === event.subscriptionId, environment === selectedEnvironment
+  if (candidateState) {
+    const isSameUser = String(candidateState.user_id || '').trim() === String(userId).trim();
+    const isSameSub = String(candidateState.subscription_id || '').trim() === String(event.subscriptionId).trim();
+    const isSameEnv = normalizeProviderEnvironment(candidateState.environment) === selectedEnvironment;
+
+    if (isSameUser && isSameSub && isSameEnv) {
+      previous = candidateState;
+    } else {
+      previous = null;
+      // If the user already has a state document belonging to a DIFFERENT subscription,
+      // do NOT allow an event from an older/different subscription to mutate or overwrite the newer state.
+      if (candidateState.subscription_id && String(candidateState.subscription_id).trim() !== String(event.subscriptionId).trim()) {
+        await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
+          user_id: userId,
+          processing_status: 'ignored',
+          outcome_code: 'different_subscription_ignored',
+        }, serverOnlyPermissions());
+        return { outcome: 'ignored', code: 'different_subscription_ignored', mutated: false };
+      }
+    }
+  } else {
+    previous = null;
   }
 
   // STALE & EQUAL-TIMESTAMP ORDERING RULES (Section 5):
