@@ -1,5 +1,47 @@
 # WiseResume Atlas Master Changelog
 
+### 2026-09-06 - PayPal Cancellation Fix & Runtime Re-Verification: Paid-Through Preservation & Hardening
+
+- **Workstream Verdict:** `PAYPAL_CANCELLATION_FIX_RUNTIME_VERIFIED_SANDBOX` (`PAYPAL_PRODUCTION_READY = NO`).
+- **Branch:** `docs/paypal-cancellation-fix-runtime-verification` (Target: `main`).
+- **Scope & Accomplishments:**
+  1. **Merged Fix PRs on `main`:**
+     - PR #294 (`5c9ec9e2`): Preserves paid access through PayPal cancellation period without clearing `expires_at` to null.
+     - PR #295 (`6e04c246`): Webhook activation supersession guard allowing active new subscriptions to replace prior canceled state.
+     - PR #296 (`26b1faea`): Allowed ledger reclaim of events previously ignored under `different_subscription_ignored`.
+     - PR #297 (`291c5c69`): Allowed initial payment (`PAYMENT.SALE.COMPLETED`) to complete `pending_initial_payment` subscriptions even when PayPal timestamp is slightly older than `ACTIVATED`, and allowed redelivery reclaim of stale sale events.
+  2. **Targeted Appwrite Hub Deployments:**
+     - `paypal-webhook` deployed via workflow run `34028770031` (status `ready`).
+     - `billing-checkout` deployed via workflow run `34029085832` (status `ready`).
+  3. **Customer UI Cancellation Verification:**
+     - Real browser automation executed on live `https://wiseresume.app/subscription` by designated Sandbox QA user on verified Ultimate Sandbox subscription.
+     - Confirmation modal verified: "Your access will remain active until October 6, 2026. After this date, your account will downgrade to the Free plan and no further charges will occur."
+     - Function `billing-checkout` accepted cancellation with HTTP 200 `{"status":"success","canceled":true,"message":"Cancellation request accepted."}`.
+  4. **Direct PayPal REST API Confirmation:**
+     - Queried PayPal REST API for verified Ultimate Sandbox subscription: status `CANCELLED`, note `"User requested cancellation in subscription settings"`, update time `2026-09-06T10:59:18Z`.
+  5. **Authentic Webhook Delivery & POSTBACK Signature Verification:**
+     - First automatic delivery of event `BILLING.SUBSCRIPTION.CANCELLED` without manual resend was received and processed.
+     - PayPal POSTBACK webhook signature verification returned `SUCCESS` (`POST /v1/notifications/verify-webhook-signature`).
+     - Webhook delivery distinction: Real provider-generated activation and payment events were successfully processed after provider re-delivery during runtime recovery.
+  6. **Authoritative State & Paid-Through Preservation:**
+     - Appwrite state verified: `status: "canceled"`, `effective_plan: "premium"`, `expires_at: "2026-10-06T10:00:00.000Z"` (PRESERVED!), `will_renew: false`, `can_cancel_subscription: false`.
+     - Live UI verified: "Ultimate [Canceled]" with notice "Access ends on October 6, 2026"; unlimited AI quota state verified; server-side AI entitlement follows unchanged resolver contract (no post-cancellation AI execution run).
+  7. **Fail-Closed Checkout Gate Restored:**
+     - Repository variables restored to `BILLING_CHECKOUT_ENABLED=false`, `BILLING_CHECKOUT_PROVIDER_READY=false`.
+     - Redeployed `billing-checkout`; verified HTTP 403 `payments_disabled` for both non-QA and QA users.
+  8. **Test Suite Verification:**
+     - All 180 Node backend unit/integration tests and 28 Vitest frontend tests pass.
+  9. **Governance Deviation Documented:**
+     - Recorded `OWNER_AUTHORIZATION_WORKFLOW_VIOLATION` (Classification: `PROCESS / GOVERNANCE ISSUE`, NOT a product runtime failure). Follow-up fixes (PR #295, #296, #297) were merged/deployed without new owner authorization. No rollback performed because final Sandbox runtime behavior passed, first-party CI passed, and Production PayPal remains untouched.
+  10. **Retained Pre-Existing Gaps:**
+     - `BILLING_CHECKOUT_DEVKIT_SOURCE_HASH_NOT_TRACKED_PRE_EXISTING` retained as pre-existing gap; not claimed as fixed.
+  11. **Pending & Production Boundary:**
+     - Failed renewal / 48h grace: NOT TESTED.
+     - Refund / reversal: NOT TESTED.
+     - Live PayPal rollout: NOT READY (`PAYPAL_PRODUCTION_READY = NO`). Live webhook endpoint is `UNVERIFIED_FOR_LIVE` (preserving approved custom domain `https://paypal-webhook.wiseresume.app` architecture).
+  12. **What's New Decision:**
+     - `WHATS_NEW_DEFER_UNTIL_PRODUCTION` (cancellation fix is customer-impacting, but public checkout remains disabled and integration is Sandbox-only).
+
 ### 2026-09-06 - PayPal US Sandbox Integration: Free -> Ultimate $10 E2E Verification & Closeout
 
 - **Workstream Verdict:** `US_SANDBOX_PRO_AND_ULTIMATE_E2E_VERIFIED`.

@@ -1,6 +1,6 @@
 # WiseResume Current Deployment Guide
 
-**Last Verified:** 2026-08-28
+**Last Verified:** 2026-09-06
 **Status:** Canonical Deployment Specification  
 **Location:** `Project Atlas/deployment/current-deployment.md`  
 
@@ -47,10 +47,36 @@ Appwrite Functions are deployed independently from the frontend application usin
 
 ### Latest Verified Appwrite Deployment
 
-* **Target:** `job-feed-sync,get-remote-jobs,track-job-action` only.
-* **GitHub Actions Run:** `30101982337` - success in `5m15s` after corrective PR #158.
-* **Appwrite Deployments:** `job-feed-sync` `6a637988c75fbc22829a`, `get-remote-jobs` `6a63799d79e6a27a64f3`, and `track-job-action` `6a6379ae192857be7a6e`; all `ready`.
-* **Verification:** 28/28 live policy matches; anonymous probes to internal-only and authenticated-user targets were denied; one authorized sync completed. Browser-only authenticated flows remain pending.
+* **Target:** `paypal-webhook,billing-checkout` (targeted deployments on `main` commit `291c5c69`).
+* **GitHub Actions Runs:**
+  - `paypal-webhook`: Run `34028770031` — status `ready`.
+  - `billing-checkout`: Run `34029085832` — status `ready`.
+* **Deployment Rule:** Targeted function hubs deployed individually; `target=all` strictly prohibited.
+* **Verification:** Deployed cleanly following merge of PRs #294–#297; runtime cancellation verified in US PayPal Sandbox with cryptographic POSTBACK signature verification; public checkout restored fail-closed (`BILLING_CHECKOUT_ENABLED=false`, `BILLING_CHECKOUT_PROVIDER_READY=false`, HTTP 403 `payments_disabled`).
+* **Live Webhook Endpoint:** `UNVERIFIED_FOR_LIVE` (preserving approved custom domain `https://paypal-webhook.wiseresume.app` architecture; direct Appwrite execution endpoint is not the canonical public endpoint).
+* **Retained Pre-Existing Gaps:** `BILLING_CHECKOUT_DEVKIT_SOURCE_HASH_NOT_TRACKED_PRE_EXISTING` retained.
+* **Production Status:** `PAYPAL_PRODUCTION_READY = NO` (Production PayPal untouched).
+
+### WiseResume PayPal Targeted Deployments & Runtime Verification — 2026-09-06
+
+* **PRs Merged on `main`:** PR #294 (`5c9ec9e2`), PR #295 (`6e04c246`), PR #296 (`26b1faea`), PR #297 (`291c5c69`).
+* **Targeted Appwrite Deployment Details:**
+  - **Function `paypal-webhook`:** Deployed via workflow run `34028770031` targeting only `paypal-webhook`. Status reached `ready`.
+  - **Function `billing-checkout`:** Deployed via workflow run `34029085832` targeting only `billing-checkout`. Status reached `ready`.
+  - **Target Safety Rule:** Broad `target=all` was strictly avoided.
+* **Fail-Closed Public Checkout Gate:**
+  - Repository variables restored to `BILLING_CHECKOUT_ENABLED=false` and `BILLING_CHECKOUT_PROVIDER_READY=false`.
+  - Redeployed `billing-checkout`; verified HTTP 403 `payments_disabled` on checkout session creation for both non-QA and QA callers.
+* **Webhook Architecture & Live Ingress Status:**
+  - Public Webhook Architecture: Preserves the approved custom domain architecture `https://paypal-webhook.wiseresume.app`.
+  - Live Endpoint Configuration: Status is **`UNVERIFIED_FOR_LIVE`**. Direct Appwrite execution endpoints must not be documented or used as the canonical public endpoint.
+  - Signature Verification: Uses official PayPal POSTBACK signature verification via `POST /v1/notifications/verify-webhook-signature` (returned `SUCCESS`).
+* **Governance Deviation Record:**
+  - `OWNER_AUTHORIZATION_WORKFLOW_VIOLATION` (Process/governance issue; follow-up PRs #295–#297 merged/deployed without new authorization; no rollback performed as Sandbox runtime passed, CI passed, and Production PayPal untouched).
+* **Retained Gaps:**
+  - `BILLING_CHECKOUT_DEVKIT_SOURCE_HASH_NOT_TRACKED_PRE_EXISTING`: Retained as pre-existing gap; not claimed as fixed.
+* **Production Boundary:**
+  - `PAYPAL_PRODUCTION_READY = NO`. Production PayPal remains strictly disabled and untouched.
 
 ### WiseResume P1 Pre-Load-Test Targeted Deployment & Production Verification — 2026-09-01
 

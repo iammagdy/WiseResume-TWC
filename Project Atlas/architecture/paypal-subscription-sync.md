@@ -1,7 +1,7 @@
 # WiseResume PayPal Subscription Synchronization & Entitlement Resolution
 
-**Last Verified:** 2026-09-04
-**Status:** `PAYPAL_STAGE_A_DEPLOYED_SCHEMA_VERIFIED_PENDING_STAGE_B` — PayPal Stage A deployment and schema applied on live Appwrite cluster via workflow runs 33917547251 & 33918098250; collections `paypal_subscription_state` and `paypal_event_ledger` provisioned server-only; secrets provisioned; catalog verified active via MCP; Stage B webhook registration and consumer deployments pending.
+**Last Verified:** 2026-09-06
+**Status:** `PAYPAL_CANCELLATION_FIX_RUNTIME_VERIFIED_SANDBOX` (`PAYPAL_PRODUCTION_READY = NO`) — PRs #294, #295, #296, #297 merged to `main`; targeted `paypal-webhook` and `billing-checkout` deployed; customer UI cancellation paid-through access verified in US PayPal Sandbox; authentic PayPal POSTBACK signature verification returned `SUCCESS`; public checkout restored fail-closed (`BILLING_CHECKOUT_ENABLED=false`, `BILLING_CHECKOUT_PROVIDER_READY=false`); Production PayPal untouched.
 **Location:** `Project Atlas/architecture/paypal-subscription-sync.md`
 
 ## Scope and Preserved Contracts
@@ -233,15 +233,19 @@ The following actions must be performed explicitly by the owner before/during de
 *(Note: Never commit or expose actual secret values in repository files or commit messages).*
 
 ### 12. Operational Boundaries & Verification Status
-- **Current Status:** `PAYPAL_PHASE3_FINAL_TESTED_LOCAL_READY_TO_COMMIT` (QA label: `TESTED_LOCAL`).
-- **Pre-Mutation Safety Preflight:** Verified (`scripts/validate_paypal_bootstrap.cjs` fails closed on missing/empty/invalid/production environment).
-- **Target Validation:** `node scripts/validate-hub-targets.cjs "paypal-webhook"` validated successfully (`PASS`).
-- **Appwrite Schema:** Committed in `scripts/setup_paypal_schema.cjs`; **NOT APPLIED** to live Appwrite.
-- **Appwrite Function:** Implemented and registered; **NOT DEPLOYED**.
-- **PayPal Webhook Registration:** **NOT REGISTERED** in PayPal Sandbox or Live dashboard.
-- **PayPal Webhook ID:** **NOT CREATED**.
-- **Production PayPal:** **DISABLED**.
-- **External Runtime Boundaries:** Unverified against live Appwrite runtime, real PayPal webhook signature delivery, actual PayPal OAuth token requests from deployed function, and live database writes.
+- **Current Status:** `PAYPAL_CANCELLATION_FIX_RUNTIME_VERIFIED_SANDBOX` (`PAYPAL_PRODUCTION_READY = NO`).
+- **Targeted Hub Deployments:** Deployed on `main` commit `291c5c69`: `paypal-webhook` (run `34028770031`) and `billing-checkout` (run `34029085832`).
+- **Appwrite Schema:** Server-only collections `paypal_subscription_state` and `paypal_event_ledger` provisioned and verified in live Appwrite cluster.
+- **US Sandbox Cancellation Paid-Through E2E:** Verified. Designated Sandbox QA user canceled verified Ultimate Sandbox subscription on live `https://wiseresume.app/subscription`. Direct PayPal REST API verified `CANCELLED`.
+- **Authoritative Paid Expiry Invariant:** `status = canceled`, `will_renew = false`, `expires_at` is preserved (not null), effective plan remains `premium` with unlimited AI quota retained until end of prepaid cycle; server-side AI entitlement follows unchanged resolver contract (no post-cancellation AI execution run).
+- **Webhook Delivery & Signature Verification:**
+  - `BILLING.SUBSCRIPTION.CANCELLED` arrived on authentic first automatic provider delivery without manual resend and processed cleanly.
+  - Real provider-generated activation and payment events were successfully processed after provider re-delivery during runtime recovery.
+  - Webhook signature verification contract: `POST /v1/notifications/verify-webhook-signature` returned `SUCCESS` (PayPal POSTBACK verification).
+- **Checkout Fail-Closed Gate:** Restored fail-closed (`BILLING_CHECKOUT_ENABLED=false`, `BILLING_CHECKOUT_PROVIDER_READY=false`). Verified HTTP 403 `payments_disabled` on `/create-session`.
+- **Retained Pre-Existing Gaps:** `BILLING_CHECKOUT_DEVKIT_SOURCE_HASH_NOT_TRACKED_PRE_EXISTING` retained as pre-existing gap; not claimed as fixed.
+- **Live Webhook Endpoint:** `UNVERIFIED_FOR_LIVE` (preserving approved custom domain `https://paypal-webhook.wiseresume.app` architecture; direct Appwrite execution endpoint is not the canonical public endpoint).
+- **Production Blockers:** Failed renewal / 48-hour grace, refund / reversal lifecycle, and Live PayPal rollout remain unverified. Production PayPal remains strictly disabled (`PAYPAL_PRODUCTION_READY = NO`).
 
 ### 13. Phase 4 Architecture: Checkout, Subscription UX, Cancellation & Entitlement Surfacing
 
