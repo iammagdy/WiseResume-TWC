@@ -1,9 +1,9 @@
 # WiseResume Atlas Master Changelog
 
-### 2026-09-07 - PayPal Refund & Reversal Provider-Contract Hardening (Option B)
+### 2026-09-07 - PayPal Refund & Reversal Provider-Contract Hardening (Option B) Merged (PR #301)
 
 - **Workstream Verdict:** `PR301_READY_TO_MERGE` (`IMPLEMENTED_UNVERIFIED` / `TESTED_LOCAL`, `PAYPAL_PRODUCTION_READY = NO`).
-- **Branch:** `feat/paypal-refund-reversal-policy` (Target: `main`, PR #301).
+- **Docs Closeout Branch:** `docs/paypal-refund-reversal-merge-closeout` (Target: `main`).
 - **Owner Policy:** `OPTION_B_APPROVED`.
 - **Scope & Accomplishments:**
   1. **Option B Refund & Reversal Backend Implementation & Provider-Contract Hardening (`paypal-webhook`):**
@@ -43,7 +43,7 @@
   8. **What's New Decision:**
      - `WHATS_NEW_NOT_REQUIRED`: PR is not deployed or merged to production; customer-facing release notes are not eligible until production deployment and live browser QA.
   9. **Next Step:**
-     - Awaiting owner review of PR #301 for `feat/paypal-refund-reversal-policy`.
+     - Controlled schema provisioning and targeted paypal-webhook/coupons deployment planning followed by Sandbox runtime QA, requiring separate owner authorization.
 
 ### 2026-09-06 - PayPal Failed-Renewal Local Boundary Test Hardening (PR #299)
 

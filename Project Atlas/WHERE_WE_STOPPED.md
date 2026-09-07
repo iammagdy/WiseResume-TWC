@@ -1,13 +1,14 @@
 # Project Atlas — Active Operational & Handover State
 
 **Last Verified:** 2026-09-07
-**Status:** `PR301_READY_TO_MERGE` (`IMPLEMENTED_UNVERIFIED` / `TESTED_LOCAL`, `PAYPAL_PRODUCTION_READY = NO`, Branch: `feat/paypal-refund-reversal-policy`, Target: `main`, PR #301) — Option B refund & reversal provider-contract hardening complete across backend, schema, coupons, frontend, and tests. Awaiting owner review of feature PR #301.
+**Status:** `PAYPAL_REFUND_REVERSAL_MERGED_PENDING_DEPLOYMENT` (`MERGED_NOT_DEPLOYED`, `PAYPAL_PRODUCTION_READY = NO`, Merged PR: #301, Merge SHA: `69b31c0d4c762f8650435390ce92ba2e030e19b4`, Target: `main`) — Option B refund & reversal provider-contract hardening merged into main. Awaiting controlled schema provisioning, targeted deployment planning, and Sandbox runtime verification.
 **Location:** `Project Atlas/WHERE_WE_STOPPED.md`
 
-## Current Active Handover — PayPal Refund & Reversal Provider-Contract Hardening (Option B) (2026-09-07)
+## Current Active Handover — PayPal Refund & Reversal Provider-Contract Hardening (Option B) Merged (2026-09-07)
 
-* **Workstream:** `PR301_READY_TO_MERGE` (`IMPLEMENTED_UNVERIFIED` / `TESTED_LOCAL`, `PAYPAL_PRODUCTION_READY = NO`).
-* **Active Feature Branch:** `feat/paypal-refund-reversal-policy` (Target: `main`, PR #301).
+* **Workstream:** `PAYPAL_REFUND_REVERSAL_MERGED_PENDING_DEPLOYMENT` (`MERGED_NOT_DEPLOYED`, `PAYPAL_PRODUCTION_READY = NO`).
+* **Active Docs Branch:** `docs/paypal-refund-reversal-merge-closeout` (Target: `main`).
+* **Merged Feature PR:** [PR #301](https://github.com/iammagdy/WiseResume-TWC/pull/301) (Approved Head: `45f24dfc17719da8334615ab617e8d642c5b1942`, Merge SHA: `69b31c0d4c762f8650435390ce92ba2e030e19b4`).
 * **Owner Policy:** `OPTION_B_APPROVED`.
 * **Scope & Implementation:**
   - **Full Refund of Current Entitlement-Bearing Payment:** Revokes current entitlement immediately (`expires_at = null`, `grace_period_expires_at = null`), preserves payment correlation identity (`last_entitlement_payment_id`, `last_entitlement_payment_timestamp_ms`), sets `renewal_cancellation_pending = true`, and initiates server-side provider cancellation (`POST /v1/billing/subscriptions/{id}/cancel`). Provider status remains truthful until cancellation converges (`status = 'canceled'`, `will_renew = false`, `renewal_cancellation_pending = false`). Transient failure returns retryable 5xx while keeping entitlement revoked.
@@ -36,11 +37,11 @@
   - PayPal Mutations: ZERO against real accounts/subscriptions.
   - Public Checkout Gate: DISABLED (`BILLING_CHECKOUT_ENABLED=false`, `BILLING_CHECKOUT_PROVIDER_READY=false`).
   - Production PayPal: COMPLETELY UNTOUCHED (`PAYPAL_PRODUCTION_READY = NO`).
-  - Merge: NO (PR opened for owner review).
+  - PR #301 Merge Status: MERGED into main (Merge SHA: `69b31c0d4c762f8650435390ce92ba2e030e19b4`, Final Reviewed Head: `45f24dfc17719da8334615ab617e8d642c5b1942`).
 * **What's New Decision:**
-  - `WHATS_NEW_NOT_REQUIRED`: PR is not deployed or merged to production; customer-facing release notes are not eligible until production deployment and live browser QA.
+  - `WHATS_NEW_DEFER_UNTIL_PRODUCTION`: Option B refund and reversal provider-contract hardening is merged into main, but production deployment and live browser QA are pending.
 * **Next Workstream / Next Action:**
-  - Await owner review of PR #301 for `feat/paypal-refund-reversal-policy`.
+  - Controlled schema provisioning + targeted paypal-webhook/coupons deployment planning and Sandbox runtime QA, requiring separate owner authorization.
 
 ---
 
