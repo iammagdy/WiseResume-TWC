@@ -109,3 +109,141 @@ test('waitForAttributeAvailable fails when retry limit is reached', async () => 
     /Timeout waiting for attribute/
   );
 });
+
+test('waitForIndexAvailable polls while building/processing until status is available', async () => {
+  let callCount = 0;
+  const mockDatabases = {
+    async listIndexes() {
+      callCount++;
+      if (callCount === 1) {
+        return { indexes: [] };
+      }
+      if (callCount === 2) {
+        return { indexes: [{ key: 'last_payment_idx', status: 'processing' }] };
+      }
+      if (callCount === 3) {
+        return { indexes: [{ key: 'last_payment_idx', status: 'building' }] };
+      }
+      return { indexes: [{ key: 'last_payment_idx', status: 'available' }] };
+    },
+  };
+
+  const result = await schema.waitForIndexAvailable(mockDatabases, 'col', 'last_payment_idx', 5, 5);
+  assert.equal(result.status, 'available');
+  assert.equal(callCount, 4);
+});
+
+test('waitForIndexAvailable fails immediately when index status is failed', async () => {
+  const mockDatabases = {
+    async listIndexes() {
+      return { indexes: [{ key: 'failed_idx', status: 'failed' }] };
+    },
+  };
+
+  await assert.rejects(
+    () => schema.waitForIndexAvailable(mockDatabases, 'col', 'failed_idx', 5, 5),
+    /Index "col\.failed_idx" creation failed in Appwrite \(status: failed\)/
+  );
+});
+
+test('waitForIndexAvailable fails when retry limit is reached', async () => {
+  const mockDatabases = {
+    async listIndexes() {
+      return { indexes: [{ key: 'stuck_idx', status: 'processing' }] };
+    },
+  };
+
+  await assert.rejects(
+    () => schema.waitForIndexAvailable(mockDatabases, 'col', 'stuck_idx', 2, 5),
+    /Timeout waiting for index "col\.stuck_idx" to become available in Appwrite/
+  );
+});
+
+test('ensureIndex does not recreate existing compatible index', async () => {
+  const spec = { key: 'payment_idx', type: 'key', attributes: ['payment_id'], orders: ['ASC'] };
+  let createCalled = false;
+  const mockDatabases = {
+    async listIndexes() {
+      return { indexes: [{ key: 'payment_idx', type: 'key', attributes: ['payment_id'], orders: ['ASC'], status: 'available' }] };
+    },
+    async createIndex() {
+      createCalled = true;
+    },
+  };
+
+  await schema.ensureIndex(mockDatabases, 'paypal_event_ledger', spec);
+  assert.equal(createCalled, false, 'createIndex should not have been called for compatible existing index');
+});
+
+test('ensureIndex creates new index when missing from collection', async () => {
+  const spec = { key: 'last_payment_idx', type: 'key', attributes: ['last_entitlement_payment_id'], orders: ['ASC'] };
+  let createPayload = null;
+  const mockDatabases = {
+    async listIndexes() {
+      return { indexes: [] };
+    },
+    async createIndex(dbId, collId, key, type, attributes, orders) {
+      createPayload = { dbId, collId, key, type, attributes, orders };
+    },
+  };
+
+  await schema.ensureIndex(mockDatabases, 'paypal_subscription_state', spec);
+  assert.deepEqual(createPayload, {
+    dbId: 'main',
+    collId: 'paypal_subscription_state',
+    key: 'last_payment_idx',
+    type: 'key',
+    attributes: ['last_entitlement_payment_id'],
+    orders: ['ASC'],
+  });
+});
+
+test('ensureIndex throws on incompatible existing index', async () => {
+  const spec = { key: 'last_payment_idx', type: 'key', attributes: ['last_entitlement_payment_id'], orders: ['ASC'] };
+  const mockDatabases = {
+    async listIndexes() {
+      return { indexes: [{ key: 'last_payment_idx', type: 'unique', attributes: ['last_entitlement_payment_id'], orders: ['ASC'] }] };
+    },
+  };
+
+  await assert.rejects(
+    () => schema.ensureIndex(mockDatabases, 'paypal_subscription_state', spec),
+    /Incompatible index "paypal_subscription_state\.last_payment_idx": type unique \(expected key\)/
+  );
+});
+
+test('ensureCollection creates and waits for all attributes and indexes', async () => {
+  const mockDatabases = {
+    async getCollection() {
+      return { $permissions: [], documentSecurity: false };
+    },
+    async listAttributes() {
+      return {
+        attributes: [
+          { key: 'dummy_attr', status: 'available', type: 'string', size: 64, required: false, array: false },
+        ],
+      };
+    },
+    async listIndexes() {
+      return {
+        indexes: [
+          { key: 'dummy_idx', status: 'available', type: 'key', attributes: ['dummy_attr'], orders: ['ASC'] },
+        ],
+      };
+    },
+    async createIndex() {},
+  };
+
+  const miniSpec = {
+    id: 'test_col',
+    name: 'Test Col',
+    attributes: [
+      { key: 'dummy_attr', type: 'string', size: 64, required: false, array: false },
+    ],
+    indexes: [
+      { key: 'dummy_idx', type: 'key', attributes: ['dummy_attr'], orders: ['ASC'] },
+    ],
+  };
+
+  await schema.ensureCollection(mockDatabases, miniSpec);
+});

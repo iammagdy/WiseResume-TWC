@@ -160,6 +160,24 @@ async function waitForAttributeAvailable(databases, collectionId, key, maxRetrie
   throw new Error(`Timeout waiting for attribute "${collectionId}.${key}" to become available in Appwrite`);
 }
 
+async function waitForIndexAvailable(databases, collectionId, key, maxRetries = 30, delayMs = 500) {
+  for (let i = 0; i < maxRetries; i++) {
+    const result = await databases.listIndexes(DB_ID, collectionId);
+    const index = (result.indexes || []).find(idx => idx.key === key);
+    if (!index) {
+      await pause(delayMs);
+      continue;
+    }
+    const status = String(index.status || '').toLowerCase();
+    if (status === 'available') return index;
+    if (status === 'failed') {
+      throw new Error(`Index "${collectionId}.${key}" creation failed in Appwrite (status: failed)`);
+    }
+    await pause(delayMs);
+  }
+  throw new Error(`Timeout waiting for index "${collectionId}.${key}" to become available in Appwrite`);
+}
+
 async function ensureCollection(databases, spec) {
   const existing = await getCollectionOrNull(databases, spec.id);
   if (existing) assertServerOnlyCollection(existing, spec.id);
@@ -173,6 +191,7 @@ async function ensureCollection(databases, spec) {
   }
   for (const index of spec.indexes) {
     await ensureIndex(databases, spec.id, index);
+    await waitForIndexAvailable(databases, spec.id, index.key);
   }
 }
 
@@ -194,6 +213,7 @@ module.exports = {
   indexCompatibilityError,
   assertServerOnlyCollection,
   waitForAttributeAvailable,
+  waitForIndexAvailable,
   ensureAttribute,
   ensureIndex,
   ensureCollection,

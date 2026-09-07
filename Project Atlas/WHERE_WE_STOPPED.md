@@ -1,7 +1,7 @@
 # Project Atlas — Active Operational & Handover State
 
 **Last Verified:** 2026-09-07
-**Status:** `PAYPAL_REFUND_REVERSAL_MERGED_PENDING_DEPLOYMENT` (`MERGED_NOT_DEPLOYED`, `PAYPAL_PRODUCTION_READY = NO`, Merged PR: #301, Merge SHA: `69b31c0d4c762f8650435390ce92ba2e030e19b4`, Target: `main`) — Option B refund & reversal provider-contract hardening merged into main. Awaiting controlled schema provisioning, targeted deployment planning, and Sandbox runtime verification.
+**Status:** `PAYPAL_REFUND_REVERSAL_PREDEPLOY_READY` (Frontend: `DEPLOYED_TO_PRODUCTION` via Vercel, Backend: `PENDING_TARGETED_DEPLOYMENT`, Schema: `SCHEMA_DELTA_LIKELY_REQUIRED_BUT_LIVE_STATE_UNVERIFIED`, `PAYPAL_PRODUCTION_READY = NO`, Main Baseline: `84aa793d1cea97a9233caf3b388a4dc3f1fdf61c`) — Pre-deployment schema index readiness hardening added to `scripts/setup_paypal_schema.cjs` (`waitForIndexAvailable`). Awaiting owner authorization for targeted deployment and Sandbox runtime QA.
 **Location:** `Project Atlas/WHERE_WE_STOPPED.md`
 
 ## Current Active Handover — PayPal Refund & Reversal Provider-Contract Hardening (Option B) Merged (2026-09-07)
