@@ -64,7 +64,9 @@ export function getApprovedPayPalOrigins(environment?: string): readonly string[
   let env = environment;
 
   if (typeof env === 'undefined' || env === '') {
-    if (typeof import.meta.env.VITE_BILLING_PUBLIC_MODE !== 'undefined') {
+    if (typeof window !== 'undefined' && /^(?:www\.)?wiseresume\.app$/i.test(window.location.hostname)) {
+      env = 'production';
+    } else if (typeof import.meta.env.VITE_BILLING_PUBLIC_MODE !== 'undefined') {
       env = import.meta.env.VITE_BILLING_PUBLIC_MODE as string;
     } else if (typeof import.meta.env.VITE_BILLING_ENVIRONMENT !== 'undefined') {
       env = import.meta.env.VITE_BILLING_ENVIRONMENT as string;
@@ -72,8 +74,6 @@ export function getApprovedPayPalOrigins(environment?: string): readonly string[
       env = import.meta.env.VITE_CHECKOUT_ENVIRONMENT as string;
     } else if (import.meta.env.DEV) {
       env = 'sandbox';
-    } else if (typeof window !== 'undefined' && /^(?:www\.)?wiseresume\.app$/.test(window.location.hostname)) {
-      env = 'production';
     }
   }
 

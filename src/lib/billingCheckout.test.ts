@@ -143,6 +143,24 @@ describe('server-owned billing checkout client', () => {
       import.meta.env.VITE_BILLING_PUBLIC_MODE = 'sandbox';
       import.meta.env.VITE_BILLING_ENVIRONMENT = 'production';
       expect(getApprovedPayPalOrigins()).toEqual(['https://www.sandbox.paypal.com']);
+
+      // 7. Canonical domain enforcement: wiseresume.app always enforces production PayPal origin
+      const originalLocation = window.location;
+      try {
+        Object.defineProperty(window, 'location', {
+          configurable: true,
+          value: new URL('https://wiseresume.app/subscription'),
+        });
+        import.meta.env.VITE_BILLING_PUBLIC_MODE = 'sandbox';
+        expect(getApprovedPayPalOrigins()).toEqual(['https://www.paypal.com']);
+        expect(isValidCheckoutUrl('https://www.paypal.com/webapps/billing/subscriptions?ba_token=BA-PROD')).toBe(true);
+        expect(isValidCheckoutUrl('https://www.sandbox.paypal.com/webapps/billing/subscriptions?ba_token=BA-SANDBOX')).toBe(false);
+      } finally {
+        Object.defineProperty(window, 'location', {
+          configurable: true,
+          value: originalLocation,
+        });
+      }
     } finally {
       import.meta.env.VITE_BILLING_PUBLIC_MODE = originalPublicMode;
       import.meta.env.VITE_BILLING_ENVIRONMENT = originalBillingEnv;
