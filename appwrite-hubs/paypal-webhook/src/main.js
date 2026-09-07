@@ -356,9 +356,10 @@ async function findRefundOrReversalTombstone(databases, paymentId, context = {})
   const reversalDoc = await findLedgerByPaymentId(databases, paymentId, 'PAYMENT.SALE.REVERSED');
   const refundDoc = await findLedgerByPaymentId(databases, paymentId, 'PAYMENT.SALE.REFUNDED');
 
-  const { subscriptionId, userId, env } = context;
+  const { subscriptionId, userId } = context;
 
-  // Validate tombstone correlation identity against canonical context if provided (Section 10)
+  // Validate tombstone correlation identity against canonical context if provided:
+  // Note: Environment isolation is enforced by the hard Sandbox runtime gate; paypal_event_ledger has no environment field.
   const validateTombstoneIdentity = (doc) => {
     if (!doc) return;
     if (subscriptionId && doc.subscription_id && doc.subscription_id !== subscriptionId) {
@@ -370,13 +371,6 @@ async function findRefundOrReversalTombstone(databases, paymentId, context = {})
     }
     if (userId && doc.user_id && doc.user_id !== userId) {
       const err = new Error(`Conflicting tombstone user identity for paymentId ${paymentId}: expected ${userId}, found ${doc.user_id}`);
-      err.code = 'ambiguous_payment_ledger_correlation';
-      err.isTransient = false;
-      err.status = 400;
-      throw err;
-    }
-    if (env && doc.environment && doc.environment !== env) {
-      const err = new Error(`Conflicting tombstone environment for paymentId ${paymentId}: expected ${env}, found ${doc.environment}`);
       err.code = 'ambiguous_payment_ledger_correlation';
       err.isTransient = false;
       err.status = 400;
@@ -495,7 +489,9 @@ async function fetchSubscriptionDetails(subscriptionId, { env = process.env, cus
 async function fetchSubscriptionTransactions({
   subscriptionId,
   targetPaymentId,
-  targetTimestampMs,
+  targetTimestampMs = null,
+  startTimeMs = null,
+  endTimeMs = null,
   nowMs = Date.now(),
   env = process.env,
   customTransactionsFetcher = null,
@@ -505,6 +501,8 @@ async function fetchSubscriptionTransactions({
       subscriptionId,
       targetPaymentId,
       targetTimestampMs,
+      startTimeMs,
+      endTimeMs,
       nowMs,
     });
   }
@@ -516,11 +514,22 @@ async function fetchSubscriptionTransactions({
     throw err;
   }
 
-  if (!Number.isSafeInteger(targetTimestampMs) || targetTimestampMs <= 0) {
-    const err = new Error('Invalid target transaction timestamp for Transactions API query');
-    err.code = 'invalid_target_timestamp';
-    err.status = 400;
-    throw err;
+  let startTime;
+  let endTime;
+
+  if (Number.isSafeInteger(startTimeMs) && startTimeMs > 0) {
+    startTime = new Date(startTimeMs).toISOString();
+    const resolvedEndMs = Number.isSafeInteger(endTimeMs) && endTimeMs > 0 ? endTimeMs : nowMs;
+    endTime = new Date(resolvedEndMs).toISOString();
+  } else {
+    if (!Number.isSafeInteger(targetTimestampMs) || targetTimestampMs <= 0) {
+      const err = new Error('Invalid target transaction timestamp for Transactions API query');
+      err.code = 'invalid_target_timestamp';
+      err.status = 400;
+      throw err;
+    }
+    startTime = new Date(targetTimestampMs - 86400000).toISOString();
+    endTime = new Date(nowMs).toISOString();
   }
 
   const baseUrl = getPaypalApiBaseUrl(env);
@@ -574,9 +583,6 @@ async function fetchSubscriptionTransactions({
     }
     throw err;
   }
-
-  const startTime = new Date(targetTimestampMs - 86400000).toISOString();
-  const endTime = new Date(nowMs).toISOString();
 
   let nextUrl = `${baseUrl}/v1/billing/subscriptions/${encodeURIComponent(subscriptionId)}/transactions?start_time=${encodeURIComponent(startTime)}&end_time=${encodeURIComponent(endTime)}`;
   let pageFollows = 0;
@@ -1461,7 +1467,6 @@ async function processWebhookEvent({
           tombstones = await findRefundOrReversalTombstone(databases, event.paymentId, {
             subscriptionId: event.subscriptionId,
             userId,
-            env,
           });
         } catch (tombErr) {
           if (tombErr?.code === 'ambiguous_payment_ledger_correlation') {
@@ -1693,8 +1698,11 @@ async function processWebhookEvent({
       }
 
       // 2. FIRST DELIVERY FLOW:
-      // HISTORICAL REFUND QUERY WINDOW (Blocker B):
+      // HISTORICAL REFUND QUERY WINDOW:
       let targetPaymentTimestamp = null;
+      let isLegacyMigration = false;
+      let legacyStartTimeMs = null;
+
       if (previous?.last_entitlement_payment_id && event.paymentId === previous.last_entitlement_payment_id) {
         // CASE A: Current entitlement payment
         targetPaymentTimestamp = Number(previous.last_entitlement_payment_timestamp_ms);
@@ -1706,8 +1714,62 @@ async function processWebhookEvent({
         }
       }
 
-      // CASE C: No authoritative payment timestamp is available -> FAIL CLOSED
-      if (!targetPaymentTimestamp || !Number.isSafeInteger(targetPaymentTimestamp) || targetPaymentTimestamp <= 0) {
+      // CASE C: True Legacy Migration-on-Touch
+      // If previous state lacks payment identity and no historical sale ledger has payment_id:
+      if ((!targetPaymentTimestamp || !Number.isSafeInteger(targetPaymentTimestamp) || targetPaymentTimestamp <= 0) && !previous?.last_entitlement_payment_id) {
+        // 1. Require canonical subscription ID
+        if (!event.subscriptionId) {
+          await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
+            user_id: userId,
+            processing_status: 'ignored',
+            outcome_code: 'unresolved_legacy_payment_correlation',
+          }, serverOnlyPermissions());
+          return { outcome: 'ignored', code: 'unresolved_legacy_payment_correlation', mutated: false };
+        }
+
+        // 2 & 3. Fetch authoritative subscription snapshot and validate provider subscription
+        let subSnapshot = null;
+        try {
+          subSnapshot = await getSubscriptionSnapshot();
+        } catch (err) {
+          if (err?.isTransient) {
+            await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
+              user_id: userId,
+              processing_status: 'failed',
+              outcome_code: 'transient_paypal_fetch_failure',
+            }, serverOnlyPermissions()).catch(() => {});
+          }
+          throw err;
+        }
+
+        const providerSubId = String(subSnapshot?.id || '').trim();
+        if (!providerSubId || providerSubId !== event.subscriptionId) {
+          await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
+            user_id: userId,
+            processing_status: 'ignored',
+            outcome_code: 'unresolved_legacy_payment_correlation',
+          }, serverOnlyPermissions());
+          return { outcome: 'ignored', code: 'unresolved_legacy_payment_correlation', mutated: false };
+        }
+
+        // 4. Extract and validate provider start_time
+        const rawStartTime = subSnapshot?.start_time;
+        const parsedStartMs = Date.parse(rawStartTime || '');
+        if (!Number.isSafeInteger(parsedStartMs) || parsedStartMs <= 0) {
+          await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
+            user_id: userId,
+            processing_status: 'ignored',
+            outcome_code: 'unresolved_legacy_payment_correlation',
+          }, serverOnlyPermissions());
+          return { outcome: 'ignored', code: 'unresolved_legacy_payment_correlation', mutated: false };
+        }
+
+        isLegacyMigration = true;
+        legacyStartTimeMs = parsedStartMs;
+      }
+
+      // CASE D: If still no authoritative payment timestamp and NOT a legacy migration -> FAIL CLOSED
+      if (!isLegacyMigration && (!targetPaymentTimestamp || !Number.isSafeInteger(targetPaymentTimestamp) || targetPaymentTimestamp <= 0)) {
         await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
           user_id: userId,
           processing_status: 'ignored',
@@ -1721,7 +1783,9 @@ async function processWebhookEvent({
         txResult = await fetchSubscriptionTransactions({
           subscriptionId: event.subscriptionId,
           targetPaymentId: event.paymentId,
-          targetTimestampMs: targetPaymentTimestamp,
+          targetTimestampMs: isLegacyMigration ? null : targetPaymentTimestamp,
+          startTimeMs: isLegacyMigration ? legacyStartTimeMs : null,
+          endTimeMs: isLegacyMigration ? nowMs : null,
           nowMs,
           env,
           customTransactionsFetcher: subscriptionTransactionsFetcher,
@@ -1753,20 +1817,21 @@ async function processWebhookEvent({
       const tx = txResult.transaction;
       const txStatus = String(tx?.status || '').toUpperCase();
 
-      if (txStatus === 'COMPLETED') {
+      // BLOCKER B: Unconverged provider states (COMPLETED or PENDING) must fail closed as retryable 503
+      if (txStatus === 'COMPLETED' || txStatus === 'PENDING') {
         await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
           user_id: userId,
           processing_status: 'failed',
           outcome_code: 'provider_state_not_converged',
         }, serverOnlyPermissions()).catch(() => {});
-        const err = new Error('Provider transaction status not converged to REFUNDED');
+        const err = new Error(`Provider transaction status has not converged to REFUNDED (reports ${txStatus})`);
         err.code = 'provider_state_not_converged';
         err.isTransient = true;
         err.status = 503;
         throw err;
       }
 
-      // PARTIALLY_REFUNDED: Preserve entitlement and renewal without local arithmetic (Blocker D)
+      // PARTIALLY_REFUNDED: Preserve entitlement and renewal without local arithmetic
       if (txStatus === 'PARTIALLY_REFUNDED') {
         await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
           user_id: userId,
@@ -1776,22 +1841,27 @@ async function processWebhookEvent({
         return { outcome: 'processed', code: 'partial_refund_recorded', mutated: false };
       }
 
-      // Any unexpected provider transaction status (neither PARTIALLY_REFUNDED nor REFUNDED)
+      // BLOCKER B: Unexpected / unknown provider transaction status must FAIL CLOSED (retryable 502, not 2xx-ignored)
       if (txStatus !== 'REFUNDED') {
         await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
           user_id: userId,
-          processing_status: 'ignored',
+          processing_status: 'failed',
           outcome_code: 'unsupported_provider_transaction_status',
-        }, serverOnlyPermissions());
-        return { outcome: 'ignored', code: 'unsupported_provider_transaction_status', mutated: false };
+        }, serverOnlyPermissions()).catch(() => {});
+        const err = new Error(`Unsupported provider transaction status: ${txStatus}`);
+        err.code = 'unsupported_provider_transaction_status';
+        err.isTransient = true;
+        err.status = 502;
+        throw err;
       }
 
-      const txTimeMs = new Date(tx?.time || targetPaymentTimestamp).getTime();
-
-      // Historical refund check:
+      // BLOCKER C: Historical refund check MUST NOT trust provider tx.time for historical ordering.
+      // Use authoritative targetPaymentTimestamp from state or historical ledger.
       if (previous?.last_entitlement_payment_id && previous.last_entitlement_payment_id !== event.paymentId) {
         const prevPaymentMs = Number(previous.last_entitlement_payment_timestamp_ms || 0);
-        if (prevPaymentMs > txTimeMs) {
+        if (Number.isSafeInteger(prevPaymentMs) && prevPaymentMs > 0 &&
+            Number.isSafeInteger(targetPaymentTimestamp) && targetPaymentTimestamp > 0 &&
+            prevPaymentMs > targetPaymentTimestamp) {
           await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
             user_id: userId,
             processing_status: 'processed',
@@ -1801,10 +1871,28 @@ async function processWebhookEvent({
         }
       }
 
-      // Legacy migration-on-touch
-      if (!previous?.last_entitlement_payment_id) {
+      // Legacy migration-on-touch: resolve and validate payment timestamp from provider tx.time
+      let resolvedPaymentTimestamp = targetPaymentTimestamp;
+      if (isLegacyMigration) {
+        const parsedTxTimeMs = Date.parse(tx?.time || '');
+        if (!Number.isSafeInteger(parsedTxTimeMs) || parsedTxTimeMs <= 0 || String(tx?.id || '').trim() !== String(event.paymentId).trim()) {
+          const err = new Error('Invalid or unparseable transaction time from provider during legacy migration-on-touch');
+          err.code = 'invalid_provider_transaction_time';
+          err.isTransient = true;
+          err.status = 502;
+          await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
+            user_id: userId,
+            processing_status: 'failed',
+            outcome_code: 'invalid_provider_transaction_time',
+          }, serverOnlyPermissions()).catch(() => {});
+          throw err;
+        }
+        resolvedPaymentTimestamp = parsedTxTimeMs;
         stateUpdate.last_entitlement_payment_id = event.paymentId;
-        stateUpdate.last_entitlement_payment_timestamp_ms = txTimeMs;
+        stateUpdate.last_entitlement_payment_timestamp_ms = resolvedPaymentTimestamp;
+      } else if (!previous?.last_entitlement_payment_id) {
+        stateUpdate.last_entitlement_payment_id = event.paymentId;
+        stateUpdate.last_entitlement_payment_timestamp_ms = resolvedPaymentTimestamp;
       }
 
       // FULL CURRENT-CYCLE REFUND
@@ -1812,7 +1900,7 @@ async function processWebhookEvent({
       stateUpdate.grace_period_expires_at = null;
       stateUpdate.renewal_cancellation_pending = true;
       stateUpdate.last_entitlement_payment_id = previous?.last_entitlement_payment_id || event.paymentId;
-      stateUpdate.last_entitlement_payment_timestamp_ms = previous?.last_entitlement_payment_timestamp_ms || txTimeMs;
+      stateUpdate.last_entitlement_payment_timestamp_ms = previous?.last_entitlement_payment_timestamp_ms || resolvedPaymentTimestamp;
       stateUpdate.status = previous?.status || 'active';
       stateUpdate.will_renew = previous?.will_renew !== undefined ? previous.will_renew : true;
 
