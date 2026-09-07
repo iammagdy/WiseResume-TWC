@@ -90,11 +90,12 @@ function parseJsonBody(req) {
   }
 }
 
-// HARD SANDBOX-ONLY RUNTIME GATE:
-// During Phase 3, production PayPal is strictly disabled and fails closed.
+// Provider API base resolver:
+// Exactly 'sandbox' and 'production' are supported; missing/unknown fails closed.
 function getPaypalApiBaseUrl(env = process.env) {
-  const mode = normalizeProviderEnvironment(env.PAYPAL_ACCESS_ENVIRONMENT);
+  const mode = normalizeProviderEnvironment(env?.PAYPAL_ACCESS_ENVIRONMENT);
   if (mode === 'sandbox') return 'https://api-m.sandbox.paypal.com';
+  if (mode === 'production') return 'https://api-m.paypal.com';
   return '';
 }
 
@@ -969,9 +970,42 @@ async function resolveCanonicalUser({
   return null;
 }
 
-function resolvePlanFromId(planId) {
-  const mapped = PLAN_MAPPINGS[planId];
-  return mapped && VALID_PAID_PLANS.has(mapped) ? mapped : null;
+function resolvePlanFromId(planId, env = process.env) {
+  const rawId = String(planId || '').trim();
+  if (!rawId) return null;
+
+  const rawEnv = env?.PAYPAL_ACCESS_ENVIRONMENT !== undefined
+    ? env.PAYPAL_ACCESS_ENVIRONMENT
+    : (process.env.PAYPAL_ACCESS_ENVIRONMENT || 'sandbox');
+  const environment = normalizeProviderEnvironment(rawEnv);
+  if (!environment) return null;
+
+  const sandboxPro = String(env?.BILLING_SANDBOX_PRO_PRICE_ID || SANDBOX_PRO_PLAN_ID).trim();
+  const sandboxPremium = String(env?.BILLING_SANDBOX_PREMIUM_PRICE_ID || SANDBOX_ULTIMATE_PLAN_ID).trim();
+  const prodPro = String(env?.BILLING_PRODUCTION_PRO_PRICE_ID || '').trim();
+  const prodPremium = String(env?.BILLING_PRODUCTION_PREMIUM_PRICE_ID || '').trim();
+
+  if (environment === 'production') {
+    // Cross-environment isolation: reject Sandbox plan IDs in production
+    if ((sandboxPro && rawId === sandboxPro) || (sandboxPremium && rawId === sandboxPremium)) {
+      return null;
+    }
+    if (prodPro && rawId === prodPro) return 'pro';
+    if (prodPremium && rawId === prodPremium) return 'premium';
+    return null;
+  }
+
+  if (environment === 'sandbox') {
+    // Cross-environment isolation: reject Production plan IDs in sandbox
+    if ((prodPro && rawId === prodPro) || (prodPremium && rawId === prodPremium)) {
+      return null;
+    }
+    if (sandboxPro && rawId === sandboxPro) return 'pro';
+    if (sandboxPremium && rawId === sandboxPremium) return 'premium';
+    return null;
+  }
+
+  return null;
 }
 
 function resolveAuthoritativeExpiry(event, subDetails) {
@@ -1134,11 +1168,11 @@ async function processWebhookEvent({
     return { outcome: 'rejected', code: validation.code, mutated: false };
   }
 
-  // HARD SANDBOX-ONLY RUNTIME GATE (Section 4):
-  // Phase 3 is strictly Sandbox. Missing, invalid, or production fail closed!
+  // Provider environment validation:
+  // Exactly 'sandbox' and 'production' are supported. Missing or invalid environments fail closed!
   const selectedEnvironment = normalizeProviderEnvironment(env.PAYPAL_ACCESS_ENVIRONMENT);
-  if (selectedEnvironment !== 'sandbox') {
-    return { outcome: 'rejected', code: 'sandbox_only_phase3_gate', mutated: false };
+  if (!selectedEnvironment || (selectedEnvironment !== 'sandbox' && selectedEnvironment !== 'production')) {
+    return { outcome: 'rejected', code: 'unconfigured_paypal_environment', mutated: false };
   }
 
   const ledgerDocId = ledgerDocumentId(event.id);
@@ -1435,17 +1469,19 @@ async function processWebhookEvent({
   }
 
   // SANDBOX QA MUTATION BOUNDARY:
-  // Phase 3 is Sandbox QA only. State mutation is permitted ONLY when the resolved
-  // canonical user ID matches the non-empty BILLING_CHECKOUT_QA_USER_ID.
-  const qaUserId = String(env.BILLING_CHECKOUT_QA_USER_ID || getEnv('BILLING_CHECKOUT_QA_USER_ID') || '').trim();
-  if (!qaUserId || userId !== qaUserId) {
-    const outcomeCode = !qaUserId ? 'missing_qa_user_config' : 'sandbox_qa_boundary_rejected';
-    await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
-      user_id: userId,
-      processing_status: 'ignored',
-      outcome_code: outcomeCode,
-    }, serverOnlyPermissions());
-    return { outcome: 'ignored', code: outcomeCode, mutated: false };
+  // State mutation is restricted to configured QA user ONLY in sandbox.
+  // In production, BILLING_CHECKOUT_QA_USER_ID is strictly NOT required.
+  if (selectedEnvironment === 'sandbox') {
+    const qaUserId = String(env.BILLING_CHECKOUT_QA_USER_ID || getEnv('BILLING_CHECKOUT_QA_USER_ID') || '').trim();
+    if (!qaUserId || userId !== qaUserId) {
+      const outcomeCode = !qaUserId ? 'missing_qa_user_config' : 'sandbox_qa_boundary_rejected';
+      await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
+        user_id: userId,
+        processing_status: 'ignored',
+        outcome_code: outcomeCode,
+      }, serverOnlyPermissions());
+      return { outcome: 'ignored', code: outcomeCode, mutated: false };
+    }
   }
 
   // Previous-state discovery:
@@ -1477,14 +1513,16 @@ async function processWebhookEvent({
       previous = null;
       // If subscription IDs differ:
       // A new subscription is allowed to supersede a prior subscription ONLY if:
-      // 1. The prior state is not active (e.g. canceled, expired, suspended), AND
-      // 2. The incoming event is a subscription start/payment event (ACTIVATED or PAYMENT.SALE.COMPLETED).
+      // 1. The prior state is not active (e.g. canceled, expired, suspended), OR
+      // 2. The user is transitioning environments (e.g. sandbox QA state replaced by production subscription)
+      // AND the incoming event is a subscription start/payment event (ACTIVATED or PAYMENT.SALE.COMPLETED).
       if (!isSameSub) {
         const isActivationOrPayment = event.type === 'BILLING.SUBSCRIPTION.ACTIVATED' || event.type === 'PAYMENT.SALE.COMPLETED';
         const isPriorStateInactive = !candidateState.status || candidateState.status !== 'active';
+        const canSupersede = isSameUser && isActivationOrPayment && (!isSameEnv || isPriorStateInactive);
 
-        if (isSameUser && isSameEnv && isActivationOrPayment && isPriorStateInactive) {
-          // Valid new subscription superseding prior inactive state.
+        if (canSupersede) {
+          // Valid new subscription superseding prior inactive state or migrating across environments.
           // Reuse candidateState.$id so upsertProviderState updates the existing user document,
           // but do NOT inherit the prior subscription's plan/status/grace period.
           previous = {
@@ -1580,7 +1618,7 @@ async function processWebhookEvent({
   // Plan ID resolution and validation:
   // Precedence: explicit event planId -> server-side PayPal snapshot plan_id -> previous state plan_id
   const effectivePlanId = event.planId || subDetails?.plan_id || previous?.plan_id;
-  const resolvedPlan = resolvePlanFromId(effectivePlanId);
+  const resolvedPlan = resolvePlanFromId(effectivePlanId, env);
 
   // Validate plan for events with plan ID
   if ((event.type === 'BILLING.SUBSCRIPTION.ACTIVATED' || event.type === 'PAYMENT.SALE.COMPLETED') && !resolvedPlan) {
@@ -1592,7 +1630,7 @@ async function processWebhookEvent({
     return { outcome: 'rejected', code: 'unknown_plan_id', mutated: false };
   }
 
-  if (event.type === 'BILLING.SUBSCRIPTION.UPDATED' && event.planId && !resolvePlanFromId(event.planId)) {
+  if (event.type === 'BILLING.SUBSCRIPTION.UPDATED' && event.planId && !resolvePlanFromId(event.planId, env)) {
     await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
       user_id: userId,
       processing_status: 'rejected',

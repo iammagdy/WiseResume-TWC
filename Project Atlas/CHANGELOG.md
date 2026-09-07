@@ -4,13 +4,13 @@
 
 - **Workstream Verdict:** `SANDBOX_PAYMENT_CORE_VERIFIED_READY_FOR_PRODUCTION_ACTIVATION` (`PAYPAL_PRODUCTION_READY = NO`).
 - **PR & Commit:** Merged PR #309 into `main` at `9c27773f4bc7c69d42a53cb25d83e6a0a471b316`.
-- **Targeted Deployment:** Dispatched `deploy-appwrite-hubs.yml` with `target=paypal-webhook` (Run `34118592362`). Successfully deployed Appwrite Function `paypal-webhook` (Deployment ID `6a9ea51d2ecf33ade11a`, status `ready`). Live endpoint smoke check passed with HTTP 400 (fail-closed pass).
+- **Targeted Deployment:** Dispatched `deploy-appwrite-hubs.yml` with `target=paypal-webhook` (Run `34118592362`). Successfully deployed Appwrite Function `paypal-webhook` (Deployment ID `[verified deployment]`, status `ready`). Live endpoint smoke check passed with HTTP 400 (fail-closed pass).
 - **Genuine Provider Redelivery & Entitlement Verification:**
-  1. Triggered single authentic PayPal Sandbox redelivery of event `WH-39D23786BJ747394G-6NV67311UF312770M` (`PAYMENT.SALE.REFUNDED`) via `POST /v1/notifications/webhooks-events/.../resend` -> HTTP 202 Accepted.
-  2. Webhook reclaimed the previously rejected ledger reservation, resolved subscription `I-58K84FGAFFHL` via Step 3 provider Sale fallback (`fetchSaleDetails`), performed Case C ("True Legacy Migration-on-Touch"), populated payment identity, and executed Option B full refund revocation.
+  1. Triggered single authentic PayPal Sandbox redelivery of event `[genuine Sandbox refund event]` (`PAYMENT.SALE.REFUNDED`) via `POST /v1/notifications/webhooks-events/.../resend` -> HTTP 202 Accepted.
+  2. Webhook reclaimed the previously rejected ledger reservation, resolved subscription `[Sandbox QA subscription]` via Step 3 provider Sale fallback (`fetchSaleDetails`), performed Case C ("True Legacy Migration-on-Touch"), populated payment identity, and executed Option B full refund revocation.
   3. `coupons` `get-subscription` function verified live entitlement state: `plan: "free"`, `effective_plan: "free"`, `status: "canceled"`, `expires_at: null`, `provider_status: "canceled"`, `can_cancel_subscription: false`, `will_renew: false`.
 - **Live Authenticated Browser QA & Persistence:**
-  1. Playwright browser QA executed against live `https://wiseresume.app/subscription` under authenticated QA user `qa_pp_afbf725e`.
+  1. Playwright browser QA executed against live `https://wiseresume.app/subscription` under authenticated QA user `[Sandbox QA user]`.
   2. Free tier rendering verified: "Current Plan: Free", "Usage: 0 / 1 Resumes", "AI Credits: 0 / 5", Free sidebar badge, and disabled public checkout message ("Subscription enrollments are currently closed.").
   3. Persistence verified across full page reload and navigation (`/dashboard` -> `/subscription`). Screenshots captured: `live_subscription_page_1.png` and `live_subscription_page_reloaded.png`.
 - **Safety Invariants Maintained:** Public checkout strictly disabled (`BILLING_CHECKOUT_ENABLED=false`), Production PayPal untouched (`PAYPAL_PRODUCTION_READY = NO`), zero new payments, zero duplicate refunds.
@@ -19,7 +19,7 @@
 
 - **Workstream Verdict:** `PAYPAL_LEGACY_REFUND_CORRELATION_FIX_READY_FOR_PR` (`BRANCH_READY_FOR_REVIEW`, `PAYPAL_PRODUCTION_READY = NO`).
 - **Branch:** `fix/paypal-legacy-refund-correlation` (Target: `main`, Base Main SHA: `55087d29f8840fcdcda38712eddca9ae77614736`).
-- **Blocker Root Cause:** In live Sandbox QA, authentic full refund of sale `0B9419070U158972P` emitted genuine PayPal event `WH-39D23786BJ747394G-6NV67311UF312770M` (`PAYMENT.SALE.REFUNDED`). The resource payload only provides `sale_id`, lacking `billing_agreement_id`. Because legacy pre-PR #299 state lacked `last_entitlement_payment_id` and ledger lacked `payment_id`, the event was rejected before reaching Case C ("True Legacy Migration-on-Touch"). Furthermore, the event was marked `rejected` with `unresolved_subscription_correlation`, which the old reclaim logic treated as terminal (`already_recorded`), blocking redelivery.
+- **Blocker Root Cause:** In live Sandbox QA, authentic full refund of sale `[Sandbox refunded sale]` emitted genuine PayPal event `[genuine Sandbox refund event]` (`PAYMENT.SALE.REFUNDED`). The resource payload only provides `sale_id`, lacking `billing_agreement_id`. Because legacy pre-PR #299 state lacked `last_entitlement_payment_id` and ledger lacked `payment_id`, the event was rejected before reaching Case C ("True Legacy Migration-on-Touch"). Furthermore, the event was marked `rejected` with `unresolved_subscription_correlation`, which the old reclaim logic treated as terminal (`already_recorded`), blocking redelivery.
 - **Scope & Accomplishments:**
   1. **Provider Sale Query Helper (`fetchSaleDetails`):**
      - Queries provider `GET /v1/payments/sale/{paymentId}` using configured PayPal environment credentials.
@@ -84,7 +84,7 @@
 - **Workstream Verdict:** `COUPONS_SCHEMA_PREDEPLOY_HARDENING_READY_FOR_REVIEW` (`BRANCH_READY_FOR_REVIEW`, `PAYPAL_PRODUCTION_READY = NO`).
 - **Branch:** `fix/coupon-schema-readiness` (Target: `main`, Base Main SHA: `2341c263a1570f94dbafd80e9e3c901b87d366eb`).
 - **Runtime Deployment State:**
-  - `paypal-webhook`: `DEPLOYED_SANDBOX` (run `34110889444`, deployment `6a9e90018dfcbf3f35a4`).
+  - `paypal-webhook`: `DEPLOYED_SANDBOX` (run `34110889444`, deployment `[previous deployment]`).
   - PayPal Schema: `READY` in Appwrite.
   - `paypal-webhook` Smoke: `PASS_FAIL_CLOSED` (HTTP 400).
   - `coupons`: `PENDING_TARGETED_DEPLOYMENT`.

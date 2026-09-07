@@ -1,11 +1,12 @@
 'use strict';
 
 /**
- * Validates non-mutating PayPal bootstrap configuration for Stage A deployment.
+ * Validates non-mutating PayPal bootstrap configuration for deployment.
+ * Supports exactly 'sandbox' and 'production'. Rejects any aliases (test, live, prod, etc.).
  * Makes zero network/Appwrite/PayPal calls, mutates nothing, and logs no secret values.
  *
  * @param {Record<string, string | undefined>} [env=process.env]
- * @returns {{ ok: true, environment: 'sandbox', hasWebhookId: boolean }}
+ * @returns {{ ok: true, environment: 'sandbox' | 'production', hasWebhookId: boolean }}
  * @throws {Error} If required bootstrap configuration is missing or invalid.
  */
 function validatePaypalBootstrapEnv(env = process.env) {
@@ -14,8 +15,8 @@ function validatePaypalBootstrapEnv(env = process.env) {
   const rawEnv = String(env.PAYPAL_ACCESS_ENVIRONMENT || '').trim().toLowerCase();
   if (!rawEnv) {
     missing.push('PAYPAL_ACCESS_ENVIRONMENT');
-  } else if (rawEnv !== 'sandbox') {
-    throw new Error(`PAYPAL_ACCESS_ENVIRONMENT must be 'sandbox' for PayPal Sandbox bootstrap (got '${rawEnv}')`);
+  } else if (rawEnv !== 'sandbox' && rawEnv !== 'production') {
+    throw new Error(`PAYPAL_ACCESS_ENVIRONMENT must be 'sandbox' or 'production' (got '${rawEnv}')`);
   }
 
   const clientId = String(env.PAYPAL_CLIENT_ID || '').trim();
@@ -28,19 +29,22 @@ function validatePaypalBootstrapEnv(env = process.env) {
     missing.push('PAYPAL_CLIENT_SECRET');
   }
 
-  const qaUserId = String(env.BILLING_CHECKOUT_QA_USER_ID || '').trim();
-  if (!qaUserId) {
-    missing.push('BILLING_CHECKOUT_QA_USER_ID');
+  if (rawEnv === 'sandbox') {
+    const qaUserId = String(env.BILLING_CHECKOUT_QA_USER_ID || '').trim();
+    if (!qaUserId) {
+      missing.push('BILLING_CHECKOUT_QA_USER_ID');
+    }
   }
 
   if (missing.length > 0) {
-    throw new Error(`Missing required PayPal Sandbox bootstrap configuration: ${missing.join(', ')}`);
+    const envLabel = rawEnv === 'production' ? 'Production' : 'Sandbox';
+    throw new Error(`Missing required PayPal ${envLabel} bootstrap configuration: ${missing.join(', ')}`);
   }
 
   const webhookId = String(env.PAYPAL_WEBHOOK_ID || '').trim();
   return {
     ok: true,
-    environment: 'sandbox',
+    environment: rawEnv,
     hasWebhookId: Boolean(webhookId),
   };
 }
@@ -48,7 +52,8 @@ function validatePaypalBootstrapEnv(env = process.env) {
 function main() {
   const result = validatePaypalBootstrapEnv(process.env);
   const mode = result.hasWebhookId ? 'Stage B (webhook activation)' : 'Stage A (initial bootstrap)';
-  console.log(`[validate-paypal-bootstrap] PayPal Sandbox bootstrap preflight validated (${mode}). Zero remote mutations performed.`);
+  const envLabel = result.environment === 'production' ? 'Production' : 'Sandbox';
+  console.log(`[validate-paypal-bootstrap] PayPal ${envLabel} bootstrap preflight validated (${mode}). Zero remote mutations performed.`);
 }
 
 if (require.main === module) {

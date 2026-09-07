@@ -22,10 +22,10 @@ test('deploy-appwrite-hubs workflow exposes Sandbox and Production billing varia
     /BILLING_PRODUCTION_PADDLE_API_KEY:\s*\$\{\{\s*secrets\.BILLING_PRODUCTION_PADDLE_API_KEY\s*\}\}/,
     'Workflow must expose BILLING_PRODUCTION_PADDLE_API_KEY from secrets',
   );
-  assert.match(workflow, /BILLING_PRODUCTION_PRO_PRICE_ID:\s*pri_01m192gqtw1cxrkctafjcahmfe/);
-  assert.match(workflow, /BILLING_PRODUCTION_PRO_PRODUCT_ID:\s*pro_01m1924dqce7nd69khnakxftzw/);
-  assert.match(workflow, /BILLING_PRODUCTION_PREMIUM_PRICE_ID:\s*pri_01m192m6bwzvarmcr05c78by7r/);
-  assert.match(workflow, /BILLING_PRODUCTION_PREMIUM_PRODUCT_ID:\s*pro_01m192jr9nzd6k5ysa6yhk5aq7/);
+  assert.match(workflow, /BILLING_PRODUCTION_PRO_PRICE_ID:.*pri_01m192gqtw1cxrkctafjcahmfe/);
+  assert.match(workflow, /BILLING_PRODUCTION_PRO_PRODUCT_ID:.*pro_01m1924dqce7nd69khnakxftzw/);
+  assert.match(workflow, /BILLING_PRODUCTION_PREMIUM_PRICE_ID:.*pri_01m192m6bwzvarmcr05c78by7r/);
+  assert.match(workflow, /BILLING_PRODUCTION_PREMIUM_PRODUCT_ID:.*pro_01m192jr9nzd6k5ysa6yhk5aq7/);
   assert.match(workflow, /BILLING_SANDBOX_PRO_PRICE_ID:\s*P-62G07996SG1490118NKN6I3Q/);
   assert.match(workflow, /BILLING_SANDBOX_PRO_PRODUCT_ID:\s*PROD-1XU04121YA801240V/);
   assert.match(workflow, /BILLING_SANDBOX_PREMIUM_PRICE_ID:\s*P-56D04005HN592501XNKN6I3Q/);
@@ -171,24 +171,17 @@ test('deploy_hubs.cjs ensureNonSecretCatalogVariable secret path uses delete and
   assert.match(script, /BILLING_CHECKOUT_ENVIRONMENT/);
 });
 
-test('deploy-appwrite-hubs workflow exposes PayPal Sandbox variables to deployment step', () => {
+test('deploy-appwrite-hubs workflow exposes explicit paypal_environment input and credential slots to deployment step', () => {
   const workflow = read('.github/workflows/deploy-appwrite-hubs.yml');
-  assert.match(workflow, /PAYPAL_ACCESS_ENVIRONMENT:\s*sandbox/);
-  assert.match(
-    workflow,
-    /PAYPAL_CLIENT_ID:\s*\$\{\{\s*secrets\.PAYPAL_SANDBOX_CLIENT_ID\s*\}\}/,
-    'Workflow must map PAYPAL_CLIENT_ID from secrets.PAYPAL_SANDBOX_CLIENT_ID',
-  );
-  assert.match(
-    workflow,
-    /PAYPAL_CLIENT_SECRET:\s*\$\{\{\s*secrets\.PAYPAL_SANDBOX_CLIENT_SECRET\s*\}\}/,
-    'Workflow must map PAYPAL_CLIENT_SECRET from secrets.PAYPAL_SANDBOX_CLIENT_SECRET',
-  );
-  assert.match(
-    workflow,
-    /PAYPAL_WEBHOOK_ID:\s*\$\{\{\s*secrets\.PAYPAL_SANDBOX_WEBHOOK_ID\s*\|\|\s*vars\.PAYPAL_SANDBOX_WEBHOOK_ID\s*\}\}/,
-    'Workflow must map PAYPAL_WEBHOOK_ID from secrets/vars PAYPAL_SANDBOX_WEBHOOK_ID',
-  );
+  assert.match(workflow, /paypal_environment:\s*\n\s*description:\s*'Explicit PayPal deployment environment: sandbox or production'/);
+  assert.match(workflow, /default:\s*'sandbox'/);
+  assert.match(workflow, /PAYPAL_ACCESS_ENVIRONMENT:\s*\$\{\{\s*inputs\.paypal_environment\s*\|\|\s*'sandbox'\s*\}\}/);
+  assert.match(workflow, /secrets\.PAYPAL_SANDBOX_CLIENT_ID/);
+  assert.match(workflow, /secrets\.PAYPAL_PRODUCTION_CLIENT_ID/);
+  assert.match(workflow, /secrets\.PAYPAL_SANDBOX_CLIENT_SECRET/);
+  assert.match(workflow, /secrets\.PAYPAL_PRODUCTION_CLIENT_SECRET/);
+  assert.match(workflow, /secrets\.PAYPAL_SANDBOX_WEBHOOK_ID/);
+  assert.match(workflow, /secrets\.PAYPAL_PRODUCTION_WEBHOOK_ID/);
   assert.match(
     workflow,
     /BILLING_CHECKOUT_QA_USER_ID:\s*\$\{\{\s*secrets\.BILLING_CHECKOUT_QA_USER_ID\s*\|\|\s*vars\.BILLING_CHECKOUT_QA_USER_ID\s*\}\}/,
@@ -261,28 +254,19 @@ test('preflight: empty PAYPAL_ACCESS_ENVIRONMENT fails closed', () => {
   );
 });
 
-test('preflight: production PAYPAL_ACCESS_ENVIRONMENT is strictly rejected', () => {
-  assert.throws(
-    () => validatePaypalBootstrapEnv({
-      PAYPAL_ACCESS_ENVIRONMENT: 'production',
-      PAYPAL_CLIENT_ID: 'client_id',
-      PAYPAL_CLIENT_SECRET: 'secret',
-      BILLING_CHECKOUT_QA_USER_ID: 'qa_user',
-    }),
-    /PAYPAL_ACCESS_ENVIRONMENT must be 'sandbox'/,
-  );
-});
 
 test('preflight: invalid PAYPAL_ACCESS_ENVIRONMENT value is strictly rejected', () => {
-  assert.throws(
-    () => validatePaypalBootstrapEnv({
-      PAYPAL_ACCESS_ENVIRONMENT: 'staging',
-      PAYPAL_CLIENT_ID: 'client_id',
-      PAYPAL_CLIENT_SECRET: 'secret',
-      BILLING_CHECKOUT_QA_USER_ID: 'qa_user',
-    }),
-    /PAYPAL_ACCESS_ENVIRONMENT must be 'sandbox' for PayPal Sandbox bootstrap \(got 'staging'\)/,
-  );
+  for (const invalid of ['staging', 'live', 'prod', 'test', 'unknown']) {
+    assert.throws(
+      () => validatePaypalBootstrapEnv({
+        PAYPAL_ACCESS_ENVIRONMENT: invalid,
+        PAYPAL_CLIENT_ID: 'client_id',
+        PAYPAL_CLIENT_SECRET: 'secret',
+        BILLING_CHECKOUT_QA_USER_ID: 'qa_user',
+      }),
+      new RegExp(`PAYPAL_ACCESS_ENVIRONMENT must be 'sandbox' or 'production' \\(got '${invalid}'\\)`),
+    );
+  }
 });
 
 test('preflight: valid Stage A config with missing PAYPAL_WEBHOOK_ID passes preflight', () => {
@@ -311,6 +295,42 @@ test('preflight: valid Stage B config with PAYPAL_WEBHOOK_ID passes preflight', 
   assert.equal(result.hasWebhookId, true);
 });
 
+test('preflight: sandbox requires BILLING_CHECKOUT_QA_USER_ID and fails without it', () => {
+  assert.throws(
+    () => validatePaypalBootstrapEnv({
+      PAYPAL_ACCESS_ENVIRONMENT: 'sandbox',
+      PAYPAL_CLIENT_ID: 'client_id',
+      PAYPAL_CLIENT_SECRET: 'secret',
+      BILLING_CHECKOUT_QA_USER_ID: '',
+    }),
+    /Missing required PayPal Sandbox bootstrap configuration: BILLING_CHECKOUT_QA_USER_ID/,
+  );
+});
+
+test('preflight: production with credentials passes preflight even without QA user', () => {
+  const result = validatePaypalBootstrapEnv({
+    PAYPAL_ACCESS_ENVIRONMENT: 'production',
+    PAYPAL_CLIENT_ID: 'prod_client_id',
+    PAYPAL_CLIENT_SECRET: 'prod_secret',
+    BILLING_CHECKOUT_QA_USER_ID: '',
+    PAYPAL_WEBHOOK_ID: 'WH-PROD-99999',
+  });
+  assert.equal(result.ok, true);
+  assert.equal(result.environment, 'production');
+  assert.equal(result.hasWebhookId, true);
+});
+
+test('preflight: production without credentials fails preflight with missing list', () => {
+  assert.throws(
+    () => validatePaypalBootstrapEnv({
+      PAYPAL_ACCESS_ENVIRONMENT: 'production',
+      PAYPAL_CLIENT_ID: '',
+      PAYPAL_CLIENT_SECRET: '',
+    }),
+    /Missing required PayPal Production bootstrap configuration: PAYPAL_CLIENT_ID, PAYPAL_CLIENT_SECRET/,
+  );
+});
+
 test('anti-downgrade: existing webhook ID is preserved and never cleared when incoming ID is missing', () => {
   const script = read('scripts/deploy_hubs.cjs');
   assert.match(script, /Anti-downgrade rule/);
@@ -324,11 +344,12 @@ test('anti-downgrade: existing webhook ID is preserved and never cleared when in
 
 test('workflow ordering: bootstrap validation runs strictly before PayPal schema setup', () => {
   const workflow = read('.github/workflows/deploy-appwrite-hubs.yml');
-  const validateIdx = workflow.indexOf('Validate PayPal Sandbox bootstrap configuration');
+  const validateMatch = workflow.match(/Validate PayPal (Sandbox )?bootstrap configuration/);
+  const validateIdx = validateMatch ? validateMatch.index : -1;
   const schemaIdx = workflow.indexOf('Ensure PayPal subscription schema');
   const deployIdx = workflow.indexOf('Deploy explicitly selected Appwrite hubs');
 
-  assert.ok(validateIdx > 0, 'Workflow must contain Validate PayPal Sandbox bootstrap configuration step');
+  assert.ok(validateIdx > 0, 'Workflow must contain Validate PayPal bootstrap configuration step');
   assert.ok(schemaIdx > 0, 'Workflow must contain Ensure PayPal subscription schema step');
   assert.ok(deployIdx > 0, 'Workflow must contain Deploy explicitly selected Appwrite hubs step');
 
@@ -384,19 +405,25 @@ test('deploy-appwrite-hubs workflow exposes checkout availability variables for 
   );
 });
 
-test('PayPal catalog IDs are synchronized strictly within provider === paypal path', () => {
+test('PayPal catalog IDs are synchronized strictly within provider === paypal path and to paypal-webhook', () => {
   const script = read('scripts/deploy_hubs.cjs');
   const paypalProviderIdx = script.indexOf("if (provider === 'paypal')");
   const paddleProviderIdx = script.indexOf("} else if (provider === 'paddle')");
-  const catalogLoopIdx = script.indexOf("['BILLING_SANDBOX_PRO_PRICE_ID', process.env.BILLING_SANDBOX_PRO_PRICE_ID");
+  const billingCheckoutCatalogLoopIdx = script.lastIndexOf("['BILLING_SANDBOX_PRO_PRICE_ID', process.env.BILLING_SANDBOX_PRO_PRICE_ID");
 
   assert.ok(paypalProviderIdx > 0, 'Must have provider === paypal block');
   assert.ok(paddleProviderIdx > 0, 'Must have provider === paddle block');
-  assert.ok(catalogLoopIdx > 0, 'Must have PayPal catalog loop');
+  assert.ok(billingCheckoutCatalogLoopIdx > 0, 'Must have PayPal catalog loop in billing-checkout');
 
   assert.ok(
-    catalogLoopIdx > paypalProviderIdx && catalogLoopIdx < paddleProviderIdx,
+    billingCheckoutCatalogLoopIdx > paypalProviderIdx && billingCheckoutCatalogLoopIdx < paddleProviderIdx,
     'PayPal catalog loop must be located strictly inside if (provider === paypal) block before paddle block',
+  );
+
+  assert.match(
+    script,
+    /ensureNonSecretCatalogVariable\('paypal-webhook', key, value\)/,
+    'deploy_hubs.cjs must synchronize catalog IDs to paypal-webhook',
   );
 });
 

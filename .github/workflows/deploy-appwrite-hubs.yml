@@ -6,6 +6,14 @@ on:
       target:
         description: 'Required comma-separated hub ids; broad/all deployment is intentionally disabled'
         required: true
+      paypal_environment:
+        description: 'Explicit PayPal deployment environment: sandbox or production'
+        required: false
+        default: 'sandbox'
+        type: choice
+        options:
+          - sandbox
+          - production
 
 permissions:
   contents: read
@@ -69,13 +77,13 @@ jobs:
           APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
         run: node scripts/setup_revenuecat_schema.cjs
 
-      - name: Validate PayPal Sandbox bootstrap configuration
+      - name: Validate PayPal bootstrap configuration
         if: ${{ contains(fromJSON(steps.targets.outputs.targets_json), 'paypal-webhook') }}
         env:
-          PAYPAL_ACCESS_ENVIRONMENT: sandbox
-          PAYPAL_CLIENT_ID: ${{ secrets.PAYPAL_SANDBOX_CLIENT_ID }}
-          PAYPAL_CLIENT_SECRET: ${{ secrets.PAYPAL_SANDBOX_CLIENT_SECRET }}
-          PAYPAL_WEBHOOK_ID: ${{ secrets.PAYPAL_SANDBOX_WEBHOOK_ID || vars.PAYPAL_SANDBOX_WEBHOOK_ID }}
+          PAYPAL_ACCESS_ENVIRONMENT: ${{ inputs.paypal_environment || 'sandbox' }}
+          PAYPAL_CLIENT_ID: ${{ (inputs.paypal_environment == 'production') && secrets.PAYPAL_PRODUCTION_CLIENT_ID || secrets.PAYPAL_SANDBOX_CLIENT_ID }}
+          PAYPAL_CLIENT_SECRET: ${{ (inputs.paypal_environment == 'production') && secrets.PAYPAL_PRODUCTION_CLIENT_SECRET || secrets.PAYPAL_SANDBOX_CLIENT_SECRET }}
+          PAYPAL_WEBHOOK_ID: ${{ (inputs.paypal_environment == 'production') && (secrets.PAYPAL_PRODUCTION_WEBHOOK_ID || vars.PAYPAL_PRODUCTION_WEBHOOK_ID) || (secrets.PAYPAL_SANDBOX_WEBHOOK_ID || vars.PAYPAL_SANDBOX_WEBHOOK_ID) }}
           BILLING_CHECKOUT_QA_USER_ID: ${{ secrets.BILLING_CHECKOUT_QA_USER_ID || vars.BILLING_CHECKOUT_QA_USER_ID }}
         run: node scripts/validate_paypal_bootstrap.cjs
 
@@ -174,14 +182,15 @@ jobs:
           REVENUECAT_WEBHOOK_AUTH_SECRET: ${{ secrets.REVENUECAT_WEBHOOK_AUTH_SECRET }}
           BILLING_SANDBOX_PADDLE_API_KEY: ${{ secrets.BILLING_SANDBOX_PADDLE_API_KEY }}
           BILLING_PRODUCTION_PADDLE_API_KEY: ${{ secrets.BILLING_PRODUCTION_PADDLE_API_KEY }}
-          BILLING_PRODUCTION_PRO_PRICE_ID: pri_01m192gqtw1cxrkctafjcahmfe
-          BILLING_PRODUCTION_PRO_PRODUCT_ID: pro_01m1924dqce7nd69khnakxftzw
-          BILLING_PRODUCTION_PREMIUM_PRICE_ID: pri_01m192m6bwzvarmcr05c78by7r
-          BILLING_PRODUCTION_PREMIUM_PRODUCT_ID: pro_01m192jr9nzd6k5ysa6yhk5aq7
-          PAYPAL_ACCESS_ENVIRONMENT: sandbox
-          PAYPAL_CLIENT_ID: ${{ secrets.PAYPAL_SANDBOX_CLIENT_ID }}
-          PAYPAL_CLIENT_SECRET: ${{ secrets.PAYPAL_SANDBOX_CLIENT_SECRET }}
-          PAYPAL_WEBHOOK_ID: ${{ secrets.PAYPAL_SANDBOX_WEBHOOK_ID || vars.PAYPAL_SANDBOX_WEBHOOK_ID }}
+          BILLING_PRODUCTION_PRO_PRICE_ID: ${{ (inputs.paypal_environment == 'production') && (secrets.BILLING_PRODUCTION_PRO_PRICE_ID || vars.BILLING_PRODUCTION_PRO_PRICE_ID) || 'pri_01m192gqtw1cxrkctafjcahmfe' }}
+          BILLING_PRODUCTION_PRO_PRODUCT_ID: ${{ (inputs.paypal_environment == 'production') && (secrets.BILLING_PRODUCTION_PRO_PRODUCT_ID || vars.BILLING_PRODUCTION_PRO_PRODUCT_ID) || 'pro_01m1924dqce7nd69khnakxftzw' }}
+          BILLING_PRODUCTION_PREMIUM_PRICE_ID: ${{ (inputs.paypal_environment == 'production') && (secrets.BILLING_PRODUCTION_PREMIUM_PRICE_ID || vars.BILLING_PRODUCTION_PREMIUM_PRICE_ID) || 'pri_01m192m6bwzvarmcr05c78by7r' }}
+          BILLING_PRODUCTION_PREMIUM_PRODUCT_ID: ${{ (inputs.paypal_environment == 'production') && (secrets.BILLING_PRODUCTION_PREMIUM_PRODUCT_ID || vars.BILLING_PRODUCTION_PREMIUM_PRODUCT_ID) || 'pro_01m192jr9nzd6k5ysa6yhk5aq7' }}
+          PAYPAL_ACCESS_ENVIRONMENT: ${{ inputs.paypal_environment || 'sandbox' }}
+          BILLING_CHECKOUT_ENVIRONMENT: ${{ inputs.paypal_environment || 'sandbox' }}
+          PAYPAL_CLIENT_ID: ${{ (inputs.paypal_environment == 'production') && secrets.PAYPAL_PRODUCTION_CLIENT_ID || secrets.PAYPAL_SANDBOX_CLIENT_ID }}
+          PAYPAL_CLIENT_SECRET: ${{ (inputs.paypal_environment == 'production') && secrets.PAYPAL_PRODUCTION_CLIENT_SECRET || secrets.PAYPAL_SANDBOX_CLIENT_SECRET }}
+          PAYPAL_WEBHOOK_ID: ${{ (inputs.paypal_environment == 'production') && (secrets.PAYPAL_PRODUCTION_WEBHOOK_ID || vars.PAYPAL_PRODUCTION_WEBHOOK_ID) || (secrets.PAYPAL_SANDBOX_WEBHOOK_ID || vars.PAYPAL_SANDBOX_WEBHOOK_ID) }}
           BILLING_CHECKOUT_QA_USER_ID: ${{ secrets.BILLING_CHECKOUT_QA_USER_ID || vars.BILLING_CHECKOUT_QA_USER_ID }}
           BILLING_CHECKOUT_ENABLED: ${{ secrets.BILLING_CHECKOUT_ENABLED || vars.BILLING_CHECKOUT_ENABLED || 'false' }}
           BILLING_CHECKOUT_PROVIDER: ${{ secrets.BILLING_CHECKOUT_PROVIDER || vars.BILLING_CHECKOUT_PROVIDER || 'paypal' }}

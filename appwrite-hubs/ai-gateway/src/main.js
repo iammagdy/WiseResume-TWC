@@ -5241,4 +5241,5 @@ module.exports.__test = {
   checkPortfolioDailyCap,
   releaseCounterSlot,
   getEffectivePlan,
+  PLAN_DAILY_LIMITS,
 };
