@@ -1,12 +1,50 @@
 # Project Atlas — Active Operational & Handover State
 
 **Last Verified:** 2026-09-07
-**Status:** `PAYPAL_LEGACY_REFUND_CORRELATION_FIX_READY_FOR_PR` (Frontend: `DEPLOYED_TO_PRODUCTION` via Vercel, Backend: `paypal-webhook`: `DEPLOYED_SANDBOX` [run 34110889444], `coupons`: `DEPLOYED_OR_READY`, PayPal Schema: `READY`, Sandbox Refund Blocker: `FIXED_LOCALLY_PASSING_ALL_TESTS` [branch `fix/paypal-legacy-refund-correlation`], PayPal Webhook Smoke: `PASS_FAIL_CLOSED`, Authentic Refund Event: `WH-39D23786BJ747394G-6NV67311UF312770M` [awaiting redelivery after targeted deploy], Production PayPal: `UNTOUCHED`, `PAYPAL_PRODUCTION_READY = NO`, Base Main SHA: `55087d29f8840fcdcda38712eddca9ae77614736`, Billing: `CHECKOUT_PREVIOUSLY_VERIFIED_DISABLED`) — Diagnosed and resolved the authentic PayPal Sandbox refund correlation blocker: genuine PayPal `PAYMENT.SALE.REFUNDED` webhook events only provide `sale_id` (not `billing_agreement_id`). Because legacy pre-PR #299 state lacked `last_entitlement_payment_id` and ledger lacked `payment_id`, the event was rejected before reaching "True Legacy Migration-on-Touch". Furthermore, the event was marked `rejected` with `unresolved_subscription_correlation`, which the old reclaim logic treated as terminal (`already_recorded`), blocking redelivery. Implemented: (1) `fetchSaleDetails(paymentId)` querying provider `GET /v1/payments/sale/{paymentId}` to resolve `billing_agreement_id` (I-...) and validate identity; (2) Step 3 provider Sale fallback in correlation order for `PAYMENT.SALE.REFUNDED` and `PAYMENT.SALE.REVERSED`; (3) Strict `customId` conflict check; (4) Narrowed rejected-event reclaim in `reclaimLedgerReservation` and `processWebhookEvent` for `unresolved_subscription_correlation` on refund/reversal events; (5) 15 new comprehensive tests (149/149 in `paypal-webhook.test.cjs`, 399/399 across all hubs); (6) Updated source hashes. Ready for PR, merge, targeted deploy, and one provider redelivery.
+**Status:** `SANDBOX_PAYMENT_CORE_VERIFIED_READY_FOR_PRODUCTION_ACTIVATION` (Frontend: `DEPLOYED_TO_PRODUCTION` via Vercel, Backend: `paypal-webhook`: `DEPLOYED_SANDBOX` [deployment `6a9ea51d2ecf33ade11a`, run `34118592362`], `coupons`: `DEPLOYED_OR_READY`, PayPal Schema: `READY`, Sandbox Refund: `VERIFIED_LIVE_REDELIVERY_OPTION_B_REVOKED`, Authentic Refund Event: `WH-39D23786BJ747394G-6NV67311UF312770M` [reclaimed and settled], Production PayPal: `UNTOUCHED`, `PAYPAL_PRODUCTION_READY = NO`, Base Main SHA: `9c27773f4bc7c69d42a53cb25d83e6a0a471b316`, Billing: `CHECKOUT_PREVIOUSLY_VERIFIED_DISABLED`) — Core PayPal Sandbox payment lifecycle is fully verified end-to-end: Subscription checkout (Pro & Ultimate), activation, sale payments, customer cancellation (paid-through preserved), full refund revocation (Option B immediate access revocation to Free, future renewal cancelled), authentic webhook signature verification, Step 3 provider Sale fallback correlation, rejected-event redelivery reclaim, and live authenticated browser UI QA with persistence across reloads and navigation. Production PayPal remains untouched; public checkout remains safely fail-closed.
 **Location:** `Project Atlas/WHERE_WE_STOPPED.md`
 
-## Current Active Handover — PayPal Legacy Refund Correlation Fix & Redelivery Reclaim (2026-09-07)
+## Current Active Handover — PayPal Sandbox Payment Core Final Verification & Closeout (2026-09-07)
 
-* **Workstream:** `PAYPAL_LEGACY_REFUND_CORRELATION_FIX_READY_FOR_PR` (`BRANCH_READY_FOR_REVIEW`, `PAYPAL_PRODUCTION_READY = NO`).
+* **Workstream Verdict:** `SANDBOX_PAYMENT_CORE_VERIFIED_READY_FOR_PRODUCTION_ACTIVATION` (`PAYPAL_PRODUCTION_READY = NO`).
+* **Authoritative Commit:** `9c27773f4bc7c69d42a53cb25d83e6a0a471b316` (`main`).
+* **Runtime Deployment Context:**
+  - `paypal-webhook`: **DEPLOYED_SANDBOX** via workflow `deploy-appwrite-hubs.yml` run `34118592362` (Deployment ID: `6a9ea51d2ecf33ade11a`, status: `ready`).
+  - PayPal Schema: **READY** in Appwrite (`paypal_subscription_state` and `paypal_event_ledger` reconciled).
+  - Webhook Smoke: **PASS_FAIL_CLOSED** (`https://paypal-webhook.wiseresume.app` returned HTTP 400 on unauthenticated payload).
+  - Genuine Sandbox Refund Sale: `0B9419070U158972P` (refunded $10.00 USD, Refund ID `1H603208GJ834104W`, live PayPal state: `refunded`).
+  - Authentic Webhook Event: `WH-39D23786BJ747394G-6NV67311UF312770M` (`PAYMENT.SALE.REFUNDED`, 2026-09-07T11:14:08.457Z).
+  - Production PayPal: **UNTOUCHED** (`PAYPAL_PRODUCTION_READY = NO`).
+  - Public Checkout: **CHECKOUT_PREVIOUSLY_VERIFIED_DISABLED** (`BILLING_CHECKOUT_ENABLED=false`).
+* **Runtime Verification Evidence:**
+  1. **Genuine Event Redelivery:** Requested single provider redelivery via `POST /v1/notifications/webhooks-events/WH-39D23786BJ747394G-6NV67311UF312770M/resend` -> HTTP 202 Accepted.
+  2. **Rejected Ledger Record Reclaimed:** Ingestion logic reclaimed previous `rejected` ledger reservation, resolving subscription `I-58K84FGAFFHL` via Step 3 provider Sale fallback (`fetchSaleDetails`).
+  3. **Case C Migration-on-Touch:** Authoritative Transactions API query resolved `last_entitlement_payment_id` and populated state identity.
+  4. **Option B Full Refund Revocation:** Revoked paid access immediately, set `expires_at = null`, initiated provider cancellation (settled with `status = "canceled"`, `will_renew = false`, `renewal_cancellation_pending = false`).
+  5. **Live Entitlement State (Coupons `get-subscription`):**
+     - `plan: "free"`
+     - `effective_plan: "free"`
+     - `status: "canceled"`
+     - `expires_at: null`
+     - `provider_status: "canceled"`
+     - `can_cancel_subscription: false`
+     - `will_renew: false`
+  6. **Live Authenticated Browser UI QA:**
+     - Headless Playwright automation executed on `https://wiseresume.app/subscription` for QA user `qa_pp_afbf725e`.
+     - Verified Free tier UI: "Current Plan: Free", "Usage: 0 / 1 Resumes", "AI Credits: 0 / 5", Free badge in sidebar, and disabled checkout notice.
+     - Persistence verified across full browser reload and navigation (`/dashboard` -> `/subscription`). Visual evidence captured in `live_subscription_page_1.png` and `live_subscription_page_reloaded.png`.
+* **Prerequisites for Future Production Activation:**
+  - Production PayPal app credentials configured in Appwrite / GitHub secrets.
+  - Production Pro and Ultimate plans provisioned in PayPal Live portal.
+  - Production webhook registered at `https://paypal-webhook.wiseresume.app`.
+  - Targeted deployment with `PAYPAL_ENVIRONMENT=production`.
+  - Public checkout enabled via `BILLING_CHECKOUT_ENABLED=true`.
+
+---
+
+## Historical Handover — PayPal Legacy Refund Correlation Fix & Redelivery Reclaim (2026-09-07)
+
+* **Workstream:** `PAYPAL_LEGACY_REFUND_CORRELATION_FIX_READY_FOR_PR` (`MERGED` [PR #309 at `9c27773f`], `PAYPAL_PRODUCTION_READY = NO`).
 * **Active Branch:** `fix/paypal-legacy-refund-correlation` (Target: `main`, Base Main SHA: `55087d29f8840fcdcda38712eddca9ae77614736`).
 * **Runtime Deployment Context:**
   - `paypal-webhook`: **DEPLOYED_SANDBOX** via workflow `deploy-appwrite-hubs.yml` run `34110889444` (pending targeted redeployment of `paypal-webhook` with this fix).

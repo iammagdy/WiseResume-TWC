@@ -1,5 +1,20 @@
 # WiseResume Atlas Master Changelog
 
+### 2026-09-07 - PayPal Sandbox Payment Core Final Verification & Closeout (`main` @ `9c27773f`)
+
+- **Workstream Verdict:** `SANDBOX_PAYMENT_CORE_VERIFIED_READY_FOR_PRODUCTION_ACTIVATION` (`PAYPAL_PRODUCTION_READY = NO`).
+- **PR & Commit:** Merged PR #309 into `main` at `9c27773f4bc7c69d42a53cb25d83e6a0a471b316`.
+- **Targeted Deployment:** Dispatched `deploy-appwrite-hubs.yml` with `target=paypal-webhook` (Run `34118592362`). Successfully deployed Appwrite Function `paypal-webhook` (Deployment ID `6a9ea51d2ecf33ade11a`, status `ready`). Live endpoint smoke check passed with HTTP 400 (fail-closed pass).
+- **Genuine Provider Redelivery & Entitlement Verification:**
+  1. Triggered single authentic PayPal Sandbox redelivery of event `WH-39D23786BJ747394G-6NV67311UF312770M` (`PAYMENT.SALE.REFUNDED`) via `POST /v1/notifications/webhooks-events/.../resend` -> HTTP 202 Accepted.
+  2. Webhook reclaimed the previously rejected ledger reservation, resolved subscription `I-58K84FGAFFHL` via Step 3 provider Sale fallback (`fetchSaleDetails`), performed Case C ("True Legacy Migration-on-Touch"), populated payment identity, and executed Option B full refund revocation.
+  3. `coupons` `get-subscription` function verified live entitlement state: `plan: "free"`, `effective_plan: "free"`, `status: "canceled"`, `expires_at: null`, `provider_status: "canceled"`, `can_cancel_subscription: false`, `will_renew: false`.
+- **Live Authenticated Browser QA & Persistence:**
+  1. Playwright browser QA executed against live `https://wiseresume.app/subscription` under authenticated QA user `qa_pp_afbf725e`.
+  2. Free tier rendering verified: "Current Plan: Free", "Usage: 0 / 1 Resumes", "AI Credits: 0 / 5", Free sidebar badge, and disabled public checkout message ("Subscription enrollments are currently closed.").
+  3. Persistence verified across full page reload and navigation (`/dashboard` -> `/subscription`). Screenshots captured: `live_subscription_page_1.png` and `live_subscription_page_reloaded.png`.
+- **Safety Invariants Maintained:** Public checkout strictly disabled (`BILLING_CHECKOUT_ENABLED=false`), Production PayPal untouched (`PAYPAL_PRODUCTION_READY = NO`), zero new payments, zero duplicate refunds.
+
 ### 2026-09-07 - PayPal Legacy Refund Correlation Fix & Redelivery Reclaim (`fix/paypal-legacy-refund-correlation`)
 
 - **Workstream Verdict:** `PAYPAL_LEGACY_REFUND_CORRELATION_FIX_READY_FOR_PR` (`BRANCH_READY_FOR_REVIEW`, `PAYPAL_PRODUCTION_READY = NO`).
