@@ -304,6 +304,11 @@ test('proven live schema legacy contracts are accepted and unrelated attributes 
   const activeSpec = setupModule.COLLECTION_SPECS.find(s => s.id === 'discount_codes')
     .attributes.find(a => a.key === 'active');
 
+  const percentOffSpec = setupModule.COLLECTION_SPECS.find(s => s.id === 'discount_codes')
+    .attributes.find(a => a.key === 'percent_off');
+  const statusSpec = setupModule.COLLECTION_SPECS.find(s => s.id === 'coupon_redemptions')
+    .attributes.find(a => a.key === 'status');
+
   // 1. discount_codes.code: size=64 required=true PASS
   assert.equal(
     setupModule.attributeCompatibilityError({ key: 'code', type: 'string', size: 64, required: true }, codeSpec, 'discount_codes'),
@@ -364,13 +369,49 @@ test('proven live schema legacy contracts are accepted and unrelated attributes 
     /type integer \(expected string\)/
   );
 
-  // 11. unrelated attribute required mismatch FAIL
+  // 11. discount_codes.active: proven live state (required=false, default=null) PASS
+  assert.equal(
+    setupModule.attributeCompatibilityError({ key: 'active', type: 'boolean', required: false, default: null }, activeSpec, 'discount_codes'),
+    null
+  );
+
+  // 12. discount_codes.active: spec ideal (required=true, default=true) PASS
+  assert.equal(
+    setupModule.attributeCompatibilityError({ key: 'active', type: 'boolean', required: true, default: true }, activeSpec, 'discount_codes'),
+    null
+  );
+
+  // 13. discount_codes.active: wrong type FAIL
   assert.match(
-    setupModule.attributeCompatibilityError({ key: 'active', type: 'boolean', required: false, default: true }, activeSpec, 'discount_codes'),
+    setupModule.attributeCompatibilityError({ key: 'active', type: 'string', size: 10, required: false, default: null }, activeSpec, 'discount_codes'),
+    /type string \(expected boolean\)/
+  );
+
+  // 14. discount_codes.percent_off: spec ideal (required=true, default=100) PASS
+  assert.equal(
+    setupModule.attributeCompatibilityError({ key: 'percent_off', type: 'integer', required: true, default: 100 }, percentOffSpec, 'discount_codes'),
+    null
+  );
+
+  // 15. discount_codes.percent_off: legacy state (required=false, default=null) PASS
+  assert.equal(
+    setupModule.attributeCompatibilityError({ key: 'percent_off', type: 'integer', required: false, default: null }, percentOffSpec, 'discount_codes'),
+    null
+  );
+
+  // 16. discount_codes.percent_off: wrong type FAIL
+  assert.match(
+    setupModule.attributeCompatibilityError({ key: 'percent_off', type: 'string', size: 10, required: false, default: null }, percentOffSpec, 'discount_codes'),
+    /type string \(expected integer\)/
+  );
+
+  // 17. non-legacy attribute required mismatch FAIL
+  assert.match(
+    setupModule.attributeCompatibilityError({ key: 'status', type: 'string', size: 32, required: false }, statusSpec, 'coupon_redemptions'),
     /required false \(expected true\)/
   );
 
-  // 12. unrelated attribute size mismatch FAIL
+  // 18. non-legacy attribute size mismatch FAIL
   assert.match(
     setupModule.attributeCompatibilityError({ key: 'discount_type', type: 'string', size: 32, required: false }, discountTypeSpec, 'discount_codes'),
     /size 32 \(expected 16\)/

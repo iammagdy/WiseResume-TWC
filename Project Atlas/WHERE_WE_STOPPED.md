@@ -1,34 +1,36 @@
 # Project Atlas — Active Operational & Handover State
 
 **Last Verified:** 2026-09-07
-**Status:** `COUPON_LIVE_SCHEMA_COMPAT_READY_FOR_REVIEW` (Frontend: `DEPLOYED_TO_PRODUCTION` via Vercel, Backend: `paypal-webhook`: `DEPLOYED_SANDBOX` [run 34110889444], `coupons`: `PENDING_TARGETED_DEPLOYMENT`, PayPal Schema: `READY`, Coupon Schema Compat: `IN_REVIEW` [branch `fix/coupon-live-schema-compat`], PayPal Webhook Smoke: `PASS_FAIL_CLOSED` [HTTP 400], Sandbox refund QA: `NOT_PERFORMED_YET`, Production PayPal: `UNTOUCHED`, `PAYPAL_PRODUCTION_READY = NO`, Base Main SHA: `ac8172fa226d5eadc29163b54edf5511463e6575`, Billing: `CHECKOUT_PREVIOUSLY_VERIFIED_DISABLED`) — Implemented narrow non-destructive legacy schema compatibility in `scripts/setup_discount_codes_schema.cjs` on branch `fix/coupon-live-schema-compat`: accepts proven live `discount_codes.code` size 50 (or 64, required=true) and live `coupon_redemptions.user_id` optional status (`required=false` or `true`, size >= 64). All other fields remain strictly fail-closed. 16/16 coupon schema tests pass. All 384 hub tests pass. Ready for review, merge, and targeted coupons deployment retry.
+**Status:** `COUPON_LIVE_LEGACY_ATTRS_COMPAT_READY_FOR_REVIEW` (Frontend: `DEPLOYED_TO_PRODUCTION` via Vercel, Backend: `paypal-webhook`: `DEPLOYED_SANDBOX` [run 34110889444], `coupons`: `PENDING_TARGETED_DEPLOYMENT`, PayPal Schema: `READY`, Coupon Schema Legacy Compat: `IN_REVIEW` [branch `fix/coupon-live-legacy-attrs`], PayPal Webhook Smoke: `PASS_FAIL_CLOSED` [HTTP 400], Sandbox refund QA: `NOT_PERFORMED_YET`, Production PayPal: `UNTOUCHED`, `PAYPAL_PRODUCTION_READY = NO`, Base Main SHA: `a88007427b47c88def31de60883d18ca85095255`, Billing: `CHECKOUT_PREVIOUSLY_VERIFIED_DISABLED`) — Implemented narrow non-destructive legacy schema compatibility in `scripts/setup_discount_codes_schema.cjs` on branch `fix/coupon-live-legacy-attrs`: accepts proven live optional `discount_codes.active` (`required=false` or `true`, `default=null`, `true`, or `false`) and live optional `discount_codes.percent_off` (`required=false` or `true`, `default=null`, `100`, or integer), alongside proven live `discount_codes.code` size 50 (or 64, required=true) and live `coupon_redemptions.user_id` optional status (`required=false` or `true`, size >= 64). All other non-legacy fields remain strictly fail-closed. 16/16 coupon schema tests pass. All 384 hub tests pass. Ready for review, merge, and targeted coupons deployment retry.
 **Location:** `Project Atlas/WHERE_WE_STOPPED.md`
 
-## Current Active Handover — Coupon Live Schema Compatibility Fix (2026-09-07)
+## Current Active Handover — Coupon Live Legacy Attributes Compatibility Fix (2026-09-07)
 
-* **Workstream:** `COUPON_LIVE_SCHEMA_COMPAT_READY_FOR_REVIEW` (`BRANCH_READY_FOR_REVIEW`, `PAYPAL_PRODUCTION_READY = NO`).
-* **Active Branch:** `fix/coupon-live-schema-compat` (Target: `main`, Base Main SHA: `ac8172fa226d5eadc29163b54edf5511463e6575`).
+* **Workstream:** `COUPON_LIVE_LEGACY_ATTRS_COMPAT_READY_FOR_REVIEW` (`BRANCH_READY_FOR_REVIEW`, `PAYPAL_PRODUCTION_READY = NO`).
+* **Active Branch:** `fix/coupon-live-legacy-attrs` (Target: `main`, Base Main SHA: `a88007427b47c88def31de60883d18ca85095255`).
 * **Runtime Deployment Context:**
   - `paypal-webhook`: **DEPLOYED_SANDBOX** via workflow `deploy-appwrite-hubs.yml` run `34110889444` (status: `READY`, deployment `6a9e90018dfcbf3f35a4`).
   - PayPal Schema: **READY** in Appwrite (`paypal_subscription_state` and `paypal_event_ledger` reconciled).
   - `paypal-webhook` Smoke: **PASS_FAIL_CLOSED** (safe HTTP 400 on unauthenticated payload).
-  - PR #306: **MERGED** into `main` at merge SHA `ac8172fa226d5eadc29163b54edf5511463e6575`.
-  - Targeted Coupons Deployment Attempt (run `34113008193`): **FAILED_SCHEMA_COMPATIBILITY** at `Ensure coupon security schema` with `Incompatible attribute "discount_codes.code": size 50 (expected 64)`. Function deployment safely skipped.
-  - Known Second Legacy Live Fact: `coupon_redemptions.user_id` is an existing string size 65000 and optional (`required=false`) in live Appwrite.
-  - `coupons` Hub: **PENDING_TARGETED_DEPLOYMENT** (retry after merging this live compatibility fix).
+  - PR #307: **MERGED** into `main` at merge SHA `a88007427b47c88def31de60883d18ca85095255`.
+  - Targeted Coupons Deployment Attempt 2 (run `34114192398`): **FAILED_SCHEMA_COMPATIBILITY** at `Ensure coupon security schema` with `Incompatible attribute "discount_codes.active": required false (expected true), default null (expected true)`. `discount_codes.code` check succeeded; deployment safely skipped.
+  - Historical Live Facts: Historical Appwrite collection setup created `discount_codes.active` as optional boolean with null default, and `discount_codes.percent_off` similarly has historical optional integer state.
+  - `coupons` Hub: **PENDING_TARGETED_DEPLOYMENT** (retry after merging this fix).
   - Sandbox Refund QA: **NOT_PERFORMED_YET**.
   - Production PayPal: **UNTOUCHED** (`PAYPAL_PRODUCTION_READY = NO`).
   - Public Checkout: **CHECKOUT_PREVIOUSLY_VERIFIED_DISABLED** (`BILLING_CHECKOUT_ENABLED=false`).
 * **Scope & Implementation Details:**
   1. **Narrow Legacy Attribute Compatibility in `scripts/setup_discount_codes_schema.cjs`:**
+     - `discount_codes.active`: Accepts existing live boolean attribute with `required=false` or `true`, `default=null`, `true`, or `false`.
+     - `discount_codes.percent_off`: Accepts existing live integer attribute with `required=false` or `true`, `default=null`, `100`, or integer.
      - `discount_codes.code`: Accepts existing live string attribute with size 50 (or 64), `required=true`.
      - `coupon_redemptions.user_id`: Accepts existing live string attribute with `required=false` (or `true`), size >= 64 (preserving live size 65000).
-     - All other attributes remain strictly fail-closed against exact spec definitions.
+     - All other non-legacy attributes and indexes remain strictly fail-closed against exact spec definitions.
   2. **Zero Destructive Schema Operations:** No collections, attributes, or indexes are deleted or recreated.
   3. **Zero Coupons Business Logic Changed:** `appwrite-hubs/coupons/src/main.js` and `sourceHashes.generated.json` untouched.
-  4. **Follow-Up Recorded:** `COUPON_CODE_MAX_LENGTH_ALIGNMENT_FOLLOWUP` (align admin code creation with 50-char limit if needed post-launch).
+  4. **Follow-Up Recorded:** `COUPON_CODE_MAX_LENGTH_ALIGNMENT_FOLLOWUP` preserved.
 * **Test Verification Baseline:**
-  - `node --test tests/hubs/coupon-schema.test.cjs`: 16 / 16 passing (100%, covering all 12 live and non-legacy contract cases).
+  - `node --test tests/hubs/coupon-schema.test.cjs`: 16 / 16 passing (100%, covering all 18 contract assertions).
   - `node --test tests/hubs/coupons-subscription.test.cjs`: 23 / 23 passing (100%).
   - `node --test tests/hubs/paypal-schema.test.cjs`: 15 / 15 passing (100%).
   - `node --test tests/hubs/paypal-webhook.test.cjs`: 134 / 134 passing (100%).
@@ -36,7 +38,14 @@
   - Frontend Vitest suite: 30 / 30 passing (100%).
   - TypeScript typecheck (`tsc --noEmit`): PASS (0 errors).
   - Production build (`npm run build`): PASS (clean build, 0 sourcemaps).
-* **Next Action:** Review and merge PR for `fix/coupon-live-schema-compat`, synchronize main, retry targeted `coupons` deployment, and proceed with Sandbox QA.
+* **Next Action:** Review and merge PR for `fix/coupon-live-legacy-attrs`, synchronize main, retry targeted `coupons` deployment, and proceed with Sandbox QA.
+
+---
+
+## Historical Handover — Coupon Live Schema Compatibility Fix (2026-09-07)
+
+* **Workstream:** `COUPON_LIVE_SCHEMA_COMPAT_READY_FOR_REVIEW` (`MERGED` [PR #307 at `a8800742`], `PAYPAL_PRODUCTION_READY = NO`).
+* **Active Branch:** `fix/coupon-live-schema-compat` (Target: `main`, Base Main SHA: `ac8172fa226d5eadc29163b54edf5511463e6575`).
 
 ---
 
