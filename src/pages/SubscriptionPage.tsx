@@ -139,8 +139,9 @@ export default function SubscriptionPage() {
     : value === 'pro'
       ? t('app.pro', 'Pro')
       : t('app.free', 'Free');
-  const { data: meData, refetch: refetchMe } = useMe();
+  const { data: meData, isLoading: meLoading, isFetching: meFetching, refetch: refetchMe } = useMe();
   usePlanUpgradeCelebration();
+
 
   useEffect(() => {
     return () => {
@@ -169,6 +170,7 @@ export default function SubscriptionPage() {
   const cancelPollTimerRef = useRef<number | null>(null);
 
   const subscriptionData = meData?.subscription;
+  const isSubscriptionResolving = (meLoading || meFetching) && subscriptionData === undefined;
   const canSubscribe = subscriptionData?.can_subscribe === true;
   const canCancelSubscription = subscriptionData?.can_cancel_subscription ?? false;
   const renewalCancellationPending = subscriptionData?.renewal_cancellation_pending === true;
@@ -811,7 +813,8 @@ export default function SubscriptionPage() {
                 </div>
                 {(() => {
                   const isPlanChangeBlocked = isPro && target === 'premium';
-                  const isButtonDisabled = !canSubscribe || checkoutStatus === 'preparing' || target === plan || isPlanChangeBlocked;
+                  const isPreparingCheckout = checkoutStatus === 'preparing' && checkoutPlan === target;
+                  const isButtonDisabled = isSubscriptionResolving || !canSubscribe || checkoutStatus === 'preparing' || target === plan || isPlanChangeBlocked;
 
                   return (
                     <>
@@ -822,7 +825,7 @@ export default function SubscriptionPage() {
                         onClick={() => beginCheckout(target as BillingCheckoutPlan)}
                         data-track={`subscription-subscribe-cta-${target}`}
                       >
-                        {checkoutStatus === 'preparing' && checkoutPlan === target && (
+                        {(isPreparingCheckout || isSubscriptionResolving) && (
                           <Loader2 className="w-4 h-4 animate-spin motion-reduce:animate-none" />
                         )}
                         {t('app.aiStudio.subscriptionPage.subscribe', 'Subscribe')}
@@ -831,7 +834,7 @@ export default function SubscriptionPage() {
                         <p className="text-xs text-muted-foreground text-center mt-1">
                           {t('app.aiStudio.subscriptionPage.planChangesUnavailable', 'Plan changes are temporarily unavailable.')}
                         </p>
-                      ) : !canSubscribe ? (
+                      ) : (!isSubscriptionResolving && !canSubscribe) ? (
                         <p className="text-xs text-muted-foreground text-center mt-1">
                           {t('app.aiStudio.subscriptionPage.enrollmentClosed', 'Subscription enrollments are currently closed.')}
                         </p>

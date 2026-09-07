@@ -72,6 +72,8 @@ export function getApprovedPayPalOrigins(environment?: string): readonly string[
       env = import.meta.env.VITE_CHECKOUT_ENVIRONMENT as string;
     } else if (import.meta.env.DEV) {
       env = 'sandbox';
+    } else if (typeof window !== 'undefined' && /^(?:www\.)?wiseresume\.app$/.test(window.location.hostname)) {
+      env = 'production';
     }
   }
 

@@ -1206,5 +1206,25 @@ describe('SubscriptionPage PayPal Lifecycle & Cancellation', () => {
       expect(screen.queryByText(/You have an active Free subscription/i)).not.toBeInTheDocument();
       expect(screen.getByRole('button', { name: /cancel subscription/i })).toBeInTheDocument();
     });
+
+    it('shows loading indicator on CTA and suppresses enrollment closed notice while subscription is resolving', () => {
+      vi.mocked(useMe).mockReturnValue({
+        data: undefined,
+        isLoading: true,
+        isFetching: true,
+        refetch: mockRefetchMe,
+      } as any);
+
+      renderWithProviders(<SubscriptionPage />);
+
+      // Closed notice must NOT show while resolving
+      expect(screen.queryByText(/subscription enrollments are currently closed/i)).not.toBeInTheDocument();
+
+      // CTA buttons must be disabled while resolving
+      const subscribeButtons = screen.getAllByRole('button', { name: /subscribe/i });
+      subscribeButtons.forEach((btn) => {
+        expect(btn).toBeDisabled();
+      });
+    });
   });
 });
