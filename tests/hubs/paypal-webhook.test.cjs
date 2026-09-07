@@ -20,6 +20,7 @@ const {
   findStateByPaymentId,
   findLedgerByPaymentId,
   findRefundOrReversalTombstone,
+  fetchSaleDetails,
 } = paypalWebhook.__test;
 
 const QA_USER_ID = 'user_qa_paypal_123';
@@ -6849,4 +6850,688 @@ test('State Identity Guard F: PAYMENT.SALE.COMPLETED with older timestamp than A
   assert.equal(finalState.latest_event_timestamp_ms, 2000, 'Timestamp must not regress');
 });
 
+// ============================================================================
+// Provider Sale Fallback Correlation & Reclaim Tests (Option B Legacy Recovery)
+// ============================================================================
 
+test('fetchSaleDetails: successful sale fetch returns parsed sale object', async () => {
+  const originalFetch = global.fetch;
+  try {
+    global.fetch = async (url) => {
+      if (url.includes('/v1/oauth2/token')) {
+        return { ok: true, status: 200, json: async () => ({ access_token: 'tok_mock' }) };
+      }
+      assert.match(url, /\/v1\/payments\/sale\/TX-SALE-01$/);
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          id: 'TX-SALE-01',
+          billing_agreement_id: 'I-SUB-01',
+          state: 'completed',
+        }),
+      };
+    };
+
+    const sale = await fetchSaleDetails('TX-SALE-01', { env: TEST_ENV });
+    assert.deepEqual(sale, {
+      id: 'TX-SALE-01',
+      billing_agreement_id: 'I-SUB-01',
+      state: 'completed',
+    });
+  } finally {
+    global.fetch = originalFetch;
+  }
+});
+
+test('fetchSaleDetails: 404 or non-transient 4xx returns null', async () => {
+  const originalFetch = global.fetch;
+  try {
+    global.fetch = async (url) => {
+      if (url.includes('/v1/oauth2/token')) {
+        return { ok: true, status: 200, json: async () => ({ access_token: 'tok_mock' }) };
+      }
+      return {
+        ok: false,
+        status: 404,
+        json: async () => ({ name: 'NOT_FOUND' }),
+      };
+    };
+
+    const sale = await fetchSaleDetails('TX-NONEXISTENT', { env: TEST_ENV });
+    assert.equal(sale, null);
+  } finally {
+    global.fetch = originalFetch;
+  }
+});
+
+test('fetchSaleDetails: 5xx and 429 throw transient retryable error', async () => {
+  const originalFetch = global.fetch;
+  try {
+    for (const status of [500, 502, 503, 504, 429]) {
+      global.fetch = async (url) => {
+        if (url.includes('/v1/oauth2/token')) {
+          return { ok: true, status: 200, json: async () => ({ access_token: 'tok_mock' }) };
+        }
+        return {
+          ok: false,
+          status,
+          json: async () => ({ message: 'Server error' }),
+        };
+      };
+
+      await assert.rejects(
+        async () => {
+          await fetchSaleDetails('TX-SALE-ERR', { env: TEST_ENV });
+        },
+        (err) => {
+          assert.equal(err.isTransient, true);
+          assert.equal(err.status, status);
+          return true;
+        }
+      );
+    }
+  } finally {
+    global.fetch = originalFetch;
+  }
+});
+
+test('fetchSaleDetails: network failure throws transient error', async () => {
+  const originalFetch = global.fetch;
+  try {
+    global.fetch = async (url) => {
+      if (url.includes('/v1/oauth2/token')) {
+        return { ok: true, status: 200, json: async () => ({ access_token: 'tok_mock' }) };
+      }
+      throw new Error('ECONNRESET');
+    };
+
+    await assert.rejects(
+      async () => {
+        await fetchSaleDetails('TX-NET-ERR', { env: TEST_ENV });
+      },
+      (err) => {
+        assert.equal(err.isTransient, true);
+        assert.match(err.message, /PayPal Sale API network failure/);
+        return true;
+      }
+    );
+  } finally {
+    global.fetch = originalFetch;
+  }
+});
+
+test('fetchSaleDetails: malformed JSON response throws transient error', async () => {
+  const originalFetch = global.fetch;
+  try {
+    global.fetch = async (url) => {
+      if (url.includes('/v1/oauth2/token')) {
+        return { ok: true, status: 200, json: async () => ({ access_token: 'tok_mock' }) };
+      }
+      return {
+        ok: true,
+        status: 200,
+        json: async () => {
+          throw new Error('Unexpected token');
+        },
+      };
+    };
+
+    await assert.rejects(
+      async () => {
+        await fetchSaleDetails('TX-BAD-JSON', { env: TEST_ENV });
+      },
+      (err) => {
+        assert.equal(err.isTransient, true);
+        assert.equal(err.code, 'malformed_sale_response');
+        assert.equal(err.status, 502);
+        return true;
+      }
+    );
+  } finally {
+    global.fetch = originalFetch;
+  }
+});
+
+test('fetchSaleDetails: customFetcher override is used when provided', async () => {
+  let customCalled = false;
+  const sale = await fetchSaleDetails('TX-CUSTOM', {
+    env: TEST_ENV,
+    customFetcher: async (id) => {
+      customCalled = true;
+      return { id, billing_agreement_id: 'I-CUSTOM-SUB' };
+    },
+  });
+  assert.equal(customCalled, true);
+  assert.equal(sale.id, 'TX-CUSTOM');
+  assert.equal(sale.billing_agreement_id, 'I-CUSTOM-SUB');
+});
+
+test('Legacy Refund Correlation: real-world PAYMENT.SALE.REFUNDED without billing_agreement_id correlates via fetchSaleDetails and settles refund', async () => {
+  const db = createMockDatabases();
+  const users = {
+    async get(id) {
+      return { $id: id, email: 'qa@test.wiseresume.app' };
+    },
+  };
+
+  const nowMs = 1757243000000;
+  const legacySubId = 'I-58K84FGAFFHL';
+  const legacySaleId = '0B9419070U158972P';
+  const refundId = '1H603208GJ834104W';
+  const stateDocId = paypalWebhook.__test.stateDocumentId(QA_USER_ID);
+
+  // Pre-seed legacy state (predates PR #299: no last_entitlement_payment_id)
+  db.collections.paypal_subscription_state.set(stateDocId, {
+    $id: stateDocId,
+    user_id: QA_USER_ID,
+    environment: 'sandbox',
+    subscription_id: legacySubId,
+    plan_id: SANDBOX_ULTIMATE_PLAN_ID,
+    status: 'canceled',
+    expires_at: '2026-10-06T10:00:00.000Z',
+    will_renew: false,
+    last_entitlement_payment_id: null,
+    last_entitlement_payment_ts_ms: null,
+    latest_event_timestamp_ms: nowMs - 100000,
+  });
+
+  // Pre-seed legacy ledger doc for original sale (has payment_id = null)
+  const saleLedgerDocId = paypalWebhook.__test.ledgerDocumentId('EVT-ORIGINAL-SALE');
+  db.collections.paypal_event_ledger.set(saleLedgerDocId, {
+    $id: saleLedgerDocId,
+    event_id: 'EVT-ORIGINAL-SALE',
+    event_type: 'PAYMENT.SALE.COMPLETED',
+    user_id: QA_USER_ID,
+    subscription_id: legacySubId,
+    payment_id: null,
+    processing_status: 'processed',
+    outcome_code: 'state_updated',
+  });
+
+  // Authentic PayPal PAYMENT.SALE.REFUNDED payload (only has sale_id, NO billing_agreement_id)
+  const refundEvent = normalizeEvent({
+    id: 'WH-39D23786BJ747394G-6NV67311UF312770M',
+    event_type: 'PAYMENT.SALE.REFUNDED',
+    create_time: new Date(nowMs).toISOString(),
+    resource: {
+      id: refundId,
+      sale_id: legacySaleId,
+      amount: { total: '10.00', currency: 'USD' },
+      state: 'completed',
+    },
+  });
+
+  let saleFetcherCalled = false;
+  let transactionsFetcherCalled = false;
+  let cancelerCalled = false;
+
+  const result = await processWebhookEvent({
+    databases: db,
+    users,
+    event: refundEvent,
+    nowMs,
+    env: TEST_ENV,
+    saleFetcher: async (paymentId) => {
+      saleFetcherCalled = true;
+      assert.equal(paymentId, legacySaleId);
+      return {
+        id: legacySaleId,
+        billing_agreement_id: legacySubId,
+        state: 'refunded',
+        custom: QA_USER_ID,
+      };
+    },
+    subscriptionFetcher: async (subId) => {
+      assert.equal(subId, legacySubId);
+      return {
+        id: legacySubId,
+        status: 'ACTIVE',
+        start_time: new Date(nowMs - 30 * 86400000).toISOString(),
+      };
+    },
+    subscriptionTransactionsFetcher: async ({ subscriptionId, targetPaymentId }) => {
+      transactionsFetcherCalled = true;
+      assert.equal(subscriptionId, legacySubId);
+      assert.equal(targetPaymentId, legacySaleId);
+      return {
+        found: true,
+        transaction: {
+          id: legacySaleId,
+          status: 'REFUNDED',
+          time: new Date(nowMs - 86400000).toISOString(),
+        },
+      };
+    },
+    subscriptionCanceler: async () => {
+      cancelerCalled = true;
+      return { ok: true, status: 'canceled' };
+    },
+  });
+
+  assert.equal(saleFetcherCalled, true, 'Provider Sale fallback must be called');
+  assert.equal(transactionsFetcherCalled, true, 'Legacy migration must verify transaction via Transactions API');
+  assert.equal(cancelerCalled, true, 'Must attempt provider cancellation');
+  assert.equal(result.outcome, 'processed');
+  assert.equal(result.code, 'refund_and_cancellation_settled');
+  assert.equal(result.effectivePlan, 'free');
+
+  const updatedState = db.collections.paypal_subscription_state.get(stateDocId);
+  assert.equal(updatedState.status, 'canceled');
+  assert.equal(updatedState.expires_at, null);
+  assert.equal(resolveEffectivePlan(updatedState).plan, 'free');
+  assert.equal(updatedState.last_entitlement_payment_id, legacySaleId);
+
+  const refundLedger = db.collections.paypal_event_ledger.get(
+    paypalWebhook.__test.ledgerDocumentId('WH-39D23786BJ747394G-6NV67311UF312770M')
+  );
+  assert.equal(refundLedger.processing_status, 'processed');
+  assert.equal(refundLedger.outcome_code, 'refund_and_cancellation_settled');
+});
+
+test('Legacy Refund Correlation: redelivery reclaims previously rejected unresolved_subscription_correlation event', async () => {
+  const db = createMockDatabases();
+  const users = {
+    async get(id) {
+      return { $id: id, email: 'qa@test.wiseresume.app' };
+    },
+  };
+
+  const nowMs = 1757243000000;
+  const legacySubId = 'I-58K84FGAFFHL';
+  const legacySaleId = '0B9419070U158972P';
+  const eventId = 'WH-39D23786BJ747394G-6NV67311UF312770M';
+  const stateDocId = paypalWebhook.__test.stateDocumentId(QA_USER_ID);
+  const ledgerDocId = paypalWebhook.__test.ledgerDocumentId(eventId);
+
+  // Pre-seed state
+  db.collections.paypal_subscription_state.set(stateDocId, {
+    $id: stateDocId,
+    user_id: QA_USER_ID,
+    environment: 'sandbox',
+    subscription_id: legacySubId,
+    plan_id: SANDBOX_ULTIMATE_PLAN_ID,
+    status: 'canceled',
+    expires_at: '2026-10-06T10:00:00.000Z',
+    will_renew: false,
+    last_entitlement_payment_id: null,
+    latest_event_timestamp_ms: nowMs - 100000,
+  });
+
+  // Pre-seed ledger as REJECTED with unresolved_subscription_correlation (as currently exists in Sandbox!)
+  db.collections.paypal_event_ledger.set(ledgerDocId, {
+    $id: ledgerDocId,
+    event_id: eventId,
+    event_type: 'PAYMENT.SALE.REFUNDED',
+    payment_id: legacySaleId,
+    processing_status: 'rejected',
+    outcome_code: 'unresolved_subscription_correlation',
+    created_at_ms: nowMs - 50000,
+  });
+
+  const refundEvent = normalizeEvent({
+    id: eventId,
+    event_type: 'PAYMENT.SALE.REFUNDED',
+    create_time: new Date(nowMs).toISOString(),
+    resource: {
+      id: '1H603208GJ834104W',
+      sale_id: legacySaleId,
+    },
+  });
+
+  const result = await processWebhookEvent({
+    databases: db,
+    users,
+    event: refundEvent,
+    nowMs,
+    env: TEST_ENV,
+    saleFetcher: async (paymentId) => ({
+      id: paymentId,
+      billing_agreement_id: legacySubId,
+    }),
+    subscriptionFetcher: async () => ({
+      id: legacySubId,
+      start_time: new Date(nowMs - 30 * 86400000).toISOString(),
+    }),
+    subscriptionTransactionsFetcher: async () => ({
+      found: true,
+      transaction: {
+        id: legacySaleId,
+        status: 'REFUNDED',
+        time: new Date(nowMs - 86400000).toISOString(),
+      },
+    }),
+    subscriptionCanceler: async () => ({ ok: true, status: 'canceled' }),
+  });
+
+  // Must not return duplicate already_recorded, must reclaim and process!
+  assert.equal(result.outcome, 'processed');
+  assert.equal(result.code, 'refund_and_cancellation_settled');
+
+  const updatedLedger = db.collections.paypal_event_ledger.get(ledgerDocId);
+  assert.equal(updatedLedger.processing_status, 'processed');
+  assert.equal(updatedLedger.outcome_code, 'refund_and_cancellation_settled');
+});
+
+test('Legacy Refund Correlation: rejected event with different outcome code is NOT reclaimed', async () => {
+  const db = createMockDatabases();
+  const users = {
+    async get(id) {
+      return { $id: id, email: 'qa@test.wiseresume.app' };
+    },
+  };
+
+  const nowMs = 1757243000000;
+  const eventId = 'WH-NON-RECLAIMABLE-REJECTED';
+  const ledgerDocId = paypalWebhook.__test.ledgerDocumentId(eventId);
+
+  // Pre-seed ledger as REJECTED with malformed_event_resource
+  db.collections.paypal_event_ledger.set(ledgerDocId, {
+    $id: ledgerDocId,
+    event_id: eventId,
+    event_type: 'PAYMENT.SALE.REFUNDED',
+    payment_id: 'TX-123',
+    processing_status: 'rejected',
+    outcome_code: 'malformed_event_resource',
+    created_at_ms: nowMs - 50000,
+  });
+
+  const refundEvent = normalizeEvent({
+    id: eventId,
+    event_type: 'PAYMENT.SALE.REFUNDED',
+    create_time: new Date(nowMs).toISOString(),
+    resource: {
+      id: 'TX-REF-NONREC',
+      sale_id: 'TX-123',
+    },
+  });
+
+  const result = await processWebhookEvent({
+    databases: db,
+    users,
+    event: refundEvent,
+    nowMs,
+    env: TEST_ENV,
+  });
+
+  assert.equal(result.outcome, 'duplicate');
+  assert.equal(result.code, 'already_recorded');
+});
+
+test('Legacy Refund Correlation: provider sale ID mismatch fails closed without state mutation', async () => {
+  const db = createMockDatabases();
+  const users = {
+    async get(id) {
+      return { $id: id, email: 'qa@test.wiseresume.app' };
+    },
+  };
+
+  const nowMs = 1757243000000;
+  const refundEvent = normalizeEvent({
+    id: 'WH-MISMATCH-SALE-ID',
+    event_type: 'PAYMENT.SALE.REFUNDED',
+    create_time: new Date(nowMs).toISOString(),
+    resource: {
+      id: 'TX-REF-MISMATCH',
+      sale_id: 'TX-SALE-EXPECTED',
+    },
+  });
+
+  const result = await processWebhookEvent({
+    databases: db,
+    users,
+    event: refundEvent,
+    nowMs,
+    env: TEST_ENV,
+    saleFetcher: async () => ({
+      id: 'TX-SALE-DIFFERENT',
+      billing_agreement_id: 'I-SUB-MISMATCH',
+    }),
+  });
+
+  assert.equal(result.outcome, 'rejected');
+  assert.equal(result.code, 'unresolved_subscription_correlation');
+});
+
+test('Legacy Refund Correlation: provider sale missing or invalid billing_agreement_id fails closed', async () => {
+  const db = createMockDatabases();
+  const users = {
+    async get(id) {
+      return { $id: id, email: 'qa@test.wiseresume.app' };
+    },
+  };
+
+  const nowMs = 1757243000000;
+  const refundEvent = normalizeEvent({
+    id: 'WH-INVALID-AGREEMENT',
+    event_type: 'PAYMENT.SALE.REFUNDED',
+    create_time: new Date(nowMs).toISOString(),
+    resource: {
+      id: 'TX-REF-INVALID',
+      sale_id: 'TX-SALE-INVALID',
+    },
+  });
+
+  for (const badAgreement of [null, undefined, '', 'NOT-AN-I-ID', 'B-12345']) {
+    const result = await processWebhookEvent({
+      databases: db,
+      users,
+      event: refundEvent,
+      nowMs,
+      env: TEST_ENV,
+      saleFetcher: async (paymentId) => ({
+        id: paymentId,
+        billing_agreement_id: badAgreement,
+      }),
+    });
+
+    assert.equal(result.outcome, 'rejected');
+    assert.equal(result.code, 'unresolved_subscription_correlation');
+  }
+});
+
+test('Legacy Refund Correlation: conflicting customId fails closed with correlation_identity_conflict', async () => {
+  const db = createMockDatabases();
+  const users = {
+    async get(id) {
+      return { $id: id, email: 'qa@test.wiseresume.app' };
+    },
+  };
+
+  const nowMs = 1757243000000;
+  const refundEvent = normalizeEvent({
+    id: 'WH-CONFLICTING-CUSTOM',
+    event_type: 'PAYMENT.SALE.REFUNDED',
+    create_time: new Date(nowMs).toISOString(),
+    resource: {
+      id: 'TX-REF-CONFLICT',
+      sale_id: 'TX-SALE-CONFLICT',
+      custom_id: 'user_a',
+    },
+  });
+
+  const result = await processWebhookEvent({
+    databases: db,
+    users,
+    event: refundEvent,
+    nowMs,
+    env: TEST_ENV,
+    saleFetcher: async (paymentId) => ({
+      id: paymentId,
+      billing_agreement_id: 'I-SUB-CONFLICT',
+      custom: 'user_b',
+    }),
+  });
+
+  assert.equal(result.outcome, 'rejected');
+  assert.equal(result.code, 'correlation_identity_conflict');
+});
+
+test('Legacy Refund Correlation: conflicting user between state and sale fails closed with correlation_identity_conflict', async () => {
+  const db = createMockDatabases();
+  const users = {
+    async get(id) {
+      return { $id: id, email: 'qa@test.wiseresume.app' };
+    },
+  };
+
+  const nowMs = 1757243000000;
+  const subId = 'I-SUB-CONFLICT-USER';
+  const stateDocId = paypalWebhook.__test.stateDocumentId(QA_USER_ID);
+
+  db.collections.paypal_subscription_state.set(stateDocId, {
+    $id: stateDocId,
+    user_id: QA_USER_ID,
+    environment: 'sandbox',
+    subscription_id: subId,
+    plan_id: SANDBOX_ULTIMATE_PLAN_ID,
+    status: 'active',
+    effective_plan: 'premium',
+    expires_at: '2026-10-06T10:00:00.000Z',
+    latest_event_timestamp_ms: nowMs - 10000,
+  });
+
+  const refundEvent = normalizeEvent({
+    id: 'WH-CONFLICT-STATE-USER',
+    event_type: 'PAYMENT.SALE.REFUNDED',
+    create_time: new Date(nowMs).toISOString(),
+    resource: {
+      id: 'TX-REF-CONFLICT-2',
+      sale_id: 'TX-SALE-CONFLICT-2',
+    },
+  });
+
+  const result = await processWebhookEvent({
+    databases: db,
+    users,
+    event: refundEvent,
+    nowMs,
+    env: TEST_ENV,
+    saleFetcher: async (paymentId) => ({
+      id: paymentId,
+      billing_agreement_id: subId,
+      custom: OTHER_USER_ID,
+    }),
+  });
+
+  assert.equal(result.outcome, 'rejected');
+  assert.equal(result.code, 'correlation_identity_conflict');
+});
+
+test('Legacy Refund Correlation: transient failure during fetchSaleDetails marks ledger failed and throws for retry', async () => {
+  const db = createMockDatabases();
+  const users = {
+    async get(id) {
+      return { $id: id, email: 'qa@test.wiseresume.app' };
+    },
+  };
+
+  const nowMs = 1757243000000;
+  const eventId = 'WH-TRANSIENT-FETCH-FAIL';
+  const ledgerDocId = paypalWebhook.__test.ledgerDocumentId(eventId);
+
+  const refundEvent = normalizeEvent({
+    id: eventId,
+    event_type: 'PAYMENT.SALE.REFUNDED',
+    create_time: new Date(nowMs).toISOString(),
+    resource: {
+      id: 'TX-REF-TRANSIENT',
+      sale_id: 'TX-SALE-TRANSIENT',
+    },
+  });
+
+  await assert.rejects(
+    async () => {
+      await processWebhookEvent({
+        databases: db,
+        users,
+        event: refundEvent,
+        nowMs,
+        env: TEST_ENV,
+        saleFetcher: async () => {
+          const err = new Error('Service Unavailable');
+          err.isTransient = true;
+          err.status = 503;
+          throw err;
+        },
+      });
+    },
+    (err) => {
+      assert.equal(err.isTransient, true);
+      assert.equal(err.status, 503);
+      return true;
+    }
+  );
+
+  const ledger = db.collections.paypal_event_ledger.get(ledgerDocId);
+  assert.equal(ledger.processing_status, 'failed');
+  assert.equal(ledger.outcome_code, 'transient_paypal_fetch_failure');
+});
+
+test('Legacy Reversal Correlation: PAYMENT.SALE.REVERSED without billing_agreement_id correlates via fetchSaleDetails and settles reversal', async () => {
+  const db = createMockDatabases();
+  const users = {
+    async get(id) {
+      return { $id: id, email: 'qa@test.wiseresume.app' };
+    },
+  };
+
+  const nowMs = 1757243000000;
+  const legacySubId = 'I-REV-SUB-01';
+  const legacySaleId = 'TX-REV-SALE-01';
+  const stateDocId = paypalWebhook.__test.stateDocumentId(QA_USER_ID);
+
+  // Pre-seed state with matching last_entitlement_payment_id
+  db.collections.paypal_subscription_state.set(stateDocId, {
+    $id: stateDocId,
+    user_id: QA_USER_ID,
+    environment: 'sandbox',
+    subscription_id: legacySubId,
+    plan_id: SANDBOX_ULTIMATE_PLAN_ID,
+    status: 'active',
+    expires_at: '2026-10-06T10:00:00.000Z',
+    will_renew: true,
+    last_entitlement_payment_id: legacySaleId,
+    last_entitlement_payment_ts_ms: nowMs - 100000,
+    latest_event_timestamp_ms: nowMs - 100000,
+  });
+
+  const reversedEvent = normalizeEvent({
+    id: 'WH-REV-EVENT-01',
+    event_type: 'PAYMENT.SALE.REVERSED',
+    create_time: new Date(nowMs).toISOString(),
+    resource: {
+      id: legacySaleId, // For REVERSED, resource.id is the Sale ID
+      amount: { total: '10.00', currency: 'USD' },
+      state: 'reversed',
+    },
+  });
+
+  const result = await processWebhookEvent({
+    databases: db,
+    users,
+    event: reversedEvent,
+    nowMs,
+    env: TEST_ENV,
+    saleFetcher: async (paymentId) => ({
+      id: paymentId,
+      billing_agreement_id: legacySubId,
+      state: 'reversed',
+      custom: QA_USER_ID,
+    }),
+    subscriptionFetcher: async () => ({
+      id: legacySubId,
+      status: 'ACTIVE',
+      start_time: new Date(nowMs - 30 * 86400000).toISOString(),
+    }),
+    subscriptionCanceler: async () => ({ ok: true, status: 'canceled' }),
+  });
+
+  assert.equal(result.outcome, 'processed');
+  assert.equal(result.code, 'reversal_entitlement_revoked');
+  assert.equal(result.effectivePlan, 'free');
+
+  const updatedState = db.collections.paypal_subscription_state.get(stateDocId);
+  assert.equal(updatedState.expires_at, null);
+  assert.equal(resolveEffectivePlan(updatedState).plan, 'free');
+});

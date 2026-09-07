@@ -1,5 +1,30 @@
 # WiseResume Atlas Master Changelog
 
+### 2026-09-07 - PayPal Legacy Refund Correlation Fix & Redelivery Reclaim (`fix/paypal-legacy-refund-correlation`)
+
+- **Workstream Verdict:** `PAYPAL_LEGACY_REFUND_CORRELATION_FIX_READY_FOR_PR` (`BRANCH_READY_FOR_REVIEW`, `PAYPAL_PRODUCTION_READY = NO`).
+- **Branch:** `fix/paypal-legacy-refund-correlation` (Target: `main`, Base Main SHA: `55087d29f8840fcdcda38712eddca9ae77614736`).
+- **Blocker Root Cause:** In live Sandbox QA, authentic full refund of sale `0B9419070U158972P` emitted genuine PayPal event `WH-39D23786BJ747394G-6NV67311UF312770M` (`PAYMENT.SALE.REFUNDED`). The resource payload only provides `sale_id`, lacking `billing_agreement_id`. Because legacy pre-PR #299 state lacked `last_entitlement_payment_id` and ledger lacked `payment_id`, the event was rejected before reaching Case C ("True Legacy Migration-on-Touch"). Furthermore, the event was marked `rejected` with `unresolved_subscription_correlation`, which the old reclaim logic treated as terminal (`already_recorded`), blocking redelivery.
+- **Scope & Accomplishments:**
+  1. **Provider Sale Query Helper (`fetchSaleDetails`):**
+     - Queries provider `GET /v1/payments/sale/{paymentId}` using configured PayPal environment credentials.
+     - Validates `sale.id === paymentId` and `sale.billing_agreement_id.startsWith('I-')`.
+     - Classifies 5xx and 429 as transient retryable errors (`err.isTransient = true`), while non-transient 4xx returns `null`.
+  2. **Step 3 Provider Sale Fallback in Webhook Ingress:**
+     - When `subscriptionId` is absent in payload, state lookup by paymentId fails, and historical sale ledger lookup by paymentId fails, queries `fetchSaleDetails(event.paymentId)`.
+     - Sets `event.subscriptionId = sale.billing_agreement_id`.
+     - Cross-checks `customId`: if `event.customId` and `sale.custom` both exist and conflict, fails closed with `correlation_identity_conflict`.
+     - Cross-checks user identity: if `previous.user_id` conflicts with trusted custom ID, fails closed with `correlation_identity_conflict`.
+     - Loads `previous = await findStateBySubscriptionId(databases, event.subscriptionId)`, enabling Case C ("True Legacy Migration-on-Touch") to execute.
+  3. **Narrowed Rejected Event Reclaim (`isReclaimableRejectedCorrelation`):**
+     - Scoped strictly to `processing_status === 'rejected'` + `outcome_code === 'unresolved_subscription_correlation'` on `PAYMENT.SALE.REFUNDED` or `PAYMENT.SALE.REVERSED` with `paymentId`.
+     - Safely permits PayPal provider redelivery of previously rejected authentic refund events without duplicate processing risk.
+  4. **Comprehensive Test Suite Passing:**
+     - `tests/hubs/paypal-webhook.test.cjs`: 149 / 149 passing (+15 new tests covering real regression, redelivery reclaim, provider sale errors, custom ID conflict, user ID conflict, and reversal fallback).
+     - Full hub suites: 399 / 399 passing across all 58 suites.
+     - TypeScript typecheck (`tsc --noEmit`): PASS (0 errors).
+     - Production build (`npm run build`): PASS (clean dist, 0 sourcemaps).
+
 ### 2026-09-07 - Coupon Live Legacy Attributes Compatibility Fix (`fix/coupon-live-legacy-attrs`)
 
 - **Workstream Verdict:** `COUPON_LIVE_LEGACY_ATTRS_COMPAT_READY_FOR_REVIEW` (`BRANCH_READY_FOR_REVIEW`, `PAYPAL_PRODUCTION_READY = NO`).
