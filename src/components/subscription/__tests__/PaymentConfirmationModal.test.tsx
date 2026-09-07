@@ -193,6 +193,7 @@ describe('PaymentConfirmationModal', () => {
 
     await waitFor(() => {
       expect(billingModule.createBillingCheckoutSession).toHaveBeenCalledWith('pro', {
+        idempotencyKey: expect.stringMatching(/^web-/),
         paymentMode: 'one_time',
         couponCode: 'QA_PRO_50CENTS',
         environment: undefined,

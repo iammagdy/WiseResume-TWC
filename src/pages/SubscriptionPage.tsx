@@ -338,6 +338,10 @@ export default function SubscriptionPage() {
 
   const beginCheckout = (target: BillingCheckoutPlan) => {
     if (!canSubscribe || isPro || target === plan) return;
+    if (checkoutPlan && checkoutPlan !== target) {
+      clearPlanAttemptKey(checkoutPlan);
+    }
+    setCheckoutPlan(target);
     setConfirmModalPlan(target);
   };
 

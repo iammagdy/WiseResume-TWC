@@ -260,11 +260,15 @@ export async function createBillingCheckoutSession(
 
   if (result.error) {
     const code = normalizeErrorCode(result.error.code);
+    const retryable = RETRYABLE_CODES.has(code);
+    if (!retryable) {
+      clearPlanAttemptKey(plan);
+    }
     return {
       ok: false,
       code,
       message: result.error.message || fallbackMessage(code),
-      retryable: RETRYABLE_CODES.has(code),
+      retryable,
     };
   }
 

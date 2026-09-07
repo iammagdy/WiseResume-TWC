@@ -26,6 +26,8 @@ import {
   createBillingCheckoutSession,
   openServerCheckout,
   getCouponQuote,
+  getOrCreatePlanAttemptKey,
+  clearPlanAttemptKey,
   type BillingCheckoutPlan,
   type BillingPaymentMode,
   type CouponQuote,
@@ -141,13 +143,18 @@ export function PaymentConfirmationModal({
         sessionStorage.setItem('billing_pending_plan', plan);
       } catch {}
 
+      const idempotencyKey = getOrCreatePlanAttemptKey(plan);
       const result = await createBillingCheckoutSession(plan, {
+        idempotencyKey,
         paymentMode,
         couponCode: paymentMode === 'one_time' && appliedQuote?.eligible ? appliedQuote.code : null,
         environment,
       });
 
       if (!result.ok) {
+        if (!result.retryable) {
+          clearPlanAttemptKey(plan);
+        }
         setCheckoutError(result.message || 'Failed to initialize checkout. Please try again.');
         setIsSubmitting(false);
         return;
