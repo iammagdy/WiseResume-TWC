@@ -125,12 +125,16 @@ function attributeCompatibilityError(attribute, spec, collectionId = 'collection
   // Documented legacy exceptions:
   // 1. coupon_redemptions.user_id is an existing legacy string in live Appwrite (size 65000 and optional).
   // 2. discount_codes.code in live Appwrite has size 50 (required=true).
+  // 3. discount_codes.active in live Appwrite has required=false, default=null.
+  // 4. discount_codes.percent_off in live Appwrite may have required=false, default=null or 100.
   const isLegacyUserId = collectionId === REDEMPTIONS_COLL_ID && spec.key === 'user_id';
   const isDiscountCodesCode = collectionId === COLL_ID && spec.key === 'code';
+  const isDiscountCodesActive = collectionId === COLL_ID && spec.key === 'active';
+  const isDiscountCodesPercentOff = collectionId === COLL_ID && spec.key === 'percent_off';
 
-  if (isLegacyUserId) {
-    // Live legacy user_id is optional (required=false) in live Appwrite, while repository ideal is required=true.
-    // Accept either true or false for this proven legacy attribute.
+  if (isLegacyUserId || isDiscountCodesActive || isDiscountCodesPercentOff) {
+    // Proven live legacy attributes in Appwrite created before schema provisioner:
+    // Accept either true or false for required status.
   } else if (attribute.required !== spec.required) {
     issues.push(`required ${attribute.required} (expected ${spec.required})`);
   }
@@ -162,8 +166,20 @@ function attributeCompatibilityError(attribute, spec, collectionId = 'collection
   if (spec.max !== undefined && Number(attribute.max) !== spec.max) {
     issues.push(`max ${attribute.max} (expected ${spec.max})`);
   }
-  if (spec.default !== undefined && attribute.default !== spec.default) {
-    issues.push(`default ${attribute.default} (expected ${spec.default})`);
+  if (spec.default !== undefined) {
+    if (isDiscountCodesActive) {
+      // Live active attribute may have default: null, true, or false
+      if (attribute.default !== null && typeof attribute.default !== 'boolean') {
+        issues.push(`default ${attribute.default} (expected boolean or null)`);
+      }
+    } else if (isDiscountCodesPercentOff) {
+      // Live percent_off attribute may have default: null, 100, or integer
+      if (attribute.default !== null && typeof attribute.default !== 'number') {
+        issues.push(`default ${attribute.default} (expected number or null)`);
+      }
+    } else if (attribute.default !== spec.default) {
+      issues.push(`default ${attribute.default} (expected ${spec.default})`);
+    }
   }
   return issues.length ? `Incompatible attribute "${collectionId}.${spec.key}": ${issues.join(', ')}` : null;
 }

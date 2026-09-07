@@ -1,8 +1,27 @@
 # WiseResume Atlas Master Changelog
 
+### 2026-09-07 - Coupon Live Legacy Attributes Compatibility Fix (`fix/coupon-live-legacy-attrs`)
+
+- **Workstream Verdict:** `COUPON_LIVE_LEGACY_ATTRS_COMPAT_READY_FOR_REVIEW` (`BRANCH_READY_FOR_REVIEW`, `PAYPAL_PRODUCTION_READY = NO`).
+- **Branch:** `fix/coupon-live-legacy-attrs` (Target: `main`, Base Main SHA: `a88007427b47c88def31de60883d18ca85095255`).
+- **Failure Root Cause:** Second targeted deployment attempt for `coupons` (`deploy-appwrite-hubs.yml` run `34114192398`) passed pre-mutation gates and `discount_codes.code` check, but failed at `Ensure coupon security schema` with `Incompatible attribute "discount_codes.active": required false (expected true), default null (expected true)`. In historical collection setup, `discount_codes.active` was provisioned as optional boolean with null default, and `discount_codes.percent_off` similarly has historical optional integer state.
+- **Scope & Accomplishments:**
+  1. **Narrow Non-Destructive Legacy Compatibility in `scripts/setup_discount_codes_schema.cjs`:**
+     - `discount_codes.active`: Accepts live optional boolean (`required=false` or `true`, `default=null`, `true`, or `false`).
+     - `discount_codes.percent_off`: Accepts live optional integer (`required=false` or `true`, `default=null`, `100`, or integer).
+     - `discount_codes.code`: Accepts live size 50 or repository ideal 64 (`required=true`).
+     - `coupon_redemptions.user_id`: Accepts live optional status (`required=false` or `true`) and size >= 64 (preserving live size 65000).
+     - All other non-legacy attributes and indexes remain strictly fail-closed against exact spec definitions.
+  2. **Zero Business Logic Mutations:** `appwrite-hubs/coupons/src/main.js` and `sourceHashes.generated.json` untouched.
+  3. **Comprehensive Test Suite Passing:**
+     - Coupon schema suite (`tests/hubs/coupon-schema.test.cjs`): 16 / 16 passing (100%, covering all 18 contract assertions).
+     - Full hub suites: 384 / 384 passing across 58 suites (100%).
+     - TypeScript typecheck (`tsc --noEmit`): PASS (0 errors).
+     - Production build (`npm run build`): PASS (clean dist, 0 sourcemaps).
+
 ### 2026-09-07 - Coupon Live Schema Compatibility Fix (`fix/coupon-live-schema-compat`)
 
-- **Workstream Verdict:** `COUPON_LIVE_SCHEMA_COMPAT_READY_FOR_REVIEW` (`BRANCH_READY_FOR_REVIEW`, `PAYPAL_PRODUCTION_READY = NO`).
+- **Workstream Verdict:** `COUPON_LIVE_SCHEMA_COMPAT_READY_FOR_REVIEW` (`MERGED` [PR #307 at `a8800742`], `PAYPAL_PRODUCTION_READY = NO`).
 - **Branch:** `fix/coupon-live-schema-compat` (Target: `main`, Base Main SHA: `ac8172fa226d5eadc29163b54edf5511463e6575`).
 - **Failure Root Cause:** Targeted deployment attempt for `coupons` (`deploy-appwrite-hubs.yml` run `34113008193`) passed pre-mutation gates but failed at `Ensure coupon security schema` with `Incompatible attribute "discount_codes.code": size 50 (expected 64)`. Live Appwrite `discount_codes.code` was created with size 50 in historical setup. A second known live divergence exists: `coupon_redemptions.user_id` is string size 65000 and optional (`required=false`).
 - **Scope & Accomplishments:**
