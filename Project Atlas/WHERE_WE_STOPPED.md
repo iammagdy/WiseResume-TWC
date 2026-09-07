@@ -1,7 +1,7 @@
 # Project Atlas — Active Operational & Handover State
 
 **Last Verified:** 2026-09-07
-**Status:** `PAYPAL_REFUND_REVERSAL_MERGED_PENDING_DEPLOYMENT` (`MERGED_NOT_DEPLOYED`, `PAYPAL_PRODUCTION_READY = NO`, Merged PR: #301, Merge SHA: `69b31c0d4c762f8650435390ce92ba2e030e19b4`, Target: `main`) — Option B refund & reversal provider-contract hardening merged into main. Awaiting controlled schema provisioning, targeted deployment planning, and Sandbox runtime verification.
+**Status:** `PAYPAL_REFUND_REVERSAL_PREDEPLOY_READY` (Frontend: `DEPLOYED_TO_PRODUCTION` via Vercel, Backend: `PENDING_TARGETED_DEPLOYMENT`, Schema: `SCHEMA_DELTA_LIKELY_REQUIRED_BUT_LIVE_STATE_UNVERIFIED`, `PAYPAL_PRODUCTION_READY = NO`, Main Baseline: `84aa793d1cea97a9233caf3b388a4dc3f1fdf61c`) — Pre-deployment schema index readiness hardening added to `scripts/setup_paypal_schema.cjs` (`waitForIndexAvailable`). Awaiting owner authorization for targeted deployment and Sandbox runtime QA.
 **Location:** `Project Atlas/WHERE_WE_STOPPED.md`
 
 ## Current Active Handover — PayPal Refund & Reversal Provider-Contract Hardening (Option B) Merged (2026-09-07)
@@ -22,20 +22,20 @@
   - **Coupons & Frontend Surface:** `coupons` surfaces `renewal_cancellation_pending`; `useMe.ts` exposes it; `SubscriptionPage.tsx` suppresses "You have an active Free subscription" and displays neutral message: *"Your paid access has ended. Your subscription cancellation is still being confirmed."*
   - **Subscription Resolver:** Unchanged (`@wiseresume/subscription-resolver`).
 * **Test Verification Baseline:**
-  - `node --test tests/hubs/paypal-schema.test.cjs`: 6 / 6 passing (100%).
+  - `node --test tests/hubs/paypal-schema.test.cjs`: 13 / 13 passing (100%, +7 index readiness tests).
   - `node --test tests/hubs/coupons-subscription.test.cjs`: 23 / 23 passing (100%).
   - `node --test tests/hubs/paypal-webhook.test.cjs`: 134 / 134 passing (100%), including 53-case refund/reversal/tombstone/pagination/legacy/reversal-hardening matrix.
-  - All hub test suites (`node --test tests/hubs/*.test.cjs`): 362 / 362 passing across 58 suites (100%).
+  - All hub test suites (`node --test tests/hubs/*.test.cjs`): 369 / 369 passing across 58 suites (100%).
   - `npx vitest run src/pages/__tests__/SubscriptionPage.paypal.test.tsx`: 30 / 30 passing (100%).
   - `npx tsc --noEmit`: PASS (0 errors).
   - `npm run build`: PASS (clean production build, 0 sourcemaps).
   - DevKit source hashes: `src/lib/devkit/sourceHashes.generated.json` recomputed and verified (`paypal-webhook: 8481b8e0471b1c7825eb2b7e27a605725119dbd62de049df9462a1202fb4775d`).
 * **Operational Boundaries & Constraints:**
-  - Appwrite Deployments: ZERO.
-  - Vercel Deployments: ZERO.
+  - Frontend: DEPLOYED_TO_PRODUCTION via Vercel (current main SHA `84aa793d`, deployment `EesyZDo2twGjWdGDB4d2431aPwWr`).
+  - Appwrite Deployments: ZERO for PR #301 / #304 (pending targeted deployment).
   - Appwrite Schema Mutation: ZERO against live Appwrite.
   - PayPal Mutations: ZERO against real accounts/subscriptions.
-  - Public Checkout Gate: DISABLED (`BILLING_CHECKOUT_ENABLED=false`, `BILLING_CHECKOUT_PROVIDER_READY=false`).
+  - Public Checkout Gate: CHECKOUT_PREVIOUSLY_VERIFIED_DISABLED (fail-closed repo/workflow defaults; FRESH_PREDEPLOY_RUNTIME_VERIFICATION_REQUIRED before Appwrite deployment).
   - Production PayPal: COMPLETELY UNTOUCHED (`PAYPAL_PRODUCTION_READY = NO`).
   - PR #301 Merge Status: MERGED into main (Merge SHA: `69b31c0d4c762f8650435390ce92ba2e030e19b4`, Final Reviewed Head: `45f24dfc17719da8334615ab617e8d642c5b1942`).
 * **What's New Decision:**
