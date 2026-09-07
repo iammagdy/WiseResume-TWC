@@ -67,7 +67,7 @@ const COLLECTION_SPECS = Object.freeze([
   },
 ]);
 
-const APPWRITE_KEY_REGEX = /^[A-Za-z0-9][A-Za-z0-9._-]{0,35}$/;
+const APPWRITE_KEY_REGEX = /^[A-Za-z][A-Za-z0-9._-]{0,35}$/;
 
 function isValidSchemaKey(key) {
   return typeof key === 'string' && APPWRITE_KEY_REGEX.test(key);
@@ -78,7 +78,7 @@ function validateSchemaKey(key, collectionId = '', kind = 'attribute') {
     const target = collectionId ? ` for ${collectionId} ${kind}` : '';
     throw new Error(
       `Invalid Appwrite schema key "${key}"${target}: ` +
-      `key must be 1-36 characters and match the allowed Appwrite identifier contract.`
+      `key must be 1-36 characters, must start with a letter, and remaining characters must follow the allowed Appwrite identifier contract.`
     );
   }
 }

@@ -286,6 +286,17 @@ test('schema identifier validation enforces Appwrite 36-character key limits and
   assert.throws(() => schema.validateSchemaKey('invalid key', 'col', 'attribute'), /Invalid Appwrite schema key/);
   assert.throws(() => schema.validateSchemaKey('invalid/key', 'col', 'attribute'), /Invalid Appwrite schema key/);
 
+  // G. key beginning with a number fails (contract: must start with a letter)
+  assert.equal(schema.isValidSchemaKey('1invalid_key'), false);
+  assert.throws(
+    () => schema.validateSchemaKey('1invalid_key', 'col', 'attribute'),
+    /Invalid Appwrite schema key "1invalid_key" for col attribute: key must be 1-36 characters, must start with a letter/
+  );
+
+  // G2. letter-leading alphanumeric key passes
+  assert.equal(schema.isValidSchemaKey('Avalid123'), true);
+  assert.doesNotThrow(() => schema.validateSchemaKey('Avalid123', 'col', 'attribute'));
+
   // H. renamed field exists in schema spec exactly as last_entitlement_payment_ts_ms
   const stateSpec = schema.COLLECTION_SPECS.find(s => s.id === 'paypal_subscription_state');
   const renamedAttr = stateSpec.attributes.find(a => a.key === 'last_entitlement_payment_ts_ms');
