@@ -2,7 +2,8 @@
 
 ### 2026-09-07 - PayPal Refund & Reversal Provider-Contract Hardening (Option B) Merged (PR #301)
 
-- **Workstream Verdict:** `PR301_READY_TO_MERGE` (`IMPLEMENTED_UNVERIFIED` / `TESTED_LOCAL`, `PAYPAL_PRODUCTION_READY = NO`).
+- **Workstream Verdict:** `PAYPAL_REFUND_REVERSAL_MERGED_PENDING_DEPLOYMENT` (`MERGED_NOT_DEPLOYED`, `PAYPAL_PRODUCTION_READY = NO`).
+- **Merged PR:** [PR #301](https://github.com/iammagdy/WiseResume-TWC/pull/301) (Approved Head: `45f24dfc17719da8334615ab617e8d642c5b1942`, Merge SHA: `69b31c0d4c762f8650435390ce92ba2e030e19b4`).
 - **Docs Closeout Branch:** `docs/paypal-refund-reversal-merge-closeout` (Target: `main`).
 - **Owner Policy:** `OPTION_B_APPROVED`.
 - **Scope & Accomplishments:**
