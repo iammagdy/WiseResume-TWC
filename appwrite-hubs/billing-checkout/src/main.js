@@ -2,7 +2,7 @@
 
 const crypto = require('crypto');
 const sdk = require('node-appwrite');
-const { resolveEffectivePlan, isFutureTimestamp } = require('@wiseresume/subscription-resolver');
+const { resolveEffectivePlan, isFutureTimestamp, fulfillCompletedOneTimePayment, isQaCouponCode } = require('@wiseresume/subscription-resolver');
 
 const DB_ID = 'main';
 const SESSION_COLLECTION = 'billing_checkout_sessions';
@@ -206,7 +206,41 @@ function validateRequest(body) {
       reason: asString(logicalBody.reason).slice(0, 128),
     };
   }
-  const allowedKeys = new Set(['action', 'plan', 'idempotency_key']);
+  if (logicalBody.action === 'quote') {
+    const allowedKeys = new Set(['action', 'plan', 'payment_mode', 'coupon_code']);
+    if (Object.keys(logicalBody).some(key => !allowedKeys.has(key))) {
+      fail('invalid_request', 400, 'Invalid checkout request.');
+    }
+    if (typeof logicalBody.plan !== 'string' || !ALLOWED_PLANS.has(logicalBody.plan)) {
+      fail('invalid_plan', 400, 'This checkout plan is not available.');
+    }
+    const paymentMode = logicalBody.payment_mode ? asString(logicalBody.payment_mode).trim().toLowerCase() : 'subscription';
+    if (!['subscription', 'one_time'].includes(paymentMode)) {
+      fail('invalid_request', 400, 'Invalid payment mode.');
+    }
+    const couponCode = logicalBody.coupon_code ? asString(logicalBody.coupon_code).trim().toUpperCase().slice(0, 64) : null;
+    return {
+      action: 'quote',
+      plan: logicalBody.plan,
+      paymentMode,
+      couponCode: couponCode || null,
+    };
+  }
+  if (logicalBody.action === 'capture-order') {
+    const allowedKeys = new Set(['action', 'order_id', 'orderId']);
+    if (Object.keys(logicalBody).some(key => !allowedKeys.has(key))) {
+      fail('invalid_request', 400, 'Invalid checkout request.');
+    }
+    const orderId = asString(logicalBody.order_id || logicalBody.orderId).trim();
+    if (!orderId || !/^[A-Za-z0-9_-]{1,128}$/.test(orderId)) {
+      fail('invalid_request', 400, 'Invalid order ID.');
+    }
+    return {
+      action: 'capture-order',
+      orderId,
+    };
+  }
+  const allowedKeys = new Set(['action', 'plan', 'payment_mode', 'coupon_code', 'idempotency_key']);
   if (Object.keys(logicalBody).some(key => !allowedKeys.has(key))) {
     fail('invalid_request', 400, 'Invalid checkout request.');
   }
@@ -214,12 +248,23 @@ function validateRequest(body) {
   if (typeof logicalBody.plan !== 'string' || !ALLOWED_PLANS.has(logicalBody.plan)) {
     fail('invalid_plan', 400, 'This checkout plan is not available.');
   }
+  const paymentMode = logicalBody.payment_mode ? asString(logicalBody.payment_mode).trim().toLowerCase() : 'subscription';
+  if (!['subscription', 'one_time'].includes(paymentMode)) {
+    fail('invalid_request', 400, 'Invalid payment mode.');
+  }
+  const couponCode = logicalBody.coupon_code ? asString(logicalBody.coupon_code).trim().toUpperCase().slice(0, 64) : null;
   if (logicalBody.idempotency_key !== undefined) {
     if (typeof logicalBody.idempotency_key !== 'string' || !/^[A-Za-z0-9._:-]{1,128}$/.test(logicalBody.idempotency_key)) {
       fail('invalid_request', 400, 'Invalid checkout request.');
     }
   }
-  return { action: 'create-session', plan: logicalBody.plan, idempotencyKey: logicalBody.idempotency_key || null };
+  return {
+    action: 'create-session',
+    plan: logicalBody.plan,
+    paymentMode,
+    couponCode: couponCode || null,
+    idempotencyKey: logicalBody.idempotency_key || null,
+  };
 }
 
 function hash(value) {
@@ -318,6 +363,11 @@ function hasActivePaypalSubscription(paypalState, userId, nowMs = Date.now()) {
   if (!['pro', 'premium'].includes(plan)) return false;
   const status = asString(paypalState.status).trim().toLowerCase();
   if (!['active', 'billing_issue'].includes(status)) return false;
+  const subId = asString(paypalState.subscription_id).trim();
+  const isOneTime = paypalState.will_renew === false && subId && !subId.startsWith('I-');
+  if (isOneTime) {
+    return false;
+  }
   if (paypalState.will_renew === true || paypalState.will_renew === null || paypalState.will_renew === undefined) {
     return true;
   }
@@ -339,7 +389,10 @@ function safeProviderResult(result, config) {
   if (!reference || reference.length > 160) failProviderDiagnostic('provider.safe_result_validation', 'checkout_reference_invalid');
   const providerEnvironment = asString(result.providerEnvironment);
   if (providerEnvironment !== config.environment) failProviderDiagnostic('provider.safe_result_validation', 'provider_environment_mismatch', { code: 'environment_mismatch', status: 409, message: 'Checkout environment is unavailable.' });
-  if (asString(result.collectionMode) !== 'automatic') failProviderDiagnostic('provider.safe_result_validation', 'collection_mode_mismatch', { code: 'catalog_mismatch', status: 409, message: 'Checkout catalog is unavailable.' });
+  const collectionMode = asString(result.collectionMode);
+  if (!['automatic', 'one_time'].includes(collectionMode)) {
+    failProviderDiagnostic('provider.safe_result_validation', 'collection_mode_mismatch', { code: 'catalog_mismatch', status: 409, message: 'Checkout catalog is unavailable.' });
+  }
   const transactionId = asString(result.providerTransactionId);
   if (!transactionId || transactionId.length > 160) failProviderDiagnostic('provider.safe_result_validation', 'provider_transaction_reference_invalid');
   let checkoutUrl = null;
@@ -356,7 +409,7 @@ function safeProviderResult(result, config) {
     }
     checkoutUrl = url.toString();
   }
-  return { checkoutReference: reference, providerTransactionId: transactionId, checkoutUrl };
+  return { checkoutReference: reference, providerTransactionId: transactionId, checkoutUrl, collectionMode };
 }
 
 function publicSessionResponse(session, providerResult) {
@@ -366,6 +419,10 @@ function publicSessionResponse(session, providerResult) {
     state: 'created_or_reused',
     expires_at: asString(session.expiresAt || session.expires_at),
   };
+  const mode = asString(session.paymentMode || session.payment_mode);
+  if (mode && mode === 'one_time') {
+    data.payment_mode = 'one_time';
+  }
   const checkoutReference = asString(providerResult?.checkoutReference || session.checkout_reference);
   if (checkoutReference && checkoutReference.length <= 160) data.checkout_reference = checkoutReference;
   const checkoutUrl = asString(providerResult?.checkoutUrl || session.checkout_url);
@@ -399,6 +456,56 @@ function validateLockPayload(payload) {
     if (planFields.some(field => typeof payload[field] !== 'string' || payload[field].length === 0)) throw new Error('Invalid plan checkout lock payload.');
   }
   return payload;
+}
+
+const BASE_PLAN_PRICES = Object.freeze({
+  pro: { amount: 5.00, formatted: '$5.00', period: 'month' },
+  premium: { amount: 10.00, formatted: '$10.00', period: 'month' },
+});
+const MIN_CHARGE_FLOOR = 0.50; // WiseResume selected QA charge = $0.50
+
+function couponIsActive(coupon) {
+  if (!coupon) return false;
+  if (coupon.active === false || coupon.is_active === false) return false;
+  if (coupon.expires_at && new Date(coupon.expires_at).getTime() < Date.now()) return false;
+  const maxUses = Number(coupon.max_uses ?? coupon.maxUses ?? 0);
+  const usesCount = Number(coupon.uses_count ?? coupon.usesCount ?? 0);
+  if (maxUses > 0 && usesCount >= maxUses) return false;
+  return true;
+}
+
+function calculateCouponDiscount(coupon, plan, paymentMode) {
+  const basePrice = Number(BASE_PLAN_PRICES[plan]?.amount ?? BASE_PLAN_PRICES[plan] ?? 5.00);
+  if (paymentMode === 'subscription') {
+    fail('coupon_not_applicable_to_recurring', 400, 'Coupons are only valid for one-month purchases. Recurring PayPal subscriptions renew at the standard plan rate.');
+  }
+  if (coupon.plan_override) {
+    const targetPlan = normalizeEffectivePlan(coupon.plan_override);
+    if (targetPlan && targetPlan !== plan) {
+      fail('coupon_plan_mismatch', 400, `This coupon code is valid for the ${targetPlan === 'premium' ? 'Ultimate' : 'Pro'} plan only.`);
+    }
+  }
+  let discount = 0;
+  const discountType = asString(coupon.discount_type || (coupon.percent_off ? 'percent' : 'percent')).toLowerCase();
+  if (discountType === 'fixed' || discountType === 'amount') {
+    const val = Number(coupon.discount_value || 0);
+    discount = Math.min(basePrice, Math.max(0, val));
+  } else {
+    const pct = Math.max(0, Math.min(100, Number(coupon.percent_off ?? coupon.discount_value ?? 100)));
+    discount = Math.round((basePrice * (pct / 100)) * 100) / 100;
+  }
+  const rawFinal = Math.round((basePrice - discount) * 100) / 100;
+  const finalPrice = Math.max(MIN_CHARGE_FLOOR, rawFinal);
+  const effectiveDiscount = Math.round((basePrice - finalPrice) * 100) / 100;
+
+  return {
+    basePrice,
+    discount: effectiveDiscount,
+    finalPrice,
+    discountType,
+    couponCode: coupon.code,
+    couponId: coupon.$id,
+  };
 }
 
 class AppwriteCheckoutStore {
@@ -707,6 +814,81 @@ class AppwriteCheckoutStore {
       }
       if (error instanceof BillingCheckoutError) throw error;
       fail('state_unavailable', 503, 'Subscription state is temporarily unavailable.');
+    }
+  }
+
+  async findCoupon(code, transactionId) {
+    const cleanCode = asString(code).trim().toUpperCase();
+    if (!cleanCode) return null;
+    try {
+      const result = await this.databases.listDocuments(DB_ID, 'discount_codes', [
+        sdk.Query.equal('code', cleanCode),
+        sdk.Query.limit(1),
+      ], transactionId);
+      return result.documents?.[0] || null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  async hasUserRedeemedCoupon(userId, couponId, transactionId) {
+    if (!userId || !couponId) return false;
+    const deterministicId = `cr_${crypto.createHash('sha256').update(`${userId}:${couponId}`).digest('hex').slice(0, 29)}`;
+    try {
+      const doc = await this.databases.getDocument(DB_ID, 'coupon_redemptions', deterministicId, [], transactionId);
+      if (doc && doc.status === 'redeemed') return true;
+    } catch (err) {
+      if (err?.code !== 404) throw err;
+    }
+    try {
+      const result = await this.databases.listDocuments(DB_ID, 'coupon_redemptions', [
+        sdk.Query.equal('user_id', userId),
+        sdk.Query.equal('discount_code_id', couponId),
+        sdk.Query.equal('status', 'redeemed'),
+        sdk.Query.limit(1),
+      ], transactionId);
+      return (result.documents || []).length > 0;
+    } catch {
+      return false;
+    }
+  }
+
+  async findSessionByOrderId(orderId, transactionId) {
+    const cleanId = asString(orderId).trim();
+    if (!cleanId) return null;
+    try {
+      const res = await this.databases.listDocuments(DB_ID, SESSION_COLLECTION, [
+        sdk.Query.equal('provider_transaction_id', cleanId),
+        sdk.Query.limit(1),
+      ], transactionId);
+      if (res.documents?.length > 0) return res.documents[0];
+      const res2 = await this.databases.listDocuments(DB_ID, SESSION_COLLECTION, [
+        sdk.Query.equal('public_reference', cleanId),
+        sdk.Query.limit(1),
+      ], transactionId);
+      return res2.documents?.[0] || null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  async recordOrderEntitlement({ userId, orderId, captureId, plan, environment, nowMs, coupon }) {
+    try {
+      return await fulfillCompletedOneTimePayment({
+        databases: this.databases,
+        sdk,
+        userId,
+        orderId,
+        captureId,
+        plan,
+        environment: environment || this.paypalProviderEnvironment || this.providerEnvironment,
+        coupon,
+        nowMs: nowMs || Date.now(),
+        qaUserId: this.qaUserId || process.env.PAYPAL_QA_USER_ID,
+      });
+    } catch (error) {
+      if (error instanceof BillingCheckoutError) throw error;
+      fail(error?.code || 'state_unavailable', error?.status || 503, error?.message || 'Subscription state is temporarily unavailable.');
     }
   }
 }
@@ -1124,6 +1306,246 @@ class PayPalSubscriptionProvider {
       diagnosticStatus: Number.isInteger(status) && status >= 100 && status <= 599 ? status : null,
     });
   }
+
+  async createOrder(input) {
+    const apiOrigin = PAYPAL_API_ORIGINS[input.environment];
+    if (!apiOrigin) failProviderDiagnostic('provider.runtime_configuration', 'missing_provider_endpoint');
+
+    const accessToken = await this.getAccessToken(input.environment);
+
+    const appOrigin = asString(input.appOrigin || this.env.BILLING_CHECKOUT_APPROVED_APP_URL || 'https://wiseresume.app').trim().replace(/\/$/, '');
+    const returnUrl = `${appOrigin}/subscription?billing=order_approved&session_reference=${encodeURIComponent(input.customData.checkout_session_reference)}`;
+    const cancelUrl = `${appOrigin}/subscription?billing=canceled`;
+
+    const amountVal = Number(input.amount).toFixed(2);
+    const planLabel = input.plan === 'premium' ? 'Ultimate' : 'Pro';
+
+    const requestBody = {
+      intent: 'CAPTURE',
+      purchase_units: [
+        {
+          reference_id: input.customData.checkout_session_reference,
+          description: `WiseResume ${planLabel} (1-Month Access)`,
+          custom_id: JSON.stringify({
+            app_user_id: input.customData.app_user_id,
+            plan: input.plan,
+            payment_mode: 'one_time',
+            coupon_code: input.couponCode || null,
+            checkout_session_reference: input.customData.checkout_session_reference,
+          }),
+          amount: {
+            currency_code: 'USD',
+            value: amountVal,
+            breakdown: {
+              item_total: { currency_code: 'USD', value: amountVal },
+            },
+          },
+          items: [
+            {
+              name: `WiseResume ${planLabel} — 1 Month`,
+              quantity: '1',
+              unit_amount: { currency_code: 'USD', value: amountVal },
+              category: 'DIGITAL_GOODS',
+            },
+          ],
+        },
+      ],
+      application_context: {
+        brand_name: 'WiseResume',
+        locale: 'en-US',
+        landing_page: 'NO_PREFERENCE',
+        shipping_preference: 'NO_SHIPPING',
+        user_action: 'PAY_NOW',
+        return_url: returnUrl,
+        cancel_url: cancelUrl,
+      },
+    };
+
+    const headers = {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+    };
+
+    if (input.providerRequestId) {
+      headers['PayPal-Request-Id'] = String(input.providerRequestId).trim();
+    }
+
+    let response;
+    try {
+      response = await this.fetchImpl(`${apiOrigin}/v2/checkout/orders`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(requestBody),
+      });
+    } catch (_) {
+      failProviderDiagnostic('provider.transport', 'transport_failure');
+    }
+
+    if (!response?.ok) {
+      const status = Number(response?.status);
+      const category = status === 401 || status === 403 ? 'provider_auth_rejected'
+        : status === 400 || status === 422 ? 'provider_request_rejected'
+          : status === 404 ? 'provider_not_found'
+            : status === 409 ? 'provider_conflict'
+              : status === 429 ? 'provider_rate_limited'
+                : Number.isInteger(status) && status >= 500 && status <= 599 ? 'provider_upstream_error'
+                  : 'provider_http_other';
+      failProviderDiagnostic('provider.http_response', category, {
+        diagnosticStatus: Number.isInteger(status) && status >= 100 && status <= 599 ? status : null,
+      });
+    }
+
+    let payload;
+    try {
+      payload = await response.json();
+    } catch (_) {
+      failProviderDiagnostic('provider.response_json', 'invalid_json');
+    }
+
+    const orderId = asString(payload?.id).trim();
+    if (!orderId) {
+      failProviderDiagnostic('provider.transaction_validation', 'invalid_order_id');
+    }
+
+    const approveLink = (Array.isArray(payload?.links) ? payload.links : []).find(
+      link => link?.rel === 'approve' || link?.rel === 'payer-action'
+    );
+    const checkoutUrl = asString(approveLink?.href).trim();
+    if (!checkoutUrl) {
+      failProviderDiagnostic('provider.transaction_validation', 'missing_approval_url');
+    }
+
+    const approvedOrigin = PAYPAL_APPROVED_ORIGINS[input.environment];
+    let parsedUrl;
+    try {
+      parsedUrl = new URL(checkoutUrl);
+    } catch {
+      failProviderDiagnostic('provider.transaction_validation', 'invalid_approval_url');
+    }
+
+    if (parsedUrl.origin !== approvedOrigin || parsedUrl.protocol !== 'https:') {
+      failProviderDiagnostic('provider.safe_result_validation', 'checkout_origin_mismatch');
+    }
+
+    return {
+      providerTransactionId: orderId,
+      providerEnvironment: input.environment,
+      collectionMode: 'one_time',
+      checkoutReference: opaqueReference('order'),
+      checkoutUrl,
+    };
+  }
+
+  async getOrder({ orderId, environment }) {
+    const env = normalizeEnvironment(environment);
+    if (!env || !PAYPAL_API_ORIGINS[env]) {
+      failProviderDiagnostic('provider.runtime_configuration', 'missing_provider_endpoint');
+    }
+    const apiOrigin = PAYPAL_API_ORIGINS[env];
+
+    const cleanOrderId = asString(orderId).trim();
+    if (!cleanOrderId) {
+      fail('bad_request', 400, 'Invalid order ID.');
+    }
+
+    const accessToken = await this.getAccessToken(env);
+
+    let response;
+    try {
+      response = await this.fetchImpl(`${apiOrigin}/v2/checkout/orders/${encodeURIComponent(cleanOrderId)}`, {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+      });
+    } catch (_) {
+      failProviderDiagnostic('provider.transport', 'transport_failure');
+    }
+
+    if (!response?.ok) {
+      const status = Number(response?.status);
+      failProviderDiagnostic('provider.http_response', 'provider_upstream_error', {
+        diagnosticStatus: Number.isInteger(status) && status >= 100 && status <= 599 ? status : null,
+      });
+    }
+
+    let payload;
+    try {
+      payload = await response.json();
+    } catch (_) {
+      failProviderDiagnostic('provider.response_json', 'invalid_json');
+    }
+
+    return payload;
+  }
+
+  async captureOrder({ orderId, environment }) {
+    const env = normalizeEnvironment(environment);
+    if (!env || !PAYPAL_API_ORIGINS[env]) {
+      failProviderDiagnostic('provider.runtime_configuration', 'missing_provider_endpoint');
+    }
+    const apiOrigin = PAYPAL_API_ORIGINS[env];
+
+    const cleanOrderId = asString(orderId).trim();
+    if (!cleanOrderId) {
+      fail('bad_request', 400, 'Invalid order ID.');
+    }
+
+    const accessToken = await this.getAccessToken(env);
+
+    let response;
+    try {
+      response = await this.fetchImpl(`${apiOrigin}/v2/checkout/orders/${encodeURIComponent(cleanOrderId)}/capture`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+      });
+    } catch (_) {
+      failProviderDiagnostic('provider.transport', 'transport_failure');
+    }
+
+    if (!response?.ok) {
+      const status = Number(response?.status);
+      if (status === 422) {
+        let verifyResponse;
+        try {
+          verifyResponse = await this.fetchImpl(`${apiOrigin}/v2/checkout/orders/${encodeURIComponent(cleanOrderId)}`, {
+            method: 'GET',
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+              'Content-Type': 'application/json',
+              Accept: 'application/json',
+            },
+          });
+        } catch (_) {}
+        if (verifyResponse?.ok) {
+          let orderData;
+          try { orderData = await verifyResponse.json(); } catch (_) {}
+          if (asString(orderData?.status).toUpperCase() === 'COMPLETED') {
+            return orderData;
+          }
+        }
+      }
+      failProviderDiagnostic('provider.http_response', 'provider_upstream_error', {
+        diagnosticStatus: Number.isInteger(status) && status >= 100 && status <= 599 ? status : null,
+      });
+    }
+
+    let payload;
+    try {
+      payload = await response.json();
+    } catch (_) {
+      failProviderDiagnostic('provider.response_json', 'invalid_json');
+    }
+
+    return payload;
+  }
 }
 
 function selectProvider(config, dependencies) {
@@ -1149,19 +1571,217 @@ class BillingCheckoutService {
     this.now = now;
   }
 
-  async create({ userId, plan, idempotencyKey }) {
+  async quote({ userId, plan, paymentMode = 'subscription', couponCode = null }) {
+    if (!userId) fail('unauthorized', 401, 'Authentication is required.');
+    if (!ALLOWED_PLANS.has(plan)) fail('invalid_plan', 400, 'This checkout plan is not available.');
+    assertRuntimeEnabled(this.config, plan, userId);
+
+    const basePrice = Number(BASE_PLAN_PRICES[plan]?.amount ?? BASE_PLAN_PRICES[plan] ?? 5.00);
+    if (paymentMode === 'subscription') {
+      if (couponCode) {
+        return {
+          status: 'success',
+          eligible: false,
+          reason: 'coupons_not_supported_for_recurring',
+          message: 'Coupons cannot be applied to recurring subscriptions. Switch to one-month access to use your coupon.',
+          plan,
+          payment_mode: 'subscription',
+          original_amount: basePrice,
+          discount_amount: 0,
+          final_amount: basePrice,
+        };
+      }
+      return {
+        status: 'success',
+        eligible: true,
+        plan,
+        payment_mode: 'subscription',
+        original_amount: basePrice,
+        discount_amount: 0,
+        final_amount: basePrice,
+      };
+    }
+
+    if (!couponCode) {
+      return {
+        status: 'success',
+        eligible: true,
+        plan,
+        payment_mode: 'one_time',
+        original_amount: basePrice,
+        discount_amount: 0,
+        final_amount: basePrice,
+      };
+    }
+
+    const cleanCode = asString(couponCode).trim().toUpperCase();
+    if (isQaCouponCode(cleanCode)) {
+      const qaUserId = String(this.config.qaUserId || '').trim();
+      if (!qaUserId || userId !== qaUserId) {
+        return {
+          status: 'success',
+          eligible: false,
+          reason: 'qa_unauthorized',
+          message: 'This coupon code is restricted to authorized QA accounts.',
+          code: cleanCode,
+          plan,
+          payment_mode: 'one_time',
+          original_amount: basePrice,
+          discount_amount: 0,
+          final_amount: basePrice,
+        };
+      }
+    }
+
+    const coupon = await this.store.findCoupon(cleanCode);
+    const nowMs = typeof this.now === 'function' ? this.now() : Date.now();
+
+    if (!coupon || !couponIsActive(coupon, nowMs)) {
+      return {
+        status: 'success',
+        eligible: false,
+        reason: 'invalid_or_expired',
+        message: 'The coupon code is invalid or has expired.',
+        code: cleanCode,
+        plan,
+        payment_mode: 'one_time',
+        original_amount: basePrice,
+        discount_amount: 0,
+        final_amount: basePrice,
+      };
+    }
+
+    if (Array.isArray(coupon.allowed_plans) && coupon.allowed_plans.length > 0 && !coupon.allowed_plans.includes(plan)) {
+      return {
+        status: 'success',
+        eligible: false,
+        reason: 'plan_ineligible',
+        message: `This coupon is not valid for the ${plan === 'premium' ? 'Ultimate' : 'Pro'} plan.`,
+        code: cleanCode,
+        plan,
+        payment_mode: 'one_time',
+        original_amount: basePrice,
+        discount_amount: 0,
+        final_amount: basePrice,
+      };
+    }
+
+    const alreadyRedeemed = await this.store.hasUserRedeemedCoupon(userId, coupon.$id || cleanCode);
+    if (alreadyRedeemed) {
+      return {
+        status: 'success',
+        eligible: false,
+        reason: 'already_redeemed',
+        message: 'You have already used this coupon code.',
+        code: cleanCode,
+        plan,
+        payment_mode: 'one_time',
+        original_amount: basePrice,
+        discount_amount: 0,
+        final_amount: basePrice,
+      };
+    }
+
+    if (coupon.max_uses && Number(coupon.times_used || coupon.timesUsed || coupon.uses_count || 0) >= Number(coupon.max_uses)) {
+      return {
+        status: 'success',
+        eligible: false,
+        reason: 'usage_limit_reached',
+        message: 'This coupon has reached its maximum redemption limit.',
+        code: cleanCode,
+        plan,
+        payment_mode: 'one_time',
+        original_amount: basePrice,
+        discount_amount: 0,
+        final_amount: basePrice,
+      };
+    }
+
+    const discountResult = calculateCouponDiscount(coupon, plan, 'one_time');
+    return {
+      status: 'success',
+      eligible: true,
+      code: coupon.code,
+      discount_type: coupon.discount_type,
+      discount_value: coupon.discount_value,
+      plan,
+      payment_mode: 'one_time',
+      original_amount: discountResult.basePrice,
+      discount_amount: discountResult.discount,
+      final_amount: discountResult.finalPrice,
+    };
+  }
+
+  async create({ userId, plan, idempotencyKey, paymentMode = 'subscription', couponCode = null }) {
     if (!userId) fail('unauthorized', 401, 'Authentication is required.');
     if (!ALLOWED_PLANS.has(plan)) fail('invalid_plan', 400, 'This checkout plan is not available.');
     assertRuntimeEnabled(this.config, plan, userId);
     const nowMs = this.now();
     const currentPlan = await this.store.getEffectivePlan(userId);
-    assertNotAlreadyEntitled(currentPlan, plan);
     if (typeof this.store.findOptional === 'function') {
       const paypalState = await this.store.findOptional('paypal_subscription_state', userId);
       if (hasActivePaypalSubscription(paypalState, userId, nowMs)) {
+        if (paymentMode === 'one_time') {
+          fail('active_recurring_subscription_exists', 409, 'Active recurring subscription already exists.');
+        }
         fail('plan_change_unavailable', 409, 'Plan changes are temporarily unavailable.');
       }
+      if (paymentMode === 'one_time' && isRecord(paypalState) && paypalState.user_id === userId) {
+        const isOneTimeActive = ['active', 'billing_issue'].includes(asString(paypalState.status).trim().toLowerCase()) &&
+          isFutureTimestamp(paypalState.expires_at, nowMs);
+        if (isOneTimeActive) {
+          const existingPlan = normalizeEffectivePlan(paypalState.plan);
+          if (existingPlan === 'premium' && plan === 'pro') {
+            fail('active_higher_plan_exists', 409, 'Your account already has an active higher plan.');
+          }
+          fail('active_paid_entitlement_exists', 409, 'Active paid entitlement already exists.');
+        }
+      }
     }
+    if (paymentMode === 'one_time') {
+      if (normalizeEffectivePlan(currentPlan) === 'premium' && plan === 'pro') {
+        fail('active_higher_plan_exists', 409, 'Your account already has an active higher plan.');
+      }
+      if (normalizeEffectivePlan(currentPlan) !== 'free') {
+        fail('active_paid_entitlement_exists', 409, 'Active paid entitlement already exists.');
+      }
+    }
+    assertNotAlreadyEntitled(currentPlan, plan);
+
+    let coupon = null;
+    let finalAmount = Number(BASE_PLAN_PRICES[plan]?.amount ?? BASE_PLAN_PRICES[plan] ?? 5.00);
+    if (paymentMode === 'one_time') {
+      if (couponCode) {
+        const cleanCode = asString(couponCode).trim().toUpperCase();
+        if (isQaCouponCode(cleanCode)) {
+          const qaUserId = String(this.config.qaUserId || '').trim();
+          if (!qaUserId || userId !== qaUserId) {
+            fail('forbidden', 403, 'This coupon code is restricted to authorized QA accounts.');
+          }
+        }
+        coupon = await this.store.findCoupon(cleanCode);
+        if (!coupon || !couponIsActive(coupon, nowMs)) {
+          fail('invalid_coupon', 400, 'The coupon code is invalid or expired.');
+        }
+        if (Array.isArray(coupon.allowed_plans) && coupon.allowed_plans.length > 0 && !coupon.allowed_plans.includes(plan)) {
+          fail('invalid_coupon', 400, 'This coupon is not valid for the selected plan.');
+        }
+        const alreadyRedeemed = await this.store.hasUserRedeemedCoupon(userId, coupon.$id || cleanCode);
+        if (alreadyRedeemed) {
+          fail('coupon_already_redeemed', 400, 'You have already redeemed this coupon.');
+        }
+        if (coupon.max_uses && Number(coupon.times_used || coupon.timesUsed || coupon.uses_count || 0) >= Number(coupon.max_uses)) {
+          fail('invalid_coupon', 400, 'This coupon has reached its usage limit.');
+        }
+        const discountCalc = calculateCouponDiscount(coupon, plan, 'one_time');
+        finalAmount = discountCalc.finalPrice;
+      }
+    } else {
+      if (couponCode) {
+        fail('coupon_not_supported_for_recurring', 400, 'Coupons cannot be applied to recurring subscriptions.');
+      }
+    }
+
     const catalog = this.config.catalog[plan];
     const replayBucket = Math.floor(nowMs / IDEMPOTENCY_WINDOW_MS);
     // Explicit keys provide replay/recovery semantics. Without one, each request
@@ -1169,7 +1789,8 @@ class BillingCheckoutService {
     // concurrent/simultaneous sessions without cross-plan collision or stale retry blocking.
     const requestKey = idempotencyKey || opaqueReference('attempt');
     const requestKeyFingerprint = hash(requestKey);
-    const sessionKey = hash(`${userId}:${plan}:${this.config.environment}:${catalog.priceId}:${requestKeyFingerprint}:${replayBucket}`);
+    const modeKey = paymentMode === 'one_time' ? `one_time:${finalAmount}:${coupon?.code || 'none'}` : catalog.priceId;
+    const sessionKey = hash(`${userId}:${plan}:${this.config.environment}:${modeKey}:${requestKeyFingerprint}:${replayBucket}`);
     const sessionInput = {
       userId, plan, environment: this.config.environment, priceId: catalog.priceId,
       productId: catalog.productId, entitlementId: catalog.entitlementId, sessionKey,
@@ -1178,29 +1799,46 @@ class BillingCheckoutService {
       rateLimitExpiresAt: new Date(nowMs + RATE_LIMIT_WINDOW_MS).toISOString(),
     };
     const reservation = await this.store.reserve(sessionInput);
-    if (reservation.outcome === 'reused') return publicSessionResponse(reservation.session, null);
-    const providerRequestId = `wr_sub_${hash(reservation.session.session_key).slice(0, 32)}`;
-    const providerInput = {
-      environment: this.config.environment,
-      plan,
-      priceId: catalog.priceId,
-      productId: catalog.productId,
-      entitlementId: catalog.entitlementId,
-      collectionMode: 'automatic',
-      customData: {
-        app_user_id: userId,
-        checkout_session_reference: reservation.session.public_reference,
-        source: SAFE_SOURCE,
-      },
-      returnPath: SAFE_RETURN_PATH,
-      correlationId: sessionInput.correlationId,
-      providerRequestId,
-    };
+    if (reservation.outcome === 'reused') return publicSessionResponse({ ...reservation.session, paymentMode }, null);
+    const providerRequestIdPrefix = paymentMode === 'one_time' ? 'wr_ord_' : 'wr_sub_';
+    const providerRequestId = `${providerRequestIdPrefix}${hash(reservation.session.session_key).slice(0, 32)}`;
+    const providerInput = paymentMode === 'one_time'
+      ? {
+          environment: this.config.environment,
+          plan,
+          amount: finalAmount,
+          couponCode: coupon?.code || null,
+          appOrigin: this.config.approvedAppUrl,
+          customData: {
+            app_user_id: userId,
+            checkout_session_reference: reservation.session.public_reference,
+            source: SAFE_SOURCE,
+          },
+          providerRequestId,
+        }
+      : {
+          environment: this.config.environment,
+          plan,
+          priceId: catalog.priceId,
+          productId: catalog.productId,
+          entitlementId: catalog.entitlementId,
+          collectionMode: 'automatic',
+          customData: {
+            app_user_id: userId,
+            checkout_session_reference: reservation.session.public_reference,
+            source: SAFE_SOURCE,
+          },
+          returnPath: SAFE_RETURN_PATH,
+          correlationId: sessionInput.correlationId,
+          providerRequestId,
+        };
     try {
-      const providerResult = await providerOperation('provider.create_checkout', 'provider_operation_failure', () => this.provider.createCheckout(providerInput));
+      const providerResult = paymentMode === 'one_time'
+        ? await providerOperation('provider.create_order', 'provider_operation_failure', () => this.provider.createOrder(providerInput))
+        : await providerOperation('provider.create_checkout', 'provider_operation_failure', () => this.provider.createCheckout(providerInput));
       const result = await providerOperation('provider.safe_result_validation', 'safe_result_validation_failure', () => safeProviderResult(providerResult, this.config));
       await providerOperation('provider.persist_complete', 'persistence_failure', () => this.store.complete(reservation.session, result, this.now()));
-      return publicSessionResponse({ ...reservation.session, expiresAt: sessionInput.expiresAt, plan }, result);
+      return publicSessionResponse({ ...reservation.session, expiresAt: sessionInput.expiresAt, plan, paymentMode }, result);
     } catch (error) {
       const safeCode = error instanceof BillingCheckoutError ? error.code : 'provider_unavailable';
       if (isAmbiguousProviderError(error) && typeof this.store.markUncertain === 'function') {
@@ -1214,6 +1852,191 @@ class BillingCheckoutService {
       if (diagnostic) throw annotateProviderFailure(sanitizedError, diagnostic.stage, diagnostic.category, diagnostic.status);
       throw sanitizedError;
     }
+  }
+
+  async captureOrder({ userId, orderId }) {
+    if (!userId || typeof userId !== 'string') fail('unauthorized', 401, 'Authentication is required.');
+    const cleanOrderId = asString(orderId).trim();
+    if (!cleanOrderId || !/^[A-Za-z0-9_-]{1,128}$/.test(cleanOrderId)) {
+      fail('invalid_request', 400, 'Invalid order ID.');
+    }
+    if (typeof this.provider.captureOrder !== 'function' || typeof this.provider.getOrder !== 'function') {
+      fail('configuration_error', 500, 'Order capture is not supported by current provider.');
+    }
+
+    // Standard PayPal Orders v2: Preflight get authoritative order details
+    const preOrder = await this.provider.getOrder({
+      orderId: cleanOrderId,
+      environment: this.config.environment,
+    });
+
+    const preStatus = asString(preOrder?.status).toUpperCase();
+    if (preStatus !== 'APPROVED' && preStatus !== 'COMPLETED') {
+      fail('order_not_approved', 400, `Order is not approved for capture (status: ${preStatus || 'unknown'}).`);
+    }
+
+    const purchaseUnit = Array.isArray(preOrder?.purchase_units) ? preOrder.purchase_units[0] : null;
+    if (!purchaseUnit) {
+      fail('invalid_order', 400, 'Order is missing purchase units.');
+    }
+
+    // Currency verification: must be USD
+    const currency = asString(purchaseUnit.amount?.currency_code || 'USD').toUpperCase();
+    if (currency !== 'USD') {
+      fail('currency_mismatch', 400, 'Only USD currency is supported.');
+    }
+
+    // Server-created immutable metadata verification (merchant-provided correlation metadata)
+    if (!purchaseUnit.custom_id) {
+      fail('forbidden', 403, 'Order metadata is missing or invalid.');
+    }
+
+    let customData = null;
+    try {
+      customData = JSON.parse(purchaseUnit.custom_id);
+    } catch (_) {
+      fail('forbidden', 403, 'Order metadata is malformed.');
+    }
+
+    if (!customData || typeof customData !== 'object') {
+      fail('forbidden', 403, 'Order metadata is missing or invalid.');
+    }
+
+    // Strict ownership verification: order must belong to canonical authenticated user
+    if (!customData.app_user_id || customData.app_user_id !== userId) {
+      fail('forbidden', 403, 'Order does not belong to the authenticated user.');
+    }
+
+    // Payment mode must be one_time
+    if (customData.payment_mode !== 'one_time') {
+      fail('invalid_payment_mode', 400, 'Order payment mode is invalid.');
+    }
+
+    // Plan verification: must be valid allowed plan
+    if (!customData.plan || !ALLOWED_PLANS.has(customData.plan)) {
+      fail('invalid_plan', 400, 'Order plan is invalid.');
+    }
+    const plan = customData.plan;
+
+    // Server-side session verification against billing_checkout_sessions
+    if (typeof this.store.findSessionByOrderId === 'function') {
+      const session = await this.store.findSessionByOrderId(cleanOrderId);
+      if (session) {
+        if (session.user_id && session.user_id !== userId) {
+          fail('forbidden', 403, 'Order does not belong to the authenticated user.');
+        }
+        if (session.plan && session.plan !== plan) {
+          fail('plan_mismatch', 400, 'Order plan does not match session plan.');
+        }
+        if (session.environment && session.environment !== this.config.environment) {
+          fail('environment_mismatch', 400, 'Order environment does not match runtime.');
+        }
+      }
+    }
+
+    // Coupon and expected amount verification
+    const couponCode = customData.coupon_code || null;
+    let coupon = null;
+    let expectedPrice = Number(BASE_PLAN_PRICES[plan]?.amount ?? BASE_PLAN_PRICES[plan] ?? 5.00);
+
+    if (couponCode) {
+      if (typeof this.store.findCoupon !== 'function') {
+        fail('configuration_error', 500, 'Coupon store unavailable.');
+      }
+      coupon = await this.store.findCoupon(couponCode);
+      if (!coupon || !couponIsActive(coupon)) {
+        fail('invalid_coupon', 400, 'Coupon applied to order is invalid or expired.');
+      }
+      if (isQaCouponCode(couponCode)) {
+        if (this.config.environment !== 'production') {
+          fail('qa_unauthorized', 403, 'QA coupons are restricted to production QA.');
+        }
+        const qaUserId = String(this.config.qaUserId || '').trim();
+        if (!qaUserId || userId !== qaUserId) {
+          fail('qa_unauthorized', 403, 'This coupon is restricted to authorized QA user.');
+        }
+      }
+      const discountRes = calculateCouponDiscount(coupon, plan, 'one_time');
+      expectedPrice = discountRes.finalPrice;
+    }
+
+    const orderAmount = parseFloat(purchaseUnit.amount?.value || '0');
+    if (Math.abs(orderAmount - expectedPrice) > 0.01) {
+      fail('amount_mismatch', 400, 'Captured order amount does not match expected server price.');
+    }
+
+    // Active recurring subscription & one-time stacking protection before capture
+    if (typeof this.store.findOptional === 'function') {
+      const paypalState = await this.store.findOptional('paypal_subscription_state', userId);
+      if (isRecord(paypalState) && paypalState.user_id === userId) {
+        const isRecurringActive = ['active', 'billing_issue'].includes(asString(paypalState.status).trim().toLowerCase()) &&
+          (paypalState.will_renew === true || (paypalState.subscription_id && String(paypalState.subscription_id).startsWith('I-')));
+        if (isRecurringActive) {
+          fail('active_recurring_subscription_exists', 409, 'Active recurring subscription already exists.');
+        }
+        const existingPlan = normalizeEffectivePlan(paypalState.plan);
+        const isExistingActive = ['active', 'billing_issue'].includes(asString(paypalState.status).trim().toLowerCase()) &&
+          isFutureTimestamp(paypalState.expires_at, typeof this.now === 'function' ? this.now() : Date.now());
+        if (isExistingActive) {
+          if (existingPlan === 'premium' && plan === 'pro') {
+            fail('active_higher_plan_exists', 409, 'Your account already has an active higher plan.');
+          }
+          fail('active_paid_entitlement_exists', 409, 'Active paid entitlement already exists.');
+        }
+      }
+    }
+
+    let captureId = null;
+    let isReplay = false;
+
+    if (preStatus === 'COMPLETED') {
+      // Idempotent replay path: order was already captured (e.g. earlier callback or webhook race)
+      // Do not capture twice!
+      isReplay = true;
+      const existingCaptures = Array.isArray(purchaseUnit.payments?.captures) ? purchaseUnit.payments.captures : [];
+      const completedCap = existingCaptures.find(c => asString(c?.status).toUpperCase() === 'COMPLETED') || existingCaptures[0];
+      captureId = completedCap?.id || cleanOrderId;
+    } else {
+      // preStatus === 'APPROVED': call captureOrder
+      const captureResult = await this.provider.captureOrder({
+        orderId: cleanOrderId,
+        environment: this.config.environment,
+      });
+
+      const captureStatus = asString(captureResult?.status).toUpperCase();
+      const capPurchaseUnit = Array.isArray(captureResult?.purchase_units) ? captureResult.purchase_units[0] : null;
+      const captures = Array.isArray(capPurchaseUnit?.payments?.captures) ? capPurchaseUnit.payments.captures : [];
+      const completedCapture = captures.find(c => asString(c?.status).toUpperCase() === 'COMPLETED') || (captureStatus === 'COMPLETED' ? captures[0] : null);
+
+      if (captureStatus !== 'COMPLETED' && !completedCapture) {
+        fail('capture_failed', 400, 'Order payment has not completed.');
+      }
+
+      captureId = completedCapture?.id || captures[0]?.id || cleanOrderId;
+    }
+
+    const entitlement = await this.store.recordOrderEntitlement({
+      userId,
+      orderId: cleanOrderId,
+      captureId,
+      plan,
+      environment: this.config.environment,
+      nowMs: typeof this.now === 'function' ? this.now() : Date.now(),
+      coupon,
+    });
+
+    return {
+      status: 'success',
+      data: {
+        order_id: cleanOrderId,
+        capture_id: captureId,
+        plan: entitlement.plan,
+        expires_at: entitlement.expiresAt,
+        payment_mode: 'one_time',
+        state: 'entitled',
+        replayed: isReplay,
+      },
+    };
   }
 
   async cancel({ userId, reason }) {
@@ -1402,6 +2225,22 @@ async function handleBillingCheckout({ req, res, error }, dependencies = {}) {
       });
       return res.json(response, 200);
     }
+    if (request.action === 'quote') {
+      const response = await service.quote({
+        userId: user.$id,
+        plan: request.plan,
+        paymentMode: request.paymentMode,
+        couponCode: request.couponCode,
+      });
+      return res.json(response, 200);
+    }
+    if (request.action === 'capture-order') {
+      const response = await service.captureOrder({
+        userId: user.$id,
+        orderId: request.orderId,
+      });
+      return res.json(response, 200);
+    }
     const response = await service.create({ userId: user.$id, ...request });
     return res.json(response, 200);
   } catch (caught) {
@@ -1423,6 +2262,10 @@ module.exports = handleBillingCheckout;
 module.exports.__test = {
   ACTIVE_WINDOW_MS,
   ALLOWED_PLANS,
+  BASE_PLAN_PRICES,
+  MIN_CHARGE_FLOOR,
+  couponIsActive,
+  calculateCouponDiscount,
   IDEMPOTENCY_WINDOW_MS,
   LOCK_COLLECTION,
   MAX_BODY_BYTES,

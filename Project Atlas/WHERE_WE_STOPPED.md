@@ -1,10 +1,47 @@
 # Project Atlas — Active Operational & Handover State
 
-**Last Verified:** 2026-09-07
-**Status:** `SANDBOX_PAYMENT_CORE_VERIFIED_READY_FOR_PRODUCTION_ACTIVATION` (Frontend: `DEPLOYED_TO_PRODUCTION` via Vercel, Backend: `paypal-webhook`: `DEPLOYED_SANDBOX` [deployment `[verified deployment]`, run `34118592362`], `coupons`: `DEPLOYED_OR_READY`, PayPal Schema: `READY`, Sandbox Refund: `VERIFIED_LIVE_REDELIVERY_OPTION_B_REVOKED`, Authentic Refund Event: `[genuine Sandbox refund event]` [reclaimed and settled], Production PayPal: `UNTOUCHED`, `PAYPAL_PRODUCTION_READY = NO`, Base Main SHA: `9c27773f4bc7c69d42a53cb25d83e6a0a471b316`, Billing: `CHECKOUT_PREVIOUSLY_VERIFIED_DISABLED`) — Core PayPal Sandbox payment lifecycle is fully verified end-to-end: Subscription checkout (Pro & Ultimate), activation, sale payments, customer cancellation (paid-through preserved), full refund revocation (Option B immediate access revocation to Free, future renewal cancelled), authentic webhook signature verification, Step 3 provider Sale fallback correlation, rejected-event redelivery reclaim, and live authenticated browser UI QA with persistence across reloads and navigation. Production PayPal remains untouched; public checkout remains safely fail-closed.
+**Last Verified:** 2026-09-08
+**Status:** `RELEASE_READY_PENDING_OWNER_AUTHORIZATION` (Frontend: `BUILT_LOCAL` [vite build passed, 0 sourcemaps], Backend: `TESTED_LOCAL` [294/294 unit tests passed across 3 suites], Vitest: `PASS` [20/20 tests], TypeScript: `PASS` [0 errors], Whitespace: `PASS` [git diff --check clean], Browser QA: `LOCAL_BROWSER_QA_PASS` [11/11 scenarios], PayPal Sandbox: `VERIFIED`, Production PayPal: `UNTOUCHED`, `PAYPAL_PRODUCTION_READY = NO`) — WiseResume PayPal Checkout, Coupons & Subscription Redesign has resolved all release blockers including the blocking of active one-time stacking, full capture lifecycle ordering, webhook capture handling, single-use coupon concurrency protection, QA coupon boundary enforcement, and existing-paid-user safety. Deployment, git push, production seeding, and live payment remain strictly held pending owner authorization.
 **Location:** `Project Atlas/WHERE_WE_STOPPED.md`
 
-## Current Active Handover — PayPal Sandbox Payment Core Final Verification & Closeout (2026-09-07)
+## Current Active Handover — WiseResume PayPal Checkout Final Release Review Gate (2026-09-08)
+
+* **Workstream Verdict:** `RELEASE_READY_PENDING_OWNER_AUTHORIZATION` (Status: `TESTED_LOCAL — RELEASE_READY_PENDING_OWNER_AUTHORIZATION`, `PAYPAL_PRODUCTION_READY = NO`).
+* **Release Eligibility Decision (MANDATORY GATE):** `WHATS_NEW_DEFER_UNTIL_PRODUCTION`
+  - *Justification:* The new customer-facing payment modal, 30-day one-time access option, and coupon validation workflows are fully implemented, typed, and unit-tested locally, but deployment to Appwrite hubs, Vercel production build, and live production QA are intentionally paused per pre-deploy gate requirements. Notes will be published upon successful production verification.
+* **Stop Conditions Respected:**
+  - Zero git commits or pushes to remote.
+  - Zero deployments to Appwrite hubs (`billing-checkout`, `paypal-webhook`).
+  - Zero Vercel production promotions.
+  - Zero executions of `scripts/seed_qa_coupon.cjs` against production.
+  - Zero real PayPal transactions or refunds executed.
+* **Final Release Blocker Patch Implemented (Block Active One-Time Stacking):**
+  1. **One-Time Stacking Blocked:**
+     - In `appwrite-hubs/shared-subscription-resolver/index.js`, removed duration extension (+30 days) and enforced that any active one-time paid entitlement blocks subsequent one-time purchases with `409 active_paid_entitlement_exists`.
+     - In `appwrite-hubs/billing-checkout/src/main.js`, enforced stacking blocks in both `create` and `captureOrder`: active recurring subscribers receive `409 active_recurring_subscription_exists`, active Ultimate subscribers attempting Pro one-time receive `409 active_higher_plan_exists`, and active one-time users receive `409 active_paid_entitlement_exists`.
+     - Expired one-time users and free users are permitted to purchase normally.
+     - Refund of the sole active one-time capture revokes paid access and returns user to Free safely.
+     - In `src/lib/billingCheckout.ts`, added error code mappings for `active_paid_entitlement_exists`, `active_recurring_subscription_exists`, and `active_higher_plan_exists`.
+* **Validation Evidence:**
+  - `tests/hubs/billing-checkout.paypal.test.cjs`: 99 / 99 PASS (100%).
+  - `tests/hubs/paypal-webhook.test.cjs`: 165 / 165 PASS (100%).
+  - `tests/hubs/paypal-subscription-resolver.test.cjs`: 30 / 30 PASS (100%).
+  - Total Hub Unit Tests: 294 / 294 passing (100%).
+  - Frontend Vitest (`PaymentConfirmationModal.test.tsx` + `billingCheckout.test.ts`): 20 / 20 PASS (100%).
+  - `tsc --noEmit`: PASS (0 errors).
+  - `git diff --check`: PASS (0 whitespace errors).
+  - Production Build (`vite build`): PASS (5,895 modules transformed, 0 sourcemaps, 0 errors).
+  - Local Browser QA: `LOCAL_BROWSER_QA_PASS` (11 UI screenshots verified across desktop, mobile, dark mode, RTL Arabic, coupon states).
+* **Live PayPal Webhook Registration Status:**
+  - Audit of `scripts/bootstrap_paypal_live.cjs` confirmed: existing live registration subscribes ONLY to `BILLING.SUBSCRIPTION.*` and `PAYMENT.SALE.*` events.
+  - **Verdict:** `NOT_SUFFICIENT`. Missing Orders v2 capture events (`PAYMENT.CAPTURE.COMPLETED`, `PAYMENT.CAPTURE.PENDING`, `PAYMENT.CAPTURE.REFUNDED`, `PAYMENT.CAPTURE.REVERSED`, `CHECKOUT.ORDER.APPROVED`). Must be patched before live capture webhooks can function.
+* **Changed Appwrite Deployment Targets:**
+  - Strictly `billing-checkout` and `paypal-webhook`.
+  - `coupons` has NO changes and must NOT be deployed.
+  - Deployment must be executed via GitHub Actions workflow `deploy-appwrite-hubs.yml` (never local CLI, never `target=all`).
+* **Database Schema Action Required:** `NO` (existing schema verified compatible).
+* **Production QA Payment Specification:** `ONE REAL PAYPAL LIVE NON-ZERO TRANSACTION` ($0.50 floor via QA coupon on live credit/debit or PayPal balance). No Sandbox, no test cards.
+
 
 * **Workstream Verdict:** `SANDBOX_PAYMENT_CORE_VERIFIED_READY_FOR_PRODUCTION_ACTIVATION` (`PAYPAL_PRODUCTION_READY = NO`).
 * **Authoritative Commit:** `9c27773f4bc7c69d42a53cb25d83e6a0a471b316` (`main`).

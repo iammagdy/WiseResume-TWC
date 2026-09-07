@@ -1,6 +1,7 @@
 import { appwriteFunctions } from '@/lib/appwrite-functions';
 
 export type BillingCheckoutPlan = 'pro' | 'premium';
+export type BillingPaymentMode = 'subscription' | 'one_time';
 
 export type BillingCheckoutErrorCode =
   | 'unauthorized'
@@ -17,6 +18,13 @@ export type BillingCheckoutErrorCode =
   | 'plan_change_unavailable'
   | 'cancellation_failed'
   | 'not_found'
+  | 'invalid_coupon'
+  | 'coupon_already_redeemed'
+  | 'coupon_not_supported_for_recurring'
+  | 'qa_unauthorized'
+  | 'active_paid_entitlement_exists'
+  | 'active_recurring_subscription_exists'
+  | 'active_higher_plan_exists'
   | 'unknown';
 
 export type BillingCheckoutSession = {
@@ -34,6 +42,38 @@ export type BillingCheckoutResult =
 
 export type CancelSubscriptionResult =
   | { ok: true; canceled: boolean }
+  | { ok: false; code: BillingCheckoutErrorCode; message: string };
+
+export type CouponQuote = {
+  eligible: boolean;
+  code?: string;
+  reason?: string;
+  message?: string;
+  plan: BillingCheckoutPlan;
+  payment_mode: BillingPaymentMode;
+  original_amount: number;
+  discount_amount: number;
+  final_amount: number;
+  discount_type?: string;
+  discount_value?: number;
+};
+
+export type CouponQuoteResult =
+  | { ok: true; quote: CouponQuote }
+  | { ok: false; code: BillingCheckoutErrorCode; message: string };
+
+export type CaptureOrderResult =
+  | {
+      ok: true;
+      data: {
+        order_id: string;
+        capture_id: string;
+        plan: BillingCheckoutPlan;
+        expires_at: string;
+        payment_mode: 'one_time';
+        state: 'entitled';
+      };
+    }
   | { ok: false; code: BillingCheckoutErrorCode; message: string };
 
 type CheckoutEnvelope = {
@@ -141,6 +181,13 @@ function normalizeErrorCode(value: unknown): BillingCheckoutErrorCode {
     'plan_change_unavailable',
     'cancellation_failed',
     'not_found',
+    'invalid_coupon',
+    'coupon_already_redeemed',
+    'coupon_not_supported_for_recurring',
+    'qa_unauthorized',
+    'active_paid_entitlement_exists',
+    'active_recurring_subscription_exists',
+    'active_higher_plan_exists',
   ].includes(code) ? code as BillingCheckoutErrorCode : 'unknown';
 }
 
@@ -156,6 +203,13 @@ function fallbackMessage(code: BillingCheckoutErrorCode): string {
     case 'plan_change_unavailable': return 'Plan changes are temporarily unavailable.';
     case 'cancellation_failed': return 'Unable to cancel subscription. Please verify your subscription status or try again later.';
     case 'not_found': return 'Subscription not found.';
+    case 'invalid_coupon': return 'This coupon code is invalid or has expired.';
+    case 'coupon_already_redeemed': return 'You have already redeemed this coupon code.';
+    case 'coupon_not_supported_for_recurring': return 'Coupons cannot be applied to recurring subscriptions.';
+    case 'qa_unauthorized': return 'This coupon code is restricted to authorized QA accounts.';
+    case 'active_paid_entitlement_exists': return 'Your account already has an active paid entitlement for this period.';
+    case 'active_recurring_subscription_exists': return 'You already have an active recurring subscription.';
+    case 'active_higher_plan_exists': return 'Your account already has an active higher plan.';
     default: return 'Checkout is temporarily unavailable. Please try again later.';
   }
 }
@@ -180,15 +234,28 @@ function isSafeSession(value: unknown, environment?: string): value is BillingCh
 
 export async function createBillingCheckoutSession(
   plan: BillingCheckoutPlan,
-  options: { idempotencyKey?: string; environment?: string } = {},
+  options: {
+    idempotencyKey?: string;
+    environment?: string;
+    paymentMode?: BillingPaymentMode;
+    couponCode?: string | null;
+  } = {},
 ): Promise<BillingCheckoutResult> {
   const idempotencyKey = options.idempotencyKey ?? getOrCreatePlanAttemptKey(plan);
+  const body: Record<string, unknown> = {
+    action: 'create-session',
+    plan,
+    idempotency_key: idempotencyKey,
+  };
+  if (options.paymentMode) {
+    body.payment_mode = options.paymentMode;
+  }
+  if (options.couponCode) {
+    body.coupon_code = options.couponCode;
+  }
+
   const result = await appwriteFunctions.invoke<CheckoutEnvelope>('billing-checkout', {
-    body: {
-      action: 'create-session',
-      plan,
-      idempotency_key: idempotencyKey,
-    },
+    body,
   });
 
   if (result.error) {
@@ -212,6 +279,122 @@ export async function createBillingCheckoutSession(
   }
 
   return { ok: true, session: envelope.data };
+}
+
+export async function getCouponQuote(params: {
+  plan: BillingCheckoutPlan;
+  paymentMode?: BillingPaymentMode;
+  couponCode?: string | null;
+}): Promise<CouponQuoteResult> {
+  const result = await appwriteFunctions.invoke<{
+    status?: string;
+    eligible?: boolean;
+    reason?: string;
+    message?: string;
+    plan?: BillingCheckoutPlan;
+    payment_mode?: BillingPaymentMode;
+    original_amount?: number;
+    discount_amount?: number;
+    final_amount?: number;
+    code?: string;
+    discount_type?: string;
+    discount_value?: number;
+    error?: string;
+  }>('billing-checkout', {
+    body: {
+      action: 'quote',
+      plan: params.plan,
+      payment_mode: params.paymentMode ?? 'one_time',
+      coupon_code: params.couponCode ?? undefined,
+    },
+  });
+
+  if (result.error) {
+    const code = normalizeErrorCode(result.error.code);
+    return {
+      ok: false,
+      code,
+      message: result.error.message || fallbackMessage(code),
+    };
+  }
+
+  const envelope = result.data;
+  if (!envelope || envelope.status !== 'success') {
+    return {
+      ok: false,
+      code: 'unknown',
+      message: fallbackMessage('unknown'),
+    };
+  }
+
+  return {
+    ok: true,
+    quote: {
+      eligible: envelope.eligible ?? false,
+      code: envelope.code,
+      reason: envelope.reason,
+      message: envelope.message,
+      plan: envelope.plan || params.plan,
+      payment_mode: envelope.payment_mode || params.paymentMode || 'one_time',
+      original_amount: envelope.original_amount ?? 0,
+      discount_amount: envelope.discount_amount ?? 0,
+      final_amount: envelope.final_amount ?? 0,
+      discount_type: envelope.discount_type,
+      discount_value: envelope.discount_value,
+    },
+  };
+}
+
+export async function captureBillingOrder(orderId: string): Promise<CaptureOrderResult> {
+  if (!orderId || typeof orderId !== 'string') {
+    return {
+      ok: false,
+      code: 'invalid_request',
+      message: 'Order ID is required.',
+    };
+  }
+
+  const result = await appwriteFunctions.invoke<{
+    status?: string;
+    data?: {
+      order_id: string;
+      capture_id: string;
+      plan: BillingCheckoutPlan;
+      expires_at: string;
+      payment_mode: 'one_time';
+      state: 'entitled';
+    };
+    error?: string;
+    message?: string;
+  }>('billing-checkout', {
+    body: {
+      action: 'capture-order',
+      order_id: orderId.trim(),
+    },
+  });
+
+  if (result.error) {
+    const code = normalizeErrorCode(result.error.code);
+    return {
+      ok: false,
+      code,
+      message: result.error.message || fallbackMessage(code),
+    };
+  }
+
+  const envelope = result.data;
+  if (!envelope || envelope.status !== 'success' || !envelope.data) {
+    return {
+      ok: false,
+      code: 'unknown',
+      message: envelope?.message || fallbackMessage('unknown'),
+    };
+  }
+
+  return {
+    ok: true,
+    data: envelope.data,
+  };
 }
 
 export async function cancelBillingSubscription(options: {

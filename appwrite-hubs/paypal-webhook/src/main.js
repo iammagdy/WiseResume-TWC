@@ -8,6 +8,8 @@ const {
   normalizeProviderEnvironment,
   configuredPaypalProviderEnvironment,
   resolveEffectivePlan,
+  fulfillCompletedOneTimePayment,
+  isQaCouponCode,
 } = require('@wiseresume/subscription-resolver');
 
 const DB_ID = 'main';
@@ -41,6 +43,15 @@ const SUPPORTED_SUBSCRIPTION_EVENTS = new Set([
   'BILLING.SUBSCRIPTION.UPDATED',
   'PAYMENT.SALE.REFUNDED',
   'PAYMENT.SALE.REVERSED',
+]);
+
+const SUPPORTED_ORDER_EVENTS = new Set([
+  'PAYMENT.CAPTURE.COMPLETED',
+  'CHECKOUT.ORDER.APPROVED',
+  'PAYMENT.CAPTURE.PENDING',
+  'PAYMENT.CAPTURE.DENIED',
+  'PAYMENT.CAPTURE.REFUNDED',
+  'PAYMENT.CAPTURE.REVERSED',
 ]);
 
 const LEDGER_ONLY_EVENTS = new Set([]);
@@ -211,6 +222,7 @@ function normalizeEvent(body) {
   }
 
   let paymentId = '';
+  let orderId = '';
   if (type === 'PAYMENT.SALE.COMPLETED') {
     paymentId = String(resource.id || '').trim();
   } else if (type === 'PAYMENT.SALE.REFUNDED') {
@@ -220,10 +232,18 @@ function normalizeEvent(body) {
     // For PAYMENT.SALE.REVERSED, the resource is the Sale resource itself.
     // The reversed sale transaction ID is resource.id.
     paymentId = String(resource.id || '').trim();
+  } else if (type === 'PAYMENT.CAPTURE.REFUNDED' || type === 'PAYMENT.CAPTURE.REVERSED') {
+    paymentId = String(resource.supplementary_data?.related_ids?.capture_id || resource.id || '').trim();
+    orderId = String(resource.supplementary_data?.related_ids?.order_id || '').trim();
+  } else if (type.startsWith('PAYMENT.CAPTURE.')) {
+    paymentId = String(resource.id || '').trim();
+    orderId = String(resource.supplementary_data?.related_ids?.order_id || '').trim();
+  } else if (type === 'CHECKOUT.ORDER.APPROVED') {
+    orderId = String(resource.id || '').trim();
   }
 
   const planId = String(resource.plan_id || '').trim();
-  const customId = String(resource.custom_id || resource.custom || '').trim();
+  const customId = String(resource.custom_id || resource.custom || resource.purchase_units?.[0]?.custom_id || '').trim();
   const nextBillingTime = String(resource.billing_info?.next_billing_time || resource.next_billing_time || '').trim();
   const parentPaymentId = String(resource.parent_payment || '').trim();
 
@@ -233,6 +253,7 @@ function normalizeEvent(body) {
     createTime,
     eventTimestampMs,
     subscriptionId,
+    orderId,
     paymentId,
     parentPaymentId,
     planId,
@@ -245,11 +266,17 @@ function normalizeEvent(body) {
 
 function validateEvent(event) {
   if (!event.id) return { ok: false, code: 'missing_event_id' };
-  if (!SUPPORTED_SUBSCRIPTION_EVENTS.has(event.type) && !LEDGER_ONLY_EVENTS.has(event.type)) {
+  if (!SUPPORTED_SUBSCRIPTION_EVENTS.has(event.type) && !LEDGER_ONLY_EVENTS.has(event.type) && !SUPPORTED_ORDER_EVENTS.has(event.type)) {
     return { ok: false, code: 'unsupported_event_type' };
   }
   if (!Number.isSafeInteger(event.eventTimestampMs) || event.eventTimestampMs <= 0 || event.eventTimestampMs > MAX_EVENT_TIMESTAMP_MS) {
     return { ok: false, code: 'invalid_timestamp' };
+  }
+  if (SUPPORTED_ORDER_EVENTS.has(event.type)) {
+    if (!event.orderId && !event.paymentId) {
+      return { ok: false, code: 'missing_order_or_payment_id' };
+    }
+    return { ok: true };
   }
   if (event.type !== 'PAYMENT.SALE.REFUNDED' && event.type !== 'PAYMENT.SALE.REVERSED' && !event.subscriptionId) {
     return { ok: false, code: 'missing_subscription_id' };
@@ -796,6 +823,165 @@ async function fetchSaleDetails(paymentId, {
   }
 }
 
+async function fetchOrderDetails(orderId, {
+  env = process.env,
+  customFetcher = null,
+} = {}) {
+  if (typeof customFetcher === 'function') {
+    return customFetcher(orderId, { env });
+  }
+
+  if (!orderId || typeof orderId !== 'string' || !orderId.trim()) {
+    return null;
+  }
+
+  const cleanOrderId = orderId.trim();
+  const baseUrl = getPaypalApiBaseUrl(env);
+  if (!baseUrl) return null;
+
+  const clientId = String(env.PAYPAL_CLIENT_ID || '').trim();
+  const clientSecret = String(env.PAYPAL_CLIENT_SECRET || '').trim();
+  if (!clientId || !clientSecret) return null;
+
+  let accessToken;
+  try {
+    const tokenRes = await fetch(`${baseUrl}/v1/oauth2/token`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString('base64')}`,
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: 'grant_type=client_credentials',
+    });
+    if (!tokenRes.ok) {
+      if (tokenRes.status >= 500 || tokenRes.status === 429) {
+        const err = new Error(`PayPal OAuth token request failed transiently with status ${tokenRes.status}`);
+        err.isTransient = true;
+        err.status = tokenRes.status;
+        throw err;
+      }
+      return null;
+    }
+    const tokenData = await tokenRes.json();
+    accessToken = tokenData?.access_token;
+    if (!accessToken) return null;
+  } catch (err) {
+    if (err?.isTransient) throw err;
+    return null;
+  }
+
+  try {
+    const res = await fetch(`${baseUrl}/v2/checkout/orders/${encodeURIComponent(cleanOrderId)}`, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+    });
+    if (!res.ok) {
+      if (res.status >= 500 || res.status === 429) {
+        const err = new Error(`PayPal Orders API failed transiently with status ${res.status}`);
+        err.isTransient = true;
+        err.status = res.status;
+        throw err;
+      }
+      return null;
+    }
+    return await res.json();
+  } catch (err) {
+    if (err?.isTransient) throw err;
+    return null;
+  }
+}
+
+async function captureOrderAtProvider(orderId, {
+  env = process.env,
+  customCapturer = null,
+} = {}) {
+  if (typeof customCapturer === 'function') {
+    return customCapturer(orderId, { env });
+  }
+
+  if (!orderId || typeof orderId !== 'string' || !orderId.trim()) {
+    return null;
+  }
+
+  const cleanOrderId = orderId.trim();
+  const baseUrl = getPaypalApiBaseUrl(env);
+  if (!baseUrl) return null;
+
+  const clientId = String(env.PAYPAL_CLIENT_ID || '').trim();
+  const clientSecret = String(env.PAYPAL_CLIENT_SECRET || '').trim();
+  if (!clientId || !clientSecret) return null;
+
+  let accessToken;
+  try {
+    const tokenRes = await fetch(`${baseUrl}/v1/oauth2/token`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString('base64')}`,
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: 'grant_type=client_credentials',
+    });
+    if (!tokenRes.ok) {
+      if (tokenRes.status >= 500 || tokenRes.status === 429) {
+        const err = new Error(`PayPal OAuth token request failed transiently with status ${tokenRes.status}`);
+        err.isTransient = true;
+        err.status = tokenRes.status;
+        throw err;
+      }
+      return null;
+    }
+    const tokenData = await tokenRes.json();
+    accessToken = tokenData?.access_token;
+    if (!accessToken) return null;
+  } catch (err) {
+    if (err?.isTransient) throw err;
+    return null;
+  }
+
+  try {
+    const res = await fetch(`${baseUrl}/v2/checkout/orders/${encodeURIComponent(cleanOrderId)}/capture`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!res.ok) {
+      if (res.status === 422) {
+        // Order might already be captured (e.g. race with browser capture)
+        const getRes = await fetch(`${baseUrl}/v2/checkout/orders/${encodeURIComponent(cleanOrderId)}`, {
+          method: 'GET',
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+        });
+        if (getRes.ok) {
+          const orderData = await getRes.json();
+          if (String(orderData?.status).toUpperCase() === 'COMPLETED') {
+            return orderData;
+          }
+        }
+      }
+      if (res.status >= 500 || res.status === 429) {
+        const err = new Error(`PayPal Orders Capture API failed transiently with status ${res.status}`);
+        err.isTransient = true;
+        err.status = res.status;
+        throw err;
+      }
+      return null;
+    }
+    return await res.json();
+  } catch (err) {
+    if (err?.isTransient) throw err;
+    return null;
+  }
+}
+
 async function cancelSubscriptionAtProvider(subscriptionId, {
   reason = 'Immediate refund closure',
   env = process.env,
@@ -1152,6 +1338,38 @@ async function upsertProviderState(databases, payload, previous) {
   return databases.createDocument(DB_ID, STATE_COLLECTION_ID, stateDocumentId(payload.user_id), payload, permissions);
 }
 
+async function findCouponByCode(databases, code) {
+  if (!code) return null;
+  const clean = String(code).trim().toUpperCase();
+  try {
+    const res = await databases.listDocuments(DB_ID, 'discount_codes', [
+      sdk.Query.equal('code', clean),
+      sdk.Query.limit(1),
+    ]);
+    return res.documents?.[0] || null;
+  } catch {
+    return null;
+  }
+}
+
+async function findCheckoutSessionByReference(databases, reference) {
+  if (!reference) return null;
+  try {
+    const res = await databases.listDocuments(DB_ID, CHECKOUT_SESSION_COLLECTION_ID, [
+      sdk.Query.equal('checkout_reference', reference),
+      sdk.Query.limit(1),
+    ]);
+    if (res.documents?.length > 0) return res.documents[0];
+    const res2 = await databases.listDocuments(DB_ID, CHECKOUT_SESSION_COLLECTION_ID, [
+      sdk.Query.equal('provider_transaction_id', reference),
+      sdk.Query.limit(1),
+    ]);
+    return res2.documents?.[0] || null;
+  } catch {
+    return null;
+  }
+}
+
 async function processWebhookEvent({
   databases,
   users = null,
@@ -1162,6 +1380,8 @@ async function processWebhookEvent({
   subscriptionTransactionsFetcher = null,
   subscriptionCanceler = null,
   saleFetcher = null,
+  orderFetcher = null,
+  orderCapturer = null,
 }) {
   const validation = validateEvent(event);
   if (!validation.ok) {
@@ -1215,7 +1435,7 @@ async function processWebhookEvent({
         event_id: event.id,
         event_type: event.type,
         user_id: null,
-        subscription_id: event.subscriptionId || null,
+        subscription_id: event.subscriptionId || event.orderId || null,
         payment_id: event.paymentId || null,
         event_timestamp_ms: event.eventTimestampMs,
         received_at: nowIso,
@@ -1299,6 +1519,405 @@ async function processWebhookEvent({
       }
     } else {
       throw err;
+    }
+  }
+
+  if (SUPPORTED_ORDER_EVENTS.has(event.type)) {
+    if (event.type === 'CHECKOUT.ORDER.APPROVED') {
+      const orderId = event.orderId || String(event.resource?.id || '').trim();
+      if (!orderId) {
+        await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
+          processing_status: 'rejected',
+          outcome_code: 'invalid_order_id',
+        }, serverOnlyPermissions()).catch(() => {});
+        return { outcome: 'rejected', code: 'invalid_order_id', mutated: false };
+      }
+
+      let orderDetails = null;
+      try {
+        orderDetails = await fetchOrderDetails(orderId, { env, customFetcher: orderFetcher });
+      } catch (err) {
+        if (err?.isTransient) throw err;
+      }
+
+      if (!orderDetails) {
+        await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
+          processing_status: 'rejected',
+          outcome_code: 'order_not_found',
+        }, serverOnlyPermissions()).catch(() => {});
+        return { outcome: 'rejected', code: 'order_not_found', mutated: false };
+      }
+
+      const orderStatus = String(orderDetails.status || '').toUpperCase();
+      if (orderStatus !== 'APPROVED' && orderStatus !== 'COMPLETED') {
+        await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
+          processing_status: 'rejected',
+          outcome_code: 'order_not_approved',
+        }, serverOnlyPermissions()).catch(() => {});
+        return { outcome: 'rejected', code: 'order_not_approved', mutated: false };
+      }
+
+      const purchaseUnit = orderDetails.purchase_units?.[0];
+      let customData = null;
+      if (purchaseUnit?.custom_id) {
+        try {
+          customData = JSON.parse(purchaseUnit.custom_id);
+        } catch (_) {}
+      }
+
+      let userId = customData?.app_user_id || null;
+      let plan = customData?.plan || null;
+      const paymentMode = customData?.payment_mode || null;
+      const couponCode = customData?.coupon_code || null;
+      const sessionRef = customData?.checkout_session_reference || null;
+
+      if (paymentMode && paymentMode !== 'one_time') {
+        await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
+          processing_status: 'rejected',
+          outcome_code: 'invalid_payment_mode',
+        }, serverOnlyPermissions()).catch(() => {});
+        return { outcome: 'rejected', code: 'invalid_payment_mode', mutated: false };
+      }
+
+      // Server checkout session correlation
+      const session = await findCheckoutSessionByReference(databases, sessionRef || orderId);
+      if (session) {
+        if (userId && session.user_id && userId !== session.user_id) {
+          await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
+            processing_status: 'rejected',
+            outcome_code: 'correlation_identity_conflict',
+          }, serverOnlyPermissions()).catch(() => {});
+          return { outcome: 'rejected', code: 'correlation_identity_conflict', mutated: false };
+        }
+        if (plan && session.plan && plan !== session.plan) {
+          await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
+            processing_status: 'rejected',
+            outcome_code: 'correlation_plan_conflict',
+          }, serverOnlyPermissions()).catch(() => {});
+          return { outcome: 'rejected', code: 'correlation_plan_conflict', mutated: false };
+        }
+        if (session.environment && normalizeProviderEnvironment(session.environment) !== selectedEnvironment) {
+          await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
+            processing_status: 'ignored',
+            outcome_code: 'state_identity_mismatch_ignored',
+          }, serverOnlyPermissions()).catch(() => {});
+          return { outcome: 'ignored', code: 'state_identity_mismatch_ignored', mutated: false };
+        }
+        userId = userId || session.user_id || null;
+        plan = plan || session.plan || null;
+      }
+
+      if (!userId) {
+        await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
+          processing_status: 'rejected',
+          outcome_code: 'unresolved_user_correlation',
+        }, serverOnlyPermissions()).catch(() => {});
+        return { outcome: 'rejected', code: 'unresolved_user_correlation', mutated: false };
+      }
+
+      if (users) {
+        try {
+          const user = await users.get(userId);
+          if (!user?.$id) throw new Error('user not found');
+        } catch {
+          await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
+            processing_status: 'rejected',
+            outcome_code: 'unresolved_user_correlation',
+          }, serverOnlyPermissions()).catch(() => {});
+          return { outcome: 'rejected', code: 'unresolved_user_correlation', mutated: false };
+        }
+      }
+
+      const currency = String(purchaseUnit?.amount?.currency_code || '').toUpperCase();
+      if (currency && currency !== 'USD') {
+        await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
+          processing_status: 'rejected',
+          outcome_code: 'currency_mismatch',
+        }, serverOnlyPermissions()).catch(() => {});
+        return { outcome: 'rejected', code: 'currency_mismatch', mutated: false };
+      }
+
+      let coupon = null;
+      const effectiveQaUserId = String(env?.BILLING_CHECKOUT_QA_USER_ID || env?.PAYPAL_QA_USER_ID || getEnv('BILLING_CHECKOUT_QA_USER_ID') || getEnv('PAYPAL_QA_USER_ID') || '').trim();
+
+      if (couponCode) {
+        coupon = await findCouponByCode(databases, couponCode);
+        if (isQaCouponCode(couponCode)) {
+          if (selectedEnvironment !== 'production') {
+            await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
+              user_id: userId,
+              processing_status: 'ignored',
+              outcome_code: 'qa_coupon_environment_mismatch',
+            }, serverOnlyPermissions()).catch(() => {});
+            return { outcome: 'ignored', code: 'qa_coupon_environment_mismatch', mutated: false };
+          }
+          if (!effectiveQaUserId || userId !== effectiveQaUserId) {
+            await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
+              user_id: userId,
+              processing_status: 'ignored',
+              outcome_code: 'qa_boundary_rejected',
+            }, serverOnlyPermissions()).catch(() => {});
+            return { outcome: 'ignored', code: 'qa_boundary_rejected', mutated: false };
+          }
+        }
+      }
+
+      let captureId = null;
+      if (orderStatus === 'COMPLETED') {
+        // Order was already captured (e.g. browser callback race). Do not capture twice.
+        const existingCaptures = Array.isArray(purchaseUnit?.payments?.captures) ? purchaseUnit.payments.captures : [];
+        const completedCap = existingCaptures.find(c => String(c?.status).toUpperCase() === 'COMPLETED') || existingCaptures[0];
+        captureId = completedCap?.id || orderId;
+      } else {
+        // orderStatus === 'APPROVED': trigger server-side capture
+        let captureResult = null;
+        try {
+          captureResult = await captureOrderAtProvider(orderId, { env, customCapturer: orderCapturer });
+        } catch (err) {
+          if (err?.isTransient) throw err;
+        }
+
+        const captureStatus = String(captureResult?.status).toUpperCase();
+        const capUnit = Array.isArray(captureResult?.purchase_units) ? captureResult.purchase_units[0] : null;
+        const captures = Array.isArray(capUnit?.payments?.captures) ? capUnit.payments.captures : [];
+        const completedCapture = captures.find(c => String(c?.status).toUpperCase() === 'COMPLETED') || (captureStatus === 'COMPLETED' ? captures[0] : null);
+
+        if (captureStatus !== 'COMPLETED' && !completedCapture) {
+          const outcomeCode = captureStatus === 'PENDING' ? 'capture_pending' : 'capture_failed';
+          await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
+            user_id: userId,
+            processing_status: 'rejected',
+            outcome_code: outcomeCode,
+          }, serverOnlyPermissions()).catch(() => {});
+          return { outcome: 'rejected', code: outcomeCode, mutated: false };
+        }
+
+        captureId = completedCapture?.id || captures[0]?.id || orderId;
+      }
+
+      const fulfillment = await fulfillCompletedOneTimePayment({
+        databases,
+        sdk,
+        userId,
+        orderId,
+        captureId,
+        plan: plan || 'pro',
+        environment: selectedEnvironment,
+        coupon,
+        nowMs,
+        qaUserId: effectiveQaUserId,
+      });
+
+      const finalOutcome = fulfillment.alreadyFulfilled ? 'already_entitled' : 'order_captured_and_entitled';
+      await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
+        user_id: userId,
+        processing_status: 'processed',
+        outcome_code: finalOutcome,
+      }, serverOnlyPermissions()).catch(() => {});
+
+      return {
+        outcome: 'success',
+        code: finalOutcome,
+        mutated: !fulfillment.alreadyFulfilled,
+        plan: fulfillment.plan,
+      };
+    }
+
+    if (event.type === 'PAYMENT.CAPTURE.PENDING' || event.type === 'PAYMENT.CAPTURE.DENIED') {
+      const outcomeCode = event.type === 'PAYMENT.CAPTURE.PENDING' ? 'capture_pending' : 'capture_denied';
+      await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
+        processing_status: 'processed',
+        outcome_code: outcomeCode,
+      }, serverOnlyPermissions()).catch(() => {});
+      return { outcome: 'acknowledged', code: outcomeCode, mutated: false };
+    }
+
+    if (event.type === 'PAYMENT.CAPTURE.REFUNDED' || event.type === 'PAYMENT.CAPTURE.REVERSED') {
+      const captureId = event.paymentId || event.orderId || null;
+      let matchedState = null;
+      if (captureId) {
+        try {
+          matchedState = await findStateByPaymentId(databases, captureId);
+        } catch (_) {}
+      }
+
+      if (matchedState && matchedState.last_entitlement_payment_id === captureId) {
+        await upsertProviderState(databases, {
+          user_id: matchedState.user_id,
+          subscription_id: matchedState.subscription_id,
+          plan: matchedState.plan,
+          status: 'canceled',
+          environment: matchedState.environment,
+          expires_at: null,
+          will_renew: false,
+          renewal_cancellation_pending: false,
+          last_entitlement_payment_id: captureId,
+          last_entitlement_payment_ts_ms: nowMs,
+        }, matchedState);
+        const code = event.type === 'PAYMENT.CAPTURE.REFUNDED' ? 'order_refund_settled' : 'order_reversal_settled';
+        await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
+          user_id: matchedState.user_id,
+          processing_status: 'processed',
+          outcome_code: code,
+        }, serverOnlyPermissions()).catch(() => {});
+        return { outcome: 'processed', code, mutated: true, effectivePlan: 'free' };
+      }
+
+      const code = 'stale_order_refund_ignored';
+      await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
+        processing_status: 'ignored',
+        outcome_code: code,
+      }, serverOnlyPermissions()).catch(() => {});
+      return { outcome: 'ignored', code, mutated: false };
+    }
+
+    if (event.type === 'PAYMENT.CAPTURE.COMPLETED') {
+      const orderId = event.orderId || String(event.resource?.supplementary_data?.related_ids?.order_id || '').trim();
+
+      let customData = null;
+      try {
+        customData = JSON.parse(event.customId || '{}');
+      } catch (_) {}
+
+      // If custom_id was not directly on webhook event, retrieve authoritative order details
+      if ((!customData || !customData.app_user_id) && orderId) {
+        let orderDetails = null;
+        try {
+          orderDetails = await fetchOrderDetails(orderId, { env, customFetcher: orderFetcher });
+        } catch (_) {}
+        if (orderDetails) {
+          const orderUnit = orderDetails.purchase_units?.[0];
+          if (orderUnit?.custom_id) {
+            try {
+              customData = JSON.parse(orderUnit.custom_id);
+            } catch (_) {}
+          }
+        }
+      }
+
+      let userId = customData?.app_user_id || null;
+      let plan = customData?.plan || null;
+      let couponCode = customData?.coupon_code || null;
+      const paymentMode = customData?.payment_mode || null;
+      const sessionRef = customData?.checkout_session_reference || null;
+
+      if (paymentMode && paymentMode !== 'one_time') {
+        await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
+          processing_status: 'rejected',
+          outcome_code: 'invalid_payment_mode',
+        }, serverOnlyPermissions()).catch(() => {});
+        return { outcome: 'rejected', code: 'invalid_payment_mode', mutated: false };
+      }
+
+      // Server-created checkout session correlation
+      const session = await findCheckoutSessionByReference(databases, sessionRef || orderId || event.paymentId);
+      if (session) {
+        if (userId && session.user_id && userId !== session.user_id) {
+          await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
+            processing_status: 'rejected',
+            outcome_code: 'correlation_identity_conflict',
+          }, serverOnlyPermissions()).catch(() => {});
+          return { outcome: 'rejected', code: 'correlation_identity_conflict', mutated: false };
+        }
+        if (plan && session.plan && plan !== session.plan) {
+          await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
+            processing_status: 'rejected',
+            outcome_code: 'correlation_plan_conflict',
+          }, serverOnlyPermissions()).catch(() => {});
+          return { outcome: 'rejected', code: 'correlation_plan_conflict', mutated: false };
+        }
+        if (session.environment && normalizeProviderEnvironment(session.environment) !== selectedEnvironment) {
+          await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
+            processing_status: 'ignored',
+            outcome_code: 'state_identity_mismatch_ignored',
+          }, serverOnlyPermissions()).catch(() => {});
+          return { outcome: 'ignored', code: 'state_identity_mismatch_ignored', mutated: false };
+        }
+        userId = userId || session.user_id || null;
+        plan = plan || session.plan || null;
+      }
+
+      if (!userId) {
+        await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
+          processing_status: 'rejected',
+          outcome_code: 'unresolved_user_correlation',
+        }, serverOnlyPermissions()).catch(() => {});
+        return { outcome: 'rejected', code: 'unresolved_user_correlation', mutated: false };
+      }
+
+      if (users) {
+        try {
+          const user = await users.get(userId);
+          if (!user?.$id) throw new Error('user not found');
+        } catch {
+          await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
+            processing_status: 'rejected',
+            outcome_code: 'unresolved_user_correlation',
+          }, serverOnlyPermissions()).catch(() => {});
+          return { outcome: 'rejected', code: 'unresolved_user_correlation', mutated: false };
+        }
+      }
+
+      const currency = String(event.resource?.amount?.currency_code || '').toUpperCase();
+      if (currency && currency !== 'USD') {
+        await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
+          processing_status: 'rejected',
+          outcome_code: 'currency_mismatch',
+        }, serverOnlyPermissions()).catch(() => {});
+        return { outcome: 'rejected', code: 'currency_mismatch', mutated: false };
+      }
+
+      let coupon = null;
+      const effectiveQaUserId = String(env?.BILLING_CHECKOUT_QA_USER_ID || env?.PAYPAL_QA_USER_ID || getEnv('BILLING_CHECKOUT_QA_USER_ID') || getEnv('PAYPAL_QA_USER_ID') || '').trim();
+
+      if (couponCode) {
+        coupon = await findCouponByCode(databases, couponCode);
+        if (isQaCouponCode(couponCode)) {
+          if (selectedEnvironment !== 'production') {
+            await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
+              user_id: userId,
+              processing_status: 'ignored',
+              outcome_code: 'qa_coupon_environment_mismatch',
+            }, serverOnlyPermissions()).catch(() => {});
+            return { outcome: 'ignored', code: 'qa_coupon_environment_mismatch', mutated: false };
+          }
+          if (!effectiveQaUserId || userId !== effectiveQaUserId) {
+            await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
+              user_id: userId,
+              processing_status: 'ignored',
+              outcome_code: 'qa_boundary_rejected',
+            }, serverOnlyPermissions()).catch(() => {});
+            return { outcome: 'ignored', code: 'qa_boundary_rejected', mutated: false };
+          }
+        }
+      }
+
+      const fulfillment = await fulfillCompletedOneTimePayment({
+        databases,
+        sdk,
+        userId,
+        orderId: event.orderId,
+        captureId: event.paymentId || event.orderId,
+        plan: plan || 'pro',
+        environment: selectedEnvironment,
+        coupon,
+        nowMs,
+        qaUserId: effectiveQaUserId,
+      });
+
+      const finalOutcome = fulfillment.alreadyFulfilled ? 'already_entitled' : 'order_entitled';
+      await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
+        user_id: userId,
+        processing_status: 'processed',
+        outcome_code: finalOutcome,
+      }, serverOnlyPermissions()).catch(() => {});
+
+      return {
+        outcome: 'success',
+        code: finalOutcome,
+        mutated: !fulfillment.alreadyFulfilled,
+        plan: fulfillment.plan,
+      };
     }
   }
 
@@ -2443,6 +3062,8 @@ module.exports = async ({ req, res, log, error }) => {
       subscriptionTransactionsFetcher: testOpts.subscriptionTransactionsFetcher || null,
       subscriptionCanceler: testOpts.subscriptionCanceler || null,
       saleFetcher: testOpts.saleFetcher || null,
+      orderFetcher: testOpts.orderFetcher || null,
+      orderCapturer: testOpts.orderCapturer || null,
     });
 
     log?.(`PayPal webhook ${requestId}: ${event.type} -> ${result.outcome} (${result.code})`);
@@ -2497,6 +3118,8 @@ module.exports.__test = {
   fetchSubscriptionDetails,
   fetchSubscriptionTransactions,
   fetchSaleDetails,
+  fetchOrderDetails,
+  captureOrderAtProvider,
   cancelSubscriptionAtProvider,
   upsertProviderState,
   processWebhookEvent,

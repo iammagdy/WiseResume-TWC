@@ -52,8 +52,10 @@ import {
   cancelBillingSubscription,
   getOrCreatePlanAttemptKey,
   clearPlanAttemptKey,
+  captureBillingOrder,
   type BillingCheckoutPlan,
 } from '@/lib/billingCheckout';
+import { PaymentConfirmationModal } from '@/components/subscription/PaymentConfirmationModal';
 
 interface PlanFeature {
   label: string;
@@ -159,6 +161,7 @@ export default function SubscriptionPage() {
   const [checkoutStatus, setCheckoutStatus] = useState<'idle' | 'preparing' | 'confirming' | 'approved' | 'timeout' | 'canceled' | 'error'>('idle');
   const [checkoutMessage, setCheckoutMessage] = useState('');
   const [canceledNoticeDismissed, setCanceledNoticeDismissed] = useState(false);
+  const [confirmModalPlan, setConfirmModalPlan] = useState<BillingCheckoutPlan | null>(null);
 
   // Cancellation state
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
@@ -192,6 +195,74 @@ export default function SubscriptionPage() {
       } catch {}
       setCheckoutStatus('canceled');
       return;
+    }
+
+    if (billingParam === 'order_approved') {
+      const orderId = params.get('token') || params.get('order_id');
+      const rawPending = sessionStorage.getItem('billing_pending_plan');
+      const pendingPlan = rawPending === 'pro' || rawPending === 'premium' ? rawPending : null;
+
+      if (!orderId) {
+        try {
+          window.history.replaceState({}, document.title, window.location.pathname);
+        } catch {}
+        void refetchMe();
+        setCheckoutStatus('idle');
+        return;
+      }
+
+      if (pendingPlan) {
+        setCheckoutPlan(pendingPlan);
+      }
+      setCheckoutStatus('confirming');
+      setCheckoutMessage(t('app.aiStudio.subscriptionPage.checkoutConfirming', 'Confirming your subscription…'));
+
+      let isMounted = true;
+      (async () => {
+        const captureRes = await captureBillingOrder(orderId);
+        if (!isMounted) return;
+
+        if (captureRes.ok) {
+          clearPlanAttemptKey();
+          try {
+            sessionStorage.removeItem('billing_pending_plan');
+          } catch {}
+          await refetchMe();
+          setCheckoutStatus('approved');
+          setCheckoutMessage(t('app.aiStudio.subscriptionPage.paymentApproved', 'Payment Approved'));
+          try {
+            window.history.replaceState({}, document.title, window.location.pathname);
+          } catch {}
+        } else {
+          // Check if webhook already fulfilled the order
+          const result = await refetchMe();
+          const resolved = String(result.data?.subscription?.effective_plan ?? '').toLowerCase();
+          const targetReached = pendingPlan === 'premium'
+            ? resolved === 'premium'
+            : pendingPlan === 'pro'
+              ? resolved === 'pro' || resolved === 'premium'
+              : false;
+
+          if (targetReached) {
+            clearPlanAttemptKey();
+            try {
+              sessionStorage.removeItem('billing_pending_plan');
+            } catch {}
+            setCheckoutStatus('approved');
+            setCheckoutMessage(t('app.aiStudio.subscriptionPage.paymentApproved', 'Payment Approved'));
+            try {
+              window.history.replaceState({}, document.title, window.location.pathname);
+            } catch {}
+          } else {
+            setCheckoutStatus('error');
+            setCheckoutMessage(captureRes.message || t('app.aiStudio.subscriptionPage.checkoutError', 'We couldn’t start checkout. Please try again.'));
+          }
+        }
+      })();
+
+      return () => {
+        isMounted = false;
+      };
     }
 
     const hasApprovalParams = billingParam === 'success' ||
@@ -265,36 +336,9 @@ export default function SubscriptionPage() {
     };
   }, [location.search, refetchMe, t]);
 
-  const beginCheckout = async (target: BillingCheckoutPlan) => {
+  const beginCheckout = (target: BillingCheckoutPlan) => {
     if (!canSubscribe || isPro || target === plan) return;
-    if (checkoutPlan && checkoutPlan !== target) {
-      clearPlanAttemptKey(checkoutPlan);
-    }
-    const idempotencyKey = getOrCreatePlanAttemptKey(target);
-    setCheckoutPlan(target);
-    setCheckoutStatus('preparing');
-    setCheckoutMessage(t('app.aiStudio.subscriptionPage.checkoutPreparing', 'Preparing your subscription…'));
-    const result = await createBillingCheckoutSession(target, { idempotencyKey });
-    if (!result.ok) {
-      if (!result.retryable) {
-        clearPlanAttemptKey(target);
-      }
-      setCheckoutStatus('error');
-      setCheckoutMessage(
-        result.code === 'payments_disabled'
-          ? t('app.aiStudio.subscriptionPage.enrollmentClosed', 'Subscription enrollments are currently closed.')
-          : result.message || t('app.aiStudio.subscriptionPage.checkoutError', 'We couldn’t start checkout. Please try again.')
-      );
-      return;
-    }
-    sessionStorage.setItem('billing_pending_plan', target);
-    if (!openServerCheckout(result.session)) {
-      setCheckoutStatus('error');
-      setCheckoutMessage(t('app.aiStudio.subscriptionPage.checkoutError', 'We couldn’t start checkout. Please try again.'));
-      return;
-    }
-    setCheckoutStatus('confirming');
-    setCheckoutMessage(t('app.aiStudio.subscriptionPage.checkoutConfirming', 'Confirming your subscription…'));
+    setConfirmModalPlan(target);
   };
 
   const handleConfirmCancel = async () => {
@@ -799,6 +843,9 @@ export default function SubscriptionPage() {
                   <span className="text-xl font-bold">{displayPrice}</span>
                   <span className="text-sm text-muted-foreground">{t('app.aiStudio.subscriptionPage.perMonth', '/month')}</span>
                 </div>
+                <p className="text-[11px] text-muted-foreground">
+                  {t('app.aiStudio.subscriptionPage.planOptionsNote', 'Available as monthly subscription or one-time 30-day access')}
+                </p>
                 <div className="space-y-1.5">
                   {PLAN_FEATURES[target as keyof typeof PLAN_FEATURES].map((feature, index) => {
                     const Icon = feature.icon;
@@ -910,6 +957,23 @@ export default function SubscriptionPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Payment Confirmation & Options Modal */}
+      {confirmModalPlan && (
+        <PaymentConfirmationModal
+          open={!!confirmModalPlan}
+          onOpenChange={(open) => {
+            if (!open) setConfirmModalPlan(null);
+          }}
+          plan={confirmModalPlan}
+          onSuccess={() => {
+            setConfirmModalPlan(null);
+            setCheckoutPlan(confirmModalPlan);
+            setCheckoutStatus('confirming');
+            setCheckoutMessage(t('app.aiStudio.subscriptionPage.checkoutConfirming', 'Confirming your subscription…'));
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -15,6 +15,13 @@ const REQUIRED_WEBHOOK_EVENTS = Object.freeze([
   'BILLING.SUBSCRIPTION.UPDATED',
   'PAYMENT.SALE.REFUNDED',
   'PAYMENT.SALE.REVERSED',
+  'CHECKOUT.ORDER.APPROVED',
+  'CHECKOUT.PAYMENT-APPROVAL.REVERSED',
+  'PAYMENT.CAPTURE.COMPLETED',
+  'PAYMENT.CAPTURE.PENDING',
+  'PAYMENT.CAPTURE.DENIED',
+  'PAYMENT.CAPTURE.REFUNDED',
+  'PAYMENT.CAPTURE.REVERSED',
 ]);
 
 function httpRequest(urlStr, options = {}, postData = null) {
@@ -284,7 +291,9 @@ async function discoverOrCreateWebhook(token) {
     const existingEvents = new Set((existing.event_types || []).map(e => e.name));
     const allCovered = REQUIRED_WEBHOOK_EVENTS.every(e => existingEvents.has(e));
     if (allCovered) {
-      return { webhookId: existing.id, status: 'REUSED' };
+      const subscribedEvents = (existing.event_types || []).map(e => e.name);
+      console.log('LIVE_WEBHOOK_SUBSCRIBED_EVENTS=' + JSON.stringify(subscribedEvents));
+      return { webhookId: existing.id, status: 'REUSED', events: subscribedEvents };
     }
 
     const patchRes = await httpRequest(`${PAYPAL_LIVE_API_BASE}/v1/notifications/webhooks/${existing.id}`, {
@@ -302,7 +311,15 @@ async function discoverOrCreateWebhook(token) {
     ]);
 
     if (patchRes.statusCode === 200 || patchRes.statusCode === 204) {
-      return { webhookId: existing.id, status: 'UPDATED' };
+      const verifyRes = await httpRequest(`${PAYPAL_LIVE_API_BASE}/v1/notifications/webhooks/${existing.id}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      const subscribedEvents = (verifyRes.data?.event_types || []).map(e => e.name);
+      console.log('LIVE_WEBHOOK_SUBSCRIBED_EVENTS=' + JSON.stringify(subscribedEvents));
+      return { webhookId: existing.id, status: 'UPDATED', events: subscribedEvents };
     }
   }
 
@@ -321,7 +338,8 @@ async function discoverOrCreateWebhook(token) {
     throw new Error(`Failed to create PayPal Live webhook (HTTP ${createRes.statusCode})`);
   }
 
-  return { webhookId: createRes.data.id, status: 'CREATED' };
+  console.log('LIVE_WEBHOOK_SUBSCRIBED_EVENTS=' + JSON.stringify(REQUIRED_WEBHOOK_EVENTS));
+  return { webhookId: createRes.data.id, status: 'CREATED', events: REQUIRED_WEBHOOK_EVENTS };
 }
 
 async function setGithubRepoVariable(githubToken, repo, varName, varValue) {

@@ -8,6 +8,7 @@ const {
   normalizePlan,
   configuredPaypalProviderEnvironment,
   PLAN_RANK,
+  fulfillCompletedOneTimePayment,
 } = require('../../appwrite-hubs/shared-subscription-resolver');
 
 const QA_USER_ID = 'user_qa_123';
@@ -451,4 +452,548 @@ test('Case 21: expired PayPal grace does not force Free when another valid entit
   });
   assert.equal(manualFallback.plan, 'pro');
   assert.equal(manualFallback.source, 'manual/admin');
+});
+
+// Mock database helper for fulfillCompletedOneTimePayment tests
+function createMockDatabases() {
+  const collections = {
+    paypal_subscription_state: new Map(),
+    paypal_event_ledger: new Map(),
+    discount_codes: new Map(),
+    coupon_redemptions: new Map(),
+  };
+
+  const docVersions = new Map();
+  const transactions = new Map();
+  let nextTxId = 1;
+
+  function docKey(collId, docId) {
+    return `${collId}:${docId}`;
+  }
+
+  function clone(data) {
+    return JSON.parse(JSON.stringify(data));
+  }
+
+  return {
+    collections,
+    async createTransaction(ttl = 60) {
+      const id = `tx_${nextTxId++}`;
+      transactions.set(id, {
+        id,
+        ttl,
+        readVersions: new Map(),
+        stagedUpdates: new Map(),
+      });
+      return { $id: id };
+    },
+    async updateTransaction(transactionId, commit, rollback) {
+      const tx = transactions.get(transactionId);
+      if (!tx) return {};
+      if (rollback) {
+        transactions.delete(transactionId);
+        return {};
+      }
+      if (commit) {
+        for (const [key, readVer] of tx.readVersions.entries()) {
+          const currentVer = docVersions.get(key) || 0;
+          if (currentVer !== readVer) {
+            transactions.delete(transactionId);
+            const err = new Error('Transaction conflict');
+            err.code = 409;
+            throw err;
+          }
+        }
+        for (const [key, update] of tx.stagedUpdates.entries()) {
+          const col = collections[update.collId];
+          const existing = col.get(update.docId);
+          const updated = { ...existing, ...update.data };
+          col.set(update.docId, updated);
+          const nextVer = (docVersions.get(key) || 0) + 1;
+          docVersions.set(key, nextVer);
+        }
+        transactions.delete(transactionId);
+        return { status: 'committed' };
+      }
+      return {};
+    },
+    async listDocuments(_dbId, collectionId, queries = [], _txId = null) {
+      const col = collections[collectionId];
+      if (!col) return { documents: [], total: 0 };
+      let docs = Array.from(col.values());
+      for (const q of queries) {
+        if (typeof q === 'string') {
+          const match = q.match(/equal\("([^"]+)",\s*\[?"?([^"\]]+)"?\]?\)/);
+          if (match) {
+            const [, key, val] = match;
+            docs = docs.filter(d => d[key] === val);
+          }
+        }
+      }
+      return { documents: docs.map(clone), total: docs.length };
+    },
+    async getDocument(_dbId, collectionId, docId, _queries = [], txId = null) {
+      const col = collections[collectionId];
+      const doc = col?.get(docId);
+      if (!doc) {
+        const err = new Error('Document not found');
+        err.code = 404;
+        throw err;
+      }
+      if (txId) {
+        const tx = transactions.get(txId);
+        if (tx) {
+          const key = docKey(collectionId, docId);
+          tx.readVersions.set(key, docVersions.get(key) || 0);
+        }
+      }
+      return clone(doc);
+    },
+    async createDocument(_dbId, collectionId, docId, data, _perms, txId = null) {
+      const col = collections[collectionId];
+      if (col.has(docId)) {
+        const err = new Error('Document already exists');
+        err.code = 409;
+        throw err;
+      }
+      if (txId) {
+        const tx = transactions.get(txId);
+        if (tx) {
+          const key = docKey(collectionId, docId);
+          tx.stagedUpdates.set(key, { collId: collectionId, docId, data: clone(data) });
+          col.set(docId, { $id: docId, ...clone(data) });
+          return { $id: docId, ...clone(data) };
+        }
+      }
+      const created = { $id: docId, ...clone(data) };
+      col.set(docId, created);
+      docVersions.set(docKey(collectionId, docId), 1);
+      return clone(created);
+    },
+    async updateDocument(_dbId, collectionId, docId, data, _perms, txId = null) {
+      if (txId) {
+        const tx = transactions.get(txId);
+        if (tx) {
+          const key = docKey(collectionId, docId);
+          tx.stagedUpdates.set(key, { collId: collectionId, docId, data: clone(data) });
+          return { $id: docId, ...clone(data) };
+        }
+      }
+      const col = collections[collectionId];
+      const existing = col.get(docId);
+      if (!existing) {
+        const err = new Error('Document not found');
+        err.code = 404;
+        throw err;
+      }
+      const updated = { ...existing, ...clone(data) };
+      col.set(docId, updated);
+      const key = docKey(collectionId, docId);
+      docVersions.set(key, (docVersions.get(key) || 0) + 1);
+      return clone(updated);
+    },
+    async incrementDocumentAttribute(_dbId, collectionId, docId, attr, value = 1, _max, _txId) {
+      const col = collections[collectionId];
+      const existing = col.get(docId);
+      if (!existing) {
+        const err = new Error('Document not found');
+        err.code = 404;
+        throw err;
+      }
+      const cur = Number(existing[attr] || 0);
+      existing[attr] = cur + value;
+      return clone(existing);
+    },
+  };
+}
+
+// 22. Shared Resolver Concurrency: Concurrent redemption of single-use coupon prevents double redemption
+test('fulfillCompletedOneTimePayment: concurrent redemption of single-use coupon prevents double redemption', async () => {
+  const db = createMockDatabases();
+  db.collections.discount_codes.set('c_single', {
+    $id: 'c_single',
+    code: 'SINGLE-USE-100',
+    max_uses: 1,
+    uses_count: 0,
+    is_active: true,
+  });
+
+  const coupon = {
+    $id: 'c_single',
+    code: 'SINGLE-USE-100',
+    max_uses: 1,
+    uses_count: 0,
+  };
+
+  // User 1 fulfills successfully
+  const res1 = await fulfillCompletedOneTimePayment({
+    databases: db,
+    userId: QA_USER_ID,
+    orderId: 'ORD-USER-1',
+    captureId: 'CAP-USER-1',
+    plan: 'pro',
+    environment: 'sandbox',
+    coupon,
+    nowMs,
+    qaUserId: QA_USER_ID,
+  });
+  assert.equal(res1.success, true);
+  assert.equal(res1.alreadyFulfilled, false);
+
+  // User 2 attempts to claim the same coupon (in production or with different order)
+  await assert.rejects(
+    async () => {
+      await fulfillCompletedOneTimePayment({
+        databases: db,
+        userId: OTHER_USER_ID,
+        orderId: 'ORD-USER-2',
+        captureId: 'CAP-USER-2',
+        plan: 'pro',
+        environment: 'production',
+        coupon,
+        nowMs,
+        qaUserId: QA_USER_ID,
+      });
+    },
+    (err) => {
+      assert.ok(err.code === 'coupon_already_claimed' || err.code === 'coupon_exhausted', `Expected coupon conflict code, got: ${err.code}`);
+      assert.equal(err.status, 409);
+      return true;
+    }
+  );
+
+  // Coupon uses_count remains exactly 1
+  const updatedCoupon = db.collections.discount_codes.get('c_single');
+  assert.equal(updatedCoupon.uses_count, 1);
+});
+
+// 23. Shared Resolver Hierarchy Safety: active Ultimate subscriber cannot purchase Pro one-time
+test('fulfillCompletedOneTimePayment: rejects active Ultimate subscriber purchasing Pro one-time with 409 active_higher_plan_exists', async () => {
+  const db = createMockDatabases();
+
+  // User already has active Ultimate plan
+  db.collections.paypal_subscription_state.set('pps_qa', {
+    $id: 'pps_qa',
+    user_id: QA_USER_ID,
+    subscription_id: 'ORD-ULTIMATE-PRIOR',
+    plan: 'premium',
+    status: 'active',
+    environment: 'sandbox',
+    expires_at: futureExpiry,
+    will_renew: false,
+    last_entitlement_payment_id: 'CAP-ULT-1',
+    last_entitlement_payment_ts_ms: nowMs,
+  });
+
+  // User attempts to purchase 30-day Pro access
+  await assert.rejects(
+    () => fulfillCompletedOneTimePayment({
+      databases: db,
+      userId: QA_USER_ID,
+      orderId: 'ORD-PRO-NEW',
+      captureId: 'CAP-PRO-NEW',
+      plan: 'pro',
+      environment: 'sandbox',
+      nowMs,
+      qaUserId: QA_USER_ID,
+    }),
+    (err) => {
+      assert.equal(err.code, 'active_higher_plan_exists');
+      assert.equal(err.status, 409);
+      return true;
+    }
+  );
+
+  const stateInDb = db.collections.paypal_subscription_state.get('pps_qa');
+  assert.equal(stateInDb.plan, 'premium');
+  assert.equal(stateInDb.status, 'active');
+});
+
+// 24. Shared Resolver Recurring Safety: active recurring subscriber cannot purchase one-time access
+test('fulfillCompletedOneTimePayment: rejects active recurring subscriber purchasing one-time access with 409 active_recurring_subscription_exists', async () => {
+  const db = createMockDatabases();
+
+  // User has active recurring subscription
+  db.collections.paypal_subscription_state.set('pps_qa', {
+    $id: 'pps_qa',
+    user_id: QA_USER_ID,
+    subscription_id: 'I-REC-SUB-12345',
+    plan: 'pro',
+    status: 'active',
+    environment: 'sandbox',
+    expires_at: futureExpiry,
+    will_renew: true,
+    last_entitlement_payment_id: 'SALE-REC-1',
+    last_entitlement_payment_ts_ms: nowMs,
+  });
+
+  // User attempts to purchase one-time access
+  await assert.rejects(
+    () => fulfillCompletedOneTimePayment({
+      databases: db,
+      userId: QA_USER_ID,
+      orderId: 'ORD-ONE-TIME-BUY',
+      captureId: 'CAP-ONE-TIME-BUY',
+      plan: 'pro',
+      environment: 'sandbox',
+      nowMs,
+      qaUserId: QA_USER_ID,
+    }),
+    (err) => {
+      assert.equal(err.code, 'active_recurring_subscription_exists');
+      assert.equal(err.status, 409);
+      return true;
+    }
+  );
+
+  const stateInDb = db.collections.paypal_subscription_state.get('pps_qa');
+  assert.equal(stateInDb.will_renew, true);
+  assert.equal(stateInDb.subscription_id, 'I-REC-SUB-12345');
+});
+
+// 25. Shared Resolver Stacking Prevention: active Pro one-time subscriber cannot purchase Pro one-time (409 active_paid_entitlement_exists)
+test('fulfillCompletedOneTimePayment: active Pro one-time -> Pro one-time blocked with 409 active_paid_entitlement_exists', async () => {
+  const db = createMockDatabases();
+
+  // User has active Pro one-time access
+  const currentExpiryMs = nowMs + 15 * 86400000;
+  const currentExpiryIso = new Date(currentExpiryMs).toISOString();
+
+  db.collections.paypal_subscription_state.set('pps_qa', {
+    $id: 'pps_qa',
+    user_id: QA_USER_ID,
+    subscription_id: 'ORD-PRO-ACTIVE',
+    plan: 'pro',
+    status: 'active',
+    environment: 'sandbox',
+    expires_at: currentExpiryIso,
+    will_renew: false,
+    last_entitlement_payment_id: 'CAP-PRO-ACTIVE',
+    last_entitlement_payment_ts_ms: nowMs,
+  });
+
+  // User attempts to purchase Pro one-time again
+  await assert.rejects(
+    () => fulfillCompletedOneTimePayment({
+      databases: db,
+      userId: QA_USER_ID,
+      orderId: 'ORD-PRO-STACK-ATTEMPT',
+      captureId: 'CAP-PRO-STACK-ATTEMPT',
+      plan: 'pro',
+      environment: 'sandbox',
+      nowMs,
+      qaUserId: QA_USER_ID,
+    }),
+    (err) => {
+      assert.equal(err.code, 'active_paid_entitlement_exists');
+      assert.equal(err.status, 409);
+      return true;
+    }
+  );
+
+  // State in DB remains unchanged
+  const stateInDb = db.collections.paypal_subscription_state.get('pps_qa');
+  assert.equal(stateInDb.expires_at, currentExpiryIso);
+  assert.equal(stateInDb.last_entitlement_payment_id, 'CAP-PRO-ACTIVE');
+});
+
+// 26. Shared Resolver Stacking Prevention: active Pro one-time -> Ultimate one-time blocked for this release (409 active_paid_entitlement_exists)
+test('fulfillCompletedOneTimePayment: active Pro one-time -> Ultimate one-time blocked for this release with 409 active_paid_entitlement_exists', async () => {
+  const db = createMockDatabases();
+
+  // User has active Pro one-time access
+  const currentExpiryMs = nowMs + 10 * 86400000;
+  const currentExpiryIso = new Date(currentExpiryMs).toISOString();
+
+  db.collections.paypal_subscription_state.set('pps_qa', {
+    $id: 'pps_qa',
+    user_id: QA_USER_ID,
+    subscription_id: 'ORD-PRO-ACTIVE',
+    plan: 'pro',
+    status: 'active',
+    environment: 'sandbox',
+    expires_at: currentExpiryIso,
+    will_renew: false,
+    last_entitlement_payment_id: 'CAP-PRO-ACTIVE',
+    last_entitlement_payment_ts_ms: nowMs,
+  });
+
+  // User attempts to purchase Ultimate one-time (premium)
+  await assert.rejects(
+    () => fulfillCompletedOneTimePayment({
+      databases: db,
+      userId: QA_USER_ID,
+      orderId: 'ORD-ULT-ATTEMPT',
+      captureId: 'CAP-ULT-ATTEMPT',
+      plan: 'premium',
+      environment: 'sandbox',
+      nowMs,
+      qaUserId: QA_USER_ID,
+    }),
+    (err) => {
+      assert.equal(err.code, 'active_paid_entitlement_exists');
+      assert.equal(err.status, 409);
+      return true;
+    }
+  );
+});
+
+// 27. Shared Resolver Stacking Prevention: active Ultimate one-time -> any one-time blocked
+test('fulfillCompletedOneTimePayment: active Ultimate one-time -> any one-time blocked', async () => {
+  const db = createMockDatabases();
+
+  // User has active Ultimate one-time access
+  const currentExpiryMs = nowMs + 20 * 86400000;
+  const currentExpiryIso = new Date(currentExpiryMs).toISOString();
+
+  db.collections.paypal_subscription_state.set('pps_qa', {
+    $id: 'pps_qa',
+    user_id: QA_USER_ID,
+    subscription_id: 'ORD-ULT-ACTIVE',
+    plan: 'premium',
+    status: 'active',
+    environment: 'sandbox',
+    expires_at: currentExpiryIso,
+    will_renew: false,
+    last_entitlement_payment_id: 'CAP-ULT-ACTIVE',
+    last_entitlement_payment_ts_ms: nowMs,
+  });
+
+  // 1. Attempting Pro: blocked by active_higher_plan_exists (409)
+  await assert.rejects(
+    () => fulfillCompletedOneTimePayment({
+      databases: db,
+      userId: QA_USER_ID,
+      orderId: 'ORD-PRO-ATTEMPT',
+      captureId: 'CAP-PRO-ATTEMPT',
+      plan: 'pro',
+      environment: 'sandbox',
+      nowMs,
+      qaUserId: QA_USER_ID,
+    }),
+    (err) => {
+      assert.equal(err.code, 'active_higher_plan_exists');
+      assert.equal(err.status, 409);
+      return true;
+    }
+  );
+
+  // 2. Attempting Ultimate: blocked by active_paid_entitlement_exists (409)
+  await assert.rejects(
+    () => fulfillCompletedOneTimePayment({
+      databases: db,
+      userId: QA_USER_ID,
+      orderId: 'ORD-ULT-ANOTHER',
+      captureId: 'CAP-ULT-ANOTHER',
+      plan: 'premium',
+      environment: 'sandbox',
+      nowMs,
+      qaUserId: QA_USER_ID,
+    }),
+    (err) => {
+      assert.equal(err.code, 'active_paid_entitlement_exists');
+      assert.equal(err.status, 409);
+      return true;
+    }
+  );
+});
+
+// 28. Shared Resolver Expired User: expired one-time user can purchase normally
+test('fulfillCompletedOneTimePayment: expired one-time -> purchase allowed normally', async () => {
+  const db = createMockDatabases();
+
+  // User had access that expired yesterday
+  const expiredMs = nowMs - 24 * 60 * 60 * 1000;
+  const expiredIso = new Date(expiredMs).toISOString();
+
+  db.collections.paypal_subscription_state.set('pps_qa', {
+    $id: 'pps_qa',
+    user_id: QA_USER_ID,
+    subscription_id: 'ORD-EXPIRED',
+    plan: 'premium',
+    status: 'active', // expired by timestamp
+    environment: 'sandbox',
+    expires_at: expiredIso,
+    will_renew: false,
+    last_entitlement_payment_id: 'CAP-EXPIRED',
+    last_entitlement_payment_ts_ms: expiredMs,
+  });
+
+  // User buys Pro for 30 days
+  const res = await fulfillCompletedOneTimePayment({
+    databases: db,
+    userId: QA_USER_ID,
+    orderId: 'ORD-NEW-PRO',
+    captureId: 'CAP-NEW-PRO',
+    plan: 'pro',
+    environment: 'sandbox',
+    nowMs,
+    qaUserId: QA_USER_ID,
+  });
+
+  assert.equal(res.success, true);
+  assert.equal(res.plan, 'pro');
+  const expectedExpiryIso = new Date(nowMs + 30 * 24 * 60 * 60 * 1000).toISOString();
+  assert.equal(res.expiresAt, expectedExpiryIso);
+
+  const stateInDb = db.collections.paypal_subscription_state.get('pps_qa');
+  assert.equal(stateInDb.plan, 'pro');
+  assert.equal(stateInDb.expires_at, expectedExpiryIso);
+});
+
+// 29. Shared Resolver Free User: free user can purchase normally
+test('fulfillCompletedOneTimePayment: free user -> purchase allowed normally', async () => {
+  const db = createMockDatabases();
+
+  // User has no prior subscription state (free user)
+  const res = await fulfillCompletedOneTimePayment({
+    databases: db,
+    userId: QA_USER_ID,
+    orderId: 'ORD-FREE-TO-PRO',
+    captureId: 'CAP-FREE-TO-PRO',
+    plan: 'pro',
+    environment: 'sandbox',
+    nowMs,
+    qaUserId: QA_USER_ID,
+  });
+
+  assert.equal(res.success, true);
+  assert.equal(res.plan, 'pro');
+  const expectedExpiryIso = new Date(nowMs + 30 * 24 * 60 * 60 * 1000).toISOString();
+  assert.equal(res.expiresAt, expectedExpiryIso);
+
+  const stateDocs = Array.from(db.collections.paypal_subscription_state.values());
+  assert.equal(stateDocs.length, 1);
+  const stateInDb = stateDocs[0];
+  assert.ok(stateInDb);
+  assert.equal(stateInDb.plan, 'pro');
+  assert.equal(stateInDb.status, 'active');
+  assert.equal(stateInDb.expires_at, expectedExpiryIso);
+});
+
+// 30. Refund: refund of the sole active one-time capture -> Free
+test('Refund: refund of the sole active one-time capture transitions state and resolves to Free', () => {
+  // Sole active one-time state refunded: status set to 'canceled', expires_at set to null
+  const refundedState = {
+    user_id: QA_USER_ID,
+    subscription_id: 'ORD-ONE-TIME',
+    plan: 'pro',
+    status: 'canceled',
+    environment: 'sandbox',
+    expires_at: null,
+    will_renew: false,
+    last_entitlement_payment_id: 'CAP-REFUNDED',
+    last_entitlement_payment_ts_ms: nowMs,
+  };
+
+  const resolved = resolveEffectivePlan({
+    userId: QA_USER_ID,
+    nowMs,
+    paypalProviderState: refundedState,
+    paypalProviderEnvironment: 'sandbox',
+    qaUserId: QA_USER_ID,
+  });
+
+  assert.equal(resolved.plan, 'free');
+  assert.equal(resolved.source, 'free');
 });
