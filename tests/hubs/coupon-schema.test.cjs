@@ -293,30 +293,87 @@ test('server-only permission enforcement is preserved for discount collections',
   );
 });
 
-// M. Existing documented oversized legacy user_id compatibility preserved
-test('existing documented oversized legacy user_id compatibility is preserved', () => {
+// M. Proven live schema legacy contracts and strict non-legacy validation
+test('proven live schema legacy contracts are accepted and unrelated attributes remain strict', () => {
+  const codeSpec = setupModule.COLLECTION_SPECS.find(s => s.id === 'discount_codes')
+    .attributes.find(a => a.key === 'code');
   const userIdSpec = setupModule.COLLECTION_SPECS.find(s => s.id === 'coupon_redemptions')
     .attributes.find(a => a.key === 'user_id');
+  const discountTypeSpec = setupModule.COLLECTION_SPECS.find(s => s.id === 'discount_codes')
+    .attributes.find(a => a.key === 'discount_type');
+  const activeSpec = setupModule.COLLECTION_SPECS.find(s => s.id === 'discount_codes')
+    .attributes.find(a => a.key === 'active');
 
-  assert.equal(setupModule.attributeCompatibilityError({ key: 'user_id', type: 'string', size: 64, required: true }, userIdSpec, 'coupon_redemptions'), null);
-  assert.equal(setupModule.attributeCompatibilityError({ key: 'user_id', type: 'string', size: 255, required: true }, userIdSpec, 'coupon_redemptions'), null);
-  assert.equal(setupModule.attributeCompatibilityError({ key: 'user_id', type: 'string', size: 65000, required: true }, userIdSpec, 'coupon_redemptions'), null);
+  // 1. discount_codes.code: size=64 required=true PASS
+  assert.equal(
+    setupModule.attributeCompatibilityError({ key: 'code', type: 'string', size: 64, required: true }, codeSpec, 'discount_codes'),
+    null
+  );
 
+  // 2. discount_codes.code: size=50 required=true PASS as documented legacy compatibility
+  assert.equal(
+    setupModule.attributeCompatibilityError({ key: 'code', type: 'string', size: 50, required: true }, codeSpec, 'discount_codes'),
+    null
+  );
+
+  // 3. discount_codes.code: size=49 FAIL
   assert.match(
-    setupModule.attributeCompatibilityError({ key: 'user_id', type: 'integer', size: 255, required: true }, userIdSpec, 'coupon_redemptions'),
+    setupModule.attributeCompatibilityError({ key: 'code', type: 'string', size: 49, required: true }, codeSpec, 'discount_codes'),
+    /size 49 \(expected 50 or 64\)/
+  );
+
+  // 4. discount_codes.code: wrong type FAIL
+  assert.match(
+    setupModule.attributeCompatibilityError({ key: 'code', type: 'integer', size: 50, required: true }, codeSpec, 'discount_codes'),
     /type integer \(expected string\)/
   );
 
+  // 5. discount_codes.code: required=false FAIL
   assert.match(
-    setupModule.attributeCompatibilityError({ key: 'user_id', type: 'string', size: 32, required: true }, userIdSpec, 'coupon_redemptions'),
+    setupModule.attributeCompatibilityError({ key: 'code', type: 'string', size: 50, required: false }, codeSpec, 'discount_codes'),
+    /required false \(expected true\)/
+  );
+
+  // 6. coupon_redemptions.user_id: size=64 required=true PASS
+  assert.equal(
+    setupModule.attributeCompatibilityError({ key: 'user_id', type: 'string', size: 64, required: true }, userIdSpec, 'coupon_redemptions'),
+    null
+  );
+
+  // 7. coupon_redemptions.user_id: size=65000 required=false PASS
+  assert.equal(
+    setupModule.attributeCompatibilityError({ key: 'user_id', type: 'string', size: 65000, required: false }, userIdSpec, 'coupon_redemptions'),
+    null
+  );
+
+  // 8. coupon_redemptions.user_id: size=255 required=false PASS
+  assert.equal(
+    setupModule.attributeCompatibilityError({ key: 'user_id', type: 'string', size: 255, required: false }, userIdSpec, 'coupon_redemptions'),
+    null
+  );
+
+  // 9. coupon_redemptions.user_id: size=32 FAIL
+  assert.match(
+    setupModule.attributeCompatibilityError({ key: 'user_id', type: 'string', size: 32, required: false }, userIdSpec, 'coupon_redemptions'),
     /size 32 \(expected at least 64\)/
   );
 
-  const codeSpec = setupModule.COLLECTION_SPECS.find(s => s.id === 'discount_codes')
-    .attributes.find(a => a.key === 'code');
+  // 10. coupon_redemptions.user_id: wrong type FAIL
   assert.match(
-    setupModule.attributeCompatibilityError({ key: 'code', type: 'string', size: 255, required: true }, codeSpec, 'discount_codes'),
-    /size 255 \(expected 64\)/
+    setupModule.attributeCompatibilityError({ key: 'user_id', type: 'integer', size: 65000, required: false }, userIdSpec, 'coupon_redemptions'),
+    /type integer \(expected string\)/
+  );
+
+  // 11. unrelated attribute required mismatch FAIL
+  assert.match(
+    setupModule.attributeCompatibilityError({ key: 'active', type: 'boolean', required: false, default: true }, activeSpec, 'discount_codes'),
+    /required false \(expected true\)/
+  );
+
+  // 12. unrelated attribute size mismatch FAIL
+  assert.match(
+    setupModule.attributeCompatibilityError({ key: 'discount_type', type: 'string', size: 32, required: false }, discountTypeSpec, 'discount_codes'),
+    /size 32 \(expected 16\)/
   );
 });
 

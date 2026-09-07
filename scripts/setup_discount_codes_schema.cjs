@@ -121,20 +121,33 @@ function attributeCompatibilityError(attribute, spec, collectionId = 'collection
   if (attribute.type !== spec.type) {
     issues.push(`type ${attribute.type} (expected ${spec.type})`);
   }
-  if (attribute.required !== spec.required) {
+
+  // Documented legacy exceptions:
+  // 1. coupon_redemptions.user_id is an existing legacy string in live Appwrite (size 65000 and optional).
+  // 2. discount_codes.code in live Appwrite has size 50 (required=true).
+  const isLegacyUserId = collectionId === REDEMPTIONS_COLL_ID && spec.key === 'user_id';
+  const isDiscountCodesCode = collectionId === COLL_ID && spec.key === 'code';
+
+  if (isLegacyUserId) {
+    // Live legacy user_id is optional (required=false) in live Appwrite, while repository ideal is required=true.
+    // Accept either true or false for this proven legacy attribute.
+  } else if (attribute.required !== spec.required) {
     issues.push(`required ${attribute.required} (expected ${spec.required})`);
   }
+
   if (spec.array !== undefined && Boolean(attribute.array) !== Boolean(spec.array)) {
     issues.push(`array ${Boolean(attribute.array)} (expected ${Boolean(spec.array)})`);
   }
 
-  // Documented legacy exception:
-  // coupon_redemptions.user_id is a legacy oversized string attribute in the live project.
-  // We preserve documented compatibility without breaking existing data.
-  const isLegacyUserId = collectionId === REDEMPTIONS_COLL_ID && spec.key === 'user_id';
   if (spec.size !== undefined) {
     const actualSize = Number(attribute.size);
-    if (isLegacyUserId) {
+    if (isDiscountCodesCode) {
+      // Live attribute is size 50; repository ideal is size 64. Accept 50 or 64 only.
+      if (actualSize !== 50 && actualSize !== 64) {
+        issues.push(`size ${actualSize} (expected 50 or 64)`);
+      }
+    } else if (isLegacyUserId) {
+      // Legacy user_id is size 65000 (or 255); repository ideal is 64. Must be at least 64.
       if (actualSize < spec.size) {
         issues.push(`size ${actualSize} (expected at least ${spec.size})`);
       }
