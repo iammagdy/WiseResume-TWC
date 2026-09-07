@@ -1161,7 +1161,8 @@ async function processWebhookEvent({
   }
 
   // Strict payment ID normalization check (Blocker E):
-  // PAYMENT.SALE.REFUNDED requires resource.sale_id and PAYMENT.SALE.REVERSED requires resource.parent_payment.
+  // PAYMENT.SALE.REFUNDED requires resource.sale_id and PAYMENT.SALE.REVERSED requires resource.id (sale transaction ID).
+  // resource.parent_payment is captured as non-entitlement parent Payment reference metadata only.
   // If absent, do not attempt to guess or fall back to arbitrary IDs. Fail closed safely.
   if ((event.type === 'PAYMENT.SALE.REFUNDED' || event.type === 'PAYMENT.SALE.REVERSED') && !event.paymentId) {
     await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
