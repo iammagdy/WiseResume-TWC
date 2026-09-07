@@ -1,5 +1,35 @@
 # WiseResume Atlas Master Changelog
 
+### 2026-09-07 - Coupon Schema Pre-Deployment Readiness Hardening (`fix/coupon-schema-readiness`)
+
+- **Workstream Verdict:** `COUPONS_SCHEMA_PREDEPLOY_HARDENING_READY_FOR_REVIEW` (`BRANCH_READY_FOR_REVIEW`, `PAYPAL_PRODUCTION_READY = NO`).
+- **Branch:** `fix/coupon-schema-readiness` (Target: `main`, Base Main SHA: `2341c263a1570f94dbafd80e9e3c901b87d366eb`).
+- **Runtime Deployment State:**
+  - `paypal-webhook`: `DEPLOYED_SANDBOX` (run `34110889444`, deployment `6a9e90018dfcbf3f35a4`).
+  - PayPal Schema: `READY` in Appwrite.
+  - `paypal-webhook` Smoke: `PASS_FAIL_CLOSED` (HTTP 400).
+  - `coupons`: `PENDING_TARGETED_DEPLOYMENT`.
+  - Coupon Schema Hardening: `IN_REVIEW`.
+  - Sandbox Refund QA: `NOT_PERFORMED`.
+  - Production PayPal: `UNTOUCHED` (`PAYPAL_PRODUCTION_READY = NO`).
+  - Public Checkout: `CHECKOUT_PREVIOUSLY_VERIFIED_DISABLED`.
+- **Scope & Accomplishments:**
+  1. **Pre-Mutation Identifier Preflight Validation:** Added `APPWRITE_KEY_REGEX = /^[A-Za-z][A-Za-z0-9._-]{0,35}$/` in `scripts/setup_discount_codes_schema.cjs` to validate collection IDs, attribute keys, and index keys upfront before ANY remote Appwrite database calls.
+  2. **Index Readiness Polling:** Added `waitForIndexAvailable` polling for `discount_codes.code_unique` and `coupon_redemptions.discount_code_idx` to reach status `available`. Fails closed immediately on status `failed` and on timeout.
+  3. **Non-Destructive Index Compatibility Checks:** Checked `type` and `attributes` of existing indexes via `indexCompatibilityError`, failing closed without mutating or dropping existing indexes.
+  4. **Attribute Compatibility Validation:** Validated existing attributes while preserving documented legacy oversized `user_id` in `coupon_redemptions` without breaking existing data.
+  5. **Server-Only Permissions Enforcement:** Validated `permissions = []` and `documentSecurity = false` via `assertServerOnlyCollection`.
+  6. **Zero Business Logic Mutations:** `appwrite-hubs/coupons/src/main.js` and `sourceHashes.generated.json` untouched.
+  7. **Comprehensive Test Verification:**
+     - Coupon schema suite (`tests/hubs/coupon-schema.test.cjs`): 16 / 16 passing (100%, +13 new tests covering requirements A through M).
+     - Coupons subscription suite (`tests/hubs/coupons-subscription.test.cjs`): 23 / 23 passing (100%).
+     - PayPal schema suite (`tests/hubs/paypal-schema.test.cjs`): 15 / 15 passing (100%).
+     - Webhook suite (`tests/hubs/paypal-webhook.test.cjs`): 134 / 134 passing (100%).
+     - All hub suites (`node --test tests/hubs/*.test.cjs`): 384 / 384 passing across 58 suites (100%).
+     - Frontend Vitest suite: 30 / 30 passing (100%).
+     - TypeScript typecheck (`tsc --noEmit`): PASS (0 errors).
+     - Production build (`npm run build`): PASS (clean build, 0 sourcemaps).
+
 ### 2026-09-07 - PayPal Appwrite 36-Char Schema Key Limit Fix (`fix/paypal-appwrite-key-limit`)
 
 - **Workstream Verdict:** `PAYPAL_SCHEMA_KEY_LIMIT_FIX_READY_FOR_REVIEW` (`MERGED_NOT_DEPLOYED`, `PAYPAL_PRODUCTION_READY = NO`).
