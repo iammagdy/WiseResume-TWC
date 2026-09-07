@@ -38,7 +38,7 @@ test('PayPal provider state and event ledger contracts are durable, browser-writ
   assert.ok(state.attributes.some(attribute => attribute.key === 'latest_event_timestamp_ms'));
 
   assert.deepEqual(state.attributes.find(attribute => attribute.key === 'last_entitlement_payment_id'), { key: 'last_entitlement_payment_id', type: 'string', size: 64, required: false, array: false });
-  assert.deepEqual(state.attributes.find(attribute => attribute.key === 'last_entitlement_payment_timestamp_ms'), { key: 'last_entitlement_payment_timestamp_ms', type: 'integer', required: false, array: false, min: 0, max: 9999999999999 });
+  assert.deepEqual(state.attributes.find(attribute => attribute.key === 'last_entitlement_payment_ts_ms'), { key: 'last_entitlement_payment_ts_ms', type: 'integer', required: false, array: false, min: 0, max: 9999999999999 });
   assert.deepEqual(state.attributes.find(attribute => attribute.key === 'renewal_cancellation_pending'), { key: 'renewal_cancellation_pending', type: 'boolean', required: false, array: false, default: false });
   assert.deepEqual(ledger.attributes.find(attribute => attribute.key === 'payment_id'), { key: 'payment_id', type: 'string', size: 64, required: false, array: false });
 
@@ -246,4 +246,83 @@ test('ensureCollection creates and waits for all attributes and indexes', async 
   };
 
   await schema.ensureCollection(mockDatabases, miniSpec);
+});
+
+test('schema identifier validation enforces Appwrite 36-character key limits and syntax', () => {
+  // A. actual COLLECTION_SPECS pass identifier validation
+  assert.doesNotThrow(() => schema.validateCollectionSpecs(schema.COLLECTION_SPECS));
+
+  // B. valid 36-character key passes
+  const valid36 = 'a' + 'b'.repeat(35);
+  assert.equal(valid36.length, 36);
+  assert.equal(schema.isValidSchemaKey(valid36), true);
+  assert.doesNotThrow(() => schema.validateSchemaKey(valid36, 'col', 'attribute'));
+
+  // C. 37-character key fails
+  const invalid37 = 'a' + 'b'.repeat(36);
+  assert.equal(invalid37.length, 37);
+  assert.equal(schema.isValidSchemaKey(invalid37), false);
+  assert.throws(
+    () => schema.validateSchemaKey(invalid37, 'paypal_subscription_state', 'attribute'),
+    /Invalid Appwrite schema key "abbb.*" for paypal_subscription_state attribute: key must be 1-36 characters/
+  );
+
+  // D. valid period/hyphen/underscore after first character passes
+  assert.equal(schema.isValidSchemaKey('valid.key-name_123'), true);
+  assert.doesNotThrow(() => schema.validateSchemaKey('valid.key-name_123', 'col', 'attribute'));
+
+  // E. key beginning with . - _ fails
+  assert.equal(schema.isValidSchemaKey('.invalid'), false);
+  assert.equal(schema.isValidSchemaKey('-invalid'), false);
+  assert.equal(schema.isValidSchemaKey('_invalid'), false);
+  assert.throws(() => schema.validateSchemaKey('.invalid', 'col', 'attribute'), /Invalid Appwrite schema key/);
+  assert.throws(() => schema.validateSchemaKey('-invalid', 'col', 'attribute'), /Invalid Appwrite schema key/);
+  assert.throws(() => schema.validateSchemaKey('_invalid', 'col', 'attribute'), /Invalid Appwrite schema key/);
+
+  // F. invalid character such as whitespace or slash fails
+  assert.equal(schema.isValidSchemaKey('invalid key'), false);
+  assert.equal(schema.isValidSchemaKey('invalid/key'), false);
+  assert.equal(schema.isValidSchemaKey('invalid@key'), false);
+  assert.throws(() => schema.validateSchemaKey('invalid key', 'col', 'attribute'), /Invalid Appwrite schema key/);
+  assert.throws(() => schema.validateSchemaKey('invalid/key', 'col', 'attribute'), /Invalid Appwrite schema key/);
+
+  // H. renamed field exists in schema spec exactly as last_entitlement_payment_ts_ms
+  const stateSpec = schema.COLLECTION_SPECS.find(s => s.id === 'paypal_subscription_state');
+  const renamedAttr = stateSpec.attributes.find(a => a.key === 'last_entitlement_payment_ts_ms');
+  assert.ok(renamedAttr, 'renamed attribute last_entitlement_payment_ts_ms must exist in schema spec');
+  assert.equal(renamedAttr.key.length <= 36, true);
+  assert.equal(renamedAttr.type, 'integer');
+
+  // I. old invalid field does NOT exist: last_entitlement_payment_timestamp_ms
+  const oldAttr = stateSpec.attributes.find(a => a.key === 'last_entitlement_payment_timestamp_ms');
+  assert.equal(oldAttr, undefined, 'old invalid 37-char field must not exist in schema spec');
+});
+
+test('invalid schema specification is rejected BEFORE any remote schema mutation', async () => {
+  let remoteCalls = 0;
+  const mockDatabases = {
+    async getCollection() { remoteCalls++; return {}; },
+    async createCollection() { remoteCalls++; },
+    async listAttributes() { remoteCalls++; return { attributes: [] }; },
+    async createIntegerAttribute() { remoteCalls++; },
+    async listIndexes() { remoteCalls++; return { indexes: [] }; },
+    async createIndex() { remoteCalls++; },
+  };
+
+  const invalidSpec = {
+    id: 'test_col',
+    name: 'Test Col',
+    attributes: [
+      { key: 'last_entitlement_payment_timestamp_ms', type: 'integer', required: false, array: false },
+    ],
+    indexes: [],
+  };
+
+  await assert.rejects(
+    () => schema.ensureCollection(mockDatabases, invalidSpec),
+    /Invalid Appwrite schema key "last_entitlement_payment_timestamp_ms" for test_col attribute/
+  );
+
+  // G. Assert that zero remote calls occurred
+  assert.equal(remoteCalls, 0, 'No remote database operations must occur when schema key validation fails');
 });

@@ -32,7 +32,7 @@ const COLLECTION_SPECS = Object.freeze([
       { key: 'latest_event_timestamp_ms', type: 'integer', required: true, array: false, min: 0, max: 9999999999999 },
       { key: 'updated_at', type: 'string', size: 32, required: true, array: false },
       { key: 'last_entitlement_payment_id', type: 'string', size: 64, required: false, array: false },
-      { key: 'last_entitlement_payment_timestamp_ms', type: 'integer', required: false, array: false, min: 0, max: 9999999999999 },
+      { key: 'last_entitlement_payment_ts_ms', type: 'integer', required: false, array: false, min: 0, max: 9999999999999 },
       { key: 'renewal_cancellation_pending', type: 'boolean', required: false, array: false, default: false },
     ],
     indexes: [
@@ -66,6 +66,36 @@ const COLLECTION_SPECS = Object.freeze([
     ],
   },
 ]);
+
+const APPWRITE_KEY_REGEX = /^[A-Za-z0-9][A-Za-z0-9._-]{0,35}$/;
+
+function isValidSchemaKey(key) {
+  return typeof key === 'string' && APPWRITE_KEY_REGEX.test(key);
+}
+
+function validateSchemaKey(key, collectionId = '', kind = 'attribute') {
+  if (!isValidSchemaKey(key)) {
+    const target = collectionId ? ` for ${collectionId} ${kind}` : '';
+    throw new Error(
+      `Invalid Appwrite schema key "${key}"${target}: ` +
+      `key must be 1-36 characters and match the allowed Appwrite identifier contract.`
+    );
+  }
+}
+
+function validateCollectionSpecs(specs = COLLECTION_SPECS) {
+  for (const spec of specs) {
+    if (spec.id) {
+      validateSchemaKey(spec.id, spec.id, 'collection');
+    }
+    for (const attr of spec.attributes || []) {
+      validateSchemaKey(attr.key, spec.id, 'attribute');
+    }
+    for (const idx of spec.indexes || []) {
+      validateSchemaKey(idx.key, spec.id, 'index');
+    }
+  }
+}
 
 function valuesEqual(actual, expected) {
   return Array.isArray(actual) && actual.length === expected.length && actual.every((value, index) => value === expected[index]);
@@ -179,23 +209,31 @@ async function waitForIndexAvailable(databases, collectionId, key, maxRetries = 
 }
 
 async function ensureCollection(databases, spec) {
+  validateSchemaKey(spec.id, spec.id, 'collection');
+  for (const attribute of spec.attributes || []) {
+    validateSchemaKey(attribute.key, spec.id, 'attribute');
+  }
+  for (const index of spec.indexes || []) {
+    validateSchemaKey(index.key, spec.id, 'index');
+  }
   const existing = await getCollectionOrNull(databases, spec.id);
   if (existing) assertServerOnlyCollection(existing, spec.id);
   else {
     await databases.createCollection(DB_ID, spec.id, spec.name, [], false);
     await pause();
   }
-  for (const attribute of spec.attributes) {
+  for (const attribute of spec.attributes || []) {
     await ensureAttribute(databases, spec.id, attribute);
     await waitForAttributeAvailable(databases, spec.id, attribute.key);
   }
-  for (const index of spec.indexes) {
+  for (const index of spec.indexes || []) {
     await ensureIndex(databases, spec.id, index);
     await waitForIndexAvailable(databases, spec.id, index.key);
   }
 }
 
 async function run() {
+  validateCollectionSpecs(COLLECTION_SPECS);
   const databases = getDatabases();
   for (const spec of COLLECTION_SPECS) await ensureCollection(databases, spec);
   console.log('PayPal provider-state schemas are ready (server-only collections).');
@@ -208,6 +246,10 @@ if (require.main === module) {
 module.exports = {
   DB_ID,
   COLLECTION_SPECS,
+  APPWRITE_KEY_REGEX,
+  isValidSchemaKey,
+  validateSchemaKey,
+  validateCollectionSpecs,
   valuesEqual,
   attributeCompatibilityError,
   indexCompatibilityError,
