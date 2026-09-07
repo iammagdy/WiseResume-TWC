@@ -1436,7 +1436,7 @@ async function processWebhookEvent({
     will_renew: previous?.will_renew !== undefined ? previous.will_renew : true,
     grace_period_expires_at: previous?.grace_period_expires_at || null,
     last_entitlement_payment_id: previous?.last_entitlement_payment_id || null,
-    last_entitlement_payment_timestamp_ms: previous?.last_entitlement_payment_timestamp_ms || null,
+    last_entitlement_payment_ts_ms: previous?.last_entitlement_payment_ts_ms || null,
     renewal_cancellation_pending: Boolean(previous?.renewal_cancellation_pending),
     latest_event_id: event.id,
     latest_event_type: event.type,
@@ -1612,7 +1612,7 @@ async function processWebhookEvent({
       stateUpdate.grace_period_expires_at = null;
       stateUpdate.expires_at = authoritativeExpiry;
       stateUpdate.last_entitlement_payment_id = event.paymentId;
-      stateUpdate.last_entitlement_payment_timestamp_ms = event.eventTimestampMs;
+      stateUpdate.last_entitlement_payment_ts_ms = event.eventTimestampMs;
       stateUpdate.renewal_cancellation_pending = false;
       break;
     }
@@ -1706,7 +1706,7 @@ async function processWebhookEvent({
 
       if (previous?.last_entitlement_payment_id && event.paymentId === previous.last_entitlement_payment_id) {
         // CASE A: Current entitlement payment
-        targetPaymentTimestamp = Number(previous.last_entitlement_payment_timestamp_ms);
+        targetPaymentTimestamp = Number(previous.last_entitlement_payment_ts_ms);
       } else {
         // CASE B: Historical payment or state lacking payment ID - lookup historical sale in ledger
         const historicalSale = await findLedgerByPaymentId(databases, event.paymentId, 'PAYMENT.SALE.COMPLETED');
@@ -1859,7 +1859,7 @@ async function processWebhookEvent({
       // BLOCKER C: Historical refund check MUST NOT trust provider tx.time for historical ordering.
       // Use authoritative targetPaymentTimestamp from state or historical ledger.
       if (previous?.last_entitlement_payment_id && previous.last_entitlement_payment_id !== event.paymentId) {
-        const prevPaymentMs = Number(previous.last_entitlement_payment_timestamp_ms || 0);
+        const prevPaymentMs = Number(previous.last_entitlement_payment_ts_ms || 0);
         if (Number.isSafeInteger(prevPaymentMs) && prevPaymentMs > 0 &&
             Number.isSafeInteger(targetPaymentTimestamp) && targetPaymentTimestamp > 0 &&
             prevPaymentMs > targetPaymentTimestamp) {
@@ -1890,10 +1890,10 @@ async function processWebhookEvent({
         }
         resolvedPaymentTimestamp = parsedTxTimeMs;
         stateUpdate.last_entitlement_payment_id = event.paymentId;
-        stateUpdate.last_entitlement_payment_timestamp_ms = resolvedPaymentTimestamp;
+        stateUpdate.last_entitlement_payment_ts_ms = resolvedPaymentTimestamp;
       } else if (!previous?.last_entitlement_payment_id) {
         stateUpdate.last_entitlement_payment_id = event.paymentId;
-        stateUpdate.last_entitlement_payment_timestamp_ms = resolvedPaymentTimestamp;
+        stateUpdate.last_entitlement_payment_ts_ms = resolvedPaymentTimestamp;
       }
 
       // FULL CURRENT-CYCLE REFUND
@@ -1901,7 +1901,7 @@ async function processWebhookEvent({
       stateUpdate.grace_period_expires_at = null;
       stateUpdate.renewal_cancellation_pending = true;
       stateUpdate.last_entitlement_payment_id = previous?.last_entitlement_payment_id || event.paymentId;
-      stateUpdate.last_entitlement_payment_timestamp_ms = previous?.last_entitlement_payment_timestamp_ms || resolvedPaymentTimestamp;
+      stateUpdate.last_entitlement_payment_ts_ms = previous?.last_entitlement_payment_ts_ms || resolvedPaymentTimestamp;
       stateUpdate.status = previous?.status || 'active';
       stateUpdate.will_renew = previous?.will_renew !== undefined ? previous.will_renew : true;
 
@@ -1989,7 +1989,7 @@ async function processWebhookEvent({
         stateUpdate.expires_at = null;
         stateUpdate.grace_period_expires_at = null;
         stateUpdate.last_entitlement_payment_id = previous.last_entitlement_payment_id;
-        stateUpdate.last_entitlement_payment_timestamp_ms = previous.last_entitlement_payment_timestamp_ms;
+        stateUpdate.last_entitlement_payment_ts_ms = previous.last_entitlement_payment_ts_ms;
         stateUpdate.status = previous.status || 'active';
         stateUpdate.will_renew = previous.will_renew !== undefined ? previous.will_renew : true;
 
@@ -2011,7 +2011,7 @@ async function processWebhookEvent({
 
       // CASE B — Different Payment ID:
       if (previous?.last_entitlement_payment_id && event.paymentId !== previous.last_entitlement_payment_id) {
-        const prevPaymentMs = Number(previous.last_entitlement_payment_timestamp_ms || 0);
+        const prevPaymentMs = Number(previous.last_entitlement_payment_ts_ms || 0);
         let historicalSale = null;
         try {
           historicalSale = await findLedgerByPaymentId(databases, event.paymentId, 'PAYMENT.SALE.COMPLETED');

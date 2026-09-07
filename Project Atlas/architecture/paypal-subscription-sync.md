@@ -34,7 +34,7 @@ The repository includes the idempotent provisioner script `scripts/setup_paypal_
 - `will_renew`: boolean, default `true`
 - `grace_period_expires_at`: string(32), optional (ISO 8601)
 - `last_entitlement_payment_id`: string(64), optional — **Index (`last_payment_idx` ASC)**
-- `last_entitlement_payment_timestamp_ms`: integer, optional
+- `last_entitlement_payment_ts_ms`: integer, optional
 - `renewal_cancellation_pending`: boolean, default `false`
 - `latest_event_id`: string(128), required
 - `latest_event_type`: string(64), required
@@ -302,7 +302,7 @@ The Option B refund and reversal policy is owner-locked and approved:
 
 1. **Full Refund of Current Entitlement-Bearing Payment:**
    - **Immediate Entitlement Revocation:** `expires_at = null` and `grace_period_expires_at = null`. Entitlement ends immediately upon confirmed full refund.
-   - **Identity Retention:** Preserves `last_entitlement_payment_id` and `last_entitlement_payment_timestamp_ms` on `paypal_subscription_state` for audit and correlation.
+   - **Identity Retention:** Preserves `last_entitlement_payment_id` and `last_entitlement_payment_ts_ms` on `paypal_subscription_state` for audit and correlation.
    - **Future Renewal Cancellation:** Flags `renewal_cancellation_pending = true` and initiates server-side cancellation of future automatic PayPal renewals via `POST /v1/billing/subscriptions/{id}/cancel`.
    - **Truthful Provider State:** While cancellation is pending, provider status is kept truthful (e.g. `active`, `will_renew = true`); no provider status is fabricated.
    - **Convergence:** On confirmed provider cancellation (HTTP 204 or verified via `GET /v1/billing/subscriptions/{id}`), state converges to `status = 'canceled'`, `will_renew = false`, `renewal_cancellation_pending = false`, `expires_at = null`, and ledger outcome `refund_and_cancellation_settled`. Subsequent incoming `BILLING.SUBSCRIPTION.CANCELLED` webhooks remain idempotent and do not restore entitlement.
@@ -316,7 +316,7 @@ The Option B refund and reversal policy is owner-locked and approved:
 
 3. **Historical Refund and Reversal Policy:**
    - When a refund or reversal event arrives for a `payment_id` that is not the subscription's `last_entitlement_payment_id`:
-     - **Authoritative payment timestamps:** Historical payment ordering uses either `paypal_subscription_state.last_entitlement_payment_timestamp_ms` or `paypal_event_ledger.event_timestamp_ms` from the correlated `PAYMENT.SALE.COMPLETED` ledger event. Provider transaction string timestamps (`tx.time`) are NEVER used for the ordering comparison (preventing malformed date strings from producing `NaN` and misclassifying historical refunds as current).
+     - **Authoritative payment timestamps:** Historical payment ordering uses either `paypal_subscription_state.last_entitlement_payment_ts_ms` or `paypal_event_ledger.event_timestamp_ms` from the correlated `PAYMENT.SALE.COMPLETED` ledger event. Provider transaction string timestamps (`tx.time`) are NEVER used for the ordering comparison (preventing malformed date strings from producing `NaN` and misclassifying historical refunds as current).
      - If the correlated payment is older than current entitlement: active provider state is left untouched (zero downgrade, zero cancellation), and the ledger records `outcome_code = 'historical_refund_ignored'` or `'historical_reversal_ignored'`. Unresolved historical correlation fails closed (`unresolved_historical_payment_timestamp` or `unresolved_historical_reversal_correlation`) with zero state mutation.
 
 4. **Payment Reversal Policy:**
@@ -324,7 +324,7 @@ The Option B refund and reversal policy is owner-locked and approved:
    - **Truthful Provider Status:** Provider status remains truthful (`active` if provider has not suspended/cancelled; no fabrication of `suspended` or `expired`).
    - **Identity Retention:** `last_entitlement_payment_id` is preserved. Future renewals are not cancelled automatically by PayPal reversal unless provider cancels or full refund occurs.
    - **Sale Reversal Identifier Contract:** `PAYMENT.SALE.REVERSED` extracts `paymentId` from `resource.id` (the affected sale transaction ID). The `resource.parent_payment` field (e.g. `PAYID-...`) is stored as separate non-entitlement parent reference metadata and is never treated as the primary sale payment ID.
-   - **Historical Reversals:** Authoritative payment identity and timestamp are queried from the ledger `PAYMENT.SALE.COMPLETED` event by `payment_id` (not reversal webhook arrival time). If the correlated sale is older than the current entitlement payment (`last_entitlement_payment_timestamp_ms`), the delayed reversal is ignored (`historical_reversal_ignored`) with zero state mutation. Unresolved historical correlation fails closed (`unresolved_historical_reversal_correlation`) with zero state mutation.
+   - **Historical Reversals:** Authoritative payment identity and timestamp are queried from the ledger `PAYMENT.SALE.COMPLETED` event by `payment_id` (not reversal webhook arrival time). If the correlated sale is older than the current entitlement payment (`last_entitlement_payment_ts_ms`), the delayed reversal is ignored (`historical_reversal_ignored`) with zero state mutation. Unresolved historical correlation fails closed (`unresolved_historical_reversal_correlation`) with zero state mutation.
 
 5. **Cancellation-Pending Guard on New Sales:**
    - If `PAYMENT.SALE.COMPLETED` arrives while `renewal_cancellation_pending === true`, paid entitlement is strictly blocked (`expires_at` is NOT updated).
@@ -349,7 +349,7 @@ The Option B refund and reversal policy is owner-locked and approved:
 
 8. **Legacy Migration-on-Touch:**
    - Pre-PR#301 ledger documents did not have `payment_id`. Legacy states with `last_entitlement_payment_id = null` must not fail with `unresolved_historical_payment_timestamp` when receiving refunds.
-   - When the canonical subscription ID is known, the handler fetches authoritative subscription details (`GET /v1/billing/subscriptions/{id}`) to extract the provider's `start_time`. It queries the Transactions API (`GET /v1/billing/subscriptions/{id}/transactions`) with an explicit query range (`startTimeMs = provider start_time`, `endTimeMs = nowMs`), matches the exact `transaction.id === refund resource.sale_id`, validates that provider `tx.time` parses to a positive safe integer, and populates `last_entitlement_payment_id` and `last_entitlement_payment_timestamp_ms` from authoritative provider data.
+   - When the canonical subscription ID is known, the handler fetches authoritative subscription details (`GET /v1/billing/subscriptions/{id}`) to extract the provider's `start_time`. It queries the Transactions API (`GET /v1/billing/subscriptions/{id}/transactions`) with an explicit query range (`startTimeMs = provider start_time`, `endTimeMs = nowMs`), matches the exact `transaction.id === refund resource.sale_id`, validates that provider `tx.time` parses to a positive safe integer, and populates `last_entitlement_payment_id` and `last_entitlement_payment_ts_ms` from authoritative provider data.
    - If the canonical subscription ID is absent, provider `start_time` is missing/invalid, or `tx.time` is malformed, it fails closed with zero state mutation (`unresolved_legacy_payment_correlation` or retryable 502 `invalid_provider_transaction_time`). No bulk backfill is required.
 
 9. **Frontend Surface Contract:**

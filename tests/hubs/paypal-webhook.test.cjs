@@ -1224,7 +1224,7 @@ test('Option B 01: normal SALE.COMPLETED persists payment ID + timestamp', async
 
   const state = db.collections.paypal_subscription_state.get(stateDocId);
   assert.equal(state.last_entitlement_payment_id, 'TX-PAY-01');
-  assert.equal(state.last_entitlement_payment_timestamp_ms, nowMs);
+  assert.equal(state.last_entitlement_payment_ts_ms, nowMs);
   assert.equal(state.renewal_cancellation_pending, false);
 
   const ledgerDocId = paypalWebhook.__test.ledgerDocumentId('EVT-SALE-01');
@@ -1249,7 +1249,7 @@ test('Option B 02: payment identity retained after full refund', async () => {
     expires_at: '2026-10-03T12:00:00.000Z',
     will_renew: true,
     last_entitlement_payment_id: 'TX-PAY-02',
-    last_entitlement_payment_timestamp_ms: nowMs,
+    last_entitlement_payment_ts_ms: nowMs,
     renewal_cancellation_pending: false,
     latest_event_timestamp_ms: nowMs,
   });
@@ -1285,7 +1285,7 @@ test('Option B 02: payment identity retained after full refund', async () => {
   const state = db.collections.paypal_subscription_state.get(stateDocId);
   assert.equal(state.expires_at, null);
   assert.equal(state.last_entitlement_payment_id, 'TX-PAY-02');
-  assert.equal(state.last_entitlement_payment_timestamp_ms, nowMs);
+  assert.equal(state.last_entitlement_payment_ts_ms, nowMs);
 });
 
 test('Option B 03: later valid payment replaces identity', async () => {
@@ -1305,7 +1305,7 @@ test('Option B 03: later valid payment replaces identity', async () => {
     expires_at: null,
     will_renew: false,
     last_entitlement_payment_id: 'TX-PAY-03-OLD',
-    last_entitlement_payment_timestamp_ms: nowMs,
+    last_entitlement_payment_ts_ms: nowMs,
     renewal_cancellation_pending: false,
     latest_event_timestamp_ms: nowMs + 1000,
   });
@@ -1340,7 +1340,7 @@ test('Option B 03: later valid payment replaces identity', async () => {
   const state = db.collections.paypal_subscription_state.get(stateDocId);
   assert.equal(state.subscription_id, 'I-SUB-03-NEW');
   assert.equal(state.last_entitlement_payment_id, 'TX-PAY-03-NEW');
-  assert.equal(state.last_entitlement_payment_timestamp_ms, newSaleTime);
+  assert.equal(state.last_entitlement_payment_ts_ms, newSaleTime);
   assert.equal(state.expires_at, newExpiry);
 });
 
@@ -1361,7 +1361,7 @@ test('Option B 04: current full refund revokes entitlement immediately and cance
     expires_at: '2026-10-03T12:00:00.000Z',
     will_renew: true,
     last_entitlement_payment_id: 'TX-PAY-04',
-    last_entitlement_payment_timestamp_ms: nowMs,
+    last_entitlement_payment_ts_ms: nowMs,
     renewal_cancellation_pending: false,
     latest_event_timestamp_ms: nowMs,
   });
@@ -1426,7 +1426,7 @@ test('Option B 05: current partial refund preserves entitlement and renewal', as
     expires_at: expiryIso,
     will_renew: true,
     last_entitlement_payment_id: 'TX-PAY-05',
-    last_entitlement_payment_timestamp_ms: nowMs,
+    last_entitlement_payment_ts_ms: nowMs,
     renewal_cancellation_pending: false,
     latest_event_timestamp_ms: nowMs,
   });
@@ -1491,7 +1491,7 @@ test('Option B 06: unexpected provider transaction status fails closed with zero
     expires_at: expiryIso,
     will_renew: true,
     last_entitlement_payment_id: 'TX-PAY-06',
-    last_entitlement_payment_timestamp_ms: nowMs,
+    last_entitlement_payment_ts_ms: nowMs,
     renewal_cancellation_pending: false,
     latest_event_timestamp_ms: nowMs,
   });
@@ -1568,7 +1568,7 @@ test('Option B 07: historical refund does not mutate active state', async () => 
     expires_at: expiryIso,
     will_renew: true,
     last_entitlement_payment_id: 'TX-PAY-07-NEW',
-    last_entitlement_payment_timestamp_ms: newPaymentMs,
+    last_entitlement_payment_ts_ms: newPaymentMs,
     renewal_cancellation_pending: false,
     latest_event_timestamp_ms: newPaymentMs,
   });
@@ -1647,7 +1647,7 @@ test('Option B 07b: historical refund with missing old sale ledger timestamp fai
     expires_at: expiryIso,
     will_renew: true,
     last_entitlement_payment_id: 'TX-PAY-07B-NEW',
-    last_entitlement_payment_timestamp_ms: newPaymentMs,
+    last_entitlement_payment_ts_ms: newPaymentMs,
     renewal_cancellation_pending: false,
     latest_event_timestamp_ms: newPaymentMs,
   });
@@ -1698,7 +1698,7 @@ test('Option B 08: current reversal revokes entitlement while retaining truthful
     expires_at: '2026-10-03T12:00:00.000Z',
     will_renew: true,
     last_entitlement_payment_id: 'TX-PAY-08',
-    last_entitlement_payment_timestamp_ms: nowMs,
+    last_entitlement_payment_ts_ms: nowMs,
     renewal_cancellation_pending: false,
     latest_event_timestamp_ms: nowMs,
   });
@@ -1752,7 +1752,7 @@ test('Option B 09: historical reversal does not mutate active state', async () =
     expires_at: expiryIso,
     will_renew: true,
     last_entitlement_payment_id: 'TX-PAY-09-NEW',
-    last_entitlement_payment_timestamp_ms: nowMs + 10000,
+    last_entitlement_payment_ts_ms: nowMs + 10000,
     renewal_cancellation_pending: false,
     latest_event_timestamp_ms: nowMs + 10000,
   });
@@ -1818,7 +1818,7 @@ test('Option B 09b: delayed historical reversal arriving after newer payment tim
     expires_at: expiryIso,
     will_renew: true,
     last_entitlement_payment_id: 'TX-PAY-09B-NEW',
-    last_entitlement_payment_timestamp_ms: newPaymentMs,
+    last_entitlement_payment_ts_ms: newPaymentMs,
     renewal_cancellation_pending: false,
     latest_event_timestamp_ms: newPaymentMs,
   });
@@ -1868,7 +1868,7 @@ test('Option B 09b: delayed historical reversal arriving after newer payment tim
   assert.equal(state.status, 'active');
   assert.equal(state.expires_at, expiryIso);
   assert.equal(state.last_entitlement_payment_id, 'TX-PAY-09B-NEW');
-  assert.equal(state.last_entitlement_payment_timestamp_ms, newPaymentMs);
+  assert.equal(state.last_entitlement_payment_ts_ms, newPaymentMs);
 });
 
 test('Option B 09c: historical reversal with missing historical sale evidence fails closed with zero mutation (Blocker 1)', async () => {
@@ -1889,7 +1889,7 @@ test('Option B 09c: historical reversal with missing historical sale evidence fa
     expires_at: expiryIso,
     will_renew: true,
     last_entitlement_payment_id: 'TX-PAY-09C-NEW',
-    last_entitlement_payment_timestamp_ms: newPaymentMs,
+    last_entitlement_payment_ts_ms: newPaymentMs,
     renewal_cancellation_pending: false,
     latest_event_timestamp_ms: newPaymentMs,
   });
@@ -2115,7 +2115,7 @@ test('Option B 13: provider transaction not converged triggers retryable 503 err
     expires_at: '2026-10-03T12:00:00.000Z',
     will_renew: true,
     last_entitlement_payment_id: 'TX-PAY-13',
-    last_entitlement_payment_timestamp_ms: nowMs,
+    last_entitlement_payment_ts_ms: nowMs,
     renewal_cancellation_pending: false,
     latest_event_timestamp_ms: nowMs,
   });
@@ -2171,7 +2171,7 @@ test('Option B 13b: provider transaction PENDING triggers retryable 503 error', 
     expires_at: '2026-10-03T12:00:00.000Z',
     will_renew: true,
     last_entitlement_payment_id: 'TX-PAY-13B',
-    last_entitlement_payment_timestamp_ms: nowMs,
+    last_entitlement_payment_ts_ms: nowMs,
     renewal_cancellation_pending: false,
     latest_event_timestamp_ms: nowMs,
   });
@@ -2550,7 +2550,7 @@ test('Option B 22: true legacy migration-on-touch populates payment identity wit
     expires_at: '2026-10-03T12:00:00.000Z',
     will_renew: true,
     last_entitlement_payment_id: null,
-    last_entitlement_payment_timestamp_ms: null,
+    last_entitlement_payment_ts_ms: null,
     renewal_cancellation_pending: false,
     latest_event_timestamp_ms: nowMs,
   });
@@ -2610,7 +2610,7 @@ test('Option B 22: true legacy migration-on-touch populates payment identity wit
 
   const state = db.collections.paypal_subscription_state.get(stateDocId);
   assert.equal(state.last_entitlement_payment_id, 'TX-LEGACY-22');
-  assert.equal(state.last_entitlement_payment_timestamp_ms, nowMs);
+  assert.equal(state.last_entitlement_payment_ts_ms, nowMs);
   assert.equal(state.expires_at, null);
   assert.equal(state.status, 'canceled');
   assert.equal(state.will_renew, false);
@@ -2633,7 +2633,7 @@ test('Option B 22b: legacy state with missing/invalid provider start_time fails 
     expires_at: '2026-10-03T12:00:00.000Z',
     will_renew: true,
     last_entitlement_payment_id: null,
-    last_entitlement_payment_timestamp_ms: null,
+    last_entitlement_payment_ts_ms: null,
     renewal_cancellation_pending: false,
     latest_event_timestamp_ms: nowMs,
   });
@@ -2720,7 +2720,7 @@ test('Option B 23b: ambiguous payment correlation across multiple states fails c
     expires_at: '2026-10-03T12:00:00.000Z',
     will_renew: true,
     last_entitlement_payment_id: 'TX-PAY-SHARED',
-    last_entitlement_payment_timestamp_ms: nowMs,
+    last_entitlement_payment_ts_ms: nowMs,
     renewal_cancellation_pending: false,
     latest_event_timestamp_ms: nowMs,
   });
@@ -2736,7 +2736,7 @@ test('Option B 23b: ambiguous payment correlation across multiple states fails c
     expires_at: '2026-10-03T12:00:00.000Z',
     will_renew: true,
     last_entitlement_payment_id: 'TX-PAY-SHARED',
-    last_entitlement_payment_timestamp_ms: nowMs,
+    last_entitlement_payment_ts_ms: nowMs,
     renewal_cancellation_pending: false,
     latest_event_timestamp_ms: nowMs,
   });
@@ -2810,7 +2810,7 @@ test('Option B 24: full refund sets cancellation pending before provider cancell
     expires_at: '2026-10-03T12:00:00.000Z',
     will_renew: true,
     last_entitlement_payment_id: 'TX-PAY-24',
-    last_entitlement_payment_timestamp_ms: nowMs,
+    last_entitlement_payment_ts_ms: nowMs,
     renewal_cancellation_pending: false,
     latest_event_timestamp_ms: nowMs,
   });
@@ -2874,7 +2874,7 @@ test('Option B 25: cancellation success clears renewal_cancellation_pending', as
     expires_at: '2026-10-03T12:00:00.000Z',
     will_renew: true,
     last_entitlement_payment_id: 'TX-PAY-25',
-    last_entitlement_payment_timestamp_ms: nowMs,
+    last_entitlement_payment_ts_ms: nowMs,
     renewal_cancellation_pending: false,
     latest_event_timestamp_ms: nowMs,
   });
@@ -2927,7 +2927,7 @@ test('Option B 26: cancellation timeout preserves pending flag and null expires_
     expires_at: '2026-10-03T12:00:00.000Z',
     will_renew: true,
     last_entitlement_payment_id: 'TX-PAY-26',
-    last_entitlement_payment_timestamp_ms: nowMs,
+    last_entitlement_payment_ts_ms: nowMs,
     renewal_cancellation_pending: false,
     latest_event_timestamp_ms: nowMs,
   });
@@ -2984,7 +2984,7 @@ test('Option B 26b: same refund event redelivery retries cancellation and settle
     expires_at: '2026-10-03T12:00:00.000Z',
     will_renew: true,
     last_entitlement_payment_id: 'TX-PAY-26B',
-    last_entitlement_payment_timestamp_ms: nowMs,
+    last_entitlement_payment_ts_ms: nowMs,
     renewal_cancellation_pending: false,
     latest_event_timestamp_ms: nowMs,
   });
@@ -3082,7 +3082,7 @@ test('Option B 26c: same refund event redelivery when provider already canceled 
     expires_at: '2026-10-03T12:00:00.000Z',
     will_renew: true,
     last_entitlement_payment_id: 'TX-PAY-26C',
-    last_entitlement_payment_timestamp_ms: nowMs,
+    last_entitlement_payment_ts_ms: nowMs,
     renewal_cancellation_pending: false,
     latest_event_timestamp_ms: nowMs,
   });
@@ -3164,7 +3164,7 @@ test('Option B 27: ambiguous cancellation result preserves pending flag', async 
     expires_at: '2026-10-03T12:00:00.000Z',
     will_renew: true,
     last_entitlement_payment_id: 'TX-PAY-27',
-    last_entitlement_payment_timestamp_ms: nowMs,
+    last_entitlement_payment_ts_ms: nowMs,
     renewal_cancellation_pending: false,
     latest_event_timestamp_ms: nowMs,
   });
@@ -3221,7 +3221,7 @@ test('Option B 28: already-canceled provider settles idempotently without callin
     expires_at: '2026-10-03T12:00:00.000Z',
     will_renew: true,
     last_entitlement_payment_id: 'TX-PAY-28',
-    last_entitlement_payment_timestamp_ms: nowMs,
+    last_entitlement_payment_ts_ms: nowMs,
     renewal_cancellation_pending: false,
     latest_event_timestamp_ms: nowMs,
   });
@@ -3281,7 +3281,7 @@ test('Option B 29: CANCELLED webhook clears renewal_cancellation_pending and mai
     expires_at: null,
     will_renew: true,
     last_entitlement_payment_id: 'TX-PAY-29',
-    last_entitlement_payment_timestamp_ms: nowMs,
+    last_entitlement_payment_ts_ms: nowMs,
     renewal_cancellation_pending: true,
     latest_event_timestamp_ms: nowMs + 1000,
   });
@@ -3332,7 +3332,7 @@ test('Option B 30: SALE.COMPLETED during cancellation pending does NOT activate 
     expires_at: null,
     will_renew: true,
     last_entitlement_payment_id: 'TX-ORIG-30',
-    last_entitlement_payment_timestamp_ms: nowMs,
+    last_entitlement_payment_ts_ms: nowMs,
     renewal_cancellation_pending: true,
     latest_event_timestamp_ms: nowMs + 1000,
   });
@@ -3384,7 +3384,7 @@ test('Option B 31: payment during cancellation pending does NOT replace current 
     expires_at: null,
     will_renew: true,
     last_entitlement_payment_id: 'TX-ORIG-31',
-    last_entitlement_payment_timestamp_ms: nowMs,
+    last_entitlement_payment_ts_ms: nowMs,
     renewal_cancellation_pending: true,
     latest_event_timestamp_ms: nowMs + 1000,
   });
@@ -3412,7 +3412,7 @@ test('Option B 31: payment during cancellation pending does NOT replace current 
 
   const state = db.collections.paypal_subscription_state.get(stateDocId);
   assert.equal(state.last_entitlement_payment_id, 'TX-ORIG-31');
-  assert.equal(state.last_entitlement_payment_timestamp_ms, nowMs);
+  assert.equal(state.last_entitlement_payment_ts_ms, nowMs);
 });
 
 test('Option B 32: duplicate refund event is ignored idempotently', async () => {
@@ -3432,7 +3432,7 @@ test('Option B 32: duplicate refund event is ignored idempotently', async () => 
     expires_at: '2026-10-03T12:00:00.000Z',
     will_renew: true,
     last_entitlement_payment_id: 'TX-PAY-32',
-    last_entitlement_payment_timestamp_ms: nowMs,
+    last_entitlement_payment_ts_ms: nowMs,
     renewal_cancellation_pending: false,
     latest_event_timestamp_ms: nowMs,
   });
@@ -3491,7 +3491,7 @@ test('Option B 33: duplicate reversal event is ignored idempotently', async () =
     expires_at: '2026-10-03T12:00:00.000Z',
     will_renew: true,
     last_entitlement_payment_id: 'TX-PAY-33',
-    last_entitlement_payment_timestamp_ms: nowMs,
+    last_entitlement_payment_ts_ms: nowMs,
     renewal_cancellation_pending: false,
     latest_event_timestamp_ms: nowMs,
   });
@@ -3717,7 +3717,7 @@ test('Option B 40: PAYMENT.SALE.REFUNDED missing sale_id fails closed without st
     expires_at: expiryIso,
     will_renew: true,
     last_entitlement_payment_id: 'TX-PAY-40',
-    last_entitlement_payment_timestamp_ms: nowMs,
+    last_entitlement_payment_ts_ms: nowMs,
     renewal_cancellation_pending: false,
     latest_event_timestamp_ms: nowMs,
   });
@@ -3800,7 +3800,7 @@ test('Option B 42: PAYMENT.SALE.REVERSED missing resource.id fails closed withou
     expires_at: expiryIso,
     will_renew: true,
     last_entitlement_payment_id: 'TX-PAY-42',
-    last_entitlement_payment_timestamp_ms: nowMs,
+    last_entitlement_payment_ts_ms: nowMs,
     renewal_cancellation_pending: false,
     latest_event_timestamp_ms: nowMs,
   });
@@ -4338,7 +4338,7 @@ test('Option B 50: historical refund with malformed provider tx.time does not re
     expires_at: currentExpiry,
     will_renew: true,
     last_entitlement_payment_id: 'TX-NEW-50',
-    last_entitlement_payment_timestamp_ms: nowMs,
+    last_entitlement_payment_ts_ms: nowMs,
     renewal_cancellation_pending: false,
     latest_event_timestamp_ms: nowMs,
   });
@@ -4392,7 +4392,7 @@ test('Option B 50: historical refund with malformed provider tx.time does not re
   assert.equal(state.status, 'active');
   assert.equal(state.expires_at, currentExpiry);
   assert.equal(state.last_entitlement_payment_id, 'TX-NEW-50');
-  assert.equal(state.last_entitlement_payment_timestamp_ms, nowMs);
+  assert.equal(state.last_entitlement_payment_ts_ms, nowMs);
 });
 
 test('Option B 51: legacy state with malformed provider tx.time fails closed without state mutation (Blocker C)', async () => {
@@ -4412,7 +4412,7 @@ test('Option B 51: legacy state with malformed provider tx.time fails closed wit
     expires_at: '2026-10-03T12:00:00.000Z',
     will_renew: true,
     last_entitlement_payment_id: null,
-    last_entitlement_payment_timestamp_ms: null,
+    last_entitlement_payment_ts_ms: null,
     renewal_cancellation_pending: false,
     latest_event_timestamp_ms: nowMs,
   });
