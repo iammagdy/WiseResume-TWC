@@ -216,13 +216,15 @@ function normalizeEvent(body) {
     // Strictly require resource.sale_id (the refunded sale transaction ID)
     paymentId = String(resource.sale_id || '').trim();
   } else if (type === 'PAYMENT.SALE.REVERSED') {
-    // Strictly require resource.parent_payment (the reversed sale transaction ID)
-    paymentId = String(resource.parent_payment || '').trim();
+    // For PAYMENT.SALE.REVERSED, the resource is the Sale resource itself.
+    // The reversed sale transaction ID is resource.id.
+    paymentId = String(resource.id || '').trim();
   }
 
   const planId = String(resource.plan_id || '').trim();
   const customId = String(resource.custom_id || resource.custom || '').trim();
   const nextBillingTime = String(resource.billing_info?.next_billing_time || resource.next_billing_time || '').trim();
+  const parentPaymentId = String(resource.parent_payment || '').trim();
 
   return {
     id,
@@ -231,6 +233,7 @@ function normalizeEvent(body) {
     eventTimestampMs,
     subscriptionId,
     paymentId,
+    parentPaymentId,
     planId,
     customId,
     nextBillingTime,
@@ -298,18 +301,10 @@ async function findLedger(databases, eventId) {
 
 async function findStateByPaymentId(databases, paymentId) {
   if (!databases || !paymentId) return null;
-  let result;
-  try {
-    result = await databases.listDocuments(DB_ID, STATE_COLLECTION_ID, [
-      sdk.Query.equal('last_entitlement_payment_id', paymentId),
-      sdk.Query.limit(2),
-    ]);
-  } catch (err) {
-    if (err?.code === 404 || /attribute.*not found|index.*not found/i.test(err?.message || '')) {
-      return null;
-    }
-    throw err;
-  }
+  const result = await databases.listDocuments(DB_ID, STATE_COLLECTION_ID, [
+    sdk.Query.equal('last_entitlement_payment_id', paymentId),
+    sdk.Query.limit(2),
+  ]);
 
   const docs = Array.isArray(result?.documents) ? result.documents : [];
   if (docs.length === 0) return null;
@@ -335,15 +330,7 @@ async function findLedgerByPaymentId(databases, paymentId, eventType = null) {
   if (eventType) {
     queries.unshift(sdk.Query.equal('event_type', eventType));
   }
-  let result;
-  try {
-    result = await databases.listDocuments(DB_ID, LEDGER_COLLECTION_ID, queries);
-  } catch (err) {
-    if (err?.code === 404 || /attribute.*not found|index.*not found/i.test(err?.message || '')) {
-      return null;
-    }
-    throw err;
-  }
+  const result = await databases.listDocuments(DB_ID, LEDGER_COLLECTION_ID, queries);
 
   const docs = Array.isArray(result?.documents) ? result.documents : [];
   if (docs.length === 0) return null;
@@ -364,10 +351,41 @@ async function findLedgerByPaymentId(databases, paymentId, eventType = null) {
   return null;
 }
 
-async function findRefundOrReversalTombstone(databases, paymentId) {
+async function findRefundOrReversalTombstone(databases, paymentId, context = {}) {
   if (!databases || !paymentId) return null;
-  const refundDoc = await findLedgerByPaymentId(databases, paymentId, 'PAYMENT.SALE.REFUNDED');
   const reversalDoc = await findLedgerByPaymentId(databases, paymentId, 'PAYMENT.SALE.REVERSED');
+  const refundDoc = await findLedgerByPaymentId(databases, paymentId, 'PAYMENT.SALE.REFUNDED');
+
+  const { subscriptionId, userId, env } = context;
+
+  // Validate tombstone correlation identity against canonical context if provided (Section 10)
+  const validateTombstoneIdentity = (doc) => {
+    if (!doc) return;
+    if (subscriptionId && doc.subscription_id && doc.subscription_id !== subscriptionId) {
+      const err = new Error(`Conflicting tombstone subscription identity for paymentId ${paymentId}: expected ${subscriptionId}, found ${doc.subscription_id}`);
+      err.code = 'ambiguous_payment_ledger_correlation';
+      err.isTransient = false;
+      err.status = 400;
+      throw err;
+    }
+    if (userId && doc.user_id && doc.user_id !== userId) {
+      const err = new Error(`Conflicting tombstone user identity for paymentId ${paymentId}: expected ${userId}, found ${doc.user_id}`);
+      err.code = 'ambiguous_payment_ledger_correlation';
+      err.isTransient = false;
+      err.status = 400;
+      throw err;
+    }
+    if (env && doc.environment && doc.environment !== env) {
+      const err = new Error(`Conflicting tombstone environment for paymentId ${paymentId}: expected ${env}, found ${doc.environment}`);
+      err.code = 'ambiguous_payment_ledger_correlation';
+      err.isTransient = false;
+      err.status = 400;
+      throw err;
+    }
+  };
+
+  if (reversalDoc) validateTombstoneIdentity(reversalDoc);
+  if (refundDoc) validateTombstoneIdentity(refundDoc);
 
   if (refundDoc && reversalDoc) {
     if ((refundDoc.subscription_id && reversalDoc.subscription_id && refundDoc.subscription_id !== reversalDoc.subscription_id) ||
@@ -380,11 +398,16 @@ async function findRefundOrReversalTombstone(databases, paymentId) {
     }
   }
 
-  if (refundDoc && refundDoc.event_type === 'PAYMENT.SALE.REFUNDED' && refundDoc.payment_id === paymentId) return refundDoc;
-  if (reversalDoc && reversalDoc.event_type === 'PAYMENT.SALE.REVERSED' && reversalDoc.payment_id === paymentId) return reversalDoc;
-  return null;
-}
+  const validReversal = (reversalDoc && reversalDoc.event_type === 'PAYMENT.SALE.REVERSED' && reversalDoc.payment_id === paymentId) ? reversalDoc : null;
+  const validRefund = (refundDoc && refundDoc.event_type === 'PAYMENT.SALE.REFUNDED' && refundDoc.payment_id === paymentId) ? refundDoc : null;
 
+  if (!validReversal && !validRefund) return null;
+
+  return {
+    reversal: validReversal,
+    refund: validRefund,
+  };
+}
 
 // Checkout session bridge for canonical correlation
 async function findCheckoutSessionBySubscriptionId(databases, subscriptionId) {
@@ -1433,9 +1456,13 @@ async function processWebhookEvent({
     case 'PAYMENT.SALE.COMPLETED': {
       // 14. REFUND / REVERSAL BEFORE SALE (TOMBSTONE CHECK):
       if (event.paymentId) {
-        let tombstone = null;
+        let tombstones = null;
         try {
-          tombstone = await findRefundOrReversalTombstone(databases, event.paymentId);
+          tombstones = await findRefundOrReversalTombstone(databases, event.paymentId, {
+            subscriptionId: event.subscriptionId,
+            userId,
+            env,
+          });
         } catch (tombErr) {
           if (tombErr?.code === 'ambiguous_payment_ledger_correlation') {
             await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
@@ -1446,7 +1473,7 @@ async function processWebhookEvent({
             return { outcome: 'rejected', code: 'ambiguous_payment_ledger_correlation', mutated: false };
           }
 
-          // Infrastructure or unexpected errors -> fail closed as retryable failure
+          // Infrastructure, schema/index missing, or unexpected errors -> fail closed as retryable 503
           await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
             user_id: userId,
             processing_status: 'failed',
@@ -1457,11 +1484,11 @@ async function processWebhookEvent({
           throw tombErr;
         }
 
-        if (tombstone) {
-          // If the tombstone is a PAYMENT.SALE.REVERSED event:
-          // The verified PAYMENT.SALE.REVERSED ledger event itself is authoritative reversal evidence.
-          // Do NOT call Transactions API and do NOT expect undocumented status 'REVERSED'.
-          if (tombstone.event_type === 'PAYMENT.SALE.REVERSED') {
+        if (tombstones) {
+          // BLOCKER C: Reversal precedence over refund
+          // If a verified PAYMENT.SALE.REVERSED tombstone exists in the ledger,
+          // it is authoritative reversal evidence on its own without querying Transactions API.
+          if (tombstones.reversal) {
             await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
               user_id: userId,
               processing_status: 'ignored',
@@ -1470,50 +1497,80 @@ async function processWebhookEvent({
             return { outcome: 'ignored', code: 'sale_already_refunded', mutated: false };
           }
 
-          // If the tombstone is a PAYMENT.SALE.REFUNDED event:
-          // Verify against documented provider transaction status 'REFUNDED'
-          let txResult;
-          try {
-            txResult = await fetchSubscriptionTransactions({
-              subscriptionId: event.subscriptionId,
-              targetPaymentId: event.paymentId,
-              targetTimestampMs: event.eventTimestampMs,
-              nowMs,
-              env,
-              customTransactionsFetcher: subscriptionTransactionsFetcher,
-            });
-          } catch (err) {
-            if (err?.isTransient) {
+          // BLOCKER B: Refund tombstone eventual consistency
+          if (tombstones.refund) {
+            let txResult;
+            try {
+              txResult = await fetchSubscriptionTransactions({
+                subscriptionId: event.subscriptionId,
+                targetPaymentId: event.paymentId,
+                targetTimestampMs: event.eventTimestampMs,
+                nowMs,
+                env,
+                customTransactionsFetcher: subscriptionTransactionsFetcher,
+              });
+            } catch (err) {
+              if (err?.isTransient) {
+                await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
+                  user_id: userId,
+                  processing_status: 'failed',
+                  outcome_code: 'transient_paypal_fetch_failure',
+                }, serverOnlyPermissions()).catch(() => {});
+              }
+              throw err;
+            }
+
+            if (!txResult || !txResult.found) {
+              const err = new Error('Target transaction not found in Transactions API during tombstone verification');
+              err.code = 'missing_transaction';
+              err.status = 502;
+              err.isTransient = true;
               await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
                 user_id: userId,
                 processing_status: 'failed',
-                outcome_code: 'transient_paypal_fetch_failure',
+                outcome_code: 'missing_transaction',
               }, serverOnlyPermissions()).catch(() => {});
+              throw err;
             }
-            throw err;
-          }
 
-          if (!txResult || !txResult.found) {
-            const err = new Error('Target transaction not found in Transactions API during tombstone verification');
-            err.code = 'missing_transaction';
-            err.status = 502;
-            err.isTransient = true;
-            await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
-              user_id: userId,
-              processing_status: 'failed',
-              outcome_code: 'missing_transaction',
-            }, serverOnlyPermissions()).catch(() => {});
-            throw err;
-          }
+            const txStatus = String(txResult.transaction?.status || '').toUpperCase();
+            if (txStatus === 'REFUNDED') {
+              await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
+                user_id: userId,
+                processing_status: 'ignored',
+                outcome_code: 'sale_already_refunded',
+              }, serverOnlyPermissions());
+              return { outcome: 'ignored', code: 'sale_already_refunded', mutated: false };
+            }
 
-          const txStatus = String(txResult.transaction?.status || '').toUpperCase();
-          if (txStatus === 'REFUNDED') {
-            await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
-              user_id: userId,
-              processing_status: 'ignored',
-              outcome_code: 'sale_already_refunded',
-            }, serverOnlyPermissions());
-            return { outcome: 'ignored', code: 'sale_already_refunded', mutated: false };
+            if (txStatus === 'PARTIALLY_REFUNDED') {
+              // Partial refund preserves entitlement and renewals; proceed to normal sale activation
+            } else if (txStatus === 'COMPLETED') {
+              // Eventual consistency race: verified refund tombstone exists in ledger, but Transactions API has not converged yet.
+              // Fail closed with retryable 503 to wait for provider status convergence.
+              const err = new Error('Provider transaction status has not converged (reports COMPLETED despite refund tombstone)');
+              err.code = 'provider_state_not_converged';
+              err.status = 503;
+              err.isTransient = true;
+              await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
+                user_id: userId,
+                processing_status: 'failed',
+                outcome_code: 'provider_state_not_converged',
+              }, serverOnlyPermissions()).catch(() => {});
+              throw err;
+            } else {
+              // PENDING / FAILED / DECLINED / malformed / unknown
+              const err = new Error(`Provider transaction status unsupported or not ready for activation: ${txStatus}`);
+              err.code = 'unsupported_provider_transaction_status';
+              err.status = 502;
+              err.isTransient = true;
+              await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
+                user_id: userId,
+                processing_status: 'failed',
+                outcome_code: 'unsupported_provider_transaction_status',
+              }, serverOnlyPermissions()).catch(() => {});
+              throw err;
+            }
           }
         }
       }

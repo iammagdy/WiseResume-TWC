@@ -1,19 +1,19 @@
 # WiseResume Atlas Master Changelog
 
-### 2026-09-07 - PayPal Refund & Reversal Policy Implementation (Option B)
+### 2026-09-07 - PayPal Refund & Reversal Provider-Contract Hardening (Option B)
 
-- **Workstream Verdict:** `PAYPAL_REFUND_REVERSAL_IMPLEMENTED_READY_FOR_OWNER_REVIEW` (`IMPLEMENTED_UNVERIFIED` / `TESTED_LOCAL`, `PAYPAL_PRODUCTION_READY = NO`).
-- **Branch:** `feat/paypal-refund-reversal-policy` (Target: `main`).
+- **Workstream Verdict:** `PR301_FINAL_CODE_REVIEW_READY` (`IMPLEMENTED_UNVERIFIED` / `TESTED_LOCAL`, `PAYPAL_PRODUCTION_READY = NO`).
+- **Branch:** `feat/paypal-refund-reversal-policy` (Target: `main`, PR #301).
 - **Owner Policy:** `OPTION_B_APPROVED`.
 - **Scope & Accomplishments:**
-  1. **Option B Refund & Reversal Backend Implementation (`paypal-webhook`):**
+  1. **Option B Refund & Reversal Backend Implementation & Provider-Contract Hardening (`paypal-webhook`):**
      - Full refund of current entitlement-bearing payment: Revokes paid entitlement immediately (`expires_at = null`, `grace_period_expires_at = null`), retains payment identity (`last_entitlement_payment_id`, `last_entitlement_payment_timestamp_ms`), flags `renewal_cancellation_pending = true`, and initiates server-side cancellation of future automatic PayPal renewals (`POST /v1/billing/subscriptions/{id}/cancel`).
      - Truthful provider state: Retains authentic provider state while cancellation converges; settles to `status = 'canceled'`, `will_renew = false`, `renewal_cancellation_pending = false` upon confirmed cancellation or subsequent provider cancel webhook.
      - Partial refund: Preserves current entitlement and recurring renewals; recorded in ledger only (`partial_refund_recorded`). Relies strictly on PayPal's authoritative transaction status (`PARTIALLY_REFUNDED` preserves entitlement, `REFUNDED` triggers full refund policy) without local balance arithmetic.
      - Historical refund/reversal: When refunded/reversed `payment_id` is older than `last_entitlement_payment_id` and provider evidence shows newer payment supports entitlement, provider state remains untouched (`historical_refund_ignored` / `historical_reversal_ignored`). For reversals, authoritative payment identity and timestamp are queried from the ledger `PAYMENT.SALE.COMPLETED` event by `payment_id` (not reversal webhook arrival time); delayed older reversals arriving after newer payments are ignored with zero state mutation, and unresolved historical correlation fails closed (`unresolved_historical_reversal_correlation`).
-     - Payment reversal: Revokes entitlement immediately (`expires_at = null`), preserves truthful provider status (remains `active` if provider has not suspended/cancelled), preserves payment identity.
+     - Payment reversal & sale identifier contract: Revokes entitlement immediately (`expires_at = null`), preserves truthful provider status (remains `active` if provider has not suspended/cancelled), preserves payment identity. `PAYMENT.SALE.REVERSED` extracts `paymentId` from `resource.id` (the affected sale transaction ID), while `resource.parent_payment` (e.g. `PAYID-...`) is captured as non-entitlement parent reference metadata. Missing `resource.id` fails closed.
      - Cancellation-pending guard on sales: `PAYMENT.SALE.COMPLETED` events arriving while `renewal_cancellation_pending === true` are blocked from granting paid entitlement (`unexpected_payment_during_cancellation_pending`) and flag operational alert `UNEXPECTED_PAYMENT_DURING_REFUND_CLOSURE = OWNER/OPERATIONS_REVIEW_REQUIRED`.
-     - Tombstone lookup on sales: `PAYMENT.SALE.COMPLETED` checks ledger for refund/reversal tombstones; tombstone lookup fails closed (DB errors yield retryable 503 `tombstone_lookup_failed`; ambiguous correlation fails closed with rejection). Verified `PAYMENT.SALE.REVERSED` ledger tombstones are authoritative on their own without querying the Transactions API (avoiding undocumented `REVERSED` status assumptions). For refund tombstones, Transactions API confirms documented status `REFUNDED` before dropping activation (`sale_already_refunded`).
+     - Tombstone lookup, precedence & eventual consistency on sales: `PAYMENT.SALE.COMPLETED` checks ledger for refund/reversal tombstones with canonical identity verification (`subscription_id`, `user_id`, `environment`). Conflicting identity fails closed (`ambiguous_payment_ledger_correlation`). Missing schema attributes/indices or database errors fail closed as retryable 503 (`tombstone_lookup_failed`) with zero entitlement granted. Verified `PAYMENT.SALE.REVERSED` ledger tombstones take strict precedence over refund tombstones (`reversal > refund`), immediately dropping sale activation (`sale_already_refunded`) without calling Transactions API. For refund tombstones, Transactions API status `REFUNDED` drops activation (`sale_already_refunded`); `PARTIALLY_REFUNDED` allows normal sale activation; unconverged `COMPLETED` fails closed as retryable 503 (`provider_state_not_converged`) with zero entitlement granted; unsupported/unknown statuses fail closed as 502 (`unsupported_provider_transaction_status`).
      - HATEOAS Transactions API pagination: Calls `GET /v1/billing/subscriptions/{id}/transactions` strictly with required `start_time` and `end_time`, follows HTTPS `rel="next"` links with route prefix verification, and enforces safety boundary `MAX_TRANSACTION_PAGE_FOLLOWS = 5`.
   2. **Additive Schema Definition (`setup_paypal_schema.cjs`):**
      - Added optional attributes `last_entitlement_payment_id` (with index `last_payment_idx` ASC), `last_entitlement_payment_timestamp_ms`, and `renewal_cancellation_pending` (default `false`) to `paypal_subscription_state`.
@@ -29,12 +29,12 @@
   6. **Comprehensive Test Suite & Verification:**
      - Schema suite (`tests/hubs/paypal-schema.test.cjs`): 6 / 6 passing (100%).
      - Coupons suite (`tests/hubs/coupons-subscription.test.cjs`): 23 / 23 passing (100%).
-     - Webhook suite (`tests/hubs/paypal-webhook.test.cjs`): 125 / 125 passing (100%), including 42-case refund/reversal/tombstone/pagination/reversal-hardening matrix.
-     - Full hubs suite: 353 / 353 passing across all hub test suites (100%).
+     - Webhook suite (`tests/hubs/paypal-webhook.test.cjs`): 130 / 130 passing (100%), including 49-case refund/reversal/tombstone/pagination/reversal-hardening matrix.
+     - Full hubs suite: 358 / 358 passing across all 58 hub test suites (100%).
      - Frontend Vitest suite (`SubscriptionPage.paypal.test.tsx`): 30 / 30 passing (100%).
      - TypeScript typecheck (`tsc --noEmit`): PASS (0 errors).
      - Production build (`npm run build`): PASS (dist built, 0 sourcemaps).
-     - DevKit source hashes recomputed: `sourceHashes.generated.json` matching.
+     - DevKit source hashes recomputed: `sourceHashes.generated.json` matching (`paypal-webhook: 472d08bb811ed1038cb1cdec5043569a2317866a0d1e8279b51db0d37d26d746`).
   7. **Operational Boundaries:**
      - Runtime: NOT DEPLOYED.
      - Sandbox Runtime: NOT RUNTIME VERIFIED (all tests verified locally offline with mocks).
@@ -43,7 +43,7 @@
   8. **What's New Decision:**
      - `WHATS_NEW_NOT_REQUIRED`: PR is not deployed or merged to production; customer-facing release notes are not eligible until production deployment and live browser QA.
   9. **Next Step:**
-     - Awaiting owner review of feature PR.
+     - Awaiting owner review of PR #301 for `feat/paypal-refund-reversal-policy`.
 
 ### 2026-09-06 - PayPal Failed-Renewal Local Boundary Test Hardening (PR #299)
 

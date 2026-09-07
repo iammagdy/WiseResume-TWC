@@ -1698,8 +1698,8 @@ test('Option B 08: current reversal revokes entitlement while retaining truthful
     event_type: 'PAYMENT.SALE.REVERSED',
     create_time: new Date(nowMs + 1000).toISOString(),
     resource: {
-      id: 'TX-REV-08',
-      parent_payment: 'TX-PAY-08',
+      id: 'TX-PAY-08',
+      parent_payment: 'PAYID-PARENT-08',
       billing_agreement_id: 'I-SUB-08',
     },
   });
@@ -1765,8 +1765,8 @@ test('Option B 09: historical reversal does not mutate active state', async () =
     event_type: 'PAYMENT.SALE.REVERSED',
     create_time: new Date(nowMs).toISOString(),
     resource: {
-      id: 'TX-REV-09-OLD',
-      parent_payment: 'TX-PAY-09-OLD',
+      id: 'TX-PAY-09-OLD',
+      parent_payment: 'PAYID-PARENT-09-OLD',
       billing_agreement_id: 'I-SUB-09',
     },
   });
@@ -1832,8 +1832,8 @@ test('Option B 09b: delayed historical reversal arriving after newer payment tim
     event_type: 'PAYMENT.SALE.REVERSED',
     create_time: new Date(reversalArrivalMs).toISOString(), // > newPaymentMs
     resource: {
-      id: 'TX-REV-09B',
-      parent_payment: 'TX-PAY-09B-OLD',
+      id: 'TX-PAY-09B-OLD',
+      parent_payment: 'PAYID-PARENT-09B-OLD',
       billing_agreement_id: 'I-SUB-09B',
     },
   });
@@ -1890,8 +1890,8 @@ test('Option B 09c: historical reversal with missing historical sale evidence fa
     event_type: 'PAYMENT.SALE.REVERSED',
     create_time: new Date(newPaymentMs + 1000).toISOString(),
     resource: {
-      id: 'TX-REV-09C',
-      parent_payment: 'TX-PAY-09C-UNKNOWN',
+      id: 'TX-PAY-09C-UNKNOWN',
+      parent_payment: 'PAYID-PARENT-09C',
       billing_agreement_id: 'I-SUB-09C',
     },
   });
@@ -2000,8 +2000,8 @@ test('Option B 11: reversal before delayed SALE records tombstone and prevents a
     event_type: 'PAYMENT.SALE.REVERSED',
     create_time: new Date(nowMs).toISOString(),
     resource: {
-      id: 'TX-REV-11',
-      parent_payment: 'TX-PAY-11',
+      id: 'TX-PAY-11',
+      parent_payment: 'PAYID-PARENT-11',
       billing_agreement_id: 'I-SUB-11',
     },
   });
@@ -3345,8 +3345,8 @@ test('Option B 33: duplicate reversal event is ignored idempotently', async () =
     event_type: 'PAYMENT.SALE.REVERSED',
     create_time: new Date(nowMs + 1000).toISOString(),
     resource: {
-      id: 'TX-REV-33',
-      parent_payment: 'TX-PAY-33',
+      id: 'TX-PAY-33',
+      parent_payment: 'PAYID-PARENT-33',
       billing_agreement_id: 'I-SUB-33',
     },
   });
@@ -3599,32 +3599,34 @@ test('Option B 40: PAYMENT.SALE.REFUNDED missing sale_id fails closed without st
   assert.equal(state.will_renew, true);
 });
 
-test('Option B 41: normalizeEvent for PAYMENT.SALE.REVERSED requires parent_payment and does not fall back to resource.id', () => {
-  const eventWithParentPayment = normalizeEvent({
+test('Option B 41: normalizeEvent for PAYMENT.SALE.REVERSED requires resource.id as sale paymentId and does not compare parent_payment to sale identity', () => {
+  const event = normalizeEvent({
     id: 'EVT-NORM-REV-1',
     event_type: 'PAYMENT.SALE.REVERSED',
     create_time: '2026-09-03T12:00:00Z',
     resource: {
-      id: 'TX-DISPUTE-ID',
-      parent_payment: 'TX-ORIGINAL-SALE-ID',
+      id: 'TX-ORIGINAL-SALE-ID',
+      parent_payment: 'PAYID-SEPARATE-PAYMENT-ID',
       billing_agreement_id: 'I-SUB-NORM-3',
     },
   });
-  assert.equal(eventWithParentPayment.paymentId, 'TX-ORIGINAL-SALE-ID');
+  assert.equal(event.paymentId, 'TX-ORIGINAL-SALE-ID');
+  assert.equal(event.parentPaymentId, 'PAYID-SEPARATE-PAYMENT-ID');
+  assert.notEqual(event.paymentId, event.parentPaymentId);
 
-  const eventWithoutParentPayment = normalizeEvent({
+  const eventWithoutId = normalizeEvent({
     id: 'EVT-NORM-REV-2',
     event_type: 'PAYMENT.SALE.REVERSED',
     create_time: '2026-09-03T12:00:00Z',
     resource: {
-      id: 'TX-DISPUTE-ID-ONLY',
+      parent_payment: 'PAYID-ONLY',
       billing_agreement_id: 'I-SUB-NORM-4',
     },
   });
-  assert.equal(eventWithoutParentPayment.paymentId, '');
+  assert.equal(eventWithoutId.paymentId, '');
 });
 
-test('Option B 42: PAYMENT.SALE.REVERSED missing parent_payment fails closed without state mutation', async () => {
+test('Option B 42: PAYMENT.SALE.REVERSED missing resource.id fails closed without state mutation', async () => {
   const db = createMockDatabases();
   const users = createMockUsers();
   const nowMs = Date.parse('2026-09-03T12:00:00.000Z');
@@ -3647,12 +3649,12 @@ test('Option B 42: PAYMENT.SALE.REVERSED missing parent_payment fails closed wit
     latest_event_timestamp_ms: nowMs,
   });
 
-  const reverseEventWithoutParentPayment = normalizeEvent({
+  const reverseEventWithoutId = normalizeEvent({
     id: 'EVT-REV-42',
     event_type: 'PAYMENT.SALE.REVERSED',
     create_time: new Date(nowMs + 1000).toISOString(),
     resource: {
-      id: 'TX-REV-42',
+      parent_payment: 'PAYID-PARENT-42',
       billing_agreement_id: 'I-SUB-42',
     },
   });
@@ -3660,7 +3662,7 @@ test('Option B 42: PAYMENT.SALE.REVERSED missing parent_payment fails closed wit
   const res = await processWebhookEvent({
     databases: db,
     users,
-    event: reverseEventWithoutParentPayment,
+    event: reverseEventWithoutId,
     nowMs: nowMs + 1000,
     env: TEST_ENV,
   });
@@ -3672,7 +3674,7 @@ test('Option B 42: PAYMENT.SALE.REVERSED missing parent_payment fails closed wit
   const state = db.collections.paypal_subscription_state.get(stateDocId);
   assert.equal(state.status, 'active');
   assert.equal(state.expires_at, expiryIso);
-  assert.equal(state.will_renew, true);
+  assert.equal(state.last_entitlement_payment_id, 'TX-PAY-42');
 });
 
 test('Option B 43: tombstone lookup DB/infrastructure failure fails closed without entitlement activation (Blocker 3 Test A)', async () => {
@@ -3814,6 +3816,350 @@ test('Option B 44: ambiguous matching tombstone correlation fails closed without
   const ledger = db.collections.paypal_event_ledger.get(ledgerDocId);
   assert.equal(ledger.processing_status, 'rejected');
   assert.equal(ledger.outcome_code, 'ambiguous_payment_ledger_correlation');
+});
+
+test('Option B 45: verified refund tombstone + delayed SALE + Transactions API COMPLETED fails closed as provider_state_not_converged (Blocker B Test A)', async () => {
+  const db = createMockDatabases();
+  const users = createMockUsers();
+  const nowMs = Date.parse('2026-09-03T12:00:00.000Z');
+
+  const sessDocId = 'sess_sub_45';
+  db.collections.billing_checkout_sessions.set(sessDocId, {
+    $id: sessDocId,
+    subscription_id: 'I-SUB-45',
+    user_id: QA_USER_ID,
+  });
+
+  // 1. Seed verified refund tombstone in ledger
+  const tombDocId = paypalWebhook.__test.ledgerDocumentId('EVT-REFUND-45');
+  db.collections.paypal_event_ledger.set(tombDocId, {
+    $id: tombDocId,
+    event_id: 'EVT-REFUND-45',
+    event_type: 'PAYMENT.SALE.REFUNDED',
+    subscription_id: 'I-SUB-45',
+    user_id: QA_USER_ID,
+    payment_id: 'TX-PAY-45',
+    event_timestamp_ms: nowMs,
+    processing_status: 'processed',
+    outcome_code: 'refund_and_cancellation_settled',
+  });
+
+  // 2. Delayed PAYMENT.SALE.COMPLETED arrives
+  const saleEvent = normalizeEvent({
+    id: 'EVT-SALE-45',
+    event_type: 'PAYMENT.SALE.COMPLETED',
+    create_time: new Date(nowMs - 5000).toISOString(),
+    resource: {
+      id: 'TX-PAY-45',
+      billing_agreement_id: 'I-SUB-45',
+      custom_id: QA_USER_ID,
+      plan_id: SANDBOX_ULTIMATE_PLAN_ID,
+      billing_info: { next_billing_time: '2026-10-03T12:00:00.000Z' },
+    },
+  });
+
+  // Transactions API has not converged yet and reports COMPLETED
+  await assert.rejects(
+    async () => {
+      await processWebhookEvent({
+        databases: db,
+        users,
+        event: saleEvent,
+        nowMs: nowMs + 1000,
+        env: TEST_ENV,
+        subscriptionTransactionsFetcher: async () => {
+          return {
+            found: true,
+            transaction: {
+              id: 'TX-PAY-45',
+              status: 'COMPLETED',
+            },
+          };
+        },
+      });
+    },
+    (err) => {
+      assert.equal(err.code, 'provider_state_not_converged');
+      assert.equal(err.isTransient, true);
+      assert.equal(err.status, 503);
+      return true;
+    }
+  );
+
+  // Assert state mutation is ZERO (no paid entitlement granted)
+  const stateDocId = paypalWebhook.__test.stateDocumentId(QA_USER_ID);
+  const state = db.collections.paypal_subscription_state.get(stateDocId);
+  assert.equal(state, undefined, 'Provider state must NOT be activated when provider transaction status has not converged');
+
+  // Assert ledger records retryable failure
+  const ledgerDocId = paypalWebhook.__test.ledgerDocumentId('EVT-SALE-45');
+  const ledger = db.collections.paypal_event_ledger.get(ledgerDocId);
+  assert.equal(ledger.processing_status, 'failed');
+  assert.equal(ledger.outcome_code, 'provider_state_not_converged');
+});
+
+test('Option B 46: verified refund tombstone + delayed SALE + Transactions API PARTIALLY_REFUNDED allows normal sale activation (Blocker B Test B)', async () => {
+  const db = createMockDatabases();
+  const users = createMockUsers();
+  const nowMs = Date.parse('2026-09-03T12:00:00.000Z');
+
+  const sessDocId = 'sess_sub_46';
+  db.collections.billing_checkout_sessions.set(sessDocId, {
+    $id: sessDocId,
+    subscription_id: 'I-SUB-46',
+    user_id: QA_USER_ID,
+  });
+
+  // 1. Seed verified refund tombstone in ledger
+  const tombDocId = paypalWebhook.__test.ledgerDocumentId('EVT-REFUND-46');
+  db.collections.paypal_event_ledger.set(tombDocId, {
+    $id: tombDocId,
+    event_id: 'EVT-REFUND-46',
+    event_type: 'PAYMENT.SALE.REFUNDED',
+    subscription_id: 'I-SUB-46',
+    user_id: QA_USER_ID,
+    payment_id: 'TX-PAY-46',
+    event_timestamp_ms: nowMs,
+    processing_status: 'processed',
+    outcome_code: 'partial_refund_recorded',
+  });
+
+  // 2. Delayed PAYMENT.SALE.COMPLETED arrives
+  const saleEvent = normalizeEvent({
+    id: 'EVT-SALE-46',
+    event_type: 'PAYMENT.SALE.COMPLETED',
+    create_time: new Date(nowMs - 5000).toISOString(),
+    resource: {
+      id: 'TX-PAY-46',
+      billing_agreement_id: 'I-SUB-46',
+      custom_id: QA_USER_ID,
+      plan_id: SANDBOX_ULTIMATE_PLAN_ID,
+      billing_info: { next_billing_time: '2026-10-03T12:00:00.000Z' },
+    },
+  });
+
+  const res = await processWebhookEvent({
+    databases: db,
+    users,
+    event: saleEvent,
+    nowMs: nowMs + 1000,
+    env: TEST_ENV,
+    subscriptionTransactionsFetcher: async () => {
+      return {
+        found: true,
+        transaction: {
+          id: 'TX-PAY-46',
+          status: 'PARTIALLY_REFUNDED',
+        },
+      };
+    },
+  });
+
+  assert.equal(res.outcome, 'processed');
+  assert.equal(res.code, 'state_updated');
+  assert.equal(res.mutated, true);
+
+  const stateDocId = paypalWebhook.__test.stateDocumentId(QA_USER_ID);
+  const state = db.collections.paypal_subscription_state.get(stateDocId);
+  assert.equal(state.status, 'active');
+  assert.equal(state.expires_at, '2026-10-03T12:00:00.000Z');
+  assert.equal(state.last_entitlement_payment_id, 'TX-PAY-46');
+});
+
+test('Option B 47: reversal tombstone takes strict precedence over refund tombstone (reversal > refund) (Blocker C)', async () => {
+  const db = createMockDatabases();
+  const users = createMockUsers();
+  const nowMs = Date.parse('2026-09-03T12:00:00.000Z');
+
+  const sessDocId = 'sess_sub_47';
+  db.collections.billing_checkout_sessions.set(sessDocId, {
+    $id: sessDocId,
+    subscription_id: 'I-SUB-47',
+    user_id: QA_USER_ID,
+  });
+
+  // Seed BOTH a refund tombstone AND a reversal tombstone for the same payment
+  const refundDocId = paypalWebhook.__test.ledgerDocumentId('EVT-REF-47');
+  db.collections.paypal_event_ledger.set(refundDocId, {
+    $id: refundDocId,
+    event_id: 'EVT-REF-47',
+    event_type: 'PAYMENT.SALE.REFUNDED',
+    subscription_id: 'I-SUB-47',
+    user_id: QA_USER_ID,
+    payment_id: 'TX-PAY-47',
+    event_timestamp_ms: nowMs - 2000,
+    processing_status: 'processed',
+    outcome_code: 'partial_refund_recorded',
+  });
+
+  const revDocId = paypalWebhook.__test.ledgerDocumentId('EVT-REV-47');
+  db.collections.paypal_event_ledger.set(revDocId, {
+    $id: revDocId,
+    event_id: 'EVT-REV-47',
+    event_type: 'PAYMENT.SALE.REVERSED',
+    subscription_id: 'I-SUB-47',
+    user_id: QA_USER_ID,
+    payment_id: 'TX-PAY-47',
+    event_timestamp_ms: nowMs - 1000,
+    processing_status: 'processed',
+    outcome_code: 'reversal_entitlement_revoked',
+  });
+
+  // Delayed PAYMENT.SALE.COMPLETED arrives
+  const saleEvent = normalizeEvent({
+    id: 'EVT-SALE-47',
+    event_type: 'PAYMENT.SALE.COMPLETED',
+    create_time: new Date(nowMs - 5000).toISOString(),
+    resource: {
+      id: 'TX-PAY-47',
+      billing_agreement_id: 'I-SUB-47',
+      custom_id: QA_USER_ID,
+      plan_id: SANDBOX_ULTIMATE_PLAN_ID,
+      billing_info: { next_billing_time: '2026-10-03T12:00:00.000Z' },
+    },
+  });
+
+  let fetcherCalled = false;
+  const res = await processWebhookEvent({
+    databases: db,
+    users,
+    event: saleEvent,
+    nowMs: nowMs + 1000,
+    env: TEST_ENV,
+    subscriptionTransactionsFetcher: async () => {
+      fetcherCalled = true;
+      return { found: true, transaction: { id: 'TX-PAY-47', status: 'PARTIALLY_REFUNDED' } };
+    },
+  });
+
+  // Reversal tombstone MUST win immediately without calling Transactions API
+  assert.equal(fetcherCalled, false, 'Transactions API must NOT be called when reversal tombstone exists');
+  assert.equal(res.outcome, 'ignored');
+  assert.equal(res.code, 'sale_already_refunded');
+  assert.equal(res.mutated, false);
+
+  const stateDocId = paypalWebhook.__test.stateDocumentId(QA_USER_ID);
+  const state = db.collections.paypal_subscription_state.get(stateDocId);
+  assert.equal(state, undefined, 'Provider state mutation must be ZERO');
+});
+
+test('Option B 48: missing schema attribute or index during tombstone lookup fails closed as retryable 503 (Blocker D)', async () => {
+  const db = createMockDatabases();
+  const users = createMockUsers();
+  const nowMs = Date.parse('2026-09-03T12:00:00.000Z');
+
+  const sessDocId = 'sess_sub_48';
+  db.collections.billing_checkout_sessions.set(sessDocId, {
+    $id: sessDocId,
+    subscription_id: 'I-SUB-48',
+    user_id: QA_USER_ID,
+  });
+
+  const saleEvent = normalizeEvent({
+    id: 'EVT-SALE-48',
+    event_type: 'PAYMENT.SALE.COMPLETED',
+    create_time: new Date(nowMs).toISOString(),
+    resource: {
+      id: 'TX-PAY-48',
+      billing_agreement_id: 'I-SUB-48',
+      custom_id: QA_USER_ID,
+      plan_id: SANDBOX_ULTIMATE_PLAN_ID,
+      billing_info: { next_billing_time: '2026-10-03T12:00:00.000Z' },
+    },
+  });
+
+  // Simulate Appwrite throwing attribute or index not found error during tombstone lookup
+  const originalListDocuments = db.listDocuments.bind(db);
+  db.listDocuments = async (dbId, colId, queries) => {
+    if (colId === 'paypal_event_ledger') {
+      const err = new Error('Index not found: payment_idx on attribute payment_id');
+      err.code = 404;
+      throw err;
+    }
+    return originalListDocuments(dbId, colId, queries);
+  };
+
+  await assert.rejects(
+    async () => {
+      await processWebhookEvent({
+        databases: db,
+        users,
+        event: saleEvent,
+        nowMs: nowMs + 1000,
+        env: TEST_ENV,
+      });
+    },
+    (err) => {
+      assert.equal(err.isTransient, true);
+      assert.equal(err.status, 503);
+      return true;
+    }
+  );
+
+  const stateDocId = paypalWebhook.__test.stateDocumentId(QA_USER_ID);
+  const state = db.collections.paypal_subscription_state.get(stateDocId);
+  assert.equal(state, undefined, 'Provider state mutation must be ZERO when tombstone index is unavailable');
+
+  const ledgerDocId = paypalWebhook.__test.ledgerDocumentId('EVT-SALE-48');
+  const ledger = db.collections.paypal_event_ledger.get(ledgerDocId);
+  assert.equal(ledger.processing_status, 'failed');
+  assert.equal(ledger.outcome_code, 'tombstone_lookup_failed');
+});
+
+test('Option B 49: tombstone with mismatched canonical subscription identity fails closed (Section 10)', async () => {
+  const db = createMockDatabases();
+  const users = createMockUsers();
+  const nowMs = Date.parse('2026-09-03T12:00:00.000Z');
+
+  const sessDocId = 'sess_sub_49';
+  db.collections.billing_checkout_sessions.set(sessDocId, {
+    $id: sessDocId,
+    subscription_id: 'I-SUB-49',
+    user_id: QA_USER_ID,
+  });
+
+  // Seed tombstone under a different subscription ID
+  const tombDocId = paypalWebhook.__test.ledgerDocumentId('EVT-REF-49');
+  db.collections.paypal_event_ledger.set(tombDocId, {
+    $id: tombDocId,
+    event_id: 'EVT-REF-49',
+    event_type: 'PAYMENT.SALE.REFUNDED',
+    subscription_id: 'I-SUB-OTHER-CONFLICTING',
+    user_id: QA_USER_ID,
+    payment_id: 'TX-PAY-49',
+    event_timestamp_ms: nowMs - 1000,
+    processing_status: 'processed',
+    outcome_code: 'sale_already_refunded',
+  });
+
+  const saleEvent = normalizeEvent({
+    id: 'EVT-SALE-49',
+    event_type: 'PAYMENT.SALE.COMPLETED',
+    create_time: new Date(nowMs).toISOString(),
+    resource: {
+      id: 'TX-PAY-49',
+      billing_agreement_id: 'I-SUB-49',
+      custom_id: QA_USER_ID,
+      plan_id: SANDBOX_ULTIMATE_PLAN_ID,
+      billing_info: { next_billing_time: '2026-10-03T12:00:00.000Z' },
+    },
+  });
+
+  const res = await processWebhookEvent({
+    databases: db,
+    users,
+    event: saleEvent,
+    nowMs: nowMs + 1000,
+    env: TEST_ENV,
+  });
+
+  assert.equal(res.outcome, 'rejected');
+  assert.equal(res.code, 'ambiguous_payment_ledger_correlation');
+  assert.equal(res.mutated, false);
+
+  const stateDocId = paypalWebhook.__test.stateDocumentId(QA_USER_ID);
+  const state = db.collections.paypal_subscription_state.get(stateDocId);
+  assert.equal(state, undefined, 'Provider state mutation must be ZERO on mismatched tombstone identity');
 });
 
 // ==================================================
