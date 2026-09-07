@@ -58,6 +58,8 @@ function createMockDatabases() {
     paypal_subscription_state: new Map(),
     paypal_event_ledger: new Map(),
     billing_checkout_sessions: new Map(),
+    discount_codes: new Map(),
+    coupon_redemptions: new Map(),
   };
 
   const docVersions = new Map();
@@ -227,6 +229,19 @@ function createMockDatabases() {
       const key = docKey(collectionId, docId);
       docVersions.set(key, (docVersions.get(key) || 0) + 1);
       return clone(updated);
+    },
+    async incrementDocumentAttribute(_dbId, collectionId, docId, attr, value = 1, maxValue, _txId) {
+      const col = collections[collectionId];
+      if (!col) throw new Error(`Collection ${collectionId} not found`);
+      const existing = col.get(docId);
+      if (!existing) {
+        const err = new Error('Document not found');
+        err.code = 404;
+        throw err;
+      }
+      const cur = Number(existing[attr] || 0);
+      existing[attr] = cur + value;
+      return clone(existing);
     },
   };
 }
@@ -7719,4 +7734,772 @@ test('Phase I - 3 & 10: Sandbox webhook strictly maintains QA user restriction',
   assert.equal(res.outcome, 'ignored');
   assert.equal(res.code, 'sandbox_qa_boundary_rejected');
   assert.equal(res.mutated, false);
+});
+
+test('One-Time Orders: CHECKOUT.ORDER.APPROVED safety net captures and entitles when browser closes after approval', async () => {
+  const db = createMockDatabases();
+  const users = createMockUsers();
+  const nowMs = Date.parse('2026-09-07T12:00:00.000Z');
+
+  let capturerCalled = false;
+  const mockOrderFetcher = async (orderId) => ({
+    id: orderId,
+    status: 'APPROVED',
+    purchase_units: [{
+      amount: { currency_code: 'USD', value: '5.00' },
+      custom_id: JSON.stringify({
+        app_user_id: QA_USER_ID,
+        plan: 'pro',
+        payment_mode: 'one_time',
+      }),
+    }],
+  });
+
+  const mockOrderCapturer = async (orderId) => {
+    capturerCalled = true;
+    return {
+      id: orderId,
+      status: 'COMPLETED',
+      purchase_units: [{
+        payments: {
+          captures: [{ id: 'CAP-SAFETY-1', status: 'COMPLETED' }],
+        },
+      }],
+    };
+  };
+
+  const event = normalizeEvent({
+    id: 'EVT-ORDER-APPROVED-SAFETY-1',
+    event_type: 'CHECKOUT.ORDER.APPROVED',
+    create_time: new Date(nowMs).toISOString(),
+    resource: {
+      id: 'ORD-SAFETY-1',
+    },
+  });
+
+  const res = await processWebhookEvent({
+    databases: db,
+    users,
+    event,
+    nowMs,
+    env: TEST_ENV,
+    orderFetcher: mockOrderFetcher,
+    orderCapturer: mockOrderCapturer,
+  });
+
+  assert.equal(capturerCalled, true, 'orderCapturer must be called for APPROVED order');
+  assert.equal(res.outcome, 'success');
+  assert.equal(res.code, 'order_captured_and_entitled');
+  assert.equal(res.mutated, true);
+  assert.equal(res.plan, 'pro');
+
+  const stateDoc = Array.from(db.collections.paypal_subscription_state.values())[0];
+  assert.ok(stateDoc);
+  assert.equal(stateDoc.user_id, QA_USER_ID);
+  assert.equal(stateDoc.plan, 'pro');
+  assert.equal(stateDoc.status, 'active');
+  assert.equal(stateDoc.subscription_id, 'ORD-SAFETY-1');
+  assert.equal(stateDoc.last_entitlement_payment_id, 'CAP-SAFETY-1');
+});
+
+test('One-Time Orders: CHECKOUT.ORDER.APPROVED already COMPLETED order (browser captured first) skips capture and fulfills idempotently', async () => {
+  const db = createMockDatabases();
+  const users = createMockUsers();
+  const nowMs = Date.parse('2026-09-07T12:00:00.000Z');
+
+  let capturerCalled = false;
+  const mockOrderFetcher = async (orderId) => ({
+    id: orderId,
+    status: 'COMPLETED',
+    purchase_units: [{
+      amount: { currency_code: 'USD', value: '5.00' },
+      payments: {
+        captures: [{ id: 'CAP-ALREADY-1', status: 'COMPLETED' }],
+      },
+      custom_id: JSON.stringify({
+        app_user_id: QA_USER_ID,
+        plan: 'pro',
+        payment_mode: 'one_time',
+      }),
+    }],
+  });
+
+  const mockOrderCapturer = async () => {
+    capturerCalled = true;
+    throw new Error('Must not be called for COMPLETED order');
+  };
+
+  const event = normalizeEvent({
+    id: 'EVT-ORDER-APPROVED-COMPLETED-1',
+    event_type: 'CHECKOUT.ORDER.APPROVED',
+    create_time: new Date(nowMs).toISOString(),
+    resource: {
+      id: 'ORD-ALREADY-1',
+    },
+  });
+
+  const res = await processWebhookEvent({
+    databases: db,
+    users,
+    event,
+    nowMs,
+    env: TEST_ENV,
+    orderFetcher: mockOrderFetcher,
+    orderCapturer: mockOrderCapturer,
+  });
+
+  assert.equal(capturerCalled, false, 'Must skip capture when order is already COMPLETED');
+  assert.equal(res.outcome, 'success');
+  assert.equal(res.mutated, true);
+
+  // Second delivery of same event -> duplicate handled cleanly
+  const resDuplicate = await processWebhookEvent({
+    databases: db,
+    users,
+    event,
+    nowMs: nowMs + 1000,
+    env: TEST_ENV,
+    orderFetcher: mockOrderFetcher,
+    orderCapturer: mockOrderCapturer,
+  });
+  assert.equal(resDuplicate.outcome, 'duplicate');
+  assert.equal(resDuplicate.code, 'already_recorded');
+});
+
+test('One-Time Orders: CHECKOUT.ORDER.APPROVED rejects non-approved order (CREATED) without capturing or entitling', async () => {
+  const db = createMockDatabases();
+  const users = createMockUsers();
+  const nowMs = Date.parse('2026-09-07T12:00:00.000Z');
+
+  let capturerCalled = false;
+  const mockOrderFetcher = async (orderId) => ({
+    id: orderId,
+    status: 'CREATED',
+    purchase_units: [{
+      amount: { currency_code: 'USD', value: '5.00' },
+      custom_id: JSON.stringify({
+        app_user_id: QA_USER_ID,
+        plan: 'pro',
+        payment_mode: 'one_time',
+      }),
+    }],
+  });
+
+  const mockOrderCapturer = async () => {
+    capturerCalled = true;
+  };
+
+  const event = normalizeEvent({
+    id: 'EVT-ORDER-APPROVED-CREATED-1',
+    event_type: 'CHECKOUT.ORDER.APPROVED',
+    create_time: new Date(nowMs).toISOString(),
+    resource: {
+      id: 'ORD-CREATED-1',
+    },
+  });
+
+  const res = await processWebhookEvent({
+    databases: db,
+    users,
+    event,
+    nowMs,
+    env: TEST_ENV,
+    orderFetcher: mockOrderFetcher,
+    orderCapturer: mockOrderCapturer,
+  });
+
+  assert.equal(capturerCalled, false, 'Must not capture non-approved order');
+  assert.equal(res.outcome, 'rejected');
+  assert.equal(res.code, 'order_not_approved');
+  assert.equal(res.mutated, false);
+  assert.equal(db.collections.paypal_subscription_state.size, 0);
+});
+
+test('One-Time Orders: CHECKOUT.ORDER.APPROVED rejects failed or pending capture without entitling', async () => {
+  const db = createMockDatabases();
+  const users = createMockUsers();
+  const nowMs = Date.parse('2026-09-07T12:00:00.000Z');
+
+  for (const capStatus of ['FAILED', 'PENDING']) {
+    const mockOrderFetcher = async (orderId) => ({
+      id: orderId,
+      status: 'APPROVED',
+      purchase_units: [{
+        amount: { currency_code: 'USD', value: '5.00' },
+        custom_id: JSON.stringify({
+          app_user_id: QA_USER_ID,
+          plan: 'pro',
+          payment_mode: 'one_time',
+        }),
+      }],
+    });
+
+    const mockOrderCapturer = async (orderId) => ({
+      id: orderId,
+      status: capStatus,
+      purchase_units: [{
+        payments: {
+          captures: [{ id: `CAP-${capStatus}-1`, status: capStatus }],
+        },
+      }],
+    });
+
+    const event = normalizeEvent({
+      id: `EVT-ORDER-APPROVED-${capStatus}-1`,
+      event_type: 'CHECKOUT.ORDER.APPROVED',
+      create_time: new Date(nowMs).toISOString(),
+      resource: {
+        id: `ORD-${capStatus}-1`,
+      },
+    });
+
+    const res = await processWebhookEvent({
+      databases: db,
+      users,
+      event,
+      nowMs,
+      env: TEST_ENV,
+      orderFetcher: mockOrderFetcher,
+      orderCapturer: mockOrderCapturer,
+    });
+
+    assert.equal(res.outcome, 'rejected');
+    assert.equal(res.code, capStatus === 'PENDING' ? 'capture_pending' : 'capture_failed');
+    assert.equal(res.mutated, false);
+    assert.equal(db.collections.paypal_subscription_state.size, 0);
+  }
+});
+
+test('One-Time Orders: PAYMENT.CAPTURE.PENDING and DENIED are acknowledged without mutating state', async () => {
+  const db = createMockDatabases();
+  const users = createMockUsers();
+  const nowMs = Date.parse('2026-09-07T12:00:00.000Z');
+
+  for (const status of ['PENDING', 'DENIED']) {
+    const event = normalizeEvent({
+      id: `EVT-CAP-${status}-1`,
+      event_type: `PAYMENT.CAPTURE.${status}`,
+      create_time: new Date(nowMs).toISOString(),
+      resource: {
+        id: `CAP-${status}-1`,
+        supplementary_data: { related_ids: { order_id: `ORD-${status}-1` } },
+      },
+    });
+
+    const res = await processWebhookEvent({
+      databases: db,
+      users,
+      event,
+      nowMs,
+      env: TEST_ENV,
+    });
+
+    assert.equal(res.outcome, 'acknowledged');
+    assert.equal(res.code, status === 'PENDING' ? 'capture_pending' : 'capture_denied');
+    assert.equal(res.mutated, false);
+  }
+
+  // Zero entitlement mutation
+  assert.equal(db.collections.paypal_subscription_state.size, 0);
+});
+
+test('One-Time Orders: PAYMENT.CAPTURE.COMPLETED entitles user for 30 days and redeems coupon', async () => {
+  const db = createMockDatabases();
+  const users = createMockUsers();
+  const nowMs = Date.parse('2026-09-07T12:00:00.000Z');
+
+  // Seed a coupon
+  db.collections.discount_codes.set('c_pro_50', {
+    $id: 'c_pro_50',
+    code: 'COUPON-PRO-50',
+    discount_type: 'percent',
+    discount_value: 50,
+    uses_count: 0,
+    max_uses: 10,
+    is_active: true,
+  });
+
+  const event = normalizeEvent({
+    id: 'EVT-CAPTURE-COMPLETED-1',
+    event_type: 'PAYMENT.CAPTURE.COMPLETED',
+    create_time: new Date(nowMs).toISOString(),
+    resource: {
+      id: 'CAP-COMPLETED-1',
+      status: 'COMPLETED',
+      custom_id: JSON.stringify({
+        app_user_id: QA_USER_ID,
+        plan: 'pro',
+        coupon_code: 'COUPON-PRO-50',
+      }),
+      supplementary_data: { related_ids: { order_id: 'ORD-COMPLETED-1' } },
+    },
+  });
+
+  const res = await processWebhookEvent({
+    databases: db,
+    users,
+    event,
+    nowMs,
+    env: TEST_ENV,
+  });
+
+  assert.equal(res.outcome, 'success');
+  assert.equal(res.code, 'order_entitled');
+  assert.equal(res.mutated, true);
+  assert.equal(res.plan, 'pro');
+
+  // Verify entitlement state
+  const stateDoc = Array.from(db.collections.paypal_subscription_state.values())[0];
+  assert.ok(stateDoc);
+  assert.equal(stateDoc.user_id, QA_USER_ID);
+  assert.equal(stateDoc.plan, 'pro');
+  assert.equal(stateDoc.status, 'active');
+  assert.equal(stateDoc.will_renew, false);
+  const expectedExpiry = new Date(nowMs + 30 * 24 * 60 * 60 * 1000).toISOString();
+  assert.equal(stateDoc.expires_at, expectedExpiry);
+
+  // Verify coupon redemption
+  const redDoc = Array.from(db.collections.coupon_redemptions.values())[0];
+  assert.ok(redDoc);
+  assert.equal(redDoc.user_id, QA_USER_ID);
+  assert.equal(redDoc.coupon_code, 'COUPON-PRO-50');
+
+  // Verify coupon usage increment
+  const updatedCoupon = db.collections.discount_codes.get('c_pro_50');
+  assert.equal(updatedCoupon.uses_count, 1);
+});
+
+test('One-Time Orders: PAYMENT.CAPTURE.COMPLETED idempotency: duplicate event is safe and unmutated', async () => {
+  const db = createMockDatabases();
+  const users = createMockUsers();
+  const nowMs = Date.parse('2026-09-07T12:00:00.000Z');
+
+  const eventPayload = {
+    id: 'EVT-CAPTURE-IDEMP-1',
+    event_type: 'PAYMENT.CAPTURE.COMPLETED',
+    create_time: new Date(nowMs).toISOString(),
+    resource: {
+      id: 'CAP-IDEMP-1',
+      status: 'COMPLETED',
+      custom_id: JSON.stringify({
+        app_user_id: QA_USER_ID,
+        plan: 'premium',
+      }),
+      supplementary_data: { related_ids: { order_id: 'ORD-IDEMP-1' } },
+    },
+  };
+
+  // First run
+  const res1 = await processWebhookEvent({
+    databases: db,
+    users,
+    event: normalizeEvent(eventPayload),
+    nowMs,
+    env: TEST_ENV,
+  });
+  assert.equal(res1.outcome, 'success');
+  assert.equal(res1.code, 'order_entitled');
+  assert.equal(res1.mutated, true);
+
+  // Second run with a different webhook event ID for the same capture
+  const event2Payload = { ...eventPayload, id: 'EVT-CAPTURE-IDEMP-2' };
+  const res2 = await processWebhookEvent({
+    databases: db,
+    users,
+    event: normalizeEvent(event2Payload),
+    nowMs: nowMs + 1000,
+    env: TEST_ENV,
+  });
+  assert.equal(res2.outcome, 'success');
+  assert.equal(res2.code, 'already_entitled');
+  assert.equal(res2.mutated, false);
+});
+
+test('One-Time Orders: PAYMENT.CAPTURE.COMPLETED rejects correlation identity conflict when session user mismatches', async () => {
+  const db = createMockDatabases();
+  const users = createMockUsers();
+  const nowMs = Date.parse('2026-09-07T12:00:00.000Z');
+
+  // Legitimate user created session
+  db.collections.billing_checkout_sessions.set('sess_1', {
+    $id: 'sess_1',
+    checkout_reference: 'ORD-SPOOF-USER-1',
+    user_id: QA_USER_ID,
+    plan: 'pro',
+    environment: 'sandbox',
+  });
+
+  // Malicious event attempts to claim entitlement for OTHER_USER_ID using ORD-SPOOF-USER-1
+  const event = normalizeEvent({
+    id: 'EVT-CAPTURE-SPOOF-USER',
+    event_type: 'PAYMENT.CAPTURE.COMPLETED',
+    create_time: new Date(nowMs).toISOString(),
+    resource: {
+      id: 'CAP-SPOOF-USER-1',
+      status: 'COMPLETED',
+      custom_id: JSON.stringify({
+        app_user_id: OTHER_USER_ID,
+        plan: 'pro',
+      }),
+      supplementary_data: { related_ids: { order_id: 'ORD-SPOOF-USER-1' } },
+    },
+  });
+
+  const res = await processWebhookEvent({
+    databases: db,
+    users,
+    event,
+    nowMs,
+    env: TEST_ENV,
+  });
+
+  assert.equal(res.outcome, 'rejected');
+  assert.equal(res.code, 'correlation_identity_conflict');
+  assert.equal(res.mutated, false);
+  assert.equal(db.collections.paypal_subscription_state.size, 0);
+});
+
+test('One-Time Orders: PAYMENT.CAPTURE.COMPLETED rejects correlation plan conflict when session plan mismatches', async () => {
+  const db = createMockDatabases();
+  const users = createMockUsers();
+  const nowMs = Date.parse('2026-09-07T12:00:00.000Z');
+
+  // User purchased Pro
+  db.collections.billing_checkout_sessions.set('sess_2', {
+    $id: 'sess_2',
+    checkout_reference: 'ORD-SPOOF-PLAN-1',
+    user_id: QA_USER_ID,
+    plan: 'pro',
+    environment: 'sandbox',
+  });
+
+  // Malicious event attempts to claim premium for Pro order
+  const event = normalizeEvent({
+    id: 'EVT-CAPTURE-SPOOF-PLAN',
+    event_type: 'PAYMENT.CAPTURE.COMPLETED',
+    create_time: new Date(nowMs).toISOString(),
+    resource: {
+      id: 'CAP-SPOOF-PLAN-1',
+      status: 'COMPLETED',
+      custom_id: JSON.stringify({
+        app_user_id: QA_USER_ID,
+        plan: 'premium',
+      }),
+      supplementary_data: { related_ids: { order_id: 'ORD-SPOOF-PLAN-1' } },
+    },
+  });
+
+  const res = await processWebhookEvent({
+    databases: db,
+    users,
+    event,
+    nowMs,
+    env: TEST_ENV,
+  });
+
+  assert.equal(res.outcome, 'rejected');
+  assert.equal(res.code, 'correlation_plan_conflict');
+  assert.equal(res.mutated, false);
+  assert.equal(db.collections.paypal_subscription_state.size, 0);
+});
+
+test('One-Time Orders: PAYMENT.CAPTURE.COMPLETED rejects non-USD currency mismatch', async () => {
+  const db = createMockDatabases();
+  const users = createMockUsers();
+  const nowMs = Date.parse('2026-09-07T12:00:00.000Z');
+
+  const event = normalizeEvent({
+    id: 'EVT-CAPTURE-CURRENCY',
+    event_type: 'PAYMENT.CAPTURE.COMPLETED',
+    create_time: new Date(nowMs).toISOString(),
+    resource: {
+      id: 'CAP-CURRENCY-1',
+      status: 'COMPLETED',
+      amount: { value: '5.00', currency_code: 'EUR' },
+      custom_id: JSON.stringify({
+        app_user_id: QA_USER_ID,
+        plan: 'pro',
+      }),
+      supplementary_data: { related_ids: { order_id: 'ORD-CURR-1' } },
+    },
+  });
+
+  const res = await processWebhookEvent({
+    databases: db,
+    users,
+    event,
+    nowMs,
+    env: TEST_ENV,
+  });
+
+  assert.equal(res.outcome, 'rejected');
+  assert.equal(res.code, 'currency_mismatch');
+  assert.equal(res.mutated, false);
+  assert.equal(db.collections.paypal_subscription_state.size, 0);
+});
+
+test('One-Time Orders: QA coupon boundary is strictly enforced in webhook (sandbox vs production)', async () => {
+  const db = createMockDatabases();
+  const users = createMockUsers();
+  const nowMs = Date.parse('2026-09-07T12:00:00.000Z');
+
+  // Seed QA coupon
+  db.collections.discount_codes.set('c_qa_1', {
+    $id: 'c_qa_1',
+    code: 'QA_PRO_90',
+    discount_type: 'percent',
+    discount_value: 90,
+    uses_count: 0,
+    max_uses: 1,
+    is_active: true,
+  });
+
+  // 1. Sandbox rejected: QA coupons cannot be used in Sandbox
+  const sandboxEvent = normalizeEvent({
+    id: 'EVT-QA-SANDBOX',
+    event_type: 'PAYMENT.CAPTURE.COMPLETED',
+    create_time: new Date(nowMs).toISOString(),
+    resource: {
+      id: 'CAP-QA-SANDBOX',
+      status: 'COMPLETED',
+      custom_id: JSON.stringify({
+        app_user_id: QA_USER_ID,
+        plan: 'pro',
+        coupon_code: 'QA_PRO_90',
+      }),
+      supplementary_data: { related_ids: { order_id: 'ORD-QA-SBX' } },
+    },
+  });
+
+  const sbxRes = await processWebhookEvent({
+    databases: db,
+    users,
+    event: sandboxEvent,
+    nowMs,
+    env: { ...TEST_ENV, PAYPAL_ACCESS_ENVIRONMENT: 'sandbox' },
+  });
+  assert.equal(sbxRes.outcome, 'ignored');
+  assert.equal(sbxRes.code, 'qa_coupon_environment_mismatch');
+  assert.equal(sbxRes.mutated, false);
+
+  // 2. Production rejected for non-QA user
+  const prodEvent = normalizeEvent({
+    id: 'EVT-QA-PROD-NONQA',
+    event_type: 'PAYMENT.CAPTURE.COMPLETED',
+    create_time: new Date(nowMs).toISOString(),
+    resource: {
+      id: 'CAP-QA-PROD-NONQA',
+      status: 'COMPLETED',
+      custom_id: JSON.stringify({
+        app_user_id: OTHER_USER_ID,
+        plan: 'pro',
+        coupon_code: 'QA_PRO_90',
+      }),
+      supplementary_data: { related_ids: { order_id: 'ORD-QA-PROD' } },
+    },
+  });
+
+  const prodRes = await processWebhookEvent({
+    databases: db,
+    users,
+    event: prodEvent,
+    nowMs,
+    env: {
+      PAYPAL_ACCESS_ENVIRONMENT: 'production',
+      BILLING_CHECKOUT_QA_USER_ID: QA_USER_ID,
+    },
+  });
+  assert.equal(prodRes.outcome, 'ignored');
+  assert.equal(prodRes.code, 'qa_boundary_rejected');
+  assert.equal(prodRes.mutated, false);
+});
+
+test('One-Time Orders: PAYMENT.CAPTURE.REFUNDED revokes one-time access when capture ID matches state', async () => {
+  const db = createMockDatabases();
+  const users = createMockUsers();
+  const nowMs = Date.parse('2026-09-07T12:00:00.000Z');
+  const futureExpiry = new Date(nowMs + 30 * 86400000).toISOString();
+
+  // User has active one-time access granted by capture CAP-REF-100
+  db.collections.paypal_subscription_state.set('pps_qa', {
+    $id: 'pps_qa',
+    user_id: QA_USER_ID,
+    subscription_id: 'ORD-REF-100',
+    plan: 'pro',
+    status: 'active',
+    environment: 'sandbox',
+    expires_at: futureExpiry,
+    will_renew: false,
+    last_entitlement_payment_id: 'CAP-REF-100',
+    last_entitlement_payment_ts_ms: nowMs,
+  });
+
+  const refundEvent = normalizeEvent({
+    id: 'EVT-REFUND-1',
+    event_type: 'PAYMENT.CAPTURE.REFUNDED',
+    create_time: new Date(nowMs + 60000).toISOString(),
+    resource: {
+      id: 'REF-TRANSACTION-1',
+      status: 'COMPLETED',
+      amount: { value: '5.00', currency_code: 'USD' },
+      supplementary_data: {
+        related_ids: {
+          capture_id: 'CAP-REF-100',
+          order_id: 'ORD-REF-100',
+        },
+      },
+    },
+  });
+
+  const res = await processWebhookEvent({
+    databases: db,
+    users,
+    event: refundEvent,
+    nowMs: nowMs + 60000,
+    env: TEST_ENV,
+  });
+
+  assert.equal(res.outcome, 'processed');
+  assert.equal(res.code, 'order_refund_settled');
+  assert.equal(res.mutated, true);
+  assert.equal(res.effectivePlan, 'free');
+
+  // Verify state revocation
+  const updatedState = db.collections.paypal_subscription_state.get('pps_qa');
+  assert.equal(updatedState.status, 'canceled');
+  assert.equal(updatedState.expires_at, null);
+  assert.equal(updatedState.will_renew, false);
+});
+
+test('One-Time Orders: PAYMENT.CAPTURE.REFUNDED for stale/unmatched capture is safely ignored', async () => {
+  const db = createMockDatabases();
+  const users = createMockUsers();
+  const nowMs = Date.parse('2026-09-07T12:00:00.000Z');
+  const futureExpiry = new Date(nowMs + 30 * 86400000).toISOString();
+
+  // User has active one-time access with capture CAP-CURRENT
+  db.collections.paypal_subscription_state.set('pps_qa', {
+    $id: 'pps_qa',
+    user_id: QA_USER_ID,
+    subscription_id: 'ORD-CURRENT',
+    plan: 'pro',
+    status: 'active',
+    environment: 'sandbox',
+    expires_at: futureExpiry,
+    will_renew: false,
+    last_entitlement_payment_id: 'CAP-CURRENT',
+    last_entitlement_payment_ts_ms: nowMs,
+  });
+
+  // Incoming refund is for older or different capture CAP-OLD
+  const staleRefundEvent = normalizeEvent({
+    id: 'EVT-REFUND-STALE',
+    event_type: 'PAYMENT.CAPTURE.REFUNDED',
+    create_time: new Date(nowMs + 60000).toISOString(),
+    resource: {
+      id: 'REF-TRANSACTION-STALE',
+      status: 'COMPLETED',
+      amount: { value: '5.00', currency_code: 'USD' },
+      supplementary_data: {
+        related_ids: {
+          capture_id: 'CAP-OLD',
+          order_id: 'ORD-OLD',
+        },
+      },
+    },
+  });
+
+  const res = await processWebhookEvent({
+    databases: db,
+    users,
+    event: staleRefundEvent,
+    nowMs: nowMs + 60000,
+    env: TEST_ENV,
+  });
+
+  assert.equal(res.outcome, 'ignored');
+  assert.equal(res.code, 'stale_order_refund_ignored');
+  assert.equal(res.mutated, false);
+
+  // State remains untouched
+  const stateDoc = db.collections.paypal_subscription_state.get('pps_qa');
+  assert.equal(stateDoc.status, 'active');
+  assert.equal(stateDoc.expires_at, futureExpiry);
+});
+
+test('One-Time Orders: PAYMENT.CAPTURE.COMPLETED with only order_id (no direct custom_id) correlates via orderFetcher and session', async () => {
+  const db = createMockDatabases();
+  const users = createMockUsers();
+  const nowMs = Date.parse('2026-09-07T14:00:00.000Z');
+
+  // Seed server-created checkout session
+  db.collections.billing_checkout_sessions.set('sess_order_corr', {
+    $id: 'sess_order_corr',
+    user_id: QA_USER_ID,
+    plan: 'pro',
+    environment: 'sandbox',
+    provider_transaction_id: 'ORD-CORR-123',
+    public_reference: 'sess_ref_corr',
+  });
+
+  // Webhook event containing ONLY order_id in supplementary_data, NO direct custom_id on event resource
+  const event = normalizeEvent({
+    id: 'EVT-CAPTURE-NO-CUSTOM-ID',
+    event_type: 'PAYMENT.CAPTURE.COMPLETED',
+    create_time: new Date(nowMs).toISOString(),
+    resource: {
+      id: 'CAP-NO-CUSTOM-ID',
+      status: 'COMPLETED',
+      amount: { value: '5.00', currency_code: 'USD' },
+      supplementary_data: {
+        related_ids: {
+          order_id: 'ORD-CORR-123',
+        },
+      },
+    },
+  });
+
+  assert.equal(event.customId, '', 'Event must NOT contain direct custom_id');
+  assert.equal(event.orderId, 'ORD-CORR-123');
+
+  // Custom order fetcher mock simulating GET /v2/checkout/orders/ORD-CORR-123
+  let fetcherCalledWith = null;
+  const mockOrderFetcher = async (orderId) => {
+    fetcherCalledWith = orderId;
+    return {
+      id: orderId,
+      status: 'COMPLETED',
+      purchase_units: [{
+        amount: { value: '5.00', currency_code: 'USD' },
+        custom_id: JSON.stringify({
+          app_user_id: QA_USER_ID,
+          plan: 'pro',
+          payment_mode: 'one_time',
+          checkout_session_reference: 'sess_ref_corr',
+        }),
+      }],
+    };
+  };
+
+  const res = await processWebhookEvent({
+    databases: db,
+    users,
+    event,
+    nowMs,
+    env: TEST_ENV,
+    orderFetcher: mockOrderFetcher,
+  });
+
+  assert.equal(fetcherCalledWith, 'ORD-CORR-123');
+  assert.equal(res.outcome, 'success');
+  assert.equal(res.code, 'order_entitled');
+  assert.equal(res.mutated, true);
+  assert.equal(res.plan, 'pro');
+
+  const stateDoc = Array.from(db.collections.paypal_subscription_state.values())[0];
+  assert.ok(stateDoc);
+  assert.equal(stateDoc.user_id, QA_USER_ID);
+  assert.equal(stateDoc.plan, 'pro');
+  assert.equal(stateDoc.status, 'active');
+  assert.equal(stateDoc.will_renew, false);
 });

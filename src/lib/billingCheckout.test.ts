@@ -242,4 +242,99 @@ describe('server-owned billing checkout client', () => {
       expect(result.message).toBe('Plan changes are temporarily unavailable.');
     }
   });
+
+  it('supports getCouponQuote for 30-day access quotes', async () => {
+    invokeMock.mockResolvedValue({
+      data: {
+        status: 'success',
+        eligible: true,
+        code: 'PROMO50',
+        discount_type: 'percent',
+        discount_value: 50,
+        plan: 'pro',
+        payment_mode: 'one_time',
+        original_amount: 5,
+        discount_amount: 2.5,
+        final_amount: 2.5,
+      },
+      error: null,
+    });
+    const { getCouponQuote } = await import('./billingCheckout');
+    const result = await getCouponQuote({
+      plan: 'pro',
+      paymentMode: 'one_time',
+      couponCode: 'PROMO50',
+    });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.quote.eligible).toBe(true);
+      expect(result.quote.final_amount).toBe(2.5);
+      expect(result.quote.discount_amount).toBe(2.5);
+    }
+    expect(invokeMock).toHaveBeenCalledWith('billing-checkout', {
+      body: { action: 'quote', plan: 'pro', payment_mode: 'one_time', coupon_code: 'PROMO50' },
+    });
+  });
+
+  it('supports captureBillingOrder for completing one-time checkout', async () => {
+    invokeMock.mockResolvedValue({
+      data: {
+        status: 'success',
+        data: {
+          order_id: 'ORD-12345',
+          capture_id: 'CAP-67890',
+          plan: 'pro',
+          expires_at: '2026-10-07T12:00:00.000Z',
+          payment_mode: 'one_time',
+          state: 'entitled',
+        },
+      },
+      error: null,
+    });
+    const { captureBillingOrder } = await import('./billingCheckout');
+    const result = await captureBillingOrder('ORD-12345');
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.data.order_id).toBe('ORD-12345');
+      expect(result.data.state).toBe('entitled');
+      expect(result.data.plan).toBe('pro');
+    }
+    expect(invokeMock).toHaveBeenCalledWith('billing-checkout', {
+      body: { action: 'capture-order', order_id: 'ORD-12345' },
+    });
+  });
+
+  it('supports creating a one_time checkout session with a coupon code', async () => {
+    invokeMock.mockResolvedValue({
+      data: {
+        status: 'success',
+        data: {
+          session_reference: 'sess_onetime',
+          plan: 'pro',
+          state: 'created_or_reused',
+          expires_at: '2026-09-08T10:00:00.000Z',
+          checkout_reference: 'ORD-12345',
+          checkout_url: 'https://www.sandbox.paypal.com/checkoutnow?token=ORD-12345',
+        },
+      },
+      error: null,
+    });
+    const { createBillingCheckoutSession } = await import('./billingCheckout');
+    const result = await createBillingCheckoutSession('pro', {
+      paymentMode: 'one_time',
+      couponCode: 'SAVE50',
+      idempotencyKey: 'test-idemp',
+      environment: 'sandbox',
+    });
+    expect(result.ok).toBe(true);
+    expect(invokeMock).toHaveBeenCalledWith('billing-checkout', {
+      body: {
+        action: 'create-session',
+        plan: 'pro',
+        idempotency_key: 'test-idemp',
+        payment_mode: 'one_time',
+        coupon_code: 'SAVE50',
+      },
+    });
+  });
 });

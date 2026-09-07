@@ -183,9 +183,12 @@ describe('SubscriptionPage PayPal Lifecycle & Cancellation', () => {
     const proSubscribeBtn = screen.getAllByRole('button', { name: /^subscribe$/i })[0];
     fireEvent.click(proSubscribeBtn);
 
-    expect(createBillingCheckoutSession).toHaveBeenCalledWith('pro', {
+    const continueBtn = screen.getByRole('button', { name: /continue to paypal/i });
+    fireEvent.click(continueBtn);
+
+    expect(createBillingCheckoutSession).toHaveBeenCalledWith('pro', expect.objectContaining({
       idempotencyKey: expect.stringMatching(/^web-/),
-    });
+    }));
     expect(sessionStorage.getItem('wr_billing_attempt_pro')).toMatch(/^web-/);
     await waitFor(() => {
       expect(openServerCheckout).toHaveBeenCalled();
@@ -215,6 +218,9 @@ describe('SubscriptionPage PayPal Lifecycle & Cancellation', () => {
     const proSubscribeBtn = screen.getAllByRole('button', { name: /^subscribe$/i })[0];
     fireEvent.click(proSubscribeBtn);
 
+    const continueBtn = screen.getByRole('button', { name: /continue to paypal/i });
+    fireEvent.click(continueBtn);
+
     await waitFor(() => {
       expect(screen.getByText('Temporary provider failure')).toBeInTheDocument();
     });
@@ -222,9 +228,8 @@ describe('SubscriptionPage PayPal Lifecycle & Cancellation', () => {
     const firstCallKey = vi.mocked(createBillingCheckoutSession).mock.calls[0][1]?.idempotencyKey;
     expect(firstCallKey).toBeDefined();
 
-    // Click Try again
-    const retryBtn = screen.getByRole('button', { name: /try again/i });
-    fireEvent.click(retryBtn);
+    // Click Continue to PayPal again to retry
+    fireEvent.click(continueBtn);
 
     await waitFor(() => {
       expect(createBillingCheckoutSession).toHaveBeenCalledTimes(2);
@@ -247,8 +252,11 @@ describe('SubscriptionPage PayPal Lifecycle & Cancellation', () => {
     const proSubscribeBtn = screen.getAllByRole('button', { name: /^subscribe$/i })[0];
     fireEvent.click(proSubscribeBtn);
 
+    const continueBtn = screen.getByRole('button', { name: /continue to paypal/i });
+    fireEvent.click(continueBtn);
+
     await waitFor(() => {
-      expect(screen.getByText(/subscription enrollments are currently closed/i)).toBeInTheDocument();
+      expect(screen.getByText(/enrollments closed/i)).toBeInTheDocument();
     });
 
     expect(sessionStorage.getItem('wr_billing_attempt_pro')).toBeNull();
@@ -273,9 +281,13 @@ describe('SubscriptionPage PayPal Lifecycle & Cancellation', () => {
     const proBtn = subscribeButtons[0];
     const premiumBtn = subscribeButtons[1];
 
-    // Click Pro and wait for checkout to complete
+    // Click Pro and proceed through modal
     await act(async () => {
       fireEvent.click(proBtn);
+    });
+    const proContinueBtn = screen.getByRole('button', { name: /continue to paypal/i });
+    await act(async () => {
+      fireEvent.click(proContinueBtn);
     });
 
     await waitFor(() => {
@@ -288,6 +300,10 @@ describe('SubscriptionPage PayPal Lifecycle & Cancellation', () => {
     // Switch to Premium
     await act(async () => {
       fireEvent.click(premiumBtn);
+    });
+    const premContinueBtn = screen.getByRole('button', { name: /continue to paypal/i });
+    await act(async () => {
+      fireEvent.click(premContinueBtn);
     });
 
     await waitFor(() => {

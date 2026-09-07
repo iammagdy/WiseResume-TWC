@@ -1,6 +1,58 @@
 # WiseResume Atlas Master Changelog
 
+### 2026-09-08 - WiseResume PayPal Checkout Final Release Blocker Patch (`TESTED_LOCAL`)
+
+- **Workstream Verdict:** `RELEASE_READY_PENDING_OWNER_AUTHORIZATION` (Status: `TESTED_LOCAL — RELEASE_READY_PENDING_OWNER_AUTHORIZATION`, `PAYPAL_PRODUCTION_READY = NO`).
+- **Release Eligibility Decision:** `WHATS_NEW_DEFER_UNTIL_PRODUCTION` (Release notes deferred pending production deployment, Vercel build, and live browser verification).
+- **Scope & Accomplishments:**
+  1. **Block Active One-Time Stacking:**
+     - In `appwrite-hubs/shared-subscription-resolver/index.js`, removed duration extension (+30 days) on existing active one-time access.
+     - Enforced `409 active_paid_entitlement_exists` when an active one-time user attempts another one-time purchase.
+     - Enforced `409 active_recurring_subscription_exists` when an active recurring subscriber attempts a one-time purchase.
+     - Enforced `409 active_higher_plan_exists` when an active Ultimate user attempts a Pro one-time purchase.
+     - Replaced broad `hasActivePaypalSubscription` call in `create` with explicit separation between recurring subscriptions (`will_renew: true` or `I-` ID) and one-time orders (`will_renew: false` and non-`I-` ID).
+     - Expired one-time users and free users continue to be allowed to purchase normally.
+     - Single active one-time capture refund revokes paid access cleanly to Free.
+  2. **Automated Verification:**
+     - Backend unit tests: 294 / 294 PASS (99 in `billing-checkout.paypal.test.cjs`, 165 in `paypal-webhook.test.cjs`, 30 in `paypal-subscription-resolver.test.cjs`).
+     - Frontend Vitest: 20 / 20 PASS (`billingCheckout.test.ts`, `PaymentConfirmationModal.test.tsx`).
+     - TypeScript: `tsc --noEmit` PASS (0 errors).
+     - Whitespace: `git diff --check` PASS (clean).
+     - Production Build: `vite build` PASS (5,895 modules, 0 sourcemaps, 0 errors).
+     - Local Browser QA: `LOCAL_BROWSER_QA_PASS` (11 UI scenarios verified).
+- **Strict Stop Conditions Respected:** Zero git commits, zero git pushes, zero Appwrite deployments, zero production coupon seeding, zero real money transactions executed.
+
+### 2026-09-07 - WiseResume PayPal Checkout Pre-Deploy Security & Correctness Gate (`TESTED_LOCAL`)
+
+- **Workstream Verdict:** `PRE_DEPLOY_REVIEW_PASS` (Status: `TESTED_LOCAL — PRE_DEPLOY_REVIEW_REQUIRED`, `PAYPAL_PRODUCTION_READY = NO`).
+- **Release Eligibility Decision:** `WHATS_NEW_DEFER_UNTIL_PRODUCTION` (Release notes deferred pending production deployment, Vercel build, and live browser verification).
+- **Scope & Accomplishments:**
+  1. **Order Ownership & Capture Authorization:**
+     - Enforced server-signed `custom_id` on authoritative PayPal order resources.
+     - Enforced canonical user ID, USD currency, server-expected plan, and recalculated discounted amount matching before order capture.
+  2. **Webhook Correlation & Security Hardening:**
+     - Webhook `PAYMENT.CAPTURE.COMPLETED` resolves server checkout sessions and fails closed on identity/plan/currency conflicts.
+     - Added `PAYMENT.CAPTURE.REFUNDED` and `PAYMENT.CAPTURE.REVERSED` handling with automatic entitlement revocation to Free.
+  3. **Coupon Concurrency & Single-Use Slot Document:**
+     - `fulfillCompletedOneTimePayment` creates a deterministic global slot document `cuse_${hash(couponId)}` for `max_uses === 1`, guaranteeing that concurrent attempts by different users hit 409 duplicate ID conflict and rollback cleanly.
+  4. **QA Coupon Boundary:**
+     - Enforced strict server gating: coupons with `QA_` or `QA-` prefix require Production environment and caller matching `BILLING_CHECKOUT_QA_USER_ID`.
+     - Seed script `scripts/seed_qa_coupon.cjs` strictly requires `QA_COUPON_CODE` env var at runtime, applies 7-day expiry, and zero secret logging.
+  5. **Existing Paid-User Safety:**
+     - Purchasing Pro one-time access preserves active Ultimate tier (no downgrade).
+     - Purchasing one-time access preserves active recurring subscription (`will_renew: true`, provider subscription ID).
+     - Extends active paid-through expiry by +30 days instead of resetting from current time.
+  6. **Automated Verification:**
+     - 277 / 277 backend unit tests passing across all payment hub suites.
+     - 20 / 20 frontend Vitest tests passing.
+     - `tsc --noEmit` passing (0 errors).
+     - `node --check` passing on all modified backend files.
+     - `npm run build` passing with clean production output (0 sourcemaps).
+     - `npm run test:i18n` passing (11 namespaces valid).
+- **Strict Stop Conditions:** Zero git commits, zero git pushes, zero Appwrite deployments, zero production coupon seeding, zero real money transactions executed.
+
 ### 2026-09-07 - PayPal Sandbox Payment Core Final Verification & Closeout (`main` @ `9c27773f`)
+
 
 - **Workstream Verdict:** `SANDBOX_PAYMENT_CORE_VERIFIED_READY_FOR_PRODUCTION_ACTIVATION` (`PAYPAL_PRODUCTION_READY = NO`).
 - **PR & Commit:** Merged PR #309 into `main` at `9c27773f4bc7c69d42a53cb25d83e6a0a471b316`.

@@ -16,10 +16,14 @@ const {
   PAYPAL_API_ORIGINS,
   PAYPAL_APPROVED_ORIGINS,
   assertRuntimeEnabled,
+  BASE_PLAN_PRICES,
+  MIN_CHARGE_FLOOR,
+  couponIsActive,
+  calculateCouponDiscount,
 } = billing.__test;
 
 class MockCheckoutStore {
-  constructor({ plan = 'free', userSub = null, paypalState = null, existingSession = null } = {}) {
+  constructor({ plan = 'free', userSub = null, paypalState = null, existingSession = null, coupons = [], redemptions = [] } = {}) {
     this.plan = plan;
     this.userSub = userSub;
     this.paypalState = paypalState;
@@ -29,6 +33,23 @@ class MockCheckoutStore {
     this.failed = [];
     this.uncertain = [];
     this.reserveOutcome = 'created';
+    this.coupons = new Map(coupons);
+    this.redemptions = new Set(redemptions);
+    this.recordedEntitlements = [];
+  }
+
+  async findCoupon(code) {
+    return this.coupons?.get(String(code || '').trim().toUpperCase()) || null;
+  }
+
+  async hasUserRedeemedCoupon(userId, couponId) {
+    return this.redemptions?.has(`${userId}:${couponId}`) || false;
+  }
+
+  async recordOrderEntitlement(input) {
+    this.recordedEntitlements.push(input);
+    const expiresAt = new Date((input.nowMs || Date.now()) + 30 * 24 * 60 * 60 * 1000).toISOString();
+    return { success: true, plan: input.plan, expiresAt };
   }
 
   async getEffectivePlan() {
@@ -2491,4 +2512,1064 @@ test('Phase I - 19: providerReady=false remains fail-closed', () => {
     () => assertRuntimeEnabled(config, 'pro', 'qa_user_456'),
     (err) => err?.code === 'payments_disabled' && err?.status === 403,
   );
+});
+
+test('Quote: subscription mode returns base pricing without discount', async () => {
+  const env = validPayPalEnv();
+  const config = readConfig(env);
+  const store = new MockCheckoutStore();
+  const service = new BillingCheckoutService({ store, provider: {}, config });
+
+  const proQuote = await service.quote({ userId: 'qa_user_456', plan: 'pro', paymentMode: 'subscription' });
+  assert.equal(proQuote.status, 'success');
+  assert.equal(proQuote.eligible, true);
+  assert.equal(proQuote.original_amount, 5.00);
+  assert.equal(proQuote.discount_amount, 0);
+  assert.equal(proQuote.final_amount, 5.00);
+
+  const premQuote = await service.quote({ userId: 'qa_user_456', plan: 'premium', paymentMode: 'subscription' });
+  assert.equal(premQuote.status, 'success');
+  assert.equal(premQuote.eligible, true);
+  assert.equal(premQuote.original_amount, 10.00);
+  assert.equal(premQuote.discount_amount, 0);
+  assert.equal(premQuote.final_amount, 10.00);
+});
+
+test('Quote: subscription mode rejects coupon code cleanly with explanation', async () => {
+  const env = validPayPalEnv();
+  const config = readConfig(env);
+  const store = new MockCheckoutStore();
+  const service = new BillingCheckoutService({ store, provider: {}, config });
+
+  const quote = await service.quote({
+    userId: 'qa_user_456',
+    plan: 'pro',
+    paymentMode: 'subscription',
+    couponCode: 'SAVE50',
+  });
+  assert.equal(quote.status, 'success');
+  assert.equal(quote.eligible, false);
+  assert.equal(quote.reason, 'coupons_not_supported_for_recurring');
+  assert.equal(quote.final_amount, 5.00);
+  assert.match(quote.message, /switch to one-month access/i);
+});
+
+test('Quote: one_time mode returns base pricing when no coupon provided', async () => {
+  const env = validPayPalEnv();
+  const config = readConfig(env);
+  const store = new MockCheckoutStore();
+  const service = new BillingCheckoutService({ store, provider: {}, config });
+
+  const quote = await service.quote({ userId: 'qa_user_456', plan: 'pro', paymentMode: 'one_time' });
+  assert.equal(quote.status, 'success');
+  assert.equal(quote.eligible, true);
+  assert.equal(quote.payment_mode, 'one_time');
+  assert.equal(quote.original_amount, 5.00);
+  assert.equal(quote.discount_amount, 0);
+  assert.equal(quote.final_amount, 5.00);
+});
+
+test('Quote: one_time mode applies valid percentage coupon', async () => {
+  const env = validPayPalEnv();
+  const config = readConfig(env);
+  const store = new MockCheckoutStore({
+    coupons: [
+      ['PRO20', { $id: 'c_1', code: 'PRO20', discount_type: 'percent', discount_value: 20, is_active: true }],
+    ],
+  });
+  const service = new BillingCheckoutService({ store, provider: {}, config });
+
+  const quote = await service.quote({
+    userId: 'qa_user_456',
+    plan: 'pro',
+    paymentMode: 'one_time',
+    couponCode: 'pro20',
+  });
+  assert.equal(quote.status, 'success');
+  assert.equal(quote.eligible, true);
+  assert.equal(quote.original_amount, 5.00);
+  assert.equal(quote.discount_amount, 1.00);
+  assert.equal(quote.final_amount, 4.00);
+});
+
+test('Quote: one_time mode applies valid fixed amount coupon', async () => {
+  const env = validPayPalEnv();
+  const config = readConfig(env);
+  const store = new MockCheckoutStore({
+    coupons: [
+      ['SAVE3', { $id: 'c_2', code: 'SAVE3', discount_type: 'amount', discount_value: 3, is_active: true }],
+    ],
+  });
+  const service = new BillingCheckoutService({ store, provider: {}, config });
+
+  const quote = await service.quote({
+    userId: 'qa_user_456',
+    plan: 'premium',
+    paymentMode: 'one_time',
+    couponCode: 'SAVE3',
+  });
+  assert.equal(quote.status, 'success');
+  assert.equal(quote.eligible, true);
+  assert.equal(quote.original_amount, 10.00);
+  assert.equal(quote.discount_amount, 3.00);
+  assert.equal(quote.final_amount, 7.00);
+});
+
+test('Quote: one_time mode enforces MIN_CHARGE_FLOOR $0.50 for high-discount coupons', async () => {
+  const env = validPayPalEnv();
+  const config = readConfig(env);
+  const store = new MockCheckoutStore({
+    coupons: [
+      ['QA90', { $id: 'c_qa', code: 'QA90', discount_type: 'percent', discount_value: 90, is_active: true }],
+      ['FREE100', { $id: 'c_free', code: 'FREE100', discount_type: 'percent', discount_value: 100, is_active: true }],
+    ],
+  });
+  const service = new BillingCheckoutService({ store, provider: {}, config });
+
+  // 90% off Pro: $5.00 - $4.50 = $0.50
+  const qaQuote = await service.quote({
+    userId: 'qa_user_456',
+    plan: 'pro',
+    paymentMode: 'one_time',
+    couponCode: 'QA90',
+  });
+  assert.equal(qaQuote.eligible, true);
+  assert.equal(qaQuote.original_amount, 5.00);
+  assert.equal(qaQuote.discount_amount, 4.50);
+  assert.equal(qaQuote.final_amount, 0.50);
+
+  // 100% off Pro: capped at $0.50 floor, never free
+  const freeQuote = await service.quote({
+    userId: 'qa_user_456',
+    plan: 'pro',
+    paymentMode: 'one_time',
+    couponCode: 'FREE100',
+  });
+  assert.equal(freeQuote.eligible, true);
+  assert.equal(freeQuote.original_amount, 5.00);
+  assert.equal(freeQuote.final_amount, 0.50);
+  assert.equal(freeQuote.discount_amount, 4.50);
+});
+
+test('Quote: one_time mode rejects invalid or expired coupon', async () => {
+  const env = validPayPalEnv();
+  const config = readConfig(env);
+  const store = new MockCheckoutStore({
+    coupons: [
+      ['EXPIRED', { $id: 'c_exp', code: 'EXPIRED', discount_type: 'percent', discount_value: 20, is_active: true, expires_at: '2020-01-01T00:00:00Z' }],
+      ['INACTIVE', { $id: 'c_inact', code: 'INACTIVE', discount_type: 'percent', discount_value: 20, is_active: false }],
+    ],
+  });
+  const service = new BillingCheckoutService({ store, provider: {}, config });
+
+  const nonExistent = await service.quote({ userId: 'qa_user_456', plan: 'pro', paymentMode: 'one_time', couponCode: 'NOPE' });
+  assert.equal(nonExistent.eligible, false);
+  assert.equal(nonExistent.reason, 'invalid_or_expired');
+
+  const expired = await service.quote({ userId: 'qa_user_456', plan: 'pro', paymentMode: 'one_time', couponCode: 'EXPIRED' });
+  assert.equal(expired.eligible, false);
+  assert.equal(expired.reason, 'invalid_or_expired');
+
+  const inactive = await service.quote({ userId: 'qa_user_456', plan: 'pro', paymentMode: 'one_time', couponCode: 'INACTIVE' });
+  assert.equal(inactive.eligible, false);
+  assert.equal(inactive.reason, 'invalid_or_expired');
+});
+
+test('Quote: one_time mode rejects plan-ineligible coupon', async () => {
+  const env = validPayPalEnv();
+  const config = readConfig(env);
+  const store = new MockCheckoutStore({
+    coupons: [
+      ['ULTIMATEONLY', { $id: 'c_ult', code: 'ULTIMATEONLY', discount_type: 'percent', discount_value: 50, is_active: true, allowed_plans: ['premium'] }],
+    ],
+  });
+  const service = new BillingCheckoutService({ store, provider: {}, config });
+
+  const quote = await service.quote({
+    userId: 'qa_user_456',
+    plan: 'pro',
+    paymentMode: 'one_time',
+    couponCode: 'ULTIMATEONLY',
+  });
+  assert.equal(quote.eligible, false);
+  assert.equal(quote.reason, 'plan_ineligible');
+});
+
+test('Quote: one_time mode rejects already redeemed coupon', async () => {
+  const env = validPayPalEnv();
+  const config = readConfig(env);
+  const store = new MockCheckoutStore({
+    coupons: [
+      ['ONCE', { $id: 'c_once', code: 'ONCE', discount_type: 'percent', discount_value: 30, is_active: true }],
+    ],
+    redemptions: ['qa_user_456:c_once'],
+  });
+  const service = new BillingCheckoutService({ store, provider: {}, config });
+
+  const quote = await service.quote({
+    userId: 'qa_user_456',
+    plan: 'pro',
+    paymentMode: 'one_time',
+    couponCode: 'ONCE',
+  });
+  assert.equal(quote.eligible, false);
+  assert.equal(quote.reason, 'already_redeemed');
+});
+
+test('Quote: one_time mode rejects coupon when max_uses reached', async () => {
+  const env = validPayPalEnv();
+  const config = readConfig(env);
+  const store = new MockCheckoutStore({
+    coupons: [
+      ['LIMITED', { $id: 'c_lim', code: 'LIMITED', discount_type: 'percent', discount_value: 30, is_active: true, max_uses: 5, times_used: 5 }],
+    ],
+  });
+  const service = new BillingCheckoutService({ store, provider: {}, config });
+
+  const quote = await service.quote({
+    userId: 'qa_user_456',
+    plan: 'pro',
+    paymentMode: 'one_time',
+    couponCode: 'LIMITED',
+  });
+  assert.equal(quote.eligible, false);
+  assert.equal(quote.reason, 'usage_limit_reached');
+});
+
+test('Checkout creation: one_time mode calls provider.createOrder with calculated price', async () => {
+  const env = validPayPalEnv();
+  const config = readConfig(env);
+  const store = new MockCheckoutStore({
+    coupons: [
+      ['QA90', { $id: 'c_qa', code: 'QA90', discount_type: 'percent', discount_value: 90, is_active: true }],
+    ],
+  });
+
+  const orderCalls = [];
+  const provider = {
+    async createOrder(input) {
+      orderCalls.push(input);
+      return {
+        providerTransactionId: 'ORDER-12345',
+        providerEnvironment: input.environment,
+        collectionMode: 'one_time',
+        checkoutReference: 'ref_order_123',
+        checkoutUrl: 'https://www.sandbox.paypal.com/checkoutnow?token=ORDER-12345',
+      };
+    },
+  };
+
+  const service = new BillingCheckoutService({ store, provider, config });
+  const result = await service.create({
+    userId: 'qa_user_456',
+    plan: 'pro',
+    paymentMode: 'one_time',
+    couponCode: 'QA90',
+  });
+
+  assert.equal(result.status, 'success');
+  assert.equal(result.data.plan, 'pro');
+  assert.equal(result.data.payment_mode, 'one_time');
+  assert.equal(result.data.checkout_reference, 'ref_order_123');
+  assert.equal(result.data.checkout_url, 'https://www.sandbox.paypal.com/checkoutnow?token=ORDER-12345');
+
+  assert.equal(orderCalls.length, 1);
+  assert.equal(orderCalls[0].plan, 'pro');
+  assert.equal(orderCalls[0].amount, 0.50);
+  assert.equal(orderCalls[0].couponCode, 'QA90');
+  assert.equal(orderCalls[0].customData.app_user_id, 'qa_user_456');
+});
+
+test('Order capture: calls provider.captureOrder and records 30-day entitlement', async () => {
+  const env = validPayPalEnv();
+  const config = readConfig(env);
+  const store = new MockCheckoutStore({
+    coupons: [
+      ['QA90', { $id: 'c_qa', code: 'QA90', discount_type: 'percent', discount_value: 90, is_active: true }],
+    ],
+  });
+
+  const captureCalls = [];
+  const getOrderCalls = [];
+  const provider = {
+    async getOrder(input) {
+      getOrderCalls.push(input);
+      return {
+        id: input.orderId,
+        status: 'APPROVED',
+        purchase_units: [
+          {
+            amount: { currency_code: 'USD', value: '0.50' },
+            custom_id: JSON.stringify({
+              app_user_id: 'qa_user_456',
+              plan: 'pro',
+              payment_mode: 'one_time',
+              coupon_code: 'QA90',
+            }),
+          },
+        ],
+      };
+    },
+    async captureOrder(input) {
+      captureCalls.push(input);
+      return {
+        id: input.orderId,
+        status: 'COMPLETED',
+        purchase_units: [
+          {
+            payments: {
+              captures: [{ id: 'CAPTURE-CAP-789', status: 'COMPLETED', amount: { value: '0.50' } }],
+            },
+          },
+        ],
+      };
+    },
+  };
+
+  const service = new BillingCheckoutService({ store, provider, config });
+  const result = await service.captureOrder({
+    userId: 'qa_user_456',
+    orderId: 'ORDER-12345',
+  });
+
+  assert.equal(result.status, 'success');
+  assert.equal(result.data.order_id, 'ORDER-12345');
+  assert.equal(result.data.capture_id, 'CAPTURE-CAP-789');
+  assert.equal(result.data.plan, 'pro');
+  assert.equal(result.data.payment_mode, 'one_time');
+  assert.equal(result.data.state, 'entitled');
+  assert.equal(result.data.replayed, false);
+
+  assert.equal(getOrderCalls.length, 1);
+  assert.equal(captureCalls.length, 1);
+  assert.equal(store.recordedEntitlements.length, 1);
+  assert.equal(store.recordedEntitlements[0].userId, 'qa_user_456');
+  assert.equal(store.recordedEntitlements[0].orderId, 'ORDER-12345');
+  assert.equal(store.recordedEntitlements[0].captureId, 'CAPTURE-CAP-789');
+  assert.equal(store.recordedEntitlements[0].plan, 'pro');
+});
+
+test('Order capture: rejects order belonging to different user (forbidden 403)', async () => {
+  const env = validPayPalEnv();
+  const config = readConfig(env);
+  const store = new MockCheckoutStore();
+
+  const provider = {
+    async getOrder(input) {
+      return {
+        id: input.orderId,
+        status: 'APPROVED',
+        purchase_units: [
+          {
+            amount: { currency_code: 'USD', value: '5.00' },
+            custom_id: JSON.stringify({
+              app_user_id: 'attacker_user_999',
+              plan: 'pro',
+              payment_mode: 'one_time',
+            }),
+          },
+        ],
+      };
+    },
+    async captureOrder() {
+      throw new Error('Should not be called');
+    },
+  };
+
+  const service = new BillingCheckoutService({ store, provider, config });
+  await assert.rejects(
+    () => service.captureOrder({ userId: 'qa_user_456', orderId: 'ORDER-STOLEN' }),
+    (err) => err?.code === 'forbidden' && err?.status === 403,
+  );
+});
+
+test('PayPalSubscriptionProvider.createOrder calls PayPal Orders v2 API and returns checkout URL', async () => {
+  const env = validPayPalEnv();
+  let capturedBody = null;
+  const fetchImpl = mockFetch({
+    'https://api-m.sandbox.paypal.com/v1/oauth2/token': async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({ access_token: 'mock_token' }),
+    }),
+    'https://api-m.sandbox.paypal.com/v2/checkout/orders': async (opts) => {
+      capturedBody = JSON.parse(opts.body);
+      return {
+        ok: true,
+        status: 201,
+        json: async () => ({
+          id: 'ORD-98765',
+          status: 'CREATED',
+          links: [
+            { rel: 'approve', href: 'https://www.sandbox.paypal.com/checkoutnow?token=ORD-98765' },
+          ],
+        }),
+      };
+    },
+  });
+
+  const provider = new PayPalSubscriptionProvider({ env, fetchImpl });
+  const result = await provider.createOrder({
+    environment: 'sandbox',
+    plan: 'pro',
+    amount: 0.50,
+    couponCode: 'QA90',
+    appOrigin: 'https://wiseresume.app',
+    customData: {
+      app_user_id: 'qa_user_456',
+      checkout_session_reference: 'sess_123',
+    },
+    providerRequestId: 'wr_ord_req1',
+  });
+
+  assert.equal(result.providerTransactionId, 'ORD-98765');
+  assert.equal(result.collectionMode, 'one_time');
+  assert.equal(result.checkoutUrl, 'https://www.sandbox.paypal.com/checkoutnow?token=ORD-98765');
+
+  assert.equal(capturedBody.intent, 'CAPTURE');
+  assert.equal(capturedBody.purchase_units[0].amount.value, '0.50');
+  const customId = JSON.parse(capturedBody.purchase_units[0].custom_id);
+  assert.equal(customId.app_user_id, 'qa_user_456');
+  assert.equal(customId.plan, 'pro');
+  assert.equal(customId.coupon_code, 'QA90');
+});
+
+test('PayPalSubscriptionProvider.captureOrder captures order and handles 422 already captured idempotently', async () => {
+  const env = validPayPalEnv();
+  const fetchImpl = mockFetch({
+    'https://api-m.sandbox.paypal.com/v1/oauth2/token': async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({ access_token: 'mock_token' }),
+    }),
+    'https://api-m.sandbox.paypal.com/v2/checkout/orders/ORD-FRESH/capture': async () => ({
+      ok: true,
+      status: 201,
+      json: async () => ({
+        id: 'ORD-FRESH',
+        status: 'COMPLETED',
+        purchase_units: [{ payments: { captures: [{ id: 'CAP-1', status: 'COMPLETED' }] } }],
+      }),
+    }),
+    'https://api-m.sandbox.paypal.com/v2/checkout/orders/ORD-ALREADY/capture': async () => ({
+      ok: false,
+      status: 422,
+      json: async () => ({ name: 'UNPROCESSABLE_ENTITY', details: [{ issue: 'ORDER_ALREADY_CAPTURED' }] }),
+    }),
+    'https://api-m.sandbox.paypal.com/v2/checkout/orders/ORD-ALREADY': async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        id: 'ORD-ALREADY',
+        status: 'COMPLETED',
+        purchase_units: [{ payments: { captures: [{ id: 'CAP-2', status: 'COMPLETED' }] } }],
+      }),
+    }),
+  });
+
+  const provider = new PayPalSubscriptionProvider({ env, fetchImpl });
+
+  // Fresh capture
+  const freshResult = await provider.captureOrder({ orderId: 'ORD-FRESH', environment: 'sandbox' });
+  assert.equal(freshResult.status, 'COMPLETED');
+  assert.equal(freshResult.id, 'ORD-FRESH');
+
+  // Idempotent recovery for already captured
+  const alreadyResult = await provider.captureOrder({ orderId: 'ORD-ALREADY', environment: 'sandbox' });
+  assert.equal(alreadyResult.status, 'COMPLETED');
+  assert.equal(alreadyResult.id, 'ORD-ALREADY');
+});
+
+function validProductionPayPalEnv() {
+  return {
+    BILLING_CHECKOUT_ENABLED: 'true',
+    BILLING_CHECKOUT_ENVIRONMENT: 'production',
+    BILLING_CHECKOUT_PROVIDER: 'paypal',
+    BILLING_CHECKOUT_PROVIDER_READY: 'true',
+    BILLING_PRODUCTION_PRO_PRICE_ID: 'P-PROD-PRO-ID',
+    BILLING_PRODUCTION_PRO_PRODUCT_ID: 'PROD-PROD-PRO-ID',
+    BILLING_PRODUCTION_PREMIUM_PRICE_ID: 'P-PROD-PREM-ID',
+    BILLING_PRODUCTION_PREMIUM_PRODUCT_ID: 'PROD-PROD-PREM-ID',
+    PAYPAL_CLIENT_ID: 'mock_prod_client_id',
+    PAYPAL_CLIENT_SECRET: 'mock_prod_client_secret',
+    BILLING_CHECKOUT_QA_USER_ID: 'qa_authorized_user',
+  };
+}
+
+test('QA coupon: quote rejects non-QA user with qa_unauthorized', async () => {
+  const env = validProductionPayPalEnv();
+  const config = readConfig(env);
+  const store = new MockCheckoutStore({
+    coupons: [
+      ['QA_TEST90', { $id: 'c_qa_1', code: 'QA_TEST90', discount_type: 'percent', discount_value: 90, is_active: true }],
+    ],
+  });
+
+  const service = new BillingCheckoutService({ store, provider: {}, config });
+
+  const quote = await service.quote({
+    userId: 'other_user',
+    plan: 'pro',
+    paymentMode: 'one_time',
+    couponCode: 'QA_TEST90',
+  });
+
+  assert.equal(quote.status, 'success');
+  assert.equal(quote.eligible, false);
+  assert.equal(quote.reason, 'qa_unauthorized');
+});
+
+test('QA coupon: quote accepts authorized QA user', async () => {
+  const env = validProductionPayPalEnv();
+  const config = readConfig(env);
+  const store = new MockCheckoutStore({
+    coupons: [
+      ['QA_TEST90', { $id: 'c_qa_1', code: 'QA_TEST90', discount_type: 'percent', discount_value: 90, is_active: true }],
+    ],
+  });
+
+  const service = new BillingCheckoutService({ store, provider: {}, config });
+
+  const quote = await service.quote({
+    userId: 'qa_authorized_user',
+    plan: 'pro',
+    paymentMode: 'one_time',
+    couponCode: 'QA_TEST90',
+  });
+
+  assert.equal(quote.status, 'success');
+  assert.equal(quote.eligible, true);
+  assert.equal(quote.final_amount, 0.50);
+});
+
+test('QA coupon: create rejects non-QA user with 403 forbidden', async () => {
+  const env = validProductionPayPalEnv();
+  const config = readConfig(env);
+  const store = new MockCheckoutStore({
+    coupons: [
+      ['QA_TEST90', { $id: 'c_qa_1', code: 'QA_TEST90', discount_type: 'percent', discount_value: 90, is_active: true }],
+    ],
+  });
+
+  const service = new BillingCheckoutService({ store, provider: {}, config });
+
+  await assert.rejects(
+    () => service.create({
+      userId: 'other_user',
+      plan: 'pro',
+      paymentMode: 'one_time',
+      couponCode: 'QA_TEST90',
+      idempotencyKey: 'qa-test-key-1',
+    }),
+    (err) => err.status === 403 && err.code === 'forbidden'
+  );
+});
+
+test('Order capture security: rejects order with missing or empty custom_id with 403 forbidden', async () => {
+  const env = validPayPalEnv();
+  const config = readConfig(env);
+  const store = new MockCheckoutStore();
+  const provider = {
+    async getOrder() {
+      return {
+        id: 'ORD-EMPTY-METADATA',
+        status: 'APPROVED',
+        purchase_units: [{ amount: { currency_code: 'USD', value: '5.00' } }],
+      };
+    },
+    async captureOrder() {
+      throw new Error('Should not be called');
+    },
+  };
+  const service = new BillingCheckoutService({ store, provider, config });
+
+  await assert.rejects(
+    () => service.captureOrder({ userId: 'attacker_user', orderId: 'ORD-EMPTY-METADATA' }),
+    (err) => err.status === 403 && err.code === 'forbidden'
+  );
+});
+
+test('Order capture security: rejects order with non-USD currency with 400 currency_mismatch', async () => {
+  const env = validPayPalEnv();
+  const config = readConfig(env);
+  const store = new MockCheckoutStore();
+  const provider = {
+    async getOrder() {
+      return {
+        id: 'ORD-EUR',
+        status: 'APPROVED',
+        purchase_units: [{
+          amount: { currency_code: 'EUR', value: '5.00' },
+          custom_id: JSON.stringify({ app_user_id: 'user_1', plan: 'pro', payment_mode: 'one_time' }),
+        }],
+      };
+    },
+    async captureOrder() {
+      throw new Error('Should not be called');
+    },
+  };
+  const service = new BillingCheckoutService({ store, provider, config });
+
+  await assert.rejects(
+    () => service.captureOrder({ userId: 'user_1', orderId: 'ORD-EUR' }),
+    (err) => err.status === 400 && err.code === 'currency_mismatch'
+  );
+});
+
+test('Order capture security: rejects non-one_time payment mode with 400 invalid_payment_mode', async () => {
+  const env = validPayPalEnv();
+  const config = readConfig(env);
+  const store = new MockCheckoutStore();
+  const provider = {
+    async getOrder() {
+      return {
+        id: 'ORD-SUB-MODE',
+        status: 'APPROVED',
+        purchase_units: [{
+          amount: { currency_code: 'USD', value: '5.00' },
+          custom_id: JSON.stringify({ app_user_id: 'user_1', plan: 'pro', payment_mode: 'subscription' }),
+        }],
+      };
+    },
+    async captureOrder() {
+      throw new Error('Should not be called');
+    },
+  };
+  const service = new BillingCheckoutService({ store, provider, config });
+
+  await assert.rejects(
+    () => service.captureOrder({ userId: 'user_1', orderId: 'ORD-SUB-MODE' }),
+    (err) => err.status === 400 && err.code === 'invalid_payment_mode'
+  );
+});
+
+test('Order capture security: rejects captured amount mismatch with 400 amount_mismatch', async () => {
+  const env = validPayPalEnv();
+  const config = readConfig(env);
+  const store = new MockCheckoutStore();
+  const provider = {
+    async getOrder() {
+      return {
+        id: 'ORD-UNDERPAID',
+        status: 'APPROVED',
+        purchase_units: [{
+          amount: { currency_code: 'USD', value: '0.01' }, // Tampered: paid 1 cent instead of $5.00
+          custom_id: JSON.stringify({ app_user_id: 'user_1', plan: 'pro', payment_mode: 'one_time' }),
+        }],
+      };
+    },
+    async captureOrder() {
+      throw new Error('Should not be called');
+    },
+  };
+  const service = new BillingCheckoutService({ store, provider, config });
+
+  await assert.rejects(
+    () => service.captureOrder({ userId: 'user_1', orderId: 'ORD-UNDERPAID' }),
+    (err) => err.status === 400 && err.code === 'amount_mismatch'
+  );
+});
+
+test('Order capture security: rejects non-QA user attempting to capture with QA coupon with 403 qa_unauthorized', async () => {
+  const env = validProductionPayPalEnv();
+  const config = readConfig(env);
+  const store = new MockCheckoutStore({
+    coupons: [
+      ['QA_PRO_50', { $id: 'c_qa', code: 'QA_PRO_50', discount_type: 'percent', discount_value: 90, is_active: true }],
+    ],
+  });
+  const provider = {
+    async getOrder() {
+      return {
+        id: 'ORD-QA-SPOOF',
+        status: 'APPROVED',
+        purchase_units: [{
+          amount: { currency_code: 'USD', value: '0.50' },
+          custom_id: JSON.stringify({ app_user_id: 'non_qa_user', plan: 'pro', payment_mode: 'one_time', coupon_code: 'QA_PRO_50' }),
+        }],
+      };
+    },
+    async captureOrder() {
+      throw new Error('Should not be called');
+    },
+  };
+  const service = new BillingCheckoutService({ store, provider, config });
+
+  await assert.rejects(
+    () => service.captureOrder({ userId: 'non_qa_user', orderId: 'ORD-QA-SPOOF' }),
+    (err) => err.status === 403 && err.code === 'qa_unauthorized'
+  );
+});
+
+// Test: Standard Orders v2: APPROVED -> capture -> COMPLETED
+test('Order capture lifecycle: APPROVED -> capture -> COMPLETED succeeds and records entitlement', async () => {
+  const env = validPayPalEnv();
+  const config = readConfig(env);
+  const store = new MockCheckoutStore();
+  let getOrderCalled = 0;
+  let captureOrderCalled = 0;
+  const provider = {
+    async getOrder({ orderId }) {
+      getOrderCalled++;
+      return {
+        id: orderId,
+        status: 'APPROVED',
+        purchase_units: [{
+          amount: { currency_code: 'USD', value: '5.00' },
+          custom_id: JSON.stringify({ app_user_id: 'user_lc_1', plan: 'pro', payment_mode: 'one_time' }),
+        }],
+      };
+    },
+    async captureOrder({ orderId }) {
+      captureOrderCalled++;
+      return {
+        id: orderId,
+        status: 'COMPLETED',
+        purchase_units: [{
+          payments: {
+            captures: [{ id: 'CAP-LC-1', status: 'COMPLETED', amount: { currency_code: 'USD', value: '5.00' } }],
+          },
+        }],
+      };
+    },
+  };
+
+  const service = new BillingCheckoutService({ store, provider, config });
+  const result = await service.captureOrder({ userId: 'user_lc_1', orderId: 'ORD-LC-1' });
+
+  assert.equal(result.status, 'success');
+  assert.equal(result.data.state, 'entitled');
+  assert.equal(result.data.replayed, false);
+  assert.equal(getOrderCalled, 1);
+  assert.equal(captureOrderCalled, 1);
+  assert.equal(store.recordedEntitlements.length, 1);
+});
+
+// Test: Preflight rejects CREATED / unapproved order with 400 order_not_approved (0 capture calls)
+test('Order capture lifecycle: rejects CREATED/unapproved order with 400 order_not_approved without calling capture', async () => {
+  const env = validPayPalEnv();
+  const config = readConfig(env);
+  const store = new MockCheckoutStore();
+  let captureOrderCalled = 0;
+  const provider = {
+    async getOrder({ orderId }) {
+      return {
+        id: orderId,
+        status: 'CREATED',
+        purchase_units: [{
+          amount: { currency_code: 'USD', value: '5.00' },
+          custom_id: JSON.stringify({ app_user_id: 'user_created', plan: 'pro', payment_mode: 'one_time' }),
+        }],
+      };
+    },
+    async captureOrder() {
+      captureOrderCalled++;
+      throw new Error('captureOrder must not be called for unapproved order');
+    },
+  };
+
+  const service = new BillingCheckoutService({ store, provider, config });
+  await assert.rejects(
+    () => service.captureOrder({ userId: 'user_created', orderId: 'ORD-CREATED' }),
+    (err) => err.status === 400 && err.code === 'order_not_approved'
+  );
+  assert.equal(captureOrderCalled, 0, 'captureOrder must not be called when order status is CREATED');
+});
+
+// Test: Idempotent replay: already COMPLETED order skips captureOrder and fulfills idempotently
+test('Order capture lifecycle: already COMPLETED order skips captureOrder (0 calls) and fulfills idempotently', async () => {
+  const env = validPayPalEnv();
+  const config = readConfig(env);
+  const store = new MockCheckoutStore();
+  let captureOrderCalled = 0;
+  const provider = {
+    async getOrder({ orderId }) {
+      return {
+        id: orderId,
+        status: 'COMPLETED',
+        purchase_units: [{
+          amount: { currency_code: 'USD', value: '5.00' },
+          custom_id: JSON.stringify({ app_user_id: 'user_replay', plan: 'pro', payment_mode: 'one_time' }),
+          payments: {
+            captures: [{ id: 'CAP-PREV-COMPLETED', status: 'COMPLETED', amount: { value: '5.00' } }],
+          },
+        }],
+      };
+    },
+    async captureOrder() {
+      captureOrderCalled++;
+      throw new Error('captureOrder must not be called for already COMPLETED order');
+    },
+  };
+
+  const service = new BillingCheckoutService({ store, provider, config });
+  const result = await service.captureOrder({ userId: 'user_replay', orderId: 'ORD-ALREADY-COMPLETED' });
+
+  assert.equal(result.status, 'success');
+  assert.equal(result.data.state, 'entitled');
+  assert.equal(result.data.replayed, true);
+  assert.equal(result.data.capture_id, 'CAP-PREV-COMPLETED');
+  assert.equal(captureOrderCalled, 0, 'Zero calls to captureOrder on idempotent replay');
+  assert.equal(store.recordedEntitlements.length, 1);
+});
+
+// Test: Failed/pending capture rejected with 400 capture_failed
+test('Order capture lifecycle: failed or pending capture rejected with 400 capture_failed', async () => {
+  const env = validPayPalEnv();
+  const config = readConfig(env);
+  const store = new MockCheckoutStore();
+  const provider = {
+    async getOrder({ orderId }) {
+      return {
+        id: orderId,
+        status: 'APPROVED',
+        purchase_units: [{
+          amount: { currency_code: 'USD', value: '5.00' },
+          custom_id: JSON.stringify({ app_user_id: 'user_fail_cap', plan: 'pro', payment_mode: 'one_time' }),
+        }],
+      };
+    },
+    async captureOrder({ orderId }) {
+      return {
+        id: orderId,
+        status: 'PENDING',
+        purchase_units: [{
+          payments: {
+            captures: [{ id: 'CAP-PENDING', status: 'PENDING', amount: { value: '5.00' } }],
+          },
+        }],
+      };
+    },
+  };
+
+  const service = new BillingCheckoutService({ store, provider, config });
+  await assert.rejects(
+    () => service.captureOrder({ userId: 'user_fail_cap', orderId: 'ORD-PENDING-CAP' }),
+    (err) => err.status === 400 && err.code === 'capture_failed'
+  );
+  assert.equal(store.recordedEntitlements.length, 0);
+});
+
+// Test: Duplicate browser callback: first call captures, second call receives COMPLETED and replays safely
+test('Order capture lifecycle: duplicate browser callback replays safely without double capture', async () => {
+  const env = validPayPalEnv();
+  const config = readConfig(env);
+  const store = new MockCheckoutStore();
+  let orderStatus = 'APPROVED';
+  let captureCalls = 0;
+  const provider = {
+    async getOrder({ orderId }) {
+      return {
+        id: orderId,
+        status: orderStatus,
+        purchase_units: [{
+          amount: { currency_code: 'USD', value: '5.00' },
+          custom_id: JSON.stringify({ app_user_id: 'user_dup', plan: 'pro', payment_mode: 'one_time' }),
+          payments: orderStatus === 'COMPLETED' ? {
+            captures: [{ id: 'CAP-DUP-1', status: 'COMPLETED', amount: { value: '5.00' } }],
+          } : undefined,
+        }],
+      };
+    },
+    async captureOrder({ orderId }) {
+      captureCalls++;
+      orderStatus = 'COMPLETED'; // Order transition in PayPal after capture
+      return {
+        id: orderId,
+        status: 'COMPLETED',
+        purchase_units: [{
+          payments: {
+            captures: [{ id: 'CAP-DUP-1', status: 'COMPLETED', amount: { value: '5.00' } }],
+          },
+        }],
+      };
+    },
+  };
+
+  const service = new BillingCheckoutService({ store, provider, config });
+
+  // First callback: captures successfully
+  const res1 = await service.captureOrder({ userId: 'user_dup', orderId: 'ORD-DUP-CALLBACK' });
+  assert.equal(res1.status, 'success');
+  assert.equal(res1.data.replayed, false);
+  assert.equal(captureCalls, 1);
+
+  // Second callback: duplicate browser callback detects COMPLETED, skips capture, returns replayed: true
+  const res2 = await service.captureOrder({ userId: 'user_dup', orderId: 'ORD-DUP-CALLBACK' });
+  assert.equal(res2.status, 'success');
+  assert.equal(res2.data.replayed, true);
+  assert.equal(captureCalls, 1, 'captureOrder was NOT called a second time');
+});
+
+// Test: Active recurring subscriber blocked from one-time create with 409 active_recurring_subscription_exists
+test('Existing paid user semantics: active recurring subscriber blocked from one-time create with 409 active_recurring_subscription_exists', async () => {
+  const env = validPayPalEnv();
+  const config = readConfig(env);
+  const qaUser = config.qaUserId;
+  const store = new MockCheckoutStore({
+    plan: 'pro',
+    paypalState: {
+      user_id: qaUser,
+      plan: 'pro',
+      status: 'active',
+      will_renew: true,
+      subscription_id: 'I-REC-SUB-999',
+    },
+  });
+  const service = new BillingCheckoutService({ store, provider: {}, config });
+
+  await assert.rejects(
+    () => service.create({
+      userId: qaUser,
+      plan: 'pro',
+      paymentMode: 'one_time',
+      idempotencyKey: 'idemp_rec_1',
+    }),
+    (err) => err.status === 409 && err.code === 'active_recurring_subscription_exists'
+  );
+});
+
+// Test: Active Ultimate subscriber blocked from Pro one-time create with 409 active_higher_plan_exists
+test('Existing paid user semantics: active Ultimate subscriber blocked from Pro one-time create with 409 active_higher_plan_exists', async () => {
+  const env = validPayPalEnv();
+  const config = readConfig(env);
+  const qaUser = config.qaUserId;
+  const store = new MockCheckoutStore({
+    plan: 'premium',
+  });
+  const service = new BillingCheckoutService({ store, provider: {}, config });
+
+  await assert.rejects(
+    () => service.create({
+      userId: qaUser,
+      plan: 'pro',
+      paymentMode: 'one_time',
+      idempotencyKey: 'idemp_ult_1',
+    }),
+    (err) => err.status === 409 && err.code === 'active_higher_plan_exists'
+  );
+});
+
+// Test: Active Pro one-time subscriber blocked from Pro one-time create with 409 active_paid_entitlement_exists
+test('Existing paid user semantics: active Pro one-time blocked from Pro one-time create with 409 active_paid_entitlement_exists', async () => {
+  const env = validPayPalEnv();
+  const config = readConfig(env);
+  const qaUser = config.qaUserId;
+  const store = new MockCheckoutStore({
+    plan: 'pro',
+    paypalState: {
+      user_id: qaUser,
+      plan: 'pro',
+      status: 'active',
+      will_renew: false,
+      subscription_id: 'ORD-PRO-ACTIVE-1',
+      expires_at: new Date(Date.now() + 15 * 86400000).toISOString(),
+    },
+  });
+  const service = new BillingCheckoutService({ store, provider: {}, config });
+
+  await assert.rejects(
+    () => service.create({
+      userId: qaUser,
+      plan: 'pro',
+      paymentMode: 'one_time',
+      idempotencyKey: 'idemp_pro_stack_1',
+    }),
+    (err) => err.status === 409 && err.code === 'active_paid_entitlement_exists'
+  );
+});
+
+// Test: Active Pro one-time subscriber blocked from Ultimate one-time create for this release with 409 active_paid_entitlement_exists
+test('Existing paid user semantics: active Pro one-time blocked from Ultimate one-time create with 409 active_paid_entitlement_exists', async () => {
+  const env = validPayPalEnv();
+  const config = readConfig(env);
+  const qaUser = config.qaUserId;
+  const store = new MockCheckoutStore({
+    plan: 'pro',
+    paypalState: {
+      user_id: qaUser,
+      plan: 'pro',
+      status: 'active',
+      will_renew: false,
+      subscription_id: 'ORD-PRO-ACTIVE-1',
+      expires_at: new Date(Date.now() + 15 * 86400000).toISOString(),
+    },
+  });
+  const service = new BillingCheckoutService({ store, provider: {}, config });
+
+  await assert.rejects(
+    () => service.create({
+      userId: qaUser,
+      plan: 'premium',
+      paymentMode: 'one_time',
+      idempotencyKey: 'idemp_pro_to_ult_1',
+    }),
+    (err) => err.status === 409 && err.code === 'active_paid_entitlement_exists'
+  );
+});
+
+// Test: Expired one-time subscriber allowed to create one-time checkout
+test('Existing paid user semantics: expired one-time allowed to create one-time checkout', async () => {
+  const env = validPayPalEnv();
+  const config = readConfig(env);
+  const qaUser = config.qaUserId;
+  const store = new MockCheckoutStore({
+    plan: 'free',
+    paypalState: {
+      user_id: qaUser,
+      plan: 'pro',
+      status: 'active',
+      will_renew: false,
+      subscription_id: 'ORD-EXPIRED-1',
+      expires_at: new Date(Date.now() - 86400000).toISOString(),
+    },
+  });
+  const provider = {
+    createOrder: async () => ({
+      checkoutReference: 'ref_exp_1',
+      providerEnvironment: 'sandbox',
+      collectionMode: 'one_time',
+      providerTransactionId: 'ORD-NEW-AFTER-EXP',
+      checkoutUrl: 'https://www.sandbox.paypal.com/checkoutnow?token=TEST_EXP',
+    }),
+  };
+  const service = new BillingCheckoutService({ store, provider, config });
+
+  const res = await service.create({
+    userId: qaUser,
+    plan: 'pro',
+    paymentMode: 'one_time',
+    idempotencyKey: 'idemp_after_exp_1',
+  });
+  assert.equal(res.status, 'success');
+  assert.equal(res.data.plan, 'pro');
+});
+
+// Test: Free user allowed to create one-time checkout
+test('Existing paid user semantics: free user allowed to create one-time checkout', async () => {
+  const env = validPayPalEnv();
+  const config = readConfig(env);
+  const qaUser = config.qaUserId;
+  const store = new MockCheckoutStore({
+    plan: 'free',
+  });
+  const provider = {
+    createOrder: async () => ({
+      checkoutReference: 'ref_free_1',
+      providerEnvironment: 'sandbox',
+      collectionMode: 'one_time',
+      providerTransactionId: 'ORD-NEW-FREE-USER',
+      checkoutUrl: 'https://www.sandbox.paypal.com/checkoutnow?token=TEST_FREE',
+    }),
+  };
+  const service = new BillingCheckoutService({ store, provider, config });
+
+  const res = await service.create({
+    userId: qaUser,
+    plan: 'pro',
+    paymentMode: 'one_time',
+    idempotencyKey: 'idemp_free_user_1',
+  });
+  assert.equal(res.status, 'success');
+  assert.equal(res.data.plan, 'pro');
 });
