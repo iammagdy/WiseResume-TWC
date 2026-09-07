@@ -42,7 +42,7 @@
      - Public checkout: DISABLED (`BILLING_CHECKOUT_ENABLED=false`, `BILLING_CHECKOUT_PROVIDER_READY=false`).
      - Production PayPal: COMPLETELY UNTOUCHED.
   8. **What's New Decision:**
-     - `WHATS_NEW_NOT_REQUIRED`: PR is not deployed or merged to production; customer-facing release notes are not eligible until production deployment and live browser QA.
+     - `WHATS_NEW_DEFER_UNTIL_PRODUCTION`: Refund/reversal feature is merged into main, but not deployed, Appwrite schema not executed, and Sandbox refund/reversal runtime QA not performed; customer-facing release notes remain deferred until deployment and runtime / browser verification.
   9. **Next Step:**
      - Controlled schema provisioning and targeted paypal-webhook/coupons deployment planning followed by Sandbox runtime QA, requiring separate owner authorization.
 
