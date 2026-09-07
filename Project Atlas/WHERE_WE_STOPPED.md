@@ -1,48 +1,44 @@
 # Project Atlas — Active Operational & Handover State
 
 **Last Verified:** 2026-09-07
-**Status:** `PAYPAL_SCHEMA_KEY_LIMIT_FIX_READY_FOR_REVIEW` (Frontend: `DEPLOYED_TO_PRODUCTION` via Vercel, Backend: `PENDING_TARGETED_DEPLOYMENT`, Schema: `PARTIAL_SCHEMA_MUTATION_POSSIBLE_UNVERIFIED`, `PAYPAL_PRODUCTION_READY = NO`, Main Baseline: `0542db3f246b8d3ece002d5034858e9f831a3d5e`) — Appwrite 36-character attribute key limit fix implemented on branch `fix/paypal-appwrite-key-limit`: shortened `last_entitlement_payment_timestamp_ms` (37 chars) to `last_entitlement_payment_ts_ms` (31 chars <= 36) in `scripts/setup_paypal_schema.cjs`, `appwrite-hubs/paypal-webhook/src/main.js`, and test suites. Added fail-closed pre-mutation schema-key identifier validation (`APPWRITE_KEY_REGEX = /^[A-Za-z0-9][A-Za-z0-9._-]{0,35}$/`) in `setup_paypal_schema.cjs` before any remote database calls. First targeted deployment attempt (workflow run `34107206440`, target: `paypal-webhook`) failed at `Ensure PayPal subscription schema` with `APPWRITE_SCHEMA_KEY_LIMIT` due to the 37-char attribute identifier; live schema status is `PARTIAL_SCHEMA_MUTATION_POSSIBLE_UNVERIFIED`. All 134 webhook, 15 schema, 23 coupons, 371 hub, and 30 frontend tests passing. Recomputed `paypal-webhook` source hash in `src/lib/devkit/sourceHashes.generated.json`. Awaiting review and merge before re-attempting targeted deployment.
+**Status:** `COUPONS_SCHEMA_PREDEPLOY_HARDENING_READY_FOR_REVIEW` (Frontend: `DEPLOYED_TO_PRODUCTION` via Vercel, Backend: `paypal-webhook`: `DEPLOYED_SANDBOX` [run 34110889444], `coupons`: `PENDING_TARGETED_DEPLOYMENT`, PayPal Schema: `READY`, Coupon Schema Hardening: `IN_REVIEW` [branch `fix/coupon-schema-readiness`], PayPal Webhook Smoke: `PASS_FAIL_CLOSED` [HTTP 400], Sandbox refund QA: `NOT_PERFORMED`, Production PayPal: `UNTOUCHED`, `PAYPAL_PRODUCTION_READY = NO`, Base Main SHA: `2341c263a1570f94dbafd80e9e3c901b87d366eb`, Billing: `CHECKOUT_PREVIOUSLY_VERIFIED_DISABLED`) — Pre-deployment coupon schema hardening pass completed on branch `fix/coupon-schema-readiness`: added pre-mutation identifier validation (`APPWRITE_KEY_REGEX = /^[A-Za-z][A-Za-z0-9._-]{0,35}$/`), index readiness polling with `waitForIndexAvailable`, existing index compatibility verification, attribute compatibility validation with documented legacy `user_id` preservation, and server-only permissions enforcement. Zero coupon business logic modified; source hashes unchanged. All 16 coupon schema, 23 coupons subscription, 15 PayPal schema, 134 webhook, 384 all hub, and 30 frontend tests pass. Ready for review and PR before authorized targeted deployment of `coupons`.
 **Location:** `Project Atlas/WHERE_WE_STOPPED.md`
 
-## Current Active Handover — PayPal Appwrite 36-Char Schema Key Limit Fix (2026-09-07)
+## Current Active Handover — Coupon Schema Pre-Deployment Readiness Hardening (2026-09-07)
 
-* **Workstream:** `PAYPAL_SCHEMA_KEY_LIMIT_FIX_READY_FOR_REVIEW` (`MERGED_NOT_DEPLOYED`, `PAYPAL_PRODUCTION_READY = NO`).
-* **Active Branch:** `fix/paypal-appwrite-key-limit` (Target: `main`).
-* **Failed Deployment Baseline:** Workflow `deploy-appwrite-hubs.yml` run `34107206440` (target: `paypal-webhook`) failed during `Ensure PayPal subscription schema` (`APPWRITE_SCHEMA_KEY_LIMIT`) because `last_entitlement_payment_timestamp_ms` was 37 characters (limit: 36). Function deployment skipped. Live schema state: `PARTIAL_SCHEMA_MUTATION_POSSIBLE_UNVERIFIED`.
-* **Scope & Implementation:**
-  - **Key Identifier Rename:** Renamed `last_entitlement_payment_timestamp_ms` (37 chars) to `last_entitlement_payment_ts_ms` (31 chars <= 36) across schema definition (`scripts/setup_paypal_schema.cjs`), webhook handler (`appwrite-hubs/paypal-webhook/src/main.js`), and test suites.
-  - **Fail-Closed Pre-Mutation Identifier Validation:** Added `APPWRITE_KEY_REGEX = /^[A-Za-z0-9][A-Za-z0-9._-]{0,35}$/`, `isValidSchemaKey()`, `validateSchemaKey()`, and `validateCollectionSpecs()` to `scripts/setup_paypal_schema.cjs`. All attribute and index keys across all collection specs are validated before any remote database calls (`ensureCollection`, `run()`), preventing invalid schema keys from ever reaching Appwrite.
-  - **Full Refund of Current Entitlement-Bearing Payment:** Revokes current entitlement immediately (`expires_at = null`, `grace_period_expires_at = null`), preserves payment correlation identity (`last_entitlement_payment_id`, `last_entitlement_payment_ts_ms`), sets `renewal_cancellation_pending = true`, and initiates server-side provider cancellation (`POST /v1/billing/subscriptions/{id}/cancel`). Provider status remains truthful until cancellation converges (`status = 'canceled'`, `will_renew = false`, `renewal_cancellation_pending = false`). Transient failure returns retryable 5xx while keeping entitlement revoked.
-  - **Partial Refund & Direct Refund Convergence:** Preserves current entitlement and recurring renewal; recorded in ledger only (`partial_refund_recorded`). Relies strictly on PayPal's authoritative transaction status (`PARTIALLY_REFUNDED` preserves entitlement, `REFUNDED` triggers full refund policy) without local balance arithmetic. Direct refund provider status convergence: provider status `COMPLETED` and `PENDING` fail closed as retryable HTTP 503 (`provider_state_not_converged`); unknown/unsupported statuses fail closed as retryable HTTP 502 (`unsupported_provider_transaction_status`, zero entitlement mutation, not permanently 2xx-ignored).
-  - **Historical Refund/Reversal & Ordering Invariant:** When refunded/reversed `payment_id` is older than `last_entitlement_payment_id` and provider records / ledger confirm a newer payment supports entitlement, active state is untouched (`historical_refund_ignored` / `historical_reversal_ignored`). Historical payment ordering uses either `paypal_subscription_state.last_entitlement_payment_ts_ms` or `paypal_event_ledger.event_timestamp_ms` from the correlated `PAYMENT.SALE.COMPLETED` ledger event; provider `tx.time` is never used for ordering comparisons, preventing `NaN` misclassifications. For reversals, authoritative payment identity and timestamp are queried from the ledger `PAYMENT.SALE.COMPLETED` event by `payment_id` (not reversal webhook arrival time); delayed older reversals arriving after newer payments are ignored with zero state mutation, and unresolved historical correlation fails closed (`unresolved_historical_reversal_correlation`).
-  - **Current Reversal & Sale Identifier Contract:** Revokes entitlement immediately (`expires_at = null`), preserves truthful provider status (remains `active` if provider has not suspended/cancelled), preserves payment identity. `PAYMENT.SALE.REVERSED` extracts `paymentId` from `resource.id` (the affected sale transaction ID), while `resource.parent_payment` (e.g. `PAYID-...`) is captured as non-entitlement parent reference metadata. Missing `resource.id` fails closed.
-  - **Cancellation Pending Guard:** `PAYMENT.SALE.COMPLETED` events arriving while `renewal_cancellation_pending === true` are blocked from granting paid entitlement (`unexpected_payment_during_cancellation_pending`) and flag operational alert `UNEXPECTED_PAYMENT_DURING_REFUND_CLOSURE = OWNER/OPERATIONS_REVIEW_REQUIRED`.
-  - **Tombstone Lookup, Precedence & Eventual Consistency:** `PAYMENT.SALE.COMPLETED` checks ledger for refund/reversal tombstones with canonical identity verification (`subscription_id`, `user_id`). Environment isolation is enforced by the hard Sandbox runtime gate at entry. Conflicting identity fails closed (`ambiguous_payment_ledger_correlation`). Missing schema attributes/indices or database errors fail closed as retryable 503 (`tombstone_lookup_failed`) with zero entitlement granted. Verified `PAYMENT.SALE.REVERSED` ledger tombstones take strict precedence over refund tombstones (`reversal > refund`), immediately dropping sale activation (`sale_already_refunded`) without calling Transactions API. For refund tombstones, Transactions API status `REFUNDED` drops activation (`sale_already_refunded`); `PARTIALLY_REFUNDED` allows normal sale activation; unconverged `COMPLETED` fails closed as retryable 503 (`provider_state_not_converged`) with zero entitlement granted; unsupported/unknown statuses fail closed as 502 (`unsupported_provider_transaction_status`).
-  - **Transactions API Pagination Contract & True Legacy Migration-on-Touch:** Calls `GET /v1/billing/subscriptions/{id}/transactions` strictly with `start_time` and `end_time`, supporting optional explicit ranges for legacy state migration. Uses HATEOAS `rel="next"` links with strict HTTPS / path validation and safety limit `MAX_TRANSACTION_PAGE_FOLLOWS = 5` (bounding lookups to a maximum of 5 pages examined). Legacy states with null `last_entitlement_payment_id` fetch provider `start_time` via `GET /v1/billing/subscriptions/{id}` and query transactions from provider `start_time` to `nowMs` to populate payment identity; malformed or missing timestamps fail closed (`unresolved_legacy_payment_correlation` or 502 `invalid_provider_transaction_time`).
-  - **Additive Schema Definition:** `setup_paypal_schema.cjs` updated with additive attributes `last_entitlement_payment_id` (indexed with `last_payment_idx` ASC), `last_entitlement_payment_ts_ms` (31 chars), `renewal_cancellation_pending` on `paypal_subscription_state`, and `payment_id` (indexed with `payment_idx` ASC) on `paypal_event_ledger`.
-  - **Coupons & Frontend Surface:** `coupons` surfaces `renewal_cancellation_pending`; `useMe.ts` exposes it; `SubscriptionPage.tsx` suppresses "You have an active Free subscription" and displays neutral message: *"Your paid access has ended. Your subscription cancellation is still being confirmed."*
-  - **Subscription Resolver:** Unchanged (`@wiseresume/subscription-resolver`).
+* **Workstream:** `COUPONS_SCHEMA_PREDEPLOY_HARDENING_READY_FOR_REVIEW` (`BRANCH_READY_FOR_REVIEW`, `PAYPAL_PRODUCTION_READY = NO`).
+* **Active Branch:** `fix/coupon-schema-readiness` (Target: `main`, Base Main SHA: `2341c263a1570f94dbafd80e9e3c901b87d366eb`).
+* **Runtime Deployment Context:**
+  - `paypal-webhook`: **DEPLOYED_SANDBOX** via workflow `deploy-appwrite-hubs.yml` run `34110889444` (status: `READY`, deployment `6a9e90018dfcbf3f35a4`).
+  - PayPal Schema: **READY** in Appwrite (`paypal_subscription_state` and `paypal_event_ledger` reconciled).
+  - `paypal-webhook` Smoke: **PASS_FAIL_CLOSED** (safe HTTP 400 on unauthenticated payload).
+  - `coupons`: **PENDING_TARGETED_DEPLOYMENT** (pending review, merge, and owner deployment authorization).
+  - Coupon Schema Hardening: **IN_REVIEW** (branch `fix/coupon-schema-readiness`).
+  - Sandbox Refund QA: **NOT_PERFORMED**.
+  - Production PayPal: **UNTOUCHED** (`PAYPAL_PRODUCTION_READY = NO`).
+  - Public Checkout: **CHECKOUT_PREVIOUSLY_VERIFIED_DISABLED** (`BILLING_CHECKOUT_ENABLED=false`).
+* **Scope & Implementation Details:**
+  1. **Pre-Mutation Identifier Preflight Validation:** Added `APPWRITE_KEY_REGEX = /^[A-Za-z][A-Za-z0-9._-]{0,35}$/`, `isValidSchemaKey()`, `validateSchemaKey()`, and `validateCollectionSpecs()` to `scripts/setup_discount_codes_schema.cjs`. Validates all collection IDs (`discount_codes`, `coupon_redemptions`), attribute keys, and index keys upfront before ANY remote database calls.
+  2. **Index Readiness Polling:** Added `waitForIndexAvailable(databasesInstance, collId, key, maxRetries = 30, delayMs = 500)` polling `databases.listIndexes`. Continues polling while status is `processing` or `building`, returns immediately when status is `available`, fails closed immediately when status is `failed`, and throws deterministic timeout if retry limit is exceeded.
+  3. **Index Availability Enforcement for All Indexes:** Both `discount_codes.code_unique` (unique on `code`) and `coupon_redemptions.discount_code_idx` (key on `discount_code_id`) wait for availability whether newly created or previously existing. Schema setup script does not print final completion until all indexes are verified available.
+  4. **Existing Index Compatibility Verification:** Validates `type` and `attributes` of existing indexes via `indexCompatibilityError`. Fails closed with sanitized error if incompatible. Does not delete, drop, or recreate indexes automatically.
+  5. **Attribute Compatibility Validation:** Validates existing attributes against specifications (`type`, `required`, `size`, `default`). Preserves documented legacy exception: `coupon_redemptions.user_id` allows oversized legacy string lengths (e.g. 255 or 65000) without breaking existing data, while rejecting non-string types or undersized attributes.
+  6. **Server-Only Access Enforcement:** Enforces server-only permissions (`permissions = []`, `documentSecurity = false`) via `assertServerOnlyCollection`.
+  7. **Preservation of Business Logic:** `appwrite-hubs/coupons/src/main.js` is completely untouched. Surfaces `renewal_cancellation_pending` in `getMySubscription` unchanged. DevKit source hashes in `src/lib/devkit/sourceHashes.generated.json` remain unchanged.
 * **Test Verification Baseline:**
-  - `node --test tests/hubs/paypal-schema.test.cjs`: 15 / 15 passing (100%, +2 schema key validation tests: 36-char valid, 37-char rejected, invalid characters rejected, pre-mutation validation verified).
+  - `node --test tests/hubs/coupon-schema.test.cjs`: 16 / 16 passing (100%, +13 new tests covering requirements A through M).
   - `node --test tests/hubs/coupons-subscription.test.cjs`: 23 / 23 passing (100%).
-  - `node --test tests/hubs/paypal-webhook.test.cjs`: 134 / 134 passing (100%), including 53-case refund/reversal/tombstone/pagination/legacy/reversal-hardening matrix.
-  - All hub test suites (`node --test tests/hubs/*.test.cjs`): 371 / 371 passing across 58 suites (100%).
-  - `npx vitest run src/pages/__tests__/SubscriptionPage.paypal.test.tsx`: 30 / 30 passing (100%).
-  - `npx tsc --noEmit`: PASS (0 errors).
-  - `npm run build`: PASS (clean production build, 0 sourcemaps).
-  - DevKit source hashes: `src/lib/devkit/sourceHashes.generated.json` recomputed and verified (`paypal-webhook: b6500e96e000a6322a76abbe05eea5a6b05224c7de9252a86be35204a2c1ab6e`).
-* **Operational Boundaries & Constraints:**
-  - Frontend: DEPLOYED_TO_PRODUCTION via Vercel (current main SHA `0542db3f246b8d3ece002d5034858e9f831a3d5e`).
-  - Appwrite Deployments: ZERO succeeded (first targeted deployment run `34107206440` failed during schema step; function deployment skipped).
-  - Appwrite Schema Mutation: `PARTIAL_SCHEMA_MUTATION_POSSIBLE_UNVERIFIED` (prior attributes in `setup_paypal_schema.cjs` may have been created before 37-character attribute failure).
-  - PayPal Mutations: ZERO against real accounts/subscriptions.
-  - Public Checkout Gate: CHECKOUT_PREVIOUSLY_VERIFIED_DISABLED.
-  - Production PayPal: COMPLETELY UNTOUCHED (`PAYPAL_PRODUCTION_READY = NO`).
-  - PR Merges: PR #301 (`69b31c0d`), PR #303 (`84aa793d`), PR #304 (`0542db3f`).
-* **What's New Decision:**
-  - `WHATS_NEW_DEFER_UNTIL_PRODUCTION`: Option B refund and reversal provider-contract hardening is merged into main, but production deployment and live browser QA are pending.
-* **Next Workstream / Next Action:**
-  - Code review and merge of PR for branch `fix/paypal-appwrite-key-limit`, followed by owner-authorized targeted deployment retry and Sandbox runtime QA.
+  - `node --test tests/hubs/paypal-schema.test.cjs`: 15 / 15 passing (100%).
+  - `node --test tests/hubs/paypal-webhook.test.cjs`: 134 / 134 passing (100%).
+  - Full hub suites (`node --test tests/hubs/*.test.cjs`): 384 / 384 passing across 58 suites (100%).
+  - Frontend Vitest suite: 30 / 30 passing (100%).
+  - TypeScript typecheck (`tsc --noEmit`): PASS (0 errors).
+  - Production build (`npm run build`): PASS (clean production build, 0 sourcemaps).
+* **Next Action:** Code review and PR creation for branch `fix/coupon-schema-readiness`, followed by owner merge and authorized targeted deployment of `coupons`.
+
+---
+
+## Historical Handover — PayPal Appwrite 36-Char Schema Key Limit Fix (2026-09-07)
 
 ---
 

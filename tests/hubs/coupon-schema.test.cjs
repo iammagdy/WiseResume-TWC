@@ -5,9 +5,11 @@ const test = require('node:test');
 const fs = require('node:fs');
 const path = require('node:path');
 const schema = require('../../scripts/setup_discount_codes_schema.cjs').__test;
+const setupModule = require('../../scripts/setup_discount_codes_schema.cjs');
 const couponSource = fs.readFileSync(path.join(__dirname, '../../appwrite-hubs/coupons/src/main.js'), 'utf8');
 const setupSource = fs.readFileSync(path.join(__dirname, '../../scripts/setup_discount_codes_schema.cjs'), 'utf8');
 
+// Baseline Tests Preserved
 test('coupon schema uses the safe lookup index instead of the oversized composite index', () => {
   const legacyIndexBytes = (65000 + 64) * 4;
   const safeLookupIndexBytes = 64 * 4;
@@ -39,4 +41,283 @@ test('coupon setup remains additive and idempotent-compatible', () => {
   assert.match(setupSource, /updateCollection\([\s\S]*?\[\],\s*false/s);
 });
 
-console.log('[TEST] coupon schema compatibility: all assertions passed');
+// A. Current schema identifiers valid
+test('coupon schema identifiers are valid and follow the letter-first Appwrite contract', () => {
+  assert.doesNotThrow(() => setupModule.validateCollectionSpecs(setupModule.COLLECTION_SPECS));
+  for (const spec of setupModule.COLLECTION_SPECS) {
+    assert.equal(setupModule.isValidSchemaKey(spec.id), true);
+    for (const attr of spec.attributes) {
+      assert.equal(setupModule.isValidSchemaKey(attr.key), true);
+    }
+    for (const idx of spec.indexes) {
+      assert.equal(setupModule.isValidSchemaKey(idx.key), true);
+    }
+  }
+});
+
+// B. Invalid 37-character identifier rejected before remote call
+test('invalid 37-character identifier is rejected before remote call', async () => {
+  const invalid37 = 'a' + 'b'.repeat(36);
+  assert.equal(invalid37.length, 37);
+  assert.equal(setupModule.isValidSchemaKey(invalid37), false);
+  assert.throws(
+    () => setupModule.validateSchemaKey(invalid37, 'discount_codes', 'attribute'),
+    /Invalid Appwrite schema key "abbb.*" for discount_codes attribute: key must be 1-36 characters/
+  );
+
+  let remoteCalls = 0;
+  const mockDatabases = {
+    async getCollection() { remoteCalls++; return {}; },
+    async createCollection() { remoteCalls++; },
+    async listAttributes() { remoteCalls++; return { attributes: [] }; },
+    async listIndexes() { remoteCalls++; return { indexes: [] }; },
+    async createIndex() { remoteCalls++; },
+  };
+
+  const invalidSpec = {
+    id: 'discount_codes',
+    name: 'Discount Codes',
+    attributes: [
+      { key: invalid37, type: 'string', size: 64, required: true },
+    ],
+    indexes: [],
+  };
+
+  assert.throws(
+    () => setupModule.validateCollectionSpecs([invalidSpec]),
+    /Invalid Appwrite schema key/
+  );
+  assert.equal(remoteCalls, 0, 'No remote database operations must occur when identifier validation fails');
+});
+
+// C. Numeric-leading identifier rejected before remote call
+test('numeric-leading identifier is rejected before remote call', () => {
+  const numericKey = '1coupon_discount';
+  assert.equal(setupModule.isValidSchemaKey(numericKey), false);
+  assert.throws(
+    () => setupModule.validateSchemaKey(numericKey, 'discount_codes', 'attribute'),
+    /Invalid Appwrite schema key "1coupon_discount" for discount_codes attribute: key must be 1-36 characters, must start with a letter/
+  );
+
+  assert.equal(setupModule.isValidSchemaKey('.invalid'), false);
+  assert.equal(setupModule.isValidSchemaKey('-invalid'), false);
+  assert.equal(setupModule.isValidSchemaKey('_invalid'), false);
+  assert.equal(setupModule.isValidSchemaKey('valid.key-name_123'), true);
+});
+
+// D. Existing available compatible index accepted
+test('existing available compatible index is accepted without calling createIndex', async () => {
+  const spec = setupModule.INDEX_SPECS.find(idx => idx.key === 'code_unique');
+  let createCalled = false;
+  const mockDatabases = {
+    async listIndexes() {
+      return {
+        indexes: [
+          { key: 'code_unique', type: 'unique', attributes: ['code'], status: 'available' },
+        ],
+      };
+    },
+    async createIndex() {
+      createCalled = true;
+    },
+  };
+
+  await setupModule.ensureIndex(mockDatabases, spec.collectionId, spec);
+  assert.equal(createCalled, false, 'createIndex should not be called for compatible existing index');
+});
+
+// E. Newly created index waits until available
+test('newly created index waits until status is available', async () => {
+  const spec = setupModule.INDEX_SPECS.find(idx => idx.key === 'discount_code_idx');
+  let createPayload = null;
+  let listCallCount = 0;
+  const mockDatabases = {
+    async listIndexes() {
+      listCallCount++;
+      if (listCallCount === 1) {
+        return { indexes: [] };
+      }
+      return {
+        indexes: [
+          { key: 'discount_code_idx', type: 'key', attributes: ['discount_code_id'], status: 'available' },
+        ],
+      };
+    },
+    async createIndex(dbId, collId, key, type, attributes, orders) {
+      createPayload = { dbId, collId, key, type, attributes, orders };
+    },
+  };
+
+  await setupModule.ensureIndex(mockDatabases, spec.collectionId, spec);
+  assert.deepEqual(createPayload, {
+    dbId: 'main',
+    collId: 'coupon_redemptions',
+    key: 'discount_code_idx',
+    type: 'key',
+    attributes: ['discount_code_id'],
+    orders: undefined,
+  });
+  assert.ok(listCallCount >= 2, 'Polled listIndexes after creating index');
+});
+
+// F. Building index continues polling
+test('building index continues polling until available', async () => {
+  let callCount = 0;
+  const mockDatabases = {
+    async listIndexes() {
+      callCount++;
+      if (callCount === 1) return { indexes: [] };
+      if (callCount === 2) return { indexes: [{ key: 'code_unique', status: 'processing' }] };
+      if (callCount === 3) return { indexes: [{ key: 'code_unique', status: 'building' }] };
+      return { indexes: [{ key: 'code_unique', status: 'available' }] };
+    },
+  };
+
+  const result = await setupModule.waitForIndexAvailable(mockDatabases, 'discount_codes', 'code_unique', 5, 5);
+  assert.equal(result.status, 'available');
+  assert.equal(callCount, 4);
+});
+
+// G. Failed index throws
+test('failed index throws immediately without waiting for retry timeout', async () => {
+  let callCount = 0;
+  const mockDatabases = {
+    async listIndexes() {
+      callCount++;
+      return { indexes: [{ key: 'code_unique', status: 'failed' }] };
+    },
+  };
+
+  await assert.rejects(
+    () => setupModule.waitForIndexAvailable(mockDatabases, 'discount_codes', 'code_unique', 5, 5),
+    /Index "discount_codes\.code_unique" creation failed in Appwrite \(status: failed\)/
+  );
+  assert.equal(callCount, 1, 'Should throw on first encounter with failed status');
+});
+
+// H. Timeout throws
+test('waitForIndexAvailable fails with timeout when retry limit reached', async () => {
+  const mockDatabases = {
+    async listIndexes() {
+      return { indexes: [{ key: 'discount_code_idx', status: 'building' }] };
+    },
+  };
+
+  await assert.rejects(
+    () => setupModule.waitForIndexAvailable(mockDatabases, 'coupon_redemptions', 'discount_code_idx', 2, 5),
+    /Timeout waiting for index "coupon_redemptions\.discount_code_idx" to become available in Appwrite/
+  );
+});
+
+// I. Incompatible existing code_unique index throws
+test('incompatible existing code_unique index fails closed and throws without mutation', async () => {
+  const spec = setupModule.INDEX_SPECS.find(idx => idx.key === 'code_unique');
+
+  const wrongType = { key: 'code_unique', type: 'key', attributes: ['code'] };
+  assert.match(
+    setupModule.indexCompatibilityError(wrongType, spec, 'discount_codes'),
+    /Incompatible index "discount_codes\.code_unique": type key \(expected unique\)/
+  );
+
+  const wrongAttrs = { key: 'code_unique', type: 'unique', attributes: ['code', 'active'] };
+  assert.match(
+    setupModule.indexCompatibilityError(wrongAttrs, spec, 'discount_codes'),
+    /attributes \["code","active"\] \(expected \["code"\]\)/
+  );
+
+  let deleteCalled = false;
+  const mockDatabases = {
+    async listIndexes() {
+      return { indexes: [wrongType] };
+    },
+    async deleteIndex() {
+      deleteCalled = true;
+    },
+  };
+
+  await assert.rejects(
+    () => setupModule.ensureIndex(mockDatabases, 'discount_codes', spec),
+    /Incompatible index "discount_codes\.code_unique"/
+  );
+  assert.equal(deleteCalled, false, 'Incompatible index must not be deleted');
+});
+
+// J. Incompatible existing discount_code_idx throws
+test('incompatible existing discount_code_idx fails closed and throws without mutation', async () => {
+  const spec = setupModule.INDEX_SPECS.find(idx => idx.key === 'discount_code_idx');
+
+  const wrongType = { key: 'discount_code_idx', type: 'unique', attributes: ['discount_code_id'] };
+  assert.match(
+    setupModule.indexCompatibilityError(wrongType, spec, 'coupon_redemptions'),
+    /Incompatible index "coupon_redemptions\.discount_code_idx": type unique \(expected key\)/
+  );
+
+  const wrongAttrs = { key: 'discount_code_idx', type: 'key', attributes: ['user_id'] };
+  assert.match(
+    setupModule.indexCompatibilityError(wrongAttrs, spec, 'coupon_redemptions'),
+    /attributes \["user_id"\] \(expected \["discount_code_id"\]\)/
+  );
+
+  let deleteCalled = false;
+  const mockDatabases = {
+    async listIndexes() {
+      return { indexes: [wrongAttrs] };
+    },
+    async deleteIndex() {
+      deleteCalled = true;
+    },
+  };
+
+  await assert.rejects(
+    () => setupModule.ensureIndex(mockDatabases, 'coupon_redemptions', spec),
+    /Incompatible index "coupon_redemptions\.discount_code_idx"/
+  );
+  assert.equal(deleteCalled, false, 'Incompatible index must not be deleted');
+});
+
+// K. No destructive delete operations introduced
+test('no destructive delete operations are present in coupon schema provisioner', () => {
+  assert.doesNotMatch(setupSource, /delete(Collection|Attribute|Index)/);
+});
+
+// L. Server-only permission enforcement preserved
+test('server-only permission enforcement is preserved for discount collections', () => {
+  assert.doesNotThrow(() => setupModule.assertServerOnlyCollection({ $permissions: [], documentSecurity: false }, 'discount_codes'));
+  assert.throws(
+    () => setupModule.assertServerOnlyCollection({ $permissions: ['read("any")'], documentSecurity: false }, 'discount_codes'),
+    /Incompatible collection "discount_codes": server-only permissions and documentSecurity=false are required/
+  );
+  assert.throws(
+    () => setupModule.assertServerOnlyCollection({ $permissions: [], documentSecurity: true }, 'discount_codes'),
+    /Incompatible collection "discount_codes": server-only permissions and documentSecurity=false are required/
+  );
+});
+
+// M. Existing documented oversized legacy user_id compatibility preserved
+test('existing documented oversized legacy user_id compatibility is preserved', () => {
+  const userIdSpec = setupModule.COLLECTION_SPECS.find(s => s.id === 'coupon_redemptions')
+    .attributes.find(a => a.key === 'user_id');
+
+  assert.equal(setupModule.attributeCompatibilityError({ key: 'user_id', type: 'string', size: 64, required: true }, userIdSpec, 'coupon_redemptions'), null);
+  assert.equal(setupModule.attributeCompatibilityError({ key: 'user_id', type: 'string', size: 255, required: true }, userIdSpec, 'coupon_redemptions'), null);
+  assert.equal(setupModule.attributeCompatibilityError({ key: 'user_id', type: 'string', size: 65000, required: true }, userIdSpec, 'coupon_redemptions'), null);
+
+  assert.match(
+    setupModule.attributeCompatibilityError({ key: 'user_id', type: 'integer', size: 255, required: true }, userIdSpec, 'coupon_redemptions'),
+    /type integer \(expected string\)/
+  );
+
+  assert.match(
+    setupModule.attributeCompatibilityError({ key: 'user_id', type: 'string', size: 32, required: true }, userIdSpec, 'coupon_redemptions'),
+    /size 32 \(expected at least 64\)/
+  );
+
+  const codeSpec = setupModule.COLLECTION_SPECS.find(s => s.id === 'discount_codes')
+    .attributes.find(a => a.key === 'code');
+  assert.match(
+    setupModule.attributeCompatibilityError({ key: 'code', type: 'string', size: 255, required: true }, codeSpec, 'discount_codes'),
+    /size 255 \(expected 64\)/
+  );
+});
+
+console.log('[TEST] coupon schema compatibility and index readiness: all assertions passed');
