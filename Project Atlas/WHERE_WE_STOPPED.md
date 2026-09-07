@@ -1,10 +1,46 @@
 # Project Atlas — Active Operational & Handover State
 
 **Last Verified:** 2026-09-07
-**Status:** `COUPONS_SCHEMA_PREDEPLOY_HARDENING_READY_FOR_REVIEW` (Frontend: `DEPLOYED_TO_PRODUCTION` via Vercel, Backend: `paypal-webhook`: `DEPLOYED_SANDBOX` [run 34110889444], `coupons`: `PENDING_TARGETED_DEPLOYMENT`, PayPal Schema: `READY`, Coupon Schema Hardening: `IN_REVIEW` [branch `fix/coupon-schema-readiness`], PayPal Webhook Smoke: `PASS_FAIL_CLOSED` [HTTP 400], Sandbox refund QA: `NOT_PERFORMED`, Production PayPal: `UNTOUCHED`, `PAYPAL_PRODUCTION_READY = NO`, Base Main SHA: `2341c263a1570f94dbafd80e9e3c901b87d366eb`, Billing: `CHECKOUT_PREVIOUSLY_VERIFIED_DISABLED`) — Pre-deployment coupon schema hardening pass completed on branch `fix/coupon-schema-readiness`: added pre-mutation identifier validation (`APPWRITE_KEY_REGEX = /^[A-Za-z][A-Za-z0-9._-]{0,35}$/`), index readiness polling with `waitForIndexAvailable`, existing index compatibility verification, attribute compatibility validation with documented legacy `user_id` preservation, and server-only permissions enforcement. Zero coupon business logic modified; source hashes unchanged. All 16 coupon schema, 23 coupons subscription, 15 PayPal schema, 134 webhook, 384 all hub, and 30 frontend tests pass. Ready for review and PR before authorized targeted deployment of `coupons`.
+**Status:** `COUPON_LIVE_SCHEMA_COMPAT_READY_FOR_REVIEW` (Frontend: `DEPLOYED_TO_PRODUCTION` via Vercel, Backend: `paypal-webhook`: `DEPLOYED_SANDBOX` [run 34110889444], `coupons`: `PENDING_TARGETED_DEPLOYMENT`, PayPal Schema: `READY`, Coupon Schema Compat: `IN_REVIEW` [branch `fix/coupon-live-schema-compat`], PayPal Webhook Smoke: `PASS_FAIL_CLOSED` [HTTP 400], Sandbox refund QA: `NOT_PERFORMED_YET`, Production PayPal: `UNTOUCHED`, `PAYPAL_PRODUCTION_READY = NO`, Base Main SHA: `ac8172fa226d5eadc29163b54edf5511463e6575`, Billing: `CHECKOUT_PREVIOUSLY_VERIFIED_DISABLED`) — Implemented narrow non-destructive legacy schema compatibility in `scripts/setup_discount_codes_schema.cjs` on branch `fix/coupon-live-schema-compat`: accepts proven live `discount_codes.code` size 50 (or 64, required=true) and live `coupon_redemptions.user_id` optional status (`required=false` or `true`, size >= 64). All other fields remain strictly fail-closed. 16/16 coupon schema tests pass. All 384 hub tests pass. Ready for review, merge, and targeted coupons deployment retry.
 **Location:** `Project Atlas/WHERE_WE_STOPPED.md`
 
-## Current Active Handover — Coupon Schema Pre-Deployment Readiness Hardening (2026-09-07)
+## Current Active Handover — Coupon Live Schema Compatibility Fix (2026-09-07)
+
+* **Workstream:** `COUPON_LIVE_SCHEMA_COMPAT_READY_FOR_REVIEW` (`BRANCH_READY_FOR_REVIEW`, `PAYPAL_PRODUCTION_READY = NO`).
+* **Active Branch:** `fix/coupon-live-schema-compat` (Target: `main`, Base Main SHA: `ac8172fa226d5eadc29163b54edf5511463e6575`).
+* **Runtime Deployment Context:**
+  - `paypal-webhook`: **DEPLOYED_SANDBOX** via workflow `deploy-appwrite-hubs.yml` run `34110889444` (status: `READY`, deployment `6a9e90018dfcbf3f35a4`).
+  - PayPal Schema: **READY** in Appwrite (`paypal_subscription_state` and `paypal_event_ledger` reconciled).
+  - `paypal-webhook` Smoke: **PASS_FAIL_CLOSED** (safe HTTP 400 on unauthenticated payload).
+  - PR #306: **MERGED** into `main` at merge SHA `ac8172fa226d5eadc29163b54edf5511463e6575`.
+  - Targeted Coupons Deployment Attempt (run `34113008193`): **FAILED_SCHEMA_COMPATIBILITY** at `Ensure coupon security schema` with `Incompatible attribute "discount_codes.code": size 50 (expected 64)`. Function deployment safely skipped.
+  - Known Second Legacy Live Fact: `coupon_redemptions.user_id` is an existing string size 65000 and optional (`required=false`) in live Appwrite.
+  - `coupons` Hub: **PENDING_TARGETED_DEPLOYMENT** (retry after merging this live compatibility fix).
+  - Sandbox Refund QA: **NOT_PERFORMED_YET**.
+  - Production PayPal: **UNTOUCHED** (`PAYPAL_PRODUCTION_READY = NO`).
+  - Public Checkout: **CHECKOUT_PREVIOUSLY_VERIFIED_DISABLED** (`BILLING_CHECKOUT_ENABLED=false`).
+* **Scope & Implementation Details:**
+  1. **Narrow Legacy Attribute Compatibility in `scripts/setup_discount_codes_schema.cjs`:**
+     - `discount_codes.code`: Accepts existing live string attribute with size 50 (or 64), `required=true`.
+     - `coupon_redemptions.user_id`: Accepts existing live string attribute with `required=false` (or `true`), size >= 64 (preserving live size 65000).
+     - All other attributes remain strictly fail-closed against exact spec definitions.
+  2. **Zero Destructive Schema Operations:** No collections, attributes, or indexes are deleted or recreated.
+  3. **Zero Coupons Business Logic Changed:** `appwrite-hubs/coupons/src/main.js` and `sourceHashes.generated.json` untouched.
+  4. **Follow-Up Recorded:** `COUPON_CODE_MAX_LENGTH_ALIGNMENT_FOLLOWUP` (align admin code creation with 50-char limit if needed post-launch).
+* **Test Verification Baseline:**
+  - `node --test tests/hubs/coupon-schema.test.cjs`: 16 / 16 passing (100%, covering all 12 live and non-legacy contract cases).
+  - `node --test tests/hubs/coupons-subscription.test.cjs`: 23 / 23 passing (100%).
+  - `node --test tests/hubs/paypal-schema.test.cjs`: 15 / 15 passing (100%).
+  - `node --test tests/hubs/paypal-webhook.test.cjs`: 134 / 134 passing (100%).
+  - Full hub suites (`node --test tests/hubs/*.test.cjs`): 384 / 384 passing across 58 suites (100%).
+  - Frontend Vitest suite: 30 / 30 passing (100%).
+  - TypeScript typecheck (`tsc --noEmit`): PASS (0 errors).
+  - Production build (`npm run build`): PASS (clean build, 0 sourcemaps).
+* **Next Action:** Review and merge PR for `fix/coupon-live-schema-compat`, synchronize main, retry targeted `coupons` deployment, and proceed with Sandbox QA.
+
+---
+
+## Historical Handover — Coupon Schema Pre-Deployment Readiness Hardening (2026-09-07)
 
 * **Workstream:** `COUPONS_SCHEMA_PREDEPLOY_HARDENING_READY_FOR_REVIEW` (`BRANCH_READY_FOR_REVIEW`, `PAYPAL_PRODUCTION_READY = NO`).
 * **Active Branch:** `fix/coupon-schema-readiness` (Target: `main`, Base Main SHA: `2341c263a1570f94dbafd80e9e3c901b87d366eb`).
