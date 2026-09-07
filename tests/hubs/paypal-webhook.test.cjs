@@ -1747,6 +1747,19 @@ test('Option B 09: historical reversal does not mutate active state', async () =
     latest_event_timestamp_ms: nowMs + 10000,
   });
 
+  // Seed historical sale in ledger
+  const oldSaleDocId = paypalWebhook.__test.ledgerDocumentId('EVT-SALE-09-OLD');
+  db.collections.paypal_event_ledger.set(oldSaleDocId, {
+    $id: oldSaleDocId,
+    event_id: 'EVT-SALE-09-OLD',
+    event_type: 'PAYMENT.SALE.COMPLETED',
+    subscription_id: 'I-SUB-09',
+    payment_id: 'TX-PAY-09-OLD',
+    event_timestamp_ms: nowMs,
+    processing_status: 'processed',
+    outcome_code: 'sale_activated',
+  });
+
   const reverseEvent = normalizeEvent({
     id: 'EVT-REV-09',
     event_type: 'PAYMENT.SALE.REVERSED',
@@ -1773,6 +1786,132 @@ test('Option B 09: historical reversal does not mutate active state', async () =
   const state = db.collections.paypal_subscription_state.get(stateDocId);
   assert.equal(state.status, 'active');
   assert.equal(state.expires_at, expiryIso);
+});
+
+test('Option B 09b: delayed historical reversal arriving after newer payment timestamp ignores reversal and preserves entitlement (Blocker 1)', async () => {
+  const db = createMockDatabases();
+  const users = createMockUsers();
+  const oldPaymentMs = Date.parse('2026-07-20T12:00:00.000Z');
+  const newPaymentMs = Date.parse('2026-09-03T12:00:00.000Z'); // >30 days later
+  const reversalArrivalMs = Date.parse('2026-10-15T12:00:00.000Z'); // Arrives AFTER new payment timestamp!
+  const expiryIso = '2026-11-03T12:00:00.000Z';
+  const stateDocId = paypalWebhook.__test.stateDocumentId(QA_USER_ID);
+
+  db.collections.paypal_subscription_state.set(stateDocId, {
+    $id: stateDocId,
+    user_id: QA_USER_ID,
+    subscription_id: 'I-SUB-09B',
+    plan: 'premium',
+    plan_id: SANDBOX_ULTIMATE_PLAN_ID,
+    environment: 'sandbox',
+    status: 'active',
+    expires_at: expiryIso,
+    will_renew: true,
+    last_entitlement_payment_id: 'TX-PAY-09B-NEW',
+    last_entitlement_payment_timestamp_ms: newPaymentMs,
+    renewal_cancellation_pending: false,
+    latest_event_timestamp_ms: newPaymentMs,
+  });
+
+  // Ledger contains authoritative historical sale for OLD_PAYMENT
+  const oldSaleDocId = paypalWebhook.__test.ledgerDocumentId('EVT-SALE-09B-OLD');
+  db.collections.paypal_event_ledger.set(oldSaleDocId, {
+    $id: oldSaleDocId,
+    event_id: 'EVT-SALE-09B-OLD',
+    event_type: 'PAYMENT.SALE.COMPLETED',
+    subscription_id: 'I-SUB-09B',
+    payment_id: 'TX-PAY-09B-OLD',
+    event_timestamp_ms: oldPaymentMs,
+    processing_status: 'processed',
+    outcome_code: 'sale_activated',
+  });
+
+  let cancelerCalled = false;
+  const reverseEvent = normalizeEvent({
+    id: 'EVT-REV-09B',
+    event_type: 'PAYMENT.SALE.REVERSED',
+    create_time: new Date(reversalArrivalMs).toISOString(), // > newPaymentMs
+    resource: {
+      id: 'TX-REV-09B',
+      parent_payment: 'TX-PAY-09B-OLD',
+      billing_agreement_id: 'I-SUB-09B',
+    },
+  });
+
+  const res = await processWebhookEvent({
+    databases: db,
+    users,
+    event: reverseEvent,
+    nowMs: reversalArrivalMs + 1000,
+    env: TEST_ENV,
+    subscriptionCanceler: async () => {
+      cancelerCalled = true;
+    },
+  });
+
+  assert.equal(cancelerCalled, false, 'Provider cancellation must be ZERO');
+  assert.equal(res.outcome, 'ignored');
+  assert.equal(res.code, 'historical_reversal_ignored');
+  assert.equal(res.mutated, false);
+
+  const state = db.collections.paypal_subscription_state.get(stateDocId);
+  assert.equal(state.status, 'active');
+  assert.equal(state.expires_at, expiryIso);
+  assert.equal(state.last_entitlement_payment_id, 'TX-PAY-09B-NEW');
+  assert.equal(state.last_entitlement_payment_timestamp_ms, newPaymentMs);
+});
+
+test('Option B 09c: historical reversal with missing historical sale evidence fails closed with zero mutation (Blocker 1)', async () => {
+  const db = createMockDatabases();
+  const users = createMockUsers();
+  const newPaymentMs = Date.parse('2026-09-03T12:00:00.000Z');
+  const expiryIso = '2026-10-03T12:00:00.000Z';
+  const stateDocId = paypalWebhook.__test.stateDocumentId(QA_USER_ID);
+
+  db.collections.paypal_subscription_state.set(stateDocId, {
+    $id: stateDocId,
+    user_id: QA_USER_ID,
+    subscription_id: 'I-SUB-09C',
+    plan: 'premium',
+    plan_id: SANDBOX_ULTIMATE_PLAN_ID,
+    environment: 'sandbox',
+    status: 'active',
+    expires_at: expiryIso,
+    will_renew: true,
+    last_entitlement_payment_id: 'TX-PAY-09C-NEW',
+    last_entitlement_payment_timestamp_ms: newPaymentMs,
+    renewal_cancellation_pending: false,
+    latest_event_timestamp_ms: newPaymentMs,
+  });
+
+  // NO historical sale record in ledger!
+  const reverseEvent = normalizeEvent({
+    id: 'EVT-REV-09C',
+    event_type: 'PAYMENT.SALE.REVERSED',
+    create_time: new Date(newPaymentMs + 1000).toISOString(),
+    resource: {
+      id: 'TX-REV-09C',
+      parent_payment: 'TX-PAY-09C-UNKNOWN',
+      billing_agreement_id: 'I-SUB-09C',
+    },
+  });
+
+  const res = await processWebhookEvent({
+    databases: db,
+    users,
+    event: reverseEvent,
+    nowMs: newPaymentMs + 2000,
+    env: TEST_ENV,
+  });
+
+  assert.equal(res.outcome, 'ignored');
+  assert.equal(res.code, 'unresolved_historical_reversal_correlation');
+  assert.equal(res.mutated, false);
+
+  const state = db.collections.paypal_subscription_state.get(stateDocId);
+  assert.equal(state.status, 'active');
+  assert.equal(state.expires_at, expiryIso);
+  assert.equal(state.last_entitlement_payment_id, 'TX-PAY-09C-NEW');
 });
 
 test('Option B 10: refund before delayed SALE records tombstone and prevents activation', async () => {
@@ -1843,7 +1982,7 @@ test('Option B 10: refund before delayed SALE records tombstone and prevents act
   assert.equal(saleRes.mutated, false);
 });
 
-test('Option B 11: reversal before delayed SALE records tombstone and prevents activation', async () => {
+test('Option B 11: reversal before delayed SALE records tombstone and prevents activation (Blocker 2)', async () => {
   const db = createMockDatabases();
   const users = createMockUsers();
   const nowMs = Date.parse('2026-09-03T12:00:00.000Z');
@@ -1889,21 +2028,28 @@ test('Option B 11: reversal before delayed SALE records tombstone and prevents a
     },
   });
 
+  let fetcherCalled = false;
   const saleRes = await processWebhookEvent({
     databases: db,
     users,
     event: saleEvent,
     nowMs: nowMs + 1000,
     env: TEST_ENV,
-    subscriptionTransactionsFetcher: async () => ({
-      found: true,
-      transaction: { id: 'TX-PAY-11', status: 'REVERSED' },
-    }),
+    subscriptionTransactionsFetcher: async () => {
+      fetcherCalled = true;
+      throw new Error('Transactions API must NOT be called for reversal tombstone');
+    },
   });
 
+  assert.equal(fetcherCalled, false, 'Transactions API must NOT be called for reversal tombstone');
   assert.equal(saleRes.outcome, 'ignored');
   assert.equal(saleRes.code, 'sale_already_refunded');
   assert.equal(saleRes.mutated, false);
+
+  const stateDocId = paypalWebhook.__test.stateDocumentId(QA_USER_ID);
+  const state = db.collections.paypal_subscription_state.get(stateDocId);
+  assert.equal(state?.expires_at || null, null, 'expires_at must remain null');
+  assert.notEqual(state?.status, 'active', 'paid plan must NOT be restored');
 });
 
 test('Option B 12: normal SALE has no unnecessary Transactions API call', async () => {
@@ -3527,6 +3673,147 @@ test('Option B 42: PAYMENT.SALE.REVERSED missing parent_payment fails closed wit
   assert.equal(state.status, 'active');
   assert.equal(state.expires_at, expiryIso);
   assert.equal(state.will_renew, true);
+});
+
+test('Option B 43: tombstone lookup DB/infrastructure failure fails closed without entitlement activation (Blocker 3 Test A)', async () => {
+  const db = createMockDatabases();
+  const users = createMockUsers();
+  const nowMs = Date.parse('2026-09-03T12:00:00.000Z');
+
+  const sessDocId = 'sess_sub_43';
+  db.collections.billing_checkout_sessions.set(sessDocId, {
+    $id: sessDocId,
+    subscription_id: 'I-SUB-43',
+    user_id: QA_USER_ID,
+  });
+
+  const saleEvent = normalizeEvent({
+    id: 'EVT-SALE-43',
+    event_type: 'PAYMENT.SALE.COMPLETED',
+    create_time: new Date(nowMs).toISOString(),
+    resource: {
+      id: 'TX-PAY-43',
+      billing_agreement_id: 'I-SUB-43',
+      custom_id: QA_USER_ID,
+      plan_id: SANDBOX_ULTIMATE_PLAN_ID,
+      billing_info: { next_billing_time: '2026-10-03T12:00:00.000Z' },
+    },
+  });
+
+  // Mock listDocuments to simulate infrastructure failure during tombstone query
+  const originalListDocuments = db.listDocuments.bind(db);
+  db.listDocuments = async (dbId, colId, queries) => {
+    if (colId === 'paypal_event_ledger') {
+      const err = new Error('Database cluster connection timeout during tombstone query');
+      err.code = 'db_timeout';
+      err.status = 500;
+      throw err;
+    }
+    return originalListDocuments(dbId, colId, queries);
+  };
+
+  await assert.rejects(
+    async () => {
+      await processWebhookEvent({
+        databases: db,
+        users,
+        event: saleEvent,
+        nowMs: nowMs + 1000,
+        env: TEST_ENV,
+      });
+    },
+    (err) => {
+      assert.equal(err.code, 'db_timeout');
+      assert.equal(err.isTransient, true);
+      assert.equal(err.status, 503);
+      return true;
+    }
+  );
+
+  // Assert state mutation is ZERO
+  const stateDocId = paypalWebhook.__test.stateDocumentId(QA_USER_ID);
+  const state = db.collections.paypal_subscription_state.get(stateDocId);
+  assert.equal(state, undefined, 'Provider state mutation must be ZERO on tombstone DB failure');
+
+  // Assert ledger records retryable failure
+  const ledgerDocId = paypalWebhook.__test.ledgerDocumentId('EVT-SALE-43');
+  const ledger = db.collections.paypal_event_ledger.get(ledgerDocId);
+  assert.equal(ledger.processing_status, 'failed');
+  assert.equal(ledger.outcome_code, 'tombstone_lookup_failed');
+});
+
+test('Option B 44: ambiguous matching tombstone correlation fails closed without entitlement activation (Blocker 3 Test B)', async () => {
+  const db = createMockDatabases();
+  const users = createMockUsers();
+  const nowMs = Date.parse('2026-09-03T12:00:00.000Z');
+
+  const sessDocId = 'sess_sub_44';
+  db.collections.billing_checkout_sessions.set(sessDocId, {
+    $id: sessDocId,
+    subscription_id: 'I-SUB-44',
+    user_id: QA_USER_ID,
+  });
+
+  // Pre-seed two conflicting tombstones for the same payment_id under different subscriptions
+  const tombDoc1 = paypalWebhook.__test.ledgerDocumentId('EVT-TOMB-44-1');
+  db.collections.paypal_event_ledger.set(tombDoc1, {
+    $id: tombDoc1,
+    event_id: 'EVT-TOMB-44-1',
+    event_type: 'PAYMENT.SALE.REFUNDED',
+    subscription_id: 'I-SUB-44-A',
+    payment_id: 'TX-PAY-44',
+    event_timestamp_ms: nowMs - 2000,
+    processing_status: 'processed',
+    outcome_code: 'refund_and_cancellation_settled',
+  });
+
+  const tombDoc2 = paypalWebhook.__test.ledgerDocumentId('EVT-TOMB-44-2');
+  db.collections.paypal_event_ledger.set(tombDoc2, {
+    $id: tombDoc2,
+    event_id: 'EVT-TOMB-44-2',
+    event_type: 'PAYMENT.SALE.REFUNDED',
+    subscription_id: 'I-SUB-44-B',
+    payment_id: 'TX-PAY-44',
+    event_timestamp_ms: nowMs - 1000,
+    processing_status: 'processed',
+    outcome_code: 'refund_and_cancellation_settled',
+  });
+
+  const saleEvent = normalizeEvent({
+    id: 'EVT-SALE-44',
+    event_type: 'PAYMENT.SALE.COMPLETED',
+    create_time: new Date(nowMs).toISOString(),
+    resource: {
+      id: 'TX-PAY-44',
+      billing_agreement_id: 'I-SUB-44',
+      custom_id: QA_USER_ID,
+      plan_id: SANDBOX_ULTIMATE_PLAN_ID,
+      billing_info: { next_billing_time: '2026-10-03T12:00:00.000Z' },
+    },
+  });
+
+  const res = await processWebhookEvent({
+    databases: db,
+    users,
+    event: saleEvent,
+    nowMs: nowMs + 1000,
+    env: TEST_ENV,
+  });
+
+  assert.equal(res.outcome, 'rejected');
+  assert.equal(res.code, 'ambiguous_payment_ledger_correlation');
+  assert.equal(res.mutated, false);
+
+  // Assert state mutation is ZERO
+  const stateDocId = paypalWebhook.__test.stateDocumentId(QA_USER_ID);
+  const state = db.collections.paypal_subscription_state.get(stateDocId);
+  assert.equal(state, undefined, 'Provider state mutation must be ZERO on ambiguous tombstone');
+
+  // Assert ledger records rejected status
+  const ledgerDocId = paypalWebhook.__test.ledgerDocumentId('EVT-SALE-44');
+  const ledger = db.collections.paypal_event_ledger.get(ledgerDocId);
+  assert.equal(ledger.processing_status, 'rejected');
+  assert.equal(ledger.outcome_code, 'ambiguous_payment_ledger_correlation');
 });
 
 // ==================================================

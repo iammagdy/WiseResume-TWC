@@ -1,7 +1,7 @@
 # WiseResume PayPal Subscription Synchronization & Entitlement Resolution
 
-**Last Verified:** 2026-09-06
-**Status:** `PAYPAL_REFUND_REVERSAL_IMPLEMENTED_READY_FOR_OWNER_REVIEW` (`IMPLEMENTED_UNVERIFIED` / `TESTED_LOCAL`, `PAYPAL_PRODUCTION_READY = NO`) — Option B refund and reversal policy implemented and locally tested: (1) Full refund immediately revokes entitlement (`expires_at = null`), preserves payment identity, sets `renewal_cancellation_pending = true`, and initiates server-side provider cancellation; (2) Partial refund preserves entitlement and renewals (`partial_refund_recorded`); cumulative partial refunds reaching gross amount trigger full policy; (3) Historical refunds/reversals leave active state untouched (`historical_refund_ignored` / `historical_reversal_ignored`); (4) Reversal immediately revokes entitlement while preserving truthful provider status; (5) `PAYMENT.SALE.COMPLETED` blocks entitlement restoration while cancellation is pending; (6) Tombstone lookup prevents stale sale reactivation; (7) HATEOAS Transactions API pagination with fail-closed behavior; (8) Frontend suppresses active free copy during pending cancellation. Backend (113/113), frontend (30/30), and all hubs (341/341) tests passing. NOT deployed; NOT runtime verified in PayPal Sandbox; Production PayPal untouched.
+**Last Verified:** 2026-09-07
+**Status:** `PAYPAL_REFUND_REVERSAL_IMPLEMENTED_READY_FOR_OWNER_REVIEW` (`IMPLEMENTED_UNVERIFIED` / `TESTED_LOCAL`, `PAYPAL_PRODUCTION_READY = NO`) — Option B refund and reversal policy implemented and locally tested: (1) Full refund immediately revokes entitlement (`expires_at = null`), preserves payment identity, sets `renewal_cancellation_pending = true`, and initiates server-side provider cancellation; (2) Partial refund preserves entitlement and renewals without local arithmetic (`partial_refund_recorded`); (3) Historical refunds/reversals leave active state untouched (`historical_refund_ignored` / `historical_reversal_ignored`), using authoritative sale payment timestamps rather than webhook arrival time; (4) Reversal immediately revokes entitlement while preserving truthful provider status; verified reversal ledger tombstone is authoritative on its own without undocumented provider transaction status assumptions; (5) `PAYMENT.SALE.COMPLETED` blocks entitlement restoration while cancellation is pending; (6) Fail-closed tombstone lookup prevents stale sale reactivation; (7) HATEOAS Transactions API pagination with fail-closed behavior; (8) Frontend suppresses active free copy during pending cancellation. Backend (125/125), frontend (30/30), and all hubs (353/353) tests passing. NOT deployed; NOT runtime verified in PayPal Sandbox; Production PayPal untouched.
 **Location:** `Project Atlas/architecture/paypal-subscription-sync.md`
 
 ## Scope and Preserved Contracts
@@ -323,7 +323,7 @@ The Option B refund and reversal policy is owner-locked and approved:
    - **Immediate Entitlement Revocation:** `expires_at = null` and `grace_period_expires_at = null` for the current payment.
    - **Truthful Provider Status:** Provider status remains truthful (`active` if provider has not suspended/cancelled; no fabrication of `suspended` or `expired`).
    - **Identity Retention:** `last_entitlement_payment_id` is preserved. Future renewals are not cancelled automatically by PayPal reversal unless provider cancels or full refund occurs.
-   - **Historical Reversals:** Recorded as `historical_reversal_ignored` if newer payment exists.
+   - **Historical Reversals:** Authoritative payment identity and timestamp are queried from the ledger `PAYMENT.SALE.COMPLETED` event by `payment_id` (not reversal webhook arrival time). If the correlated sale is older than the current entitlement payment (`last_entitlement_payment_timestamp_ms`), the delayed reversal is ignored (`historical_reversal_ignored`) with zero state mutation. Unresolved historical correlation fails closed (`unresolved_historical_reversal_correlation`) with zero state mutation.
 
 5. **Cancellation-Pending Guard on New Sales:**
    - If `PAYMENT.SALE.COMPLETED` arrives while `renewal_cancellation_pending === true`, paid entitlement is strictly blocked (`expires_at` is NOT updated).
@@ -331,8 +331,9 @@ The Option B refund and reversal policy is owner-locked and approved:
    - Flags operational alert: `UNEXPECTED_PAYMENT_DURING_REFUND_CLOSURE = OWNER/OPERATIONS_REVIEW_REQUIRED`.
 
 6. **Tombstone Lookup on `PAYMENT.SALE.COMPLETED`:**
-   - Before granting entitlement, `PAYMENT.SALE.COMPLETED` checks the event ledger for refund or reversal tombstones for the sale's `payment_id`.
-   - If a tombstone exists, it queries the Transactions API. If confirmed `REFUNDED` or `REVERSED`, sale activation is dropped (`sale_already_refunded`). Normal sales without tombstones proceed without calling the Transactions API.
+   - Before granting entitlement, `PAYMENT.SALE.COMPLETED` checks the event ledger for refund or reversal tombstones for the sale's `payment_id`. Tombstone lookup fails closed: database/infrastructure failures fail closed as retryable HTTP 503 (`tombstone_lookup_failed`), and ambiguous correlation fails closed (`ambiguous_payment_ledger_correlation`).
+   - If a verified `PAYMENT.SALE.REVERSED` tombstone exists in the ledger, it is authoritative reversal evidence on its own without querying the Subscriptions Transactions API (avoiding undocumented provider transaction status assumptions); sale activation is dropped immediately (`sale_already_refunded`).
+   - If a `PAYMENT.SALE.REFUNDED` tombstone exists, it verifies authoritative status via the Transactions API (expecting documented status `REFUNDED`). If confirmed, sale activation is dropped (`sale_already_refunded`). Normal sales without tombstones proceed without calling the Transactions API.
 
 7. **Transactions API Pagination Contract:**
    - Calls `GET /v1/billing/subscriptions/{id}/transactions` strictly with required query parameters `start_time` and `end_time`.

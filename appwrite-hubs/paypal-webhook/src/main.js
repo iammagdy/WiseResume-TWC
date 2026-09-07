@@ -349,8 +349,9 @@ async function findLedgerByPaymentId(databases, paymentId, eventType = null) {
   if (docs.length === 0) return null;
   if (docs.length > 1) {
     const subs = new Set(docs.map(d => d.subscription_id).filter(Boolean));
-    if (subs.size > 1) {
-      const err = new Error(`Ambiguous payment correlation: multiple subscriptions found in ledger for paymentId ${paymentId}`);
+    const users = new Set(docs.map(d => d.user_id).filter(Boolean));
+    if (subs.size > 1 || users.size > 1) {
+      const err = new Error(`Ambiguous payment correlation: multiple records found in ledger for paymentId ${paymentId}`);
       err.code = 'ambiguous_payment_ledger_correlation';
       err.isTransient = false;
       err.status = 400;
@@ -365,15 +366,23 @@ async function findLedgerByPaymentId(databases, paymentId, eventType = null) {
 
 async function findRefundOrReversalTombstone(databases, paymentId) {
   if (!databases || !paymentId) return null;
-  try {
-    const refundDoc = await findLedgerByPaymentId(databases, paymentId, 'PAYMENT.SALE.REFUNDED');
-    if (refundDoc && refundDoc.event_type === 'PAYMENT.SALE.REFUNDED' && refundDoc.payment_id === paymentId) return refundDoc;
-    const reversalDoc = await findLedgerByPaymentId(databases, paymentId, 'PAYMENT.SALE.REVERSED');
-    if (reversalDoc && reversalDoc.event_type === 'PAYMENT.SALE.REVERSED' && reversalDoc.payment_id === paymentId) return reversalDoc;
-    return null;
-  } catch {
-    return null;
+  const refundDoc = await findLedgerByPaymentId(databases, paymentId, 'PAYMENT.SALE.REFUNDED');
+  const reversalDoc = await findLedgerByPaymentId(databases, paymentId, 'PAYMENT.SALE.REVERSED');
+
+  if (refundDoc && reversalDoc) {
+    if ((refundDoc.subscription_id && reversalDoc.subscription_id && refundDoc.subscription_id !== reversalDoc.subscription_id) ||
+        (refundDoc.user_id && reversalDoc.user_id && refundDoc.user_id !== reversalDoc.user_id)) {
+      const err = new Error(`Ambiguous tombstone correlation: conflicting refund and reversal tombstones for paymentId ${paymentId}`);
+      err.code = 'ambiguous_payment_ledger_correlation';
+      err.isTransient = false;
+      err.status = 400;
+      throw err;
+    }
   }
+
+  if (refundDoc && refundDoc.event_type === 'PAYMENT.SALE.REFUNDED' && refundDoc.payment_id === paymentId) return refundDoc;
+  if (reversalDoc && reversalDoc.event_type === 'PAYMENT.SALE.REVERSED' && reversalDoc.payment_id === paymentId) return reversalDoc;
+  return null;
 }
 
 
@@ -1422,10 +1431,47 @@ async function processWebhookEvent({
       break;
 
     case 'PAYMENT.SALE.COMPLETED': {
-      // 14. REFUND BEFORE SALE / TOMBSTONE CHECK:
+      // 14. REFUND / REVERSAL BEFORE SALE (TOMBSTONE CHECK):
       if (event.paymentId) {
-        const tombstone = await findRefundOrReversalTombstone(databases, event.paymentId);
+        let tombstone = null;
+        try {
+          tombstone = await findRefundOrReversalTombstone(databases, event.paymentId);
+        } catch (tombErr) {
+          if (tombErr?.code === 'ambiguous_payment_ledger_correlation') {
+            await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
+              user_id: userId,
+              processing_status: 'rejected',
+              outcome_code: 'ambiguous_payment_ledger_correlation',
+            }, serverOnlyPermissions()).catch(() => {});
+            return { outcome: 'rejected', code: 'ambiguous_payment_ledger_correlation', mutated: false };
+          }
+
+          // Infrastructure or unexpected errors -> fail closed as retryable failure
+          await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
+            user_id: userId,
+            processing_status: 'failed',
+            outcome_code: 'tombstone_lookup_failed',
+          }, serverOnlyPermissions()).catch(() => {});
+          tombErr.isTransient = true;
+          tombErr.status = 503;
+          throw tombErr;
+        }
+
         if (tombstone) {
+          // If the tombstone is a PAYMENT.SALE.REVERSED event:
+          // The verified PAYMENT.SALE.REVERSED ledger event itself is authoritative reversal evidence.
+          // Do NOT call Transactions API and do NOT expect undocumented status 'REVERSED'.
+          if (tombstone.event_type === 'PAYMENT.SALE.REVERSED') {
+            await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
+              user_id: userId,
+              processing_status: 'ignored',
+              outcome_code: 'sale_already_refunded',
+            }, serverOnlyPermissions());
+            return { outcome: 'ignored', code: 'sale_already_refunded', mutated: false };
+          }
+
+          // If the tombstone is a PAYMENT.SALE.REFUNDED event:
+          // Verify against documented provider transaction status 'REFUNDED'
           let txResult;
           try {
             txResult = await fetchSubscriptionTransactions({
@@ -1461,7 +1507,7 @@ async function processWebhookEvent({
           }
 
           const txStatus = String(txResult.transaction?.status || '').toUpperCase();
-          if (txStatus === 'REFUNDED' || txStatus === 'REVERSED') {
+          if (txStatus === 'REFUNDED') {
             await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
               user_id: userId,
               processing_status: 'ignored',
@@ -1792,41 +1838,70 @@ async function processWebhookEvent({
     }
 
     case 'PAYMENT.SALE.REVERSED': {
-      // Historical Reversal Check:
-      if (previous?.last_entitlement_payment_id && previous.last_entitlement_payment_id !== event.paymentId) {
+      // CASE A — Current Payment Reversal:
+      if (previous?.last_entitlement_payment_id && event.paymentId === previous.last_entitlement_payment_id) {
+        stateUpdate.expires_at = null;
+        stateUpdate.grace_period_expires_at = null;
+        stateUpdate.last_entitlement_payment_id = previous.last_entitlement_payment_id;
+        stateUpdate.last_entitlement_payment_timestamp_ms = previous.last_entitlement_payment_timestamp_ms;
+        stateUpdate.status = previous.status || 'active';
+        stateUpdate.will_renew = previous.will_renew !== undefined ? previous.will_renew : true;
+
+        await upsertProviderState(databases, stateUpdate, previous);
+        await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
+          user_id: userId,
+          processing_status: 'processed',
+          outcome_code: 'reversal_entitlement_revoked',
+        }, serverOnlyPermissions());
+        return {
+          outcome: 'processed',
+          code: 'reversal_entitlement_revoked',
+          mutated: true,
+          plan: stateUpdate.plan,
+          status: stateUpdate.status,
+          effectivePlan: 'free',
+        };
+      }
+
+      // CASE B — Different Payment ID:
+      if (previous?.last_entitlement_payment_id && event.paymentId !== previous.last_entitlement_payment_id) {
         const prevPaymentMs = Number(previous.last_entitlement_payment_timestamp_ms || 0);
-        if (prevPaymentMs > event.eventTimestampMs) {
-          await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
-            user_id: userId,
-            processing_status: 'processed',
-            outcome_code: 'historical_reversal_ignored',
-          }, serverOnlyPermissions());
-          return { outcome: 'ignored', code: 'historical_reversal_ignored', mutated: false };
+        let historicalSale = null;
+        try {
+          historicalSale = await findLedgerByPaymentId(databases, event.paymentId, 'PAYMENT.SALE.COMPLETED');
+        } catch (err) {
+          if (err?.code === 'ambiguous_payment_ledger_correlation') {
+            await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
+              user_id: userId,
+              processing_status: 'rejected',
+              outcome_code: 'ambiguous_payment_ledger_correlation',
+            }, serverOnlyPermissions()).catch(() => {});
+            return { outcome: 'rejected', code: 'ambiguous_payment_ledger_correlation', mutated: false };
+          }
+          throw err;
+        }
+
+        const historicalSaleTimestamp = Number(historicalSale?.event_timestamp_ms);
+        if (Number.isSafeInteger(historicalSaleTimestamp) && historicalSaleTimestamp > 0 &&
+            Number.isSafeInteger(prevPaymentMs) && prevPaymentMs > 0) {
+          if (prevPaymentMs > historicalSaleTimestamp) {
+            await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
+              user_id: userId,
+              processing_status: 'processed',
+              outcome_code: 'historical_reversal_ignored',
+            }, serverOnlyPermissions());
+            return { outcome: 'ignored', code: 'historical_reversal_ignored', mutated: false };
+          }
         }
       }
 
-      // Current Reversal:
-      stateUpdate.expires_at = null;
-      stateUpdate.grace_period_expires_at = null;
-      stateUpdate.last_entitlement_payment_id = previous?.last_entitlement_payment_id || event.paymentId;
-      stateUpdate.last_entitlement_payment_timestamp_ms = previous?.last_entitlement_payment_timestamp_ms || event.eventTimestampMs;
-      stateUpdate.status = previous?.status || 'active';
-      stateUpdate.will_renew = previous?.will_renew !== undefined ? previous.will_renew : true;
-
-      await upsertProviderState(databases, stateUpdate, previous);
+      // CASE C — Unresolved / Ambiguous Historical Reversal -> FAIL CLOSED:
       await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
         user_id: userId,
-        processing_status: 'processed',
-        outcome_code: 'reversal_entitlement_revoked',
+        processing_status: 'ignored',
+        outcome_code: 'unresolved_historical_reversal_correlation',
       }, serverOnlyPermissions());
-      return {
-        outcome: 'processed',
-        code: 'reversal_entitlement_revoked',
-        mutated: true,
-        plan: stateUpdate.plan,
-        status: stateUpdate.status,
-        effectivePlan: 'free',
-      };
+      return { outcome: 'ignored', code: 'unresolved_historical_reversal_correlation', mutated: false };
     }
 
     case 'BILLING.SUBSCRIPTION.PAYMENT.FAILED': {
