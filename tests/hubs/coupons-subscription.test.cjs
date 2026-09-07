@@ -412,13 +412,13 @@ test('can_subscribe permutation 4: checkoutProviderReady = false -> false', asyn
   assert.equal(res.result.payload.data.can_subscribe, false);
 });
 
-test('can_subscribe permutation 5: paypalEnvironment missing or not sandbox -> false', async () => {
+test('can_subscribe permutation 5: paypalEnvironment invalid (e.g. staging or missing) -> false', async () => {
   const res = createMockRes();
   await getMySubscription({}, res, {
     user: { $id: 'qa_user_1' },
     subscription: null,
     providerStates: { providerState: null, paypalProviderState: null },
-    paypalEnvironment: 'production',
+    paypalEnvironment: 'staging',
     qaUserId: 'qa_user_1',
     checkoutEnabled: true,
     checkoutProvider: 'paypal',
@@ -426,6 +426,36 @@ test('can_subscribe permutation 5: paypalEnvironment missing or not sandbox -> f
   });
   assert.equal(res.result.status, 200);
   assert.equal(res.result.payload.data.can_subscribe, false);
+
+  const res2 = createMockRes();
+  await getMySubscription({}, res2, {
+    user: { $id: 'qa_user_1' },
+    subscription: null,
+    providerStates: { providerState: null, paypalProviderState: null },
+    paypalEnvironment: '',
+    qaUserId: 'qa_user_1',
+    checkoutEnabled: true,
+    checkoutProvider: 'paypal',
+    checkoutProviderReady: true,
+  });
+  assert.equal(res2.result.status, 200);
+  assert.equal(res2.result.payload.data.can_subscribe, false);
+});
+
+test('can_subscribe: production environment enables subscribe for normal free user without QA user requirement', async () => {
+  const res = createMockRes();
+  await getMySubscription({}, res, {
+    user: { $id: 'regular_prod_user_456' },
+    subscription: null,
+    providerStates: { providerState: null, paypalProviderState: null },
+    paypalEnvironment: 'production',
+    qaUserId: '',
+    checkoutEnabled: true,
+    checkoutProvider: 'paypal',
+    checkoutProviderReady: true,
+  });
+  assert.equal(res.result.status, 200);
+  assert.equal(res.result.payload.data.can_subscribe, true);
 });
 
 test('can_subscribe permutation 6: qaUserId missing/empty -> false', async () => {

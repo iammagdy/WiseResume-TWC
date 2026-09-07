@@ -958,7 +958,7 @@ test('Idempotency: Duplicate delivery never mutates twice; duplicate PAYMENT.FAI
 // ==================================================
 // 6. Section 4: Hard Sandbox-Only Runtime Gate Tests
 // ==================================================
-test('Environment: sandbox allowed, missing/invalid/production fail closed', async () => {
+test('Environment: sandbox and production allowed, missing/invalid fail closed', async () => {
   const db = createMockDatabases();
   const users = createMockUsers();
   const nowMs = Date.parse('2026-09-03T12:00:00.000Z');
@@ -973,21 +973,20 @@ test('Environment: sandbox allowed, missing/invalid/production fail closed', asy
   // Missing -> rejected
   const resMissing = await processWebhookEvent({ databases: db, users, event, nowMs, env: { ...TEST_ENV, PAYPAL_ACCESS_ENVIRONMENT: '' } });
   assert.equal(resMissing.outcome, 'rejected');
-  assert.equal(resMissing.code, 'sandbox_only_phase3_gate');
+  assert.equal(resMissing.code, 'unconfigured_paypal_environment');
 
   // Invalid -> rejected
   const resInvalid = await processWebhookEvent({ databases: db, users, event, nowMs, env: { ...TEST_ENV, PAYPAL_ACCESS_ENVIRONMENT: 'staging' } });
   assert.equal(resInvalid.outcome, 'rejected');
-  assert.equal(resInvalid.code, 'sandbox_only_phase3_gate');
+  assert.equal(resInvalid.code, 'unconfigured_paypal_environment');
 
-  // Production -> rejected in Phase 3
-  const resProd = await processWebhookEvent({ databases: db, users, event, nowMs, env: { ...TEST_ENV, PAYPAL_ACCESS_ENVIRONMENT: 'production' } });
-  assert.equal(resProd.outcome, 'rejected');
-  assert.equal(resProd.code, 'sandbox_only_phase3_gate');
+  // Base URL returns empty for missing/invalid
+  assert.equal(paypalWebhook.__test.getPaypalApiBaseUrl({ PAYPAL_ACCESS_ENVIRONMENT: '' }), '');
+  assert.equal(paypalWebhook.__test.getPaypalApiBaseUrl({ PAYPAL_ACCESS_ENVIRONMENT: 'staging' }), '');
 
-  // Base URL returns empty for production in Phase 3
-  assert.equal(paypalWebhook.__test.getPaypalApiBaseUrl({ PAYPAL_ACCESS_ENVIRONMENT: 'production' }), '');
+  // Base URL returns valid endpoints for sandbox and production
   assert.equal(paypalWebhook.__test.getPaypalApiBaseUrl({ PAYPAL_ACCESS_ENVIRONMENT: 'sandbox' }), 'https://api-m.sandbox.paypal.com');
+  assert.equal(paypalWebhook.__test.getPaypalApiBaseUrl({ PAYPAL_ACCESS_ENVIRONMENT: 'production' }), 'https://api-m.paypal.com');
 });
 
 // ==================================================
@@ -3646,7 +3645,7 @@ test('Option B 37: Sandbox QA/environment isolation allows QA user and enforces 
   assert.equal(res.mutated, false);
 });
 
-test('Option B 38: production environment fails closed (sandbox only gate)', async () => {
+test('Option B 38: invalid environment fails closed', async () => {
   const db = createMockDatabases();
   const users = createMockUsers();
   const nowMs = Date.parse('2026-09-03T12:00:00.000Z');
@@ -3667,11 +3666,11 @@ test('Option B 38: production environment fails closed (sandbox only gate)', asy
     users,
     event: refundEvent,
     nowMs,
-    env: { ...TEST_ENV, PAYPAL_ACCESS_ENVIRONMENT: 'production' },
+    env: { ...TEST_ENV, PAYPAL_ACCESS_ENVIRONMENT: 'staging' },
   });
 
   assert.equal(res.outcome, 'rejected');
-  assert.equal(res.code, 'sandbox_only_phase3_gate');
+  assert.equal(res.code, 'unconfigured_paypal_environment');
   assert.equal(res.mutated, false);
 });
 
@@ -4629,7 +4628,7 @@ test('Bootstrap: valid PAYPAL_WEBHOOK_ID enables verified SUCCESS path to procee
   assert.equal(state.plan, 'pro');
 });
 
-test('Bootstrap: Production environment remains strictly rejected even with valid credentials and webhook ID', async () => {
+test('Bootstrap: Invalid environment remains strictly rejected and fails closed', async () => {
   const db = createMockDatabases();
   const users = createMockUsers();
   let responseData = null;
@@ -4665,7 +4664,7 @@ test('Bootstrap: Production environment remains strictly rejected even with vali
       databases: db,
       users,
       env: {
-        PAYPAL_ACCESS_ENVIRONMENT: 'production',
+        PAYPAL_ACCESS_ENVIRONMENT: 'staging',
         PAYPAL_CLIENT_ID: 'mock_prod_client_id',
         PAYPAL_CLIENT_SECRET: 'mock_prod_client_secret',
         PAYPAL_WEBHOOK_ID: 'WH-PROD-UNAUTHORIZED',
@@ -4675,7 +4674,7 @@ test('Bootstrap: Production environment remains strictly rejected even with vali
   };
 
   await paypalWebhook({ req, res, log: () => {}, error: () => {} });
-  // Signature verification fails closed because getPaypalApiBaseUrl returns empty string for production!
+  // Signature verification fails closed because getPaypalApiBaseUrl returns empty string for staging!
   assert.equal(responseStatus, 401);
   assert.equal(responseData?.code, 'unconfigured_paypal_environment');
   assert.equal(db.collections.paypal_subscription_state.size, 0);
@@ -7534,4 +7533,190 @@ test('Legacy Reversal Correlation: PAYMENT.SALE.REVERSED without billing_agreeme
   const updatedState = db.collections.paypal_subscription_state.get(stateDocId);
   assert.equal(updatedState.expires_at, null);
   assert.equal(resolveEffectivePlan(updatedState).plan, 'free');
+});
+
+// ==================================================
+// Section 16: Phase I - Production Activation & Routing Tests
+// ==================================================
+
+test('Phase I - 4: paypal-webhook Production API routing base URLs', () => {
+  assert.equal(paypalWebhook.__test.getPaypalApiBaseUrl({ PAYPAL_ACCESS_ENVIRONMENT: 'sandbox' }), 'https://api-m.sandbox.paypal.com');
+  assert.equal(paypalWebhook.__test.getPaypalApiBaseUrl({ PAYPAL_ACCESS_ENVIRONMENT: 'production' }), 'https://api-m.paypal.com');
+  assert.equal(paypalWebhook.__test.getPaypalApiBaseUrl({ PAYPAL_ACCESS_ENVIRONMENT: '' }), '');
+  assert.equal(paypalWebhook.__test.getPaypalApiBaseUrl({ PAYPAL_ACCESS_ENVIRONMENT: 'staging' }), '');
+  assert.equal(paypalWebhook.__test.getPaypalApiBaseUrl({ PAYPAL_ACCESS_ENVIRONMENT: 'test' }), '');
+  assert.equal(paypalWebhook.__test.getPaypalApiBaseUrl({}), '');
+});
+
+test('Phase I - 5: Production webhook signature verification routes to live PayPal OAuth', async () => {
+  let requestedUrl = null;
+  const originalFetch = global.fetch;
+  global.fetch = async (url) => {
+    requestedUrl = String(url);
+    return {
+      ok: true,
+      json: async () => ({ access_token: 'mock_token' }),
+    };
+  };
+
+  try {
+    const headers = {
+      transmissionId: 'tx_1',
+      transmissionTime: '2026-09-07T12:00:00Z',
+      certUrl: 'https://api.paypal.com/cert.pem',
+      authAlgo: 'SHA256withRSA',
+      transmissionSig: 'sig_1',
+    };
+    const prodEnv = {
+      PAYPAL_ACCESS_ENVIRONMENT: 'production',
+      PAYPAL_CLIENT_ID: 'prod_client',
+      PAYPAL_CLIENT_SECRET: 'prod_secret',
+      PAYPAL_WEBHOOK_ID: 'WH-PROD-LIVE',
+    };
+
+    // OAuth call goes to production base
+    await paypalWebhook.__test.verifyWebhookSignatureWithPayPal(headers, {}, { env: prodEnv });
+    assert.ok(requestedUrl.startsWith('https://api-m.paypal.com/v1/'), `Expected Live URL but got ${requestedUrl}`);
+  } finally {
+    global.fetch = originalFetch;
+  }
+});
+
+test('Phase I - 6 & 7: Production plan mapping and strict cross-environment isolation', () => {
+  const PROD_PRO_PLAN = 'P-PROD-PRO-PRICE-ID';
+  const PROD_PREMIUM_PLAN = 'P-PROD-PREMIUM-PRICE-ID';
+
+  const prodEnv = {
+    PAYPAL_ACCESS_ENVIRONMENT: 'production',
+    BILLING_PRODUCTION_PRO_PRICE_ID: PROD_PRO_PLAN,
+    BILLING_PRODUCTION_PREMIUM_PRICE_ID: PROD_PREMIUM_PLAN,
+    BILLING_SANDBOX_PRO_PRICE_ID: SANDBOX_PRO_PLAN_ID,
+    BILLING_SANDBOX_PREMIUM_PRICE_ID: SANDBOX_ULTIMATE_PLAN_ID,
+  };
+
+  const sandboxEnv = {
+    PAYPAL_ACCESS_ENVIRONMENT: 'sandbox',
+    BILLING_PRODUCTION_PRO_PRICE_ID: PROD_PRO_PLAN,
+    BILLING_PRODUCTION_PREMIUM_PRICE_ID: PROD_PREMIUM_PLAN,
+    BILLING_SANDBOX_PRO_PRICE_ID: SANDBOX_PRO_PLAN_ID,
+    BILLING_SANDBOX_PREMIUM_PRICE_ID: SANDBOX_ULTIMATE_PLAN_ID,
+  };
+
+  // Production environment + Production plans
+  assert.equal(resolvePlanFromId(PROD_PRO_PLAN, prodEnv), 'pro');
+  assert.equal(resolvePlanFromId(PROD_PREMIUM_PLAN, prodEnv), 'premium');
+  assert.notEqual(resolvePlanFromId(PROD_PREMIUM_PLAN, prodEnv), 'ultimate', 'Must never map to internal ultimate');
+
+  // Production environment + Sandbox plans -> REJECT (cross-environment leakage blocked)
+  assert.equal(resolvePlanFromId(SANDBOX_PRO_PLAN_ID, prodEnv), null);
+  assert.equal(resolvePlanFromId(SANDBOX_ULTIMATE_PLAN_ID, prodEnv), null);
+
+  // Sandbox environment + Sandbox plans -> PASS
+  assert.equal(resolvePlanFromId(SANDBOX_PRO_PLAN_ID, sandboxEnv), 'pro');
+  assert.equal(resolvePlanFromId(SANDBOX_ULTIMATE_PLAN_ID, sandboxEnv), 'premium');
+
+  // Sandbox environment + Production plans -> REJECT (cross-environment leakage blocked)
+  assert.equal(resolvePlanFromId(PROD_PRO_PLAN, sandboxEnv), null);
+  assert.equal(resolvePlanFromId(PROD_PREMIUM_PLAN, sandboxEnv), null);
+
+  // Unknown plans -> REJECT
+  assert.equal(resolvePlanFromId('UNKNOWN_PLAN', prodEnv), null);
+  assert.equal(resolvePlanFromId('UNKNOWN_PLAN', sandboxEnv), null);
+});
+
+test('Phase I - 2 & 13: Production webhook admits normal user without requiring Sandbox QA user', async () => {
+  const db = createMockDatabases();
+  const normalUserId = 'user_normal_prod_777';
+  const users = createMockUsers([normalUserId]);
+  const nowMs = Date.parse('2026-09-07T12:00:00.000Z');
+  const PROD_PRO_PLAN = 'P-PROD-PRO-777';
+
+  const prodEnv = {
+    PAYPAL_ACCESS_ENVIRONMENT: 'production',
+    BILLING_PRODUCTION_PRO_PRICE_ID: PROD_PRO_PLAN,
+    BILLING_PRODUCTION_PREMIUM_PRICE_ID: 'P-PROD-PREM-777',
+    PAYPAL_CLIENT_ID: 'prod_client_id',
+    PAYPAL_CLIENT_SECRET: 'prod_client_secret',
+    PAYPAL_WEBHOOK_ID: 'WH-PROD-777',
+    // Note: BILLING_CHECKOUT_QA_USER_ID is intentionally omitted
+  };
+
+  const nextBilling = new Date(nowMs + 30 * 86400000).toISOString();
+  const event = normalizeEvent({
+    id: 'EVT-PROD-SALE-1',
+    event_type: 'PAYMENT.SALE.COMPLETED',
+    create_time: new Date(nowMs).toISOString(),
+    resource: {
+      id: 'TX-PROD-SALE-1',
+      billing_agreement_id: 'I-SUB-PROD-777',
+      custom: normalUserId,
+      amount: { total: '5.00', currency: 'USD' },
+    },
+  });
+
+  const res = await processWebhookEvent({
+    databases: db,
+    users,
+    event,
+    nowMs,
+    env: prodEnv,
+    subscriptionFetcher: async () => ({
+      id: 'I-SUB-PROD-777',
+      plan_id: PROD_PRO_PLAN,
+      status: 'ACTIVE',
+      billing_info: { next_billing_time: nextBilling },
+      custom_id: normalUserId,
+    }),
+  });
+
+  assert.equal(res.outcome, 'processed');
+  assert.equal(res.code, 'state_updated');
+  assert.equal(res.mutated, true);
+  assert.equal(res.plan, 'pro');
+  assert.equal(res.effectivePlan, 'pro');
+
+  const stateDocId = paypalWebhook.__test.stateDocumentId(normalUserId);
+  const state = db.collections.paypal_subscription_state.get(stateDocId);
+  assert.ok(state, 'State document must be created for normal production user');
+  assert.equal(state.user_id, normalUserId);
+  assert.equal(state.environment, 'production');
+  assert.equal(state.plan, 'pro');
+  assert.equal(state.status, 'active');
+});
+
+test('Phase I - 3 & 10: Sandbox webhook strictly maintains QA user restriction', async () => {
+  const db = createMockDatabases();
+  const nonQaUserId = 'user_intruder_999';
+  const users = createMockUsers([nonQaUserId]);
+  const nowMs = Date.parse('2026-09-07T12:00:00.000Z');
+
+  const event = normalizeEvent({
+    id: 'EVT-SANDBOX-NONQA',
+    event_type: 'PAYMENT.SALE.COMPLETED',
+    create_time: new Date(nowMs).toISOString(),
+    resource: {
+      id: 'TX-SANDBOX-SALE-999',
+      billing_agreement_id: 'I-SUB-SANDBOX-999',
+      custom: nonQaUserId,
+      amount: { total: '5.00', currency: 'USD' },
+    },
+  });
+
+  const res = await processWebhookEvent({
+    databases: db,
+    users,
+    event,
+    nowMs,
+    env: TEST_ENV, // TEST_ENV has QA_USER_ID = 'user_qa_paypal_123'
+    subscriptionFetcher: async () => ({
+      id: 'I-SUB-SANDBOX-999',
+      plan_id: SANDBOX_PRO_PLAN_ID,
+      status: 'ACTIVE',
+      custom_id: nonQaUserId,
+    }),
+  });
+
+  assert.equal(res.outcome, 'ignored');
+  assert.equal(res.code, 'sandbox_qa_boundary_rejected');
+  assert.equal(res.mutated, false);
 });

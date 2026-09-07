@@ -393,17 +393,20 @@ async function getMySubscription(body, res, dependencies = {}) {
   const isProviderReady = dependencies.checkoutProviderReady !== undefined
     ? Boolean(dependencies.checkoutProviderReady)
     : String(process.env.BILLING_CHECKOUT_PROVIDER_READY || '').toLowerCase() === 'true';
-  const isSandbox = String(configuredPaypalEnv || '').trim().toLowerCase() === 'sandbox';
+  const paypalEnv = String(configuredPaypalEnv || '').trim().toLowerCase();
+  const isSandbox = paypalEnv === 'sandbox';
+  const isProduction = paypalEnv === 'production';
   const hasValidQaUser = Boolean(configuredQaUser && String(configuredQaUser).trim().length > 0);
   const isMatchingQaUser = hasValidQaUser && user.$id === String(configuredQaUser).trim();
   const isEligibleForUpgrade = effectivePlan !== 'premium';
+  const isUserPermitted = isProduction || (isSandbox && isMatchingQaUser);
 
   const canSubscribe = Boolean(
     isCheckoutEnabled &&
     checkoutProvider === 'paypal' &&
     isProviderReady &&
-    isSandbox &&
-    isMatchingQaUser &&
+    (isSandbox || isProduction) &&
+    isUserPermitted &&
     isEligibleForUpgrade
   );
 

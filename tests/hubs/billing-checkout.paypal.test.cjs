@@ -15,6 +15,7 @@ const {
   handleBillingCheckout,
   PAYPAL_API_ORIGINS,
   PAYPAL_APPROVED_ORIGINS,
+  assertRuntimeEnabled,
 } = billing.__test;
 
 class MockCheckoutStore {
@@ -2405,4 +2406,89 @@ test('BillingCheckoutService.cancel future-expiry revalidation C: unchanged auth
   assert.equal(result.canceled, true);
   assert.equal(cancelCallCount, 1, 'Provider cancel must be called exactly once for valid unchanged future expiry');
   assert.equal(capturedInput.subscriptionId, 'I-REVALOK123');
+});
+
+// ==================================================
+// Section: Phase I - Production Activation Tests
+// ==================================================
+
+test('Phase I - 8 & 9: billing-checkout uses Production catalog and Live PayPal approved origin in production', () => {
+  const env = {
+    BILLING_CHECKOUT_ENABLED: 'true',
+    BILLING_CHECKOUT_ENVIRONMENT: 'production',
+    BILLING_CHECKOUT_PROVIDER: 'paypal',
+    BILLING_CHECKOUT_PROVIDER_READY: 'true',
+    BILLING_PRODUCTION_PRO_PRICE_ID: 'P-PROD-PRO-ID',
+    BILLING_PRODUCTION_PRO_PRODUCT_ID: 'PROD-PROD-PRO-ID',
+    BILLING_PRODUCTION_PREMIUM_PRICE_ID: 'P-PROD-PREM-ID',
+    BILLING_PRODUCTION_PREMIUM_PRODUCT_ID: 'PROD-PROD-PREM-ID',
+    PAYPAL_CLIENT_ID: 'mock_prod_client_id',
+    PAYPAL_CLIENT_SECRET: 'mock_prod_client_secret',
+  };
+
+  const config = readConfig(env);
+  assert.equal(config.environment, 'production');
+  assert.equal(config.catalog.pro.priceId, 'P-PROD-PRO-ID');
+  assert.equal(config.catalog.pro.productId, 'PROD-PROD-PRO-ID');
+  assert.equal(config.catalog.premium.priceId, 'P-PROD-PREM-ID');
+  assert.equal(config.catalog.premium.productId, 'PROD-PROD-PREM-ID');
+  assert.equal(config.approvedCheckoutOrigin, 'https://www.paypal.com');
+});
+
+test('Phase I - 10: Sandbox checkout creation fails closed for non-QA user', () => {
+  const env = validPayPalEnv(); // QA user is 'qa_user_456'
+  const config = readConfig(env);
+
+  assert.throws(
+    () => assertRuntimeEnabled(config, 'pro', 'non_qa_user_999'),
+    (err) => err?.code === 'payments_disabled' && err?.status === 403,
+  );
+});
+
+test('Phase I - 11: Production checkout is NOT restricted to Sandbox QA user', () => {
+  const env = {
+    BILLING_CHECKOUT_ENABLED: 'true',
+    BILLING_CHECKOUT_ENVIRONMENT: 'production',
+    BILLING_CHECKOUT_PROVIDER: 'paypal',
+    BILLING_CHECKOUT_PROVIDER_READY: 'true',
+    BILLING_PRODUCTION_PRO_PRICE_ID: 'P-PROD-PRO-ID',
+    BILLING_PRODUCTION_PRO_PRODUCT_ID: 'PROD-PROD-PRO-ID',
+    BILLING_PRODUCTION_PREMIUM_PRICE_ID: 'P-PROD-PREM-ID',
+    BILLING_PRODUCTION_PREMIUM_PRODUCT_ID: 'PROD-PROD-PREM-ID',
+    PAYPAL_CLIENT_ID: 'mock_prod_client_id',
+    PAYPAL_CLIENT_SECRET: 'mock_prod_client_secret',
+    // No QA user configured
+  };
+  const config = readConfig(env);
+
+  // Normal user succeeds without throwing
+  assert.doesNotThrow(() => {
+    assertRuntimeEnabled(config, 'pro', 'normal_prod_user_123');
+  });
+});
+
+test('Phase I - 18: Checkout remains 403 while BILLING_CHECKOUT_ENABLED=false', () => {
+  const env = {
+    ...validPayPalEnv(),
+    BILLING_CHECKOUT_ENABLED: 'false',
+  };
+  const config = readConfig(env);
+
+  assert.throws(
+    () => assertRuntimeEnabled(config, 'pro', 'qa_user_456'),
+    (err) => err?.code === 'payments_disabled' && err?.status === 403,
+  );
+});
+
+test('Phase I - 19: providerReady=false remains fail-closed', () => {
+  const env = {
+    ...validPayPalEnv(),
+    BILLING_CHECKOUT_PROVIDER_READY: 'false',
+  };
+  const config = readConfig(env);
+
+  assert.throws(
+    () => assertRuntimeEnabled(config, 'pro', 'qa_user_456'),
+    (err) => err?.code === 'payments_disabled' && err?.status === 403,
+  );
 });

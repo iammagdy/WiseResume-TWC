@@ -1,7 +1,7 @@
 # Project Atlas — Active Operational & Handover State
 
 **Last Verified:** 2026-09-07
-**Status:** `SANDBOX_PAYMENT_CORE_VERIFIED_READY_FOR_PRODUCTION_ACTIVATION` (Frontend: `DEPLOYED_TO_PRODUCTION` via Vercel, Backend: `paypal-webhook`: `DEPLOYED_SANDBOX` [deployment `6a9ea51d2ecf33ade11a`, run `34118592362`], `coupons`: `DEPLOYED_OR_READY`, PayPal Schema: `READY`, Sandbox Refund: `VERIFIED_LIVE_REDELIVERY_OPTION_B_REVOKED`, Authentic Refund Event: `WH-39D23786BJ747394G-6NV67311UF312770M` [reclaimed and settled], Production PayPal: `UNTOUCHED`, `PAYPAL_PRODUCTION_READY = NO`, Base Main SHA: `9c27773f4bc7c69d42a53cb25d83e6a0a471b316`, Billing: `CHECKOUT_PREVIOUSLY_VERIFIED_DISABLED`) — Core PayPal Sandbox payment lifecycle is fully verified end-to-end: Subscription checkout (Pro & Ultimate), activation, sale payments, customer cancellation (paid-through preserved), full refund revocation (Option B immediate access revocation to Free, future renewal cancelled), authentic webhook signature verification, Step 3 provider Sale fallback correlation, rejected-event redelivery reclaim, and live authenticated browser UI QA with persistence across reloads and navigation. Production PayPal remains untouched; public checkout remains safely fail-closed.
+**Status:** `SANDBOX_PAYMENT_CORE_VERIFIED_READY_FOR_PRODUCTION_ACTIVATION` (Frontend: `DEPLOYED_TO_PRODUCTION` via Vercel, Backend: `paypal-webhook`: `DEPLOYED_SANDBOX` [deployment `[verified deployment]`, run `34118592362`], `coupons`: `DEPLOYED_OR_READY`, PayPal Schema: `READY`, Sandbox Refund: `VERIFIED_LIVE_REDELIVERY_OPTION_B_REVOKED`, Authentic Refund Event: `[genuine Sandbox refund event]` [reclaimed and settled], Production PayPal: `UNTOUCHED`, `PAYPAL_PRODUCTION_READY = NO`, Base Main SHA: `9c27773f4bc7c69d42a53cb25d83e6a0a471b316`, Billing: `CHECKOUT_PREVIOUSLY_VERIFIED_DISABLED`) — Core PayPal Sandbox payment lifecycle is fully verified end-to-end: Subscription checkout (Pro & Ultimate), activation, sale payments, customer cancellation (paid-through preserved), full refund revocation (Option B immediate access revocation to Free, future renewal cancelled), authentic webhook signature verification, Step 3 provider Sale fallback correlation, rejected-event redelivery reclaim, and live authenticated browser UI QA with persistence across reloads and navigation. Production PayPal remains untouched; public checkout remains safely fail-closed.
 **Location:** `Project Atlas/WHERE_WE_STOPPED.md`
 
 ## Current Active Handover — PayPal Sandbox Payment Core Final Verification & Closeout (2026-09-07)
@@ -9,16 +9,16 @@
 * **Workstream Verdict:** `SANDBOX_PAYMENT_CORE_VERIFIED_READY_FOR_PRODUCTION_ACTIVATION` (`PAYPAL_PRODUCTION_READY = NO`).
 * **Authoritative Commit:** `9c27773f4bc7c69d42a53cb25d83e6a0a471b316` (`main`).
 * **Runtime Deployment Context:**
-  - `paypal-webhook`: **DEPLOYED_SANDBOX** via workflow `deploy-appwrite-hubs.yml` run `34118592362` (Deployment ID: `6a9ea51d2ecf33ade11a`, status: `ready`).
+  - `paypal-webhook`: **DEPLOYED_SANDBOX** via workflow `deploy-appwrite-hubs.yml` run `34118592362` (Deployment ID: `[verified deployment]`, status: `ready`).
   - PayPal Schema: **READY** in Appwrite (`paypal_subscription_state` and `paypal_event_ledger` reconciled).
   - Webhook Smoke: **PASS_FAIL_CLOSED** (`https://paypal-webhook.wiseresume.app` returned HTTP 400 on unauthenticated payload).
-  - Genuine Sandbox Refund Sale: `0B9419070U158972P` (refunded $10.00 USD, Refund ID `1H603208GJ834104W`, live PayPal state: `refunded`).
-  - Authentic Webhook Event: `WH-39D23786BJ747394G-6NV67311UF312770M` (`PAYMENT.SALE.REFUNDED`, 2026-09-07T11:14:08.457Z).
+  - Genuine Sandbox Refund Sale: `[Sandbox refunded sale]` (refunded $10.00 USD, Refund ID `[Sandbox refund transaction]`, live PayPal state: `refunded`).
+  - Authentic Webhook Event: `[genuine Sandbox refund event]` (`PAYMENT.SALE.REFUNDED`, 2026-09-07T11:14:08.457Z).
   - Production PayPal: **UNTOUCHED** (`PAYPAL_PRODUCTION_READY = NO`).
   - Public Checkout: **CHECKOUT_PREVIOUSLY_VERIFIED_DISABLED** (`BILLING_CHECKOUT_ENABLED=false`).
 * **Runtime Verification Evidence:**
-  1. **Genuine Event Redelivery:** Requested single provider redelivery via `POST /v1/notifications/webhooks-events/WH-39D23786BJ747394G-6NV67311UF312770M/resend` -> HTTP 202 Accepted.
-  2. **Rejected Ledger Record Reclaimed:** Ingestion logic reclaimed previous `rejected` ledger reservation, resolving subscription `I-58K84FGAFFHL` via Step 3 provider Sale fallback (`fetchSaleDetails`).
+  1. **Genuine Event Redelivery:** Requested single provider redelivery via `POST /v1/notifications/webhooks-events/.../resend` -> HTTP 202 Accepted.
+  2. **Rejected Ledger Record Reclaimed:** Ingestion logic reclaimed previous `rejected` ledger reservation, resolving subscription `[Sandbox QA subscription]` via Step 3 provider Sale fallback (`fetchSaleDetails`).
   3. **Case C Migration-on-Touch:** Authoritative Transactions API query resolved `last_entitlement_payment_id` and populated state identity.
   4. **Option B Full Refund Revocation:** Revoked paid access immediately, set `expires_at = null`, initiated provider cancellation (settled with `status = "canceled"`, `will_renew = false`, `renewal_cancellation_pending = false`).
   5. **Live Entitlement State (Coupons `get-subscription`):**
@@ -30,7 +30,7 @@
      - `can_cancel_subscription: false`
      - `will_renew: false`
   6. **Live Authenticated Browser UI QA:**
-     - Headless Playwright automation executed on `https://wiseresume.app/subscription` for QA user `qa_pp_afbf725e`.
+     - Headless Playwright automation executed on `https://wiseresume.app/subscription` for QA user `[Sandbox QA user]`.
      - Verified Free tier UI: "Current Plan: Free", "Usage: 0 / 1 Resumes", "AI Credits: 0 / 5", Free badge in sidebar, and disabled checkout notice.
      - Persistence verified across full browser reload and navigation (`/dashboard` -> `/subscription`). Visual evidence captured in `live_subscription_page_1.png` and `live_subscription_page_reloaded.png`.
 * **Prerequisites for Future Production Activation:**
@@ -49,13 +49,13 @@
 * **Runtime Deployment Context:**
   - `paypal-webhook`: **DEPLOYED_SANDBOX** via workflow `deploy-appwrite-hubs.yml` run `34110889444` (pending targeted redeployment of `paypal-webhook` with this fix).
   - PayPal Schema: **READY** in Appwrite (`paypal_subscription_state` and `paypal_event_ledger` reconciled).
-  - Genuine Sandbox Refund Sale: `0B9419070U158972P` (refunded $10.00 USD, Refund ID `1H603208GJ834104W`, live PayPal state: `refunded`).
-  - Genuine Webhook Event: `WH-39D23786BJ747394G-6NV67311UF312770M` (`PAYMENT.SALE.REFUNDED`, 2026-09-07T11:14:08.457Z).
+  - Genuine Sandbox Refund Sale: `[Sandbox refunded sale]` (refunded $10.00 USD, Refund ID `[Sandbox refund transaction]`, live PayPal state: `refunded`).
+  - Genuine Webhook Event: `[genuine Sandbox refund event]` (`PAYMENT.SALE.REFUNDED`, 2026-09-07T11:14:08.457Z).
   - Production PayPal: **UNTOUCHED** (`PAYPAL_PRODUCTION_READY = NO`).
   - Public Checkout: **CHECKOUT_PREVIOUSLY_VERIFIED_DISABLED** (`BILLING_CHECKOUT_ENABLED=false`).
 * **Root Cause & Diagnosis:**
   1. Authentic PayPal `PAYMENT.SALE.REFUNDED` webhook resources include `sale_id` but omit `billing_agreement_id`.
-  2. Legacy QA user state (`qa_pp_afbf725e`) was created prior to PR #299 and thus has `last_entitlement_payment_id = null`, and the historical sale ledger record has `payment_id = null`.
+  2. Legacy QA user state (`[Sandbox QA user]`) was created prior to PR #299 and thus has `last_entitlement_payment_id = null`, and the historical sale ledger record has `payment_id = null`.
   3. Consequently, Steps 1 & 2 of correlation could not link the event to a subscription, rejecting the event with `unresolved_subscription_correlation` before reaching Case C ("True Legacy Migration-on-Touch").
   4. The event was recorded in `paypal_event_ledger` with `processing_status = 'rejected'` and `outcome_code = 'unresolved_subscription_correlation'`.
   5. The previous redelivery reclaim logic only allowed recovery for `processing_status === 'failed'` or specific ignored codes (`different_subscription_ignored`, `stale_event`), treating any `rejected` event as a permanent duplicate (`already_recorded`), which prevented redelivery recovery even after code updates.
@@ -84,7 +84,7 @@
   - TypeScript typecheck (`tsc --noEmit`): PASS (0 errors).
   - Production build (`npm run build`): PASS (clean dist, 0 sourcemaps).
   - `git diff --check`: PASS (0 errors).
-* **Next Action:** Push branch `fix/paypal-legacy-refund-correlation`, open PR to `main`, await CI, merge, run targeted `deploy-appwrite-hubs.yml` (`target=paypal-webhook`), request ONE genuine provider redelivery of `WH-39D23786BJ747394G-6NV67311UF312770M`, verify Option B entitlement revocation (`effective_plan = "free"`), perform browser QA, and close out.
+* **Next Action:** Push branch `fix/paypal-legacy-refund-correlation`, open PR to `main`, await CI, merge, run targeted `deploy-appwrite-hubs.yml` (`target=paypal-webhook`), request ONE genuine provider redelivery of `[genuine Sandbox refund event]`, verify Option B entitlement revocation (`effective_plan = "free"`), perform browser QA, and close out.
 
 ---
 
@@ -93,7 +93,7 @@
 * **Workstream:** `COUPON_LIVE_LEGACY_ATTRS_COMPAT_READY_FOR_REVIEW` (`BRANCH_READY_FOR_REVIEW`, `PAYPAL_PRODUCTION_READY = NO`).
 * **Active Branch:** `fix/coupon-live-legacy-attrs` (Target: `main`, Base Main SHA: `a88007427b47c88def31de60883d18ca85095255`).
 * **Runtime Deployment Context:**
-  - `paypal-webhook`: **DEPLOYED_SANDBOX** via workflow `deploy-appwrite-hubs.yml` run `34110889444` (status: `READY`, deployment `6a9e90018dfcbf3f35a4`).
+  - `paypal-webhook`: **DEPLOYED_SANDBOX** via workflow `deploy-appwrite-hubs.yml` run `34110889444` (status: `READY`, deployment `[previous deployment]`).
   - PayPal Schema: **READY** in Appwrite (`paypal_subscription_state` and `paypal_event_ledger` reconciled).
   - `paypal-webhook` Smoke: **PASS_FAIL_CLOSED** (safe HTTP 400 on unauthenticated payload).
   - PR #307: **MERGED** into `main` at merge SHA `a88007427b47c88def31de60883d18ca85095255`.
@@ -138,7 +138,7 @@
 * **Workstream:** `COUPONS_SCHEMA_PREDEPLOY_HARDENING_READY_FOR_REVIEW` (`BRANCH_READY_FOR_REVIEW`, `PAYPAL_PRODUCTION_READY = NO`).
 * **Active Branch:** `fix/coupon-schema-readiness` (Target: `main`, Base Main SHA: `2341c263a1570f94dbafd80e9e3c901b87d366eb`).
 * **Runtime Deployment Context:**
-  - `paypal-webhook`: **DEPLOYED_SANDBOX** via workflow `deploy-appwrite-hubs.yml` run `34110889444` (status: `READY`, deployment `6a9e90018dfcbf3f35a4`).
+  - `paypal-webhook`: **DEPLOYED_SANDBOX** via workflow `deploy-appwrite-hubs.yml` run `34110889444` (status: `READY`, deployment `[previous deployment]`).
   - PayPal Schema: **READY** in Appwrite (`paypal_subscription_state` and `paypal_event_ledger` reconciled).
   - `paypal-webhook` Smoke: **PASS_FAIL_CLOSED** (safe HTTP 400 on unauthenticated payload).
   - `coupons`: **PENDING_TARGETED_DEPLOYMENT** (pending review, merge, and owner deployment authorization).

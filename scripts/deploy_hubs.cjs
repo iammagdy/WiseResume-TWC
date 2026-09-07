@@ -835,7 +835,7 @@ async function ensurePaypalWebhookVariables() {
     const existingWebhookId = await existingVariableValue('paypal-webhook', 'PAYPAL_WEBHOOK_ID');
 
     // Non-mutating validation using shared validator
-    validatePaypalBootstrapEnv({
+    const bootstrap = validatePaypalBootstrapEnv({
         PAYPAL_ACCESS_ENVIRONMENT: accessEnv,
         PAYPAL_CLIENT_ID: clientId,
         PAYPAL_CLIENT_SECRET: clientSecret,
@@ -843,10 +843,22 @@ async function ensurePaypalWebhookVariables() {
         PAYPAL_WEBHOOK_ID: incomingWebhookId || existingWebhookId || '',
     });
 
-    await ensureVariable('paypal-webhook', 'PAYPAL_ACCESS_ENVIRONMENT', 'sandbox');
+    const canonicalEnvironment = bootstrap.environment;
+
+    await ensureVariable('paypal-webhook', 'PAYPAL_ACCESS_ENVIRONMENT', canonicalEnvironment);
     await ensureVariable('paypal-webhook', 'PAYPAL_CLIENT_ID', clientId);
     await ensureVariable('paypal-webhook', 'PAYPAL_CLIENT_SECRET', clientSecret);
-    await ensureVariable('paypal-webhook', 'BILLING_CHECKOUT_QA_USER_ID', qaUserId);
+    if (qaUserId) await ensureVariable('paypal-webhook', 'BILLING_CHECKOUT_QA_USER_ID', qaUserId);
+
+    // Sync PayPal Sandbox & Production catalog plan IDs to paypal-webhook
+    for (const [key, value] of [
+        ['BILLING_SANDBOX_PRO_PRICE_ID', process.env.BILLING_SANDBOX_PRO_PRICE_ID || 'P-62G07996SG1490118NKN6I3Q'],
+        ['BILLING_SANDBOX_PREMIUM_PRICE_ID', process.env.BILLING_SANDBOX_PREMIUM_PRICE_ID || 'P-56D04005HN592501XNKN6I3Q'],
+        ['BILLING_PRODUCTION_PRO_PRICE_ID', process.env.BILLING_PRODUCTION_PRO_PRICE_ID],
+        ['BILLING_PRODUCTION_PREMIUM_PRICE_ID', process.env.BILLING_PRODUCTION_PREMIUM_PRICE_ID],
+    ]) {
+        if (value) await ensureNonSecretCatalogVariable('paypal-webhook', key, value);
+    }
 
     // REQUIRED_FOR_WEBHOOK_ACTIVATION (Stage B) & Anti-downgrade rule:
     // Once PAYPAL_WEBHOOK_ID is configured for an existing function, a later deployment

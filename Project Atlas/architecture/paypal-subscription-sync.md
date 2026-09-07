@@ -1,7 +1,7 @@
 # WiseResume PayPal Subscription Synchronization & Entitlement Resolution
 
 **Last Verified:** 2026-09-07
-**Status:** `SANDBOX_PAYMENT_CORE_VERIFIED_READY_FOR_PRODUCTION_ACTIVATION` (Frontend: `DEPLOYED_TO_PRODUCTION` via Vercel, Backend: `paypal-webhook`: `DEPLOYED_SANDBOX` [deployment `6a9ea51d2ecf33ade11a`, run `34118592362`], `coupons`: `DEPLOYED_OR_READY`, PayPal Schema: `READY`, Sandbox Refund: `VERIFIED_LIVE_REDELIVERY_OPTION_B_REVOKED`, Authentic Refund Event: `WH-39D23786BJ747394G-6NV67311UF312770M` [reclaimed and settled], Production PayPal: `UNTOUCHED`, `PAYPAL_PRODUCTION_READY = NO`, Base Main SHA: `9c27773f4bc7c69d42a53cb25d83e6a0a471b316`, Billing: `CHECKOUT_PREVIOUSLY_VERIFIED_DISABLED`) — Authentic PayPal Sandbox refund blocker resolved and verified end-to-end: Step 3 Provider Sale fallback and narrowed rejected-event reclaim merged in PR #309, deployed via targeted workflow run 34118592362, verified via single genuine provider redelivery of WH-39D23786BJ747394G-6NV67311UF312770M, revoking QA user entitlements (effective_plan = "free", expires_at = null), and verified via live Playwright browser QA with persistence across reload and navigation.
+**Status:** `SANDBOX_PAYMENT_CORE_VERIFIED_READY_FOR_PRODUCTION_ACTIVATION` (Frontend: `DEPLOYED_TO_PRODUCTION` via Vercel, Backend: `paypal-webhook`: `DEPLOYED_SANDBOX` [deployment `[verified deployment]`, run `34118592362`], `coupons`: `DEPLOYED_OR_READY`, PayPal Schema: `READY`, Sandbox Refund: `VERIFIED_LIVE_REDELIVERY_OPTION_B_REVOKED`, Authentic Refund Event: `[genuine Sandbox refund event]` [reclaimed and settled], Production PayPal: `UNTOUCHED`, `PAYPAL_PRODUCTION_READY = NO`, Base Main SHA: `9c27773f4bc7c69d42a53cb25d83e6a0a471b316`, Billing: `CHECKOUT_PREVIOUSLY_VERIFIED_DISABLED`) — Authentic PayPal Sandbox refund blocker resolved and verified end-to-end: Step 3 Provider Sale fallback and narrowed rejected-event reclaim merged in PR #309, deployed via targeted workflow run 34118592362, verified via single genuine provider redelivery of `[genuine Sandbox refund event]`, revoking QA user entitlements (effective_plan = "free", expires_at = null), and verified via live Playwright browser QA with persistence across reload and navigation.
 **Location:** `Project Atlas/architecture/paypal-subscription-sync.md`
 
 ## Scope and Preserved Contracts
@@ -297,7 +297,7 @@ Phase 4 completes the end-to-end checkout and customer-facing subscription lifec
 
 ### 14. Option B Refund and Reversal Policy (Merged, Pending Deployment)
 
-**Status:** `DEPLOYED_SANDBOX_VERIFIED` (`PAYPAL_PRODUCTION_READY = NO`, Merged PR: #309, Merge SHA: `9c27773f4bc7c69d42a53cb25d83e6a0a471b316`, Deployment: `6a9ea51d2ecf33ade11a`, Redelivery Event: `WH-39D23786BJ747394G-6NV67311UF312770M`, Entitlement Revocation: `VERIFIED_LIVE`).
+**Status:** `DEPLOYED_SANDBOX_VERIFIED` (`PAYPAL_PRODUCTION_READY = NO`, Merged PR: #309, Merge SHA: `9c27773f4bc7c69d42a53cb25d83e6a0a471b316`, Deployment: `[verified deployment]`, Redelivery Event: `[genuine Sandbox refund event]`, Entitlement Revocation: `VERIFIED_LIVE`).
 The Option B refund and reversal policy is owner-locked and approved:
 
 1. **Full Refund of Current Entitlement-Bearing Payment:**
