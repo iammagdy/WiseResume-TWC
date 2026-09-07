@@ -1,0 +1,54 @@
+name: Bootstrap PayPal Live
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bootstrap-paypal-live-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  bootstrap:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Guard against non-main branch execution
+        run: |
+          if [ "${{ github.ref }}" != "refs/heads/main" ]; then
+            echo "[FATAL] bootstrap-paypal-live workflow can ONLY be executed from refs/heads/main. Current ref: ${{ github.ref }}"
+            exit 1
+          fi
+
+      - name: Checkout repository
+        # actions/checkout v4.2.2
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 1
+
+      - name: Verify HEAD matches origin/main
+        run: |
+          git fetch origin main --depth=1
+          CURRENT_HEAD=$(git rev-parse HEAD)
+          ORIGIN_MAIN=$(git rev-parse origin/main)
+          if [ "$CURRENT_HEAD" != "$ORIGIN_MAIN" ]; then
+            echo "[FATAL] Workflow HEAD ($CURRENT_HEAD) does not match origin/main ($ORIGIN_MAIN). Execution blocked."
+            exit 1
+          fi
+          echo "[PASS] Verified HEAD matches origin/main ($CURRENT_HEAD)"
+
+      - name: Setup Node.js
+        # actions/setup-node v4.4.0
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+
+      - name: Execute PayPal Live Bootstrap
+        env:
+          PAYPAL_PRODUCTION_CLIENT_ID: ${{ secrets.PAYPAL_PRODUCTION_CLIENT_ID }}
+          PAYPAL_PRODUCTION_CLIENT_SECRET: ${{ secrets.PAYPAL_PRODUCTION_CLIENT_SECRET }}
+          DEPLOY_GITHUB_TOKEN: ${{ secrets.DEPLOY_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: node scripts/bootstrap_paypal_live.cjs
