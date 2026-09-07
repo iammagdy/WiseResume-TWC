@@ -696,6 +696,105 @@ async function fetchSubscriptionTransactions({
   return { found: false, transaction: null };
 }
 
+async function fetchSaleDetails(paymentId, {
+  env = process.env,
+  customFetcher = null,
+} = {}) {
+  if (typeof customFetcher === 'function') {
+    return customFetcher(paymentId, { env });
+  }
+
+  if (!paymentId || typeof paymentId !== 'string' || !paymentId.trim()) {
+    return null;
+  }
+
+  const cleanPaymentId = paymentId.trim();
+
+  const baseUrl = getPaypalApiBaseUrl(env);
+  if (!baseUrl) {
+    const err = new Error('Unconfigured PayPal environment for Sale API');
+    err.code = 'unconfigured_paypal_environment';
+    err.status = 500;
+    throw err;
+  }
+
+  const clientId = String(env.PAYPAL_CLIENT_ID || '').trim();
+  const clientSecret = String(env.PAYPAL_CLIENT_SECRET || '').trim();
+  if (!clientId || !clientSecret) {
+    const err = new Error('Unconfigured PayPal credentials for Sale API');
+    err.code = 'unconfigured_paypal_credentials';
+    err.status = 500;
+    throw err;
+  }
+
+  let accessToken;
+  try {
+    const tokenRes = await fetch(`${baseUrl}/v1/oauth2/token`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString('base64')}`,
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: 'grant_type=client_credentials',
+    });
+    if (!tokenRes.ok) {
+      if (tokenRes.status >= 500 || tokenRes.status === 429) {
+        const err = new Error(`PayPal OAuth token request failed transiently with status ${tokenRes.status}`);
+        err.isTransient = true;
+        err.status = tokenRes.status;
+        throw err;
+      }
+      return null;
+    }
+    const tokenData = await tokenRes.json();
+    accessToken = tokenData?.access_token;
+    if (!accessToken) return null;
+  } catch (err) {
+    if (err?.isTransient) throw err;
+    if (err?.name === 'FetchError' || err?.name === 'TypeError' || err?.code === 'ECONNRESET' || err?.code === 'ETIMEDOUT') {
+      const netErr = new Error(`PayPal API network failure during OAuth: ${err.message}`);
+      netErr.isTransient = true;
+      throw netErr;
+    }
+    throw err;
+  }
+
+  let res;
+  try {
+    res = await fetch(`${baseUrl}/v1/payments/sale/${encodeURIComponent(cleanPaymentId)}`, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+    });
+  } catch (err) {
+    const netErr = new Error(`PayPal Sale API network failure: ${err.message}`);
+    netErr.isTransient = true;
+    throw netErr;
+  }
+
+  if (!res.ok) {
+    if (res.status >= 500 || res.status === 429) {
+      const err = new Error(`PayPal Sale API failed transiently with status ${res.status}`);
+      err.isTransient = true;
+      err.status = res.status;
+      throw err;
+    }
+    return null;
+  }
+
+  try {
+    return await res.json();
+  } catch {
+    const err = new Error('Malformed JSON from PayPal Sale API');
+    err.code = 'malformed_sale_response';
+    err.status = 502;
+    err.isTransient = true;
+    throw err;
+  }
+}
+
 async function cancelSubscriptionAtProvider(subscriptionId, {
   reason = 'Immediate refund closure',
   env = process.env,
@@ -968,9 +1067,13 @@ async function reclaimLedgerReservation(databases, ledgerDocId, payload, nowMs) 
     // Verify still eligible for reclamation inside the transaction
     const isReclaimableIgnored = existing.processing_status === 'ignored' &&
       (existing.outcome_code === 'different_subscription_ignored' || (existing.outcome_code === 'stale_event' && payload.event_type === 'PAYMENT.SALE.COMPLETED'));
+    const isReclaimableRejectedCorrelation = existing.processing_status === 'rejected' &&
+      existing.outcome_code === 'unresolved_subscription_correlation' &&
+      (payload.event_type === 'PAYMENT.SALE.REFUNDED' || payload.event_type === 'PAYMENT.SALE.REVERSED') &&
+      Boolean(payload.payment_id);
     if (existing.processing_status === 'processed' ||
         (existing.processing_status === 'ignored' && !isReclaimableIgnored) ||
-        existing.processing_status === 'rejected') {
+        (existing.processing_status === 'rejected' && !isReclaimableRejectedCorrelation)) {
       await databases.updateTransaction(transaction.$id, false, true);
       return { ok: false, reason: 'already_recorded' };
     }
@@ -1024,6 +1127,7 @@ async function processWebhookEvent({
   subscriptionFetcher = null,
   subscriptionTransactionsFetcher = null,
   subscriptionCanceler = null,
+  saleFetcher = null,
 }) {
   const validation = validateEvent(event);
   if (!validation.ok) {
@@ -1097,9 +1201,13 @@ async function processWebhookEvent({
       }
       const isReclaimableIgnored = existing.processing_status === 'ignored' &&
         (existing.outcome_code === 'different_subscription_ignored' || (existing.outcome_code === 'stale_event' && event.type === 'PAYMENT.SALE.COMPLETED'));
+      const isReclaimableRejectedCorrelation = existing.processing_status === 'rejected' &&
+        existing.outcome_code === 'unresolved_subscription_correlation' &&
+        (event.type === 'PAYMENT.SALE.REFUNDED' || event.type === 'PAYMENT.SALE.REVERSED') &&
+        Boolean(event.paymentId);
       if (existing.processing_status === 'processed' ||
           (existing.processing_status === 'ignored' && !isReclaimableIgnored) ||
-          existing.processing_status === 'rejected') {
+          (existing.processing_status === 'rejected' && !isReclaimableRejectedCorrelation)) {
         return { outcome: 'duplicate', code: 'already_recorded', mutated: false };
       }
       if (existing.processing_status === 'processing') {
@@ -1128,7 +1236,7 @@ async function processWebhookEvent({
           const code = reclaim.reason === 'already_recorded' ? 'already_recorded' : 'concurrent_processing';
           return { outcome: 'duplicate', code, mutated: false };
         }
-      } else if (existing.processing_status === 'failed' || isReclaimableIgnored) {
+      } else if (existing.processing_status === 'failed' || isReclaimableIgnored || isReclaimableRejectedCorrelation) {
         // Recoverable retry after a previous processor crashed or experienced transient failure,
         // or redelivery of an event that was previously ignored under different_subscription_ignored or stale_event.
         // Conflict-aware conditional reclaim via Appwrite transaction.
@@ -1210,6 +1318,75 @@ async function processWebhookEvent({
       }
       if (matchedLedger?.subscription_id) {
         event.subscriptionId = matchedLedger.subscription_id;
+      }
+    }
+
+    // Step 3: If neither resolved the subscription, perform authoritative provider Sale lookup using event.paymentId
+    if (!event.subscriptionId) {
+      let sale = null;
+      try {
+        sale = await fetchSaleDetails(event.paymentId, {
+          env,
+          customFetcher: saleFetcher,
+        });
+      } catch (err) {
+        if (err?.isTransient) {
+          await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
+            processing_status: 'failed',
+            outcome_code: 'transient_paypal_fetch_failure',
+          }, serverOnlyPermissions()).catch(() => {});
+          throw err;
+        }
+        throw err;
+      }
+
+      if (sale) {
+        const returnedSaleId = String(sale.id || '').trim();
+        const saleSubId = String(sale.billing_agreement_id || '').trim();
+        const saleCustom = String(sale.custom_id || sale.custom || '').trim();
+
+        // 4. Validate sale.id === event.paymentId
+        if (returnedSaleId !== event.paymentId) {
+          await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
+            processing_status: 'rejected',
+            outcome_code: 'unresolved_subscription_correlation',
+          }, serverOnlyPermissions()).catch(() => {});
+          return { outcome: 'rejected', code: 'unresolved_subscription_correlation', mutated: false };
+        }
+
+        // 5. Extract and validate billing_agreement_id (must exist and match I-...)
+        if (!saleSubId || !saleSubId.startsWith('I-')) {
+          await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
+            processing_status: 'rejected',
+            outcome_code: 'unresolved_subscription_correlation',
+          }, serverOnlyPermissions()).catch(() => {});
+          return { outcome: 'rejected', code: 'unresolved_subscription_correlation', mutated: false };
+        }
+
+        // Phase D: Custom ID is cross-check only. If both exist and conflict: FAIL CLOSED
+        if (event.customId && saleCustom && event.customId !== saleCustom) {
+          await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
+            processing_status: 'rejected',
+            outcome_code: 'correlation_identity_conflict',
+          }, serverOnlyPermissions()).catch(() => {});
+          return { outcome: 'rejected', code: 'correlation_identity_conflict', mutated: false };
+        }
+
+        // 6. Assign event.subscriptionId
+        event.subscriptionId = saleSubId;
+
+        // 7. Load previous state
+        previous = await findStateBySubscriptionId(databases, event.subscriptionId);
+
+        // After state is found, if non-empty trusted custom conflicts with previous.user_id: FAIL CLOSED
+        const trustedCustom = event.customId || saleCustom;
+        if (previous?.user_id && trustedCustom && previous.user_id !== trustedCustom) {
+          await databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocId, {
+            processing_status: 'rejected',
+            outcome_code: 'correlation_identity_conflict',
+          }, serverOnlyPermissions()).catch(() => {});
+          return { outcome: 'rejected', code: 'correlation_identity_conflict', mutated: false };
+        }
       }
     }
   }
@@ -2227,6 +2404,7 @@ module.exports = async ({ req, res, log, error }) => {
       subscriptionFetcher: testOpts.subscriptionFetcher || null,
       subscriptionTransactionsFetcher: testOpts.subscriptionTransactionsFetcher || null,
       subscriptionCanceler: testOpts.subscriptionCanceler || null,
+      saleFetcher: testOpts.saleFetcher || null,
     });
 
     log?.(`PayPal webhook ${requestId}: ${event.type} -> ${result.outcome} (${result.code})`);
@@ -2280,6 +2458,7 @@ module.exports.__test = {
   atomicReclaimLedgerReservation: reclaimLedgerReservation,
   fetchSubscriptionDetails,
   fetchSubscriptionTransactions,
+  fetchSaleDetails,
   cancelSubscriptionAtProvider,
   upsertProviderState,
   processWebhookEvent,

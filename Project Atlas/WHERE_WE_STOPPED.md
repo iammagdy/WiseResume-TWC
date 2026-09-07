@@ -1,10 +1,56 @@
 # Project Atlas — Active Operational & Handover State
 
 **Last Verified:** 2026-09-07
-**Status:** `COUPON_LIVE_LEGACY_ATTRS_COMPAT_READY_FOR_REVIEW` (Frontend: `DEPLOYED_TO_PRODUCTION` via Vercel, Backend: `paypal-webhook`: `DEPLOYED_SANDBOX` [run 34110889444], `coupons`: `PENDING_TARGETED_DEPLOYMENT`, PayPal Schema: `READY`, Coupon Schema Legacy Compat: `IN_REVIEW` [branch `fix/coupon-live-legacy-attrs`], PayPal Webhook Smoke: `PASS_FAIL_CLOSED` [HTTP 400], Sandbox refund QA: `NOT_PERFORMED_YET`, Production PayPal: `UNTOUCHED`, `PAYPAL_PRODUCTION_READY = NO`, Base Main SHA: `a88007427b47c88def31de60883d18ca85095255`, Billing: `CHECKOUT_PREVIOUSLY_VERIFIED_DISABLED`) — Implemented narrow non-destructive legacy schema compatibility in `scripts/setup_discount_codes_schema.cjs` on branch `fix/coupon-live-legacy-attrs`: accepts proven live optional `discount_codes.active` (`required=false` or `true`, `default=null`, `true`, or `false`) and live optional `discount_codes.percent_off` (`required=false` or `true`, `default=null`, `100`, or integer), alongside proven live `discount_codes.code` size 50 (or 64, required=true) and live `coupon_redemptions.user_id` optional status (`required=false` or `true`, size >= 64). All other non-legacy fields remain strictly fail-closed. 16/16 coupon schema tests pass. All 384 hub tests pass. Ready for review, merge, and targeted coupons deployment retry.
+**Status:** `PAYPAL_LEGACY_REFUND_CORRELATION_FIX_READY_FOR_PR` (Frontend: `DEPLOYED_TO_PRODUCTION` via Vercel, Backend: `paypal-webhook`: `DEPLOYED_SANDBOX` [run 34110889444], `coupons`: `DEPLOYED_OR_READY`, PayPal Schema: `READY`, Sandbox Refund Blocker: `FIXED_LOCALLY_PASSING_ALL_TESTS` [branch `fix/paypal-legacy-refund-correlation`], PayPal Webhook Smoke: `PASS_FAIL_CLOSED`, Authentic Refund Event: `WH-39D23786BJ747394G-6NV67311UF312770M` [awaiting redelivery after targeted deploy], Production PayPal: `UNTOUCHED`, `PAYPAL_PRODUCTION_READY = NO`, Base Main SHA: `55087d29f8840fcdcda38712eddca9ae77614736`, Billing: `CHECKOUT_PREVIOUSLY_VERIFIED_DISABLED`) — Diagnosed and resolved the authentic PayPal Sandbox refund correlation blocker: genuine PayPal `PAYMENT.SALE.REFUNDED` webhook events only provide `sale_id` (not `billing_agreement_id`). Because legacy pre-PR #299 state lacked `last_entitlement_payment_id` and ledger lacked `payment_id`, the event was rejected before reaching "True Legacy Migration-on-Touch". Furthermore, the event was marked `rejected` with `unresolved_subscription_correlation`, which the old reclaim logic treated as terminal (`already_recorded`), blocking redelivery. Implemented: (1) `fetchSaleDetails(paymentId)` querying provider `GET /v1/payments/sale/{paymentId}` to resolve `billing_agreement_id` (I-...) and validate identity; (2) Step 3 provider Sale fallback in correlation order for `PAYMENT.SALE.REFUNDED` and `PAYMENT.SALE.REVERSED`; (3) Strict `customId` conflict check; (4) Narrowed rejected-event reclaim in `reclaimLedgerReservation` and `processWebhookEvent` for `unresolved_subscription_correlation` on refund/reversal events; (5) 15 new comprehensive tests (149/149 in `paypal-webhook.test.cjs`, 399/399 across all hubs); (6) Updated source hashes. Ready for PR, merge, targeted deploy, and one provider redelivery.
 **Location:** `Project Atlas/WHERE_WE_STOPPED.md`
 
-## Current Active Handover — Coupon Live Legacy Attributes Compatibility Fix (2026-09-07)
+## Current Active Handover — PayPal Legacy Refund Correlation Fix & Redelivery Reclaim (2026-09-07)
+
+* **Workstream:** `PAYPAL_LEGACY_REFUND_CORRELATION_FIX_READY_FOR_PR` (`BRANCH_READY_FOR_REVIEW`, `PAYPAL_PRODUCTION_READY = NO`).
+* **Active Branch:** `fix/paypal-legacy-refund-correlation` (Target: `main`, Base Main SHA: `55087d29f8840fcdcda38712eddca9ae77614736`).
+* **Runtime Deployment Context:**
+  - `paypal-webhook`: **DEPLOYED_SANDBOX** via workflow `deploy-appwrite-hubs.yml` run `34110889444` (pending targeted redeployment of `paypal-webhook` with this fix).
+  - PayPal Schema: **READY** in Appwrite (`paypal_subscription_state` and `paypal_event_ledger` reconciled).
+  - Genuine Sandbox Refund Sale: `0B9419070U158972P` (refunded $10.00 USD, Refund ID `1H603208GJ834104W`, live PayPal state: `refunded`).
+  - Genuine Webhook Event: `WH-39D23786BJ747394G-6NV67311UF312770M` (`PAYMENT.SALE.REFUNDED`, 2026-09-07T11:14:08.457Z).
+  - Production PayPal: **UNTOUCHED** (`PAYPAL_PRODUCTION_READY = NO`).
+  - Public Checkout: **CHECKOUT_PREVIOUSLY_VERIFIED_DISABLED** (`BILLING_CHECKOUT_ENABLED=false`).
+* **Root Cause & Diagnosis:**
+  1. Authentic PayPal `PAYMENT.SALE.REFUNDED` webhook resources include `sale_id` but omit `billing_agreement_id`.
+  2. Legacy QA user state (`qa_pp_afbf725e`) was created prior to PR #299 and thus has `last_entitlement_payment_id = null`, and the historical sale ledger record has `payment_id = null`.
+  3. Consequently, Steps 1 & 2 of correlation could not link the event to a subscription, rejecting the event with `unresolved_subscription_correlation` before reaching Case C ("True Legacy Migration-on-Touch").
+  4. The event was recorded in `paypal_event_ledger` with `processing_status = 'rejected'` and `outcome_code = 'unresolved_subscription_correlation'`.
+  5. The previous redelivery reclaim logic only allowed recovery for `processing_status === 'failed'` or specific ignored codes (`different_subscription_ignored`, `stale_event`), treating any `rejected` event as a permanent duplicate (`already_recorded`), which prevented redelivery recovery even after code updates.
+* **Scope & Implementation Details:**
+  1. **Provider Sale Query Helper (`fetchSaleDetails`):**
+     - Queries `GET /v1/payments/sale/{paymentId}` using configured PayPal environment credentials.
+     - Validates `sale.id === paymentId` and `sale.billing_agreement_id.startsWith('I-')`.
+     - Classifies 5xx and 429 as transient retryable errors (`err.isTransient = true`), while non-transient 4xx returns `null`.
+     - Exported on `__test` and wired in `main()` via `saleFetcher`.
+  2. **Step 3 Provider Sale Fallback in Webhook Ingress:**
+     - When `subscriptionId` is absent in payload, state lookup by paymentId fails, and historical sale ledger lookup by paymentId fails, `processWebhookEvent` queries `fetchSaleDetails(event.paymentId)`.
+     - Sets `event.subscriptionId = sale.billing_agreement_id`.
+     - Cross-checks `customId`: if `event.customId` and `sale.custom` both exist and conflict, fails closed with `correlation_identity_conflict`.
+     - Cross-checks user identity: if `previous.user_id` conflicts with trusted custom ID, fails closed with `correlation_identity_conflict`.
+     - Loads `previous = await findStateBySubscriptionId(databases, event.subscriptionId)`, enabling Case C ("True Legacy Migration-on-Touch") to execute.
+  3. **Narrowed Rejected Event Reclaim (`isReclaimableRejectedCorrelation`):**
+     - Allowed in both outer `processWebhookEvent` and inner `reclaimLedgerReservation` transaction.
+     - Scoped strictly to `processing_status === 'rejected'` + `outcome_code === 'unresolved_subscription_correlation'` on `PAYMENT.SALE.REFUNDED` or `PAYMENT.SALE.REVERSED` with `paymentId`.
+     - Safely permits PayPal provider redelivery of previously rejected authentic refund events without duplicate processing risk.
+  4. **Source Hash Update:**
+     - `paypal-webhook` hash updated to `f8d3517c675cd8ed42f10827d118c8dbe9b845aa4d6c89a4ddd56482bc030e1b` in `src/lib/devkit/sourceHashes.generated.json`.
+* **Test Verification Baseline:**
+  - `tests/hubs/paypal-webhook.test.cjs`: 149 / 149 passing (100%, +15 new tests covering real-world regression, redelivery reclaim, provider sale errors, custom ID conflict, user ID conflict, and reversal fallback).
+  - `tests/hubs/paypal-schema.test.cjs`: 15 / 15 passing (100%).
+  - Full hub suites (`node --test tests/hubs/*.test.cjs`): 399 / 399 passing across all 58 suites (100%).
+  - TypeScript typecheck (`tsc --noEmit`): PASS (0 errors).
+  - Production build (`npm run build`): PASS (clean dist, 0 sourcemaps).
+  - `git diff --check`: PASS (0 errors).
+* **Next Action:** Push branch `fix/paypal-legacy-refund-correlation`, open PR to `main`, await CI, merge, run targeted `deploy-appwrite-hubs.yml` (`target=paypal-webhook`), request ONE genuine provider redelivery of `WH-39D23786BJ747394G-6NV67311UF312770M`, verify Option B entitlement revocation (`effective_plan = "free"`), perform browser QA, and close out.
+
+---
+
+## Historical Handover — Coupon Live Legacy Attributes Compatibility Fix (2026-09-07)
 
 * **Workstream:** `COUPON_LIVE_LEGACY_ATTRS_COMPAT_READY_FOR_REVIEW` (`BRANCH_READY_FOR_REVIEW`, `PAYPAL_PRODUCTION_READY = NO`).
 * **Active Branch:** `fix/coupon-live-legacy-attrs` (Target: `main`, Base Main SHA: `a88007427b47c88def31de60883d18ca85095255`).
