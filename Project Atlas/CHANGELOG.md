@@ -1,5 +1,50 @@
 # WiseResume Atlas Master Changelog
 
+### 2026-09-07 - PayPal Refund & Reversal Provider-Contract Hardening (Option B)
+
+- **Workstream Verdict:** `PR301_READY_TO_MERGE` (`IMPLEMENTED_UNVERIFIED` / `TESTED_LOCAL`, `PAYPAL_PRODUCTION_READY = NO`).
+- **Branch:** `feat/paypal-refund-reversal-policy` (Target: `main`, PR #301).
+- **Owner Policy:** `OPTION_B_APPROVED`.
+- **Scope & Accomplishments:**
+  1. **Option B Refund & Reversal Backend Implementation & Provider-Contract Hardening (`paypal-webhook`):**
+     - Full refund of current entitlement-bearing payment: Revokes paid entitlement immediately (`expires_at = null`, `grace_period_expires_at = null`), retains payment identity (`last_entitlement_payment_id`, `last_entitlement_payment_timestamp_ms`), flags `renewal_cancellation_pending = true`, and initiates server-side cancellation of future automatic PayPal renewals (`POST /v1/billing/subscriptions/{id}/cancel`).
+     - Truthful provider state: Retains authentic provider state while cancellation converges; settles to `status = 'canceled'`, `will_renew = false`, `renewal_cancellation_pending = false` upon confirmed cancellation or subsequent provider cancel webhook.
+     - Partial refund & direct refund convergence: Preserves current entitlement and recurring renewals; recorded in ledger only (`partial_refund_recorded`). Relies strictly on PayPal's authoritative transaction status (`PARTIALLY_REFUNDED` preserves entitlement, `REFUNDED` triggers full refund policy) without local balance arithmetic. Direct refund provider status convergence: provider status `COMPLETED` and `PENDING` fail closed as retryable HTTP 503 (`provider_state_not_converged`); unknown/unsupported statuses fail closed as retryable HTTP 502 (`unsupported_provider_transaction_status`, zero entitlement mutation, not permanently 2xx-ignored).
+     - Historical refund/reversal & ordering invariant: When refunded/reversed `payment_id` is older than `last_entitlement_payment_id` and provider evidence shows newer payment supports entitlement, provider state remains untouched (`historical_refund_ignored` / `historical_reversal_ignored`). Historical payment ordering uses either `paypal_subscription_state.last_entitlement_payment_timestamp_ms` or `paypal_event_ledger.event_timestamp_ms` from the correlated `PAYMENT.SALE.COMPLETED` ledger event; provider `tx.time` is never used for ordering comparisons. For reversals, authoritative payment identity and timestamp are queried from the ledger `PAYMENT.SALE.COMPLETED` event by `payment_id` (not reversal webhook arrival time); delayed older reversals arriving after newer payments are ignored with zero state mutation, and unresolved historical correlation fails closed (`unresolved_historical_reversal_correlation`).
+     - Payment reversal & sale identifier contract: Revokes entitlement immediately (`expires_at = null`), preserves truthful provider status (remains `active` if provider has not suspended/cancelled), preserves payment identity. `PAYMENT.SALE.REVERSED` extracts `paymentId` from `resource.id` (the affected sale transaction ID), while `resource.parent_payment` (e.g. `PAYID-...`) is captured as non-entitlement parent reference metadata. Missing `resource.id` fails closed.
+     - Cancellation-pending guard on sales: `PAYMENT.SALE.COMPLETED` events arriving while `renewal_cancellation_pending === true` are blocked from granting paid entitlement (`unexpected_payment_during_cancellation_pending`) and flag operational alert `UNEXPECTED_PAYMENT_DURING_REFUND_CLOSURE = OWNER/OPERATIONS_REVIEW_REQUIRED`.
+     - Tombstone lookup, precedence & eventual consistency on sales: `PAYMENT.SALE.COMPLETED` checks ledger for refund/reversal tombstones with canonical identity verification (`subscription_id`, `user_id`). Environment isolation is enforced by the hard Sandbox runtime gate at entry. Conflicting identity fails closed (`ambiguous_payment_ledger_correlation`). Missing schema attributes/indices or database errors fail closed as retryable 503 (`tombstone_lookup_failed`) with zero entitlement granted. Verified `PAYMENT.SALE.REVERSED` ledger tombstones take strict precedence over refund tombstones (`reversal > refund`), immediately dropping sale activation (`sale_already_refunded`) without calling Transactions API. For refund tombstones, Transactions API status `REFUNDED` drops activation (`sale_already_refunded`); `PARTIALLY_REFUNDED` allows normal sale activation; unconverged `COMPLETED` fails closed as retryable 503 (`provider_state_not_converged`) with zero entitlement granted; unsupported/unknown statuses fail closed as 502 (`unsupported_provider_transaction_status`).
+     - HATEOAS Transactions API pagination & true legacy migration-on-touch: Calls `GET /v1/billing/subscriptions/{id}/transactions` strictly with `start_time` and `end_time`, supporting optional explicit ranges for legacy state migration. Uses HATEOAS `rel="next"` links with strict HTTPS / path verification and safety limit `MAX_TRANSACTION_PAGE_FOLLOWS = 5` (bounding lookups to a maximum of 5 pages examined). Legacy states with null `last_entitlement_payment_id` fetch provider `start_time` via `GET /v1/billing/subscriptions/{id}` and query transactions from provider `start_time` to `nowMs` to populate payment identity; malformed or missing timestamps fail closed (`unresolved_legacy_payment_correlation` or 502 `invalid_provider_transaction_time`).
+  2. **Additive Schema Definition (`setup_paypal_schema.cjs`):**
+     - Added optional attributes `last_entitlement_payment_id` (with index `last_payment_idx` ASC), `last_entitlement_payment_timestamp_ms`, and `renewal_cancellation_pending` (default `false`) to `paypal_subscription_state`.
+     - Added optional attribute `payment_id` with index `payment_idx` to `paypal_event_ledger`.
+     - Non-destructive and idempotent; backward-compatible.
+  3. **Coupons Hub Surface (`coupons/src/main.js`):**
+     - `getMySubscription` surfaces `renewal_cancellation_pending` boolean for frontend consumption.
+  4. **Frontend Surface Contract (`useMe.ts`, `SubscriptionPage.tsx`):**
+     - `useMe.ts` updated with `renewal_cancellation_pending?: boolean`.
+     - `SubscriptionPage.tsx` neutral copy: When `effectivePlan === 'free'` and `canCancelSubscription || renewalCancellationPending`, suppresses misleading "You have an active Free subscription" and displays neutral message: *"Your paid access has ended. Your subscription cancellation is still being confirmed."*
+  5. **Subscription Resolver Unchanged:**
+     - `@wiseresume/subscription-resolver` requires zero modifications; naturally handles revocation via `expires_at = null`.
+  6. **Comprehensive Test Suite & Verification:**
+     - Schema suite (`tests/hubs/paypal-schema.test.cjs`): 6 / 6 passing (100%).
+     - Coupons suite (`tests/hubs/coupons-subscription.test.cjs`): 23 / 23 passing (100%).
+     - Webhook suite (`tests/hubs/paypal-webhook.test.cjs`): 134 / 134 passing (100%), including 53-case refund/reversal/tombstone/pagination/legacy/reversal-hardening matrix.
+     - Full hubs suite: 362 / 362 passing across all 58 hub test suites (100%).
+     - Frontend Vitest suite (`SubscriptionPage.paypal.test.tsx`): 30 / 30 passing (100%).
+     - TypeScript typecheck (`tsc --noEmit`): PASS (0 errors).
+     - Production build (`npm run build`): PASS (dist built, 0 sourcemaps).
+     - DevKit source hashes recomputed: `sourceHashes.generated.json` matching (`paypal-webhook: 8481b8e0471b1c7825eb2b7e27a605725119dbd62de049df9462a1202fb4775d`).
+  7. **Operational Boundaries:**
+     - Runtime: NOT DEPLOYED.
+     - Sandbox Runtime: NOT RUNTIME VERIFIED (all tests verified locally offline with mocks).
+     - Public checkout: DISABLED (`BILLING_CHECKOUT_ENABLED=false`, `BILLING_CHECKOUT_PROVIDER_READY=false`).
+     - Production PayPal: COMPLETELY UNTOUCHED.
+  8. **What's New Decision:**
+     - `WHATS_NEW_NOT_REQUIRED`: PR is not deployed or merged to production; customer-facing release notes are not eligible until production deployment and live browser QA.
+  9. **Next Step:**
+     - Awaiting owner review of PR #301 for `feat/paypal-refund-reversal-policy`.
+
 ### 2026-09-06 - PayPal Failed-Renewal Local Boundary Test Hardening (PR #299)
 
 - **Workstream Verdict:** `PAYPAL_FAILED_RENEWAL_LOCAL_CONTRACT_CLOSED` (`PAYPAL_FAILED_RENEWAL_LOCAL_CONTRACT_FULLY_TESTED`, `PAYPAL_PRODUCTION_READY = NO`).

@@ -31,11 +31,15 @@ const COLLECTION_SPECS = Object.freeze([
       { key: 'latest_event_type', type: 'string', size: 64, required: true, array: false },
       { key: 'latest_event_timestamp_ms', type: 'integer', required: true, array: false, min: 0, max: 9999999999999 },
       { key: 'updated_at', type: 'string', size: 32, required: true, array: false },
+      { key: 'last_entitlement_payment_id', type: 'string', size: 64, required: false, array: false },
+      { key: 'last_entitlement_payment_timestamp_ms', type: 'integer', required: false, array: false, min: 0, max: 9999999999999 },
+      { key: 'renewal_cancellation_pending', type: 'boolean', required: false, array: false, default: false },
     ],
     indexes: [
       { key: 'user_id_unique', type: 'unique', attributes: ['user_id'], orders: ['ASC'] },
       { key: 'subscription_id_idx', type: 'key', attributes: ['subscription_id'], orders: ['ASC'] },
       { key: 'latest_event_idx', type: 'key', attributes: ['latest_event_timestamp_ms'], orders: ['DESC'] },
+      { key: 'last_payment_idx', type: 'key', attributes: ['last_entitlement_payment_id'], orders: ['ASC'] },
     ],
   },
   {
@@ -52,11 +56,13 @@ const COLLECTION_SPECS = Object.freeze([
       { key: 'ordering_key', type: 'string', size: 160, required: true, array: false },
       { key: 'outcome_code', type: 'string', size: 48, required: true, array: false },
       { key: 'expires_at', type: 'string', size: 32, required: true, array: false },
+      { key: 'payment_id', type: 'string', size: 64, required: false, array: false },
     ],
     indexes: [
       { key: 'event_id_unique', type: 'unique', attributes: ['event_id'], orders: ['ASC'] },
       { key: 'user_order_idx', type: 'key', attributes: ['user_id', 'event_timestamp_ms'], orders: ['ASC', 'DESC'] },
       { key: 'expires_at_idx', type: 'key', attributes: ['expires_at'], orders: ['ASC'] },
+      { key: 'payment_idx', type: 'key', attributes: ['payment_id'], orders: ['ASC'] },
     ],
   },
 ]);
@@ -134,7 +140,25 @@ async function ensureIndex(databases, collectionId, spec) {
   await databases.createIndex(DB_ID, collectionId, spec.key, spec.type, spec.attributes, spec.orders);
 }
 
-async function pause() { await new Promise(resolve => setTimeout(resolve, 250)); }
+async function pause(ms = 250) { await new Promise(resolve => setTimeout(resolve, ms)); }
+
+async function waitForAttributeAvailable(databases, collectionId, key, maxRetries = 30, delayMs = 500) {
+  for (let i = 0; i < maxRetries; i++) {
+    const result = await databases.listAttributes(DB_ID, collectionId);
+    const attribute = (result.attributes || []).find(attr => attr.key === key);
+    if (!attribute) {
+      await pause(delayMs);
+      continue;
+    }
+    const status = String(attribute.status || '').toLowerCase();
+    if (status === 'available') return attribute;
+    if (status === 'failed') {
+      throw new Error(`Attribute "${collectionId}.${key}" creation failed in Appwrite (status: failed)`);
+    }
+    await pause(delayMs);
+  }
+  throw new Error(`Timeout waiting for attribute "${collectionId}.${key}" to become available in Appwrite`);
+}
 
 async function ensureCollection(databases, spec) {
   const existing = await getCollectionOrNull(databases, spec.id);
@@ -143,8 +167,13 @@ async function ensureCollection(databases, spec) {
     await databases.createCollection(DB_ID, spec.id, spec.name, [], false);
     await pause();
   }
-  for (const attribute of spec.attributes) { await ensureAttribute(databases, spec.id, attribute); await pause(); }
-  for (const index of spec.indexes) { await ensureIndex(databases, spec.id, index); await pause(); }
+  for (const attribute of spec.attributes) {
+    await ensureAttribute(databases, spec.id, attribute);
+    await waitForAttributeAvailable(databases, spec.id, attribute.key);
+  }
+  for (const index of spec.indexes) {
+    await ensureIndex(databases, spec.id, index);
+  }
 }
 
 async function run() {
@@ -164,6 +193,9 @@ module.exports = {
   attributeCompatibilityError,
   indexCompatibilityError,
   assertServerOnlyCollection,
+  waitForAttributeAvailable,
+  ensureAttribute,
+  ensureIndex,
   ensureCollection,
   run,
 };

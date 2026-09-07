@@ -33,6 +33,7 @@ export interface MeSubscription {
   can_cancel_subscription?: boolean;
   will_renew?: boolean | null;
   can_subscribe?: boolean;
+  renewal_cancellation_pending?: boolean;
 }
 
 const TODAY = () => new Date().toISOString().split('T')[0];
@@ -68,6 +69,7 @@ function mapSubscription(sub: Record<string, unknown>): MeSubscription {
     can_cancel_subscription: Boolean(sub.can_cancel_subscription),
     will_renew: typeof sub.will_renew === 'boolean' ? sub.will_renew : null,
     can_subscribe: Boolean(sub.can_subscribe),
+    renewal_cancellation_pending: Boolean(sub.renewal_cancellation_pending),
   };
 }
 
@@ -131,6 +133,7 @@ export function useMe() {
           can_cancel_subscription?: boolean;
           will_renew?: boolean | null;
           can_subscribe?: boolean;
+          renewal_cancellation_pending?: boolean;
         }>('get-subscription'),
         safeList('ai_credits', [Query.equal('user_id', user.id)]),
       ]);

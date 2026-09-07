@@ -1138,5 +1138,73 @@ describe('SubscriptionPage PayPal Lifecycle & Cancellation', () => {
       expect(screen.queryByText(/power users/i)).not.toBeInTheDocument();
       expect(screen.queryByText(/popular/i)).not.toBeInTheDocument();
     });
+
+    it('renders pending cancellation copy and suppresses active Free subscription when renewal_cancellation_pending is true', () => {
+      vi.mocked(usePlan).mockReturnValue({
+        plan: 'free',
+        isFree: true,
+        isPro: false,
+        isPremium: false,
+        loading: false,
+      } as any);
+
+      vi.mocked(useMe).mockReturnValue({
+        data: {
+          $id: 'user_refunded',
+          subscription: {
+            plan: 'free',
+            effective_plan: 'free',
+            status: null,
+            can_subscribe: false,
+            can_cancel_subscription: false,
+            renewal_cancellation_pending: true,
+            provider_source: 'paypal',
+            provider_status: 'active',
+            will_renew: false,
+          },
+        },
+        refetch: mockRefetchMe,
+      } as any);
+
+      renderWithProviders(<SubscriptionPage />);
+
+      expect(screen.getByText(/Your paid access has ended\. Your subscription cancellation is still being confirmed\./i)).toBeInTheDocument();
+      expect(screen.queryByText(/You have an active Free subscription/i)).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /cancel subscription/i })).not.toBeInTheDocument();
+    });
+
+    it('renders pending cancellation copy and suppresses active Free subscription when effectivePlan is free and can_cancel_subscription is true', () => {
+      vi.mocked(usePlan).mockReturnValue({
+        plan: 'free',
+        isFree: true,
+        isPro: false,
+        isPremium: false,
+        loading: false,
+      } as any);
+
+      vi.mocked(useMe).mockReturnValue({
+        data: {
+          $id: 'user_free_cancelling',
+          subscription: {
+            plan: 'free',
+            effective_plan: 'free',
+            status: null,
+            can_subscribe: false,
+            can_cancel_subscription: true,
+            renewal_cancellation_pending: false,
+            provider_source: 'paypal',
+            provider_status: 'active',
+            will_renew: true,
+          },
+        },
+        refetch: mockRefetchMe,
+      } as any);
+
+      renderWithProviders(<SubscriptionPage />);
+
+      expect(screen.getByText(/Your paid access has ended\. Your subscription cancellation is still being confirmed\./i)).toBeInTheDocument();
+      expect(screen.queryByText(/You have an active Free subscription/i)).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /cancel subscription/i })).toBeInTheDocument();
+    });
   });
 });

@@ -423,6 +423,7 @@ async function getMySubscription(body, res, dependencies = {}) {
       can_cancel_subscription: canCancelSubscription,
       will_renew: willRenew,
       can_subscribe: canSubscribe,
+      renewal_cancellation_pending: Boolean(hasValidPaypalRecord && isEnvironmentMatch && paypalProviderState?.renewal_cancellation_pending),
     },
   });
 }
