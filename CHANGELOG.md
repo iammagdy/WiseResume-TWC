@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-09-08 — Secure Whop Sandbox Actions runner
+
+- **QA automation** (`.github/workflows/whop-sandbox-e2e.yml`, `scripts/provision-whop-sandbox-qa.cjs`): added a manual, feature-branch-only Appwrite QA runner that consumes protected credentials inside GitHub Actions, masks the ephemeral user ID, deploys only `billing-checkout`, `ai-gateway`, and `coupons`, and never uploads browser state or credentials.
+
 ## 2026-09-08 — Appwrite QA signup output hardened
 
 - **QA tooling** (`scripts/signup-and-send-verification.cjs`, `scripts/e2e-signup-test.mjs`): removed logging of account identifiers, email addresses, verification URLs, token previews, response bodies, and page URLs. The existing Appwrite-only signup and verification flow is unchanged; output is now status-only.
