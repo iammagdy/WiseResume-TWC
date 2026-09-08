@@ -386,7 +386,7 @@ async function deployFunction(hub) {
 async function ensureVariable(fnId, key, value, secret = false) {
     if (!value) return;
     try {
-        const vars = await functions.listVariables(fnId);
+        const vars = await functions.listVariables(fnId, [sdk.Query.limit(100)]);
         const existing = vars.variables.find(v => v.key === key);
         if (existing) {
             if (existing.value !== value) {
@@ -405,7 +405,7 @@ async function ensureVariable(fnId, key, value, secret = false) {
 async function ensureNonSecretCatalogVariable(fnId, key, value) {
     if (!value) throw new Error(`Missing required catalog ID value for ${key}`);
     let explicitlyEnsuredNonSecret = false;
-    const vars = await functions.listVariables(fnId);
+    const vars = await functions.listVariables(fnId, [sdk.Query.limit(100)]);
     const existing = (vars.variables || []).find(v => v.key === key);
 
     if (!existing) {
@@ -422,7 +422,7 @@ async function ensureNonSecretCatalogVariable(fnId, key, value) {
         console.log(`  Updated ${key} on ${fnId} (secret=false)`);
     } else if (existing.secret === true) {
         console.log(`  [CATALOG SECRET RECREATION] ${key} on ${fnId} is currently secret=true. Verifying runtime gates...`);
-        const bcVars = await functions.listVariables('billing-checkout');
+        const bcVars = await functions.listVariables('billing-checkout', [sdk.Query.limit(100)]);
         const bcList = bcVars.variables || [];
         const enabled = bcList.find(v => v.key === 'BILLING_CHECKOUT_ENABLED')?.value;
         const ready = bcList.find(v => v.key === 'BILLING_CHECKOUT_PROVIDER_READY')?.value;
@@ -439,7 +439,7 @@ async function ensureNonSecretCatalogVariable(fnId, key, value) {
             deleteError = delErr;
         }
 
-        const postDel = await functions.listVariables(fnId);
+        const postDel = await functions.listVariables(fnId, [sdk.Query.limit(100)]);
         const postDelFound = (postDel.variables || []).find(v => v.key === key);
         if (postDelFound) {
             throw new Error(`[CATALOG DEPLOY RECREATION BLOCKED] Failed to delete secret catalog variable ${key} on ${fnId}.${deleteError ? ` Error: ${deleteError.message}` : ''}`);
@@ -453,7 +453,7 @@ async function ensureNonSecretCatalogVariable(fnId, key, value) {
     }
 
     // Fresh persisted readback
-    const fresh = await functions.listVariables(fnId);
+    const fresh = await functions.listVariables(fnId, [sdk.Query.limit(100)]);
     const verified = (fresh.variables || []).find(v => v.key === key);
     // Some Appwrite deployments omit the `secret` field from listVariables
     // readbacks. Never accept an explicit secret=true value; when metadata is
@@ -466,7 +466,7 @@ async function ensureNonSecretCatalogVariable(fnId, key, value) {
 
 async function existingVariableValue(fnId, key) {
     try {
-        const vars = await functions.listVariables(fnId);
+        const vars = await functions.listVariables(fnId, [sdk.Query.limit(100)]);
         const existing = vars.variables.find(v => v.key === key);
         return existing?.value || null;
     } catch {
