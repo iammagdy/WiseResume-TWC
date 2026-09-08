@@ -26,10 +26,10 @@ const page = await context.newPage();
 
 async function login() {
   await page.goto(`${baseUrl}/auth`, { waitUntil: 'domcontentloaded', timeout: 60_000 });
-  await page.getByPlaceholder('Email').fill(email);
-  await page.getByPlaceholder('Password').fill(password);
-  await page.getByRole('button', { name: 'Login', exact: true }).click();
-  await page.waitForURL(/\/((dashboard|onboarding|subscription))/, { timeout: 60_000 });
+  await page.locator('input[type="email"]').fill(email);
+  await page.locator('input[name="password"]').fill(password);
+  await page.locator('button[type="submit"]').click();
+  await page.waitForURL(/\/(dashboard|onboarding|subscription|auth\/verify-email)/, { timeout: 60_000 });
 }
 
 async function assertSubscriptionSurface() {
