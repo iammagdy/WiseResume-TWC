@@ -48,7 +48,7 @@ The schema workflow runs `scripts/setup_whop_schema.cjs` only when `whop-webhook
 
 ## Current runtime boundary
 
-The Whop schema is ready and the targeted `billing-checkout`, `ai-gateway`, `coupons`, and `whop-webhook` functions reached Appwrite `ready` status. The owner reports that `whop-webhook.wiseresume.app` is verified in Appwrite, but a live HTTPS POST probe from the execution environment returned DNS error `No such host is known`. No Whop webhook was registered and no signing secret or payment was created. A publicly resolvable endpoint is required before Whop can deliver signed events.
+The Whop schema is ready and the targeted `billing-checkout`, `ai-gateway`, `coupons`, and `whop-webhook` functions reached Appwrite `ready` status in the approved targeted deployment. A follow-up `billing-checkout`-only deployment also reached `ready` after hardening Appwrite variable-list pagination/readback handling. The custom webhook domain and provider-generated signature test remain verified from the prior baseline. No Sandbox buyer payment has been claimed from the currently available non-QA browser session.
 
 ## Sandbox boundary
 
@@ -62,11 +62,11 @@ The public endpoint and Appwrite execute policy work. After the verifier fix, Wh
 
 Whop's current `ws_` secret is used verbatim as UTF-8 HMAC key bytes. The signed message is `{webhook-id}.{webhook-timestamp}.{raw body}` with HMAC-SHA256 and a Base64 `v1,` signature. The earlier local malformed-body probe was only self-consistency evidence because it used the incorrect hex-suffix derivation; it was not provider compatibility proof. The verifier now rejects unsupported secret formats rather than guessing.
 
-The authenticated WiseResume subscription flow was opened for QA verification. Its upgrade modal selected PayPal and displayed `Continue to PayPal`, so no server-created Whop checkout was initiated. This is a runtime provider-selection blocker, not a Whop webhook or catalog failure. A QA-only runtime path must select Whop Sandbox before real Pro/Ultimate lifecycle evidence can be collected.
+The local subscription flow now defaults to Whop, exposes PayPal as an explicit alternative, and presents recurring monthly plans only. The currently deployed public frontend still reflects the prior production build until the feature branch is released through the normal frontend deployment path; therefore the currently available browser session is not evidence of the new modal or a Whop lifecycle.
 
 ## Required owner actions before release
 
-1. Provision or expose an explicitly isolated WiseResume QA runtime that selects Whop Sandbox for the authorized QA user, without changing the global Production billing provider.
+1. Sign in through the authorized protected WiseResume Sandbox QA identity and execute real Sandbox Pro and Ultimate checkout flows through the updated frontend/runtime.
 2. Separately configure Production credentials and webhook only after review; no Production activation is implied by this Sandbox result.
 3. Update legal/payment copy that still references the frozen PayPal/Paddle history before enabling Whop for customers.
 

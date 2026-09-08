@@ -8,6 +8,12 @@
 - Local validation: full Vitest `237` files / `1,378` passed / `1 todo`, focused backend/deployment `30/30`, focused billing UI `47/47`, TypeScript PASS, i18n PASS, build PASS, no sourcemaps.
 - Real Whop Sandbox Pro/Ultimate lifecycle is not claimed yet. Production Whop changes: NONE.
 
+### 2026-09-08 - Whop Sandbox targeted runtime deployment
+
+- Initial four-hub deployment reached `ready` for `billing-checkout`, `ai-gateway`, `coupons`, and `whop-webhook` but stopped on incomplete Appwrite variable metadata during synchronization.
+- Hardened `scripts/deploy_hubs.cjs` to page variable reads explicitly and verify non-secret writes safely when Appwrite omits the `secret` field. Follow-up run `34216713955` targeted `billing-checkout` only and completed with `ready` status.
+- Sandbox-gated runtime deployment is present; no buyer payment was initiated because the available browser session is not the protected QA identity. Production Whop changes: NONE.
+
 ### 2026-09-08 - Whop Sandbox provider signature blocker (`WHOP_WEBHOOK_SIGNATURE_FAILURE`)
 
 - Public DNS/HTTPS and the deployed `ws_` secret verifier path passed a safe probe; Whop-generated Sandbox Test delivery still returned `401 unauthorized`. No payment was attempted.
