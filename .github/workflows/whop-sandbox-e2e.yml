@@ -1,0 +1,115 @@
+name: Whop Sandbox E2E
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: whop-sandbox-e2e-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  sandbox:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout selected feature branch
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Provision isolated Appwrite QA account
+        id: provision
+        env:
+          APPWRITE_ENDPOINT: https://fra.cloud.appwrite.io/v1
+          APPWRITE_PROJECT_ID: 69fd362b001eb325a192
+          APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
+          WISE_RESUME_E2E_EMAIL: ${{ secrets.WISE_RESUME_E2E_EMAIL }}
+          WISE_RESUME_E2E_PASSWORD: ${{ secrets.WISE_RESUME_E2E_PASSWORD }}
+        run: |
+          node --input-type=commonjs <<'NODE'
+          const fs = require('fs');
+          const sdk = require('node-appwrite');
+          const endpoint = process.env.APPWRITE_ENDPOINT;
+          const projectId = process.env.APPWRITE_PROJECT_ID;
+          const email = String(process.env.WISE_RESUME_E2E_EMAIL || '').trim().toLowerCase();
+          const password = String(process.env.WISE_RESUME_E2E_PASSWORD || '');
+          const apiKey = process.env.APPWRITE_API_KEY;
+          if (!email || !password || !apiKey) throw new Error('required Appwrite QA configuration is missing');
+          (async () => {
+            const client = new sdk.Client().setEndpoint(endpoint).setProject(projectId).setKey(apiKey);
+            const users = new sdk.Users(client);
+            const listed = await users.list([sdk.Query.equal('email', [email]), sdk.Query.limit(1)]);
+            let user = listed.users?.[0];
+            if (!user) user = await users.create(sdk.ID.unique(), email, undefined, password, 'WiseResume Whop Sandbox QA');
+            if (!user.emailVerification) await users.updateEmailVerification(user.$id, true);
+            const id = String(user.$id || '');
+            if (!id) throw new Error('Appwrite did not return a QA user ID');
+            process.stdout.write(`::add-mask::${id}\n`);
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, `qa_user_id=${id}\n`);
+            console.log('QA_USER_PROVISIONED=true');
+          })().catch(error => { console.error(`[qa-provision] ${error.message}`); process.exit(1); });
+          NODE
+
+      - name: Deploy only Whop QA-ID consumers
+        env:
+          APPWRITE_ENDPOINT: https://fra.cloud.appwrite.io/v1
+          APPWRITE_PROJECT_ID: 69fd362b001eb325a192
+          APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
+          BILLING_CHECKOUT_PROVIDER: whop
+          BILLING_CHECKOUT_ENABLED: 'true'
+          BILLING_CHECKOUT_PROVIDER_READY: 'true'
+          WHOP_ACCESS_ENVIRONMENT: sandbox
+          WHOP_CHECKOUT_ENVIRONMENT: sandbox
+          WHOP_SANDBOX_QA_USER_ID: ${{ steps.provision.outputs.qa_user_id }}
+          WHOP_SANDBOX_API_KEY: ${{ secrets.WHOP_SANDBOX_API_KEY }}
+          WHOP_WEBHOOK_SECRET: ${{ secrets.WHOP_WEBHOOK_SECRET }}
+          WHOP_SANDBOX_COMPANY_ID: biz_4To0HUTEuAbKkl
+          WHOP_SANDBOX_PRODUCT_ID: prod_b7Vm6yYS2ROI6
+          WHOP_SANDBOX_PRO_PLAN_ID: plan_ECWULjIBMFBE5
+          WHOP_SANDBOX_PREMIUM_PLAN_ID: plan_YCBJ6FvCkKuRv
+          WHOP_PRODUCTION_COMPANY_ID: ${{ vars.WHOP_PRODUCTION_COMPANY_ID }}
+          WHOP_PRODUCTION_PRODUCT_ID: ${{ vars.WHOP_PRODUCTION_PRODUCT_ID }}
+          WHOP_PRODUCTION_PRO_PLAN_ID: ${{ vars.WHOP_PRODUCTION_PRO_PLAN_ID }}
+          WHOP_PRODUCTION_PREMIUM_PLAN_ID: ${{ vars.WHOP_PRODUCTION_PREMIUM_PLAN_ID }}
+          FRONTEND_URL: https://wiseresume.app
+          HUB_TARGET: billing-checkout,ai-gateway,coupons
+        run: node scripts/deploy_hubs.cjs --only="billing-checkout,ai-gateway,coupons"
+
+      - name: Run Whop isolation and checkout tests
+        run: npx vitest run tests/hubs/whop-resolver.test.cjs tests/hubs/billing-checkout.test.cjs tests/hubs/coupons-subscription.test.cjs --reporter=dot
+
+      - name: Build feature branch frontend
+        run: npm run build
+
+      - name: Start feature-branch preview
+        run: |
+          (npm run preview -- --host 127.0.0.1 --port 4173 > /tmp/wiseresume-preview.log 2>&1 & echo $! > /tmp/wiseresume-preview.pid)
+          for attempt in $(seq 1 30); do
+            if curl --silent --fail http://127.0.0.1:4173/subscription > /dev/null; then exit 0; fi
+            sleep 2
+          done
+          echo '[e2e] feature preview did not start' >&2
+          exit 1
+
+      - name: Run authenticated Whop Sandbox browser E2E
+        env:
+          E2E_BASE_URL: http://127.0.0.1:4173
+          WISE_RESUME_E2E_EMAIL: ${{ secrets.WISE_RESUME_E2E_EMAIL }}
+          WISE_RESUME_E2E_PASSWORD: ${{ secrets.WISE_RESUME_E2E_PASSWORD }}
+          WHOP_SANDBOX_TEST_CARD: ${{ secrets.WHOP_SANDBOX_TEST_CARD }}
+          WHOP_SANDBOX_TEST_EXPIRY: ${{ secrets.WHOP_SANDBOX_TEST_EXPIRY }}
+          WHOP_SANDBOX_TEST_CVC: ${{ secrets.WHOP_SANDBOX_TEST_CVC }}
+        run: node scripts/run-whop-sandbox-e2e.mjs
