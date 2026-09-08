@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-09-08 — Whop Sandbox checkout URL environment inference
+
+- **Checkout validation** (`src/lib/billingCheckout.ts`): shared environment inference now applies to Whop URLs as well as PayPal URLs, allowing local feature-preview Sandbox checkout while retaining Production-domain and explicit-environment isolation.
+- **Regression coverage** (`src/lib/billingCheckout.test.ts`): added Sandbox/Production Whop origin assertions.
+- **Validation**: focused billing and payment-modal Vitest suites passed (16 tests); the preceding Actions run `34225839543` had reached the hosted-checkout handoff before exposing this validator defect.
+
 ## 2026-09-08 — Whop Sandbox provider-choice selector correction
 
 - **Sandbox browser E2E** (`scripts/run-whop-sandbox-e2e.mjs`): checks the payment modal's provider-choice buttons directly, matching the redesigned labels for Whop and PayPal before continuing to hosted checkout.

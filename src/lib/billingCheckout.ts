@@ -115,7 +115,7 @@ export function isWhopProviderActive(): boolean {
   return getDefaultCheckoutProvider() === 'whop';
 }
 
-export function getApprovedPayPalOrigins(environment?: string): readonly string[] {
+function getCheckoutEnvironment(environment?: string): string {
   let env = environment;
 
   if (typeof env === 'undefined' || env === '') {
@@ -132,7 +132,11 @@ export function getApprovedPayPalOrigins(environment?: string): readonly string[
     }
   }
 
-  const normalized = (env || '').trim().toLowerCase();
+  return (env || '').trim().toLowerCase();
+}
+
+export function getApprovedPayPalOrigins(environment?: string): readonly string[] {
+  const normalized = getCheckoutEnvironment(environment);
 
   if (normalized === 'sandbox') return Object.freeze([PAYPAL_ENVIRONMENT_ORIGINS.sandbox]);
   if (normalized === 'production') return Object.freeze([PAYPAL_ENVIRONMENT_ORIGINS.production]);
@@ -144,7 +148,7 @@ export function isValidCheckoutUrl(urlString: string, environment?: string, prov
     const url = new URL(urlString);
     const inferredProvider: BillingCheckoutProvider = provider === getDefaultCheckoutProvider() && !url.origin.includes('whop.com') ? 'paypal' : provider;
     const approved = inferredProvider === 'whop'
-      ? (environment === 'sandbox' ? [WHOP_ENVIRONMENT_ORIGINS.sandbox] : environment === 'production' ? [WHOP_ENVIRONMENT_ORIGINS.production] : [])
+      ? (getCheckoutEnvironment(environment) === 'sandbox' ? [WHOP_ENVIRONMENT_ORIGINS.sandbox] : getCheckoutEnvironment(environment) === 'production' ? [WHOP_ENVIRONMENT_ORIGINS.production] : [])
       : getApprovedPayPalOrigins(environment);
     return url.protocol === 'https:' && approved.includes(url.origin);
   } catch {

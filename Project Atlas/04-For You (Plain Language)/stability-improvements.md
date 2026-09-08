@@ -2,6 +2,14 @@
 
 **Last verified:** 2026-09-08
 
+## Sandbox checkout now opens from the feature preview (2026-09-08)
+
+**What was the situation:** The feature preview could prepare a valid Sandbox checkout but then reject its safe Whop address before opening it.
+
+**What changed:** Sandbox and live payment addresses now use the same environment rules across both payment providers, including the correct preview behavior.
+
+**What you'll notice:** Sandbox testing can reach Whop checkout from the feature preview, while live users remain restricted to live payment addresses.
+
 ## Payment-provider choices are checked in the right place (2026-09-08)
 
 **What was the situation:** The internal payment check expected the PayPal button to use wording from the next step, while the redesigned payment window uses a shorter provider label.

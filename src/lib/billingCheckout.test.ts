@@ -83,11 +83,15 @@ describe('server-owned billing checkout client', () => {
     expect(getApprovedPayPalOrigins('sandbox')).toEqual(['https://www.sandbox.paypal.com']);
     expect(isValidCheckoutUrl('https://www.sandbox.paypal.com/checkoutnow?token=BA-TEST', 'sandbox')).toBe(true);
     expect(isValidCheckoutUrl('https://www.paypal.com/checkoutnow?token=BA-TEST', 'sandbox')).toBe(false);
+    expect(isValidCheckoutUrl('https://sandbox.whop.com/checkout/plan_test', 'sandbox', 'whop')).toBe(true);
+    expect(isValidCheckoutUrl('https://whop.com/checkout/plan_test', 'sandbox', 'whop')).toBe(false);
 
     // Production environment accepts only production PayPal
     expect(getApprovedPayPalOrigins('production')).toEqual(['https://www.paypal.com']);
     expect(isValidCheckoutUrl('https://www.paypal.com/checkoutnow?token=BA-PROD', 'production')).toBe(true);
     expect(isValidCheckoutUrl('https://www.sandbox.paypal.com/checkoutnow?token=BA-PROD', 'production')).toBe(false);
+    expect(isValidCheckoutUrl('https://whop.com/checkout/plan_test', 'production', 'whop')).toBe(true);
+    expect(isValidCheckoutUrl('https://sandbox.whop.com/checkout/plan_test', 'production', 'whop')).toBe(false);
 
     // Unknown or untrusted environment strictly fails closed
     expect(getApprovedPayPalOrigins('unknown')).toEqual([]);
