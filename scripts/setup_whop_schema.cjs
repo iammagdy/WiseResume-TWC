@@ -19,7 +19,10 @@ const COLLECTION_SPECS = Object.freeze([
       { key: 'environment', type: 'string', size: 16, required: true },
       { key: 'status', type: 'string', size: 32, required: true },
       { key: 'expires_at', type: 'string', size: 32, required: false },
-      { key: 'will_renew', type: 'boolean', required: true, default: true },
+      // Appwrite rejects a default on a required attribute. The webhook always
+      // writes this field; optionality only keeps schema creation valid for
+      // older/partially-created documents, which resolve as renewal-enabled.
+      { key: 'will_renew', type: 'boolean', required: false, default: true },
       { key: 'latest_event_id', type: 'string', size: 128, required: true },
       { key: 'latest_event_type', type: 'string', size: 64, required: true },
       { key: 'latest_event_timestamp_ms', type: 'integer', required: true, min: 0, max: 9999999999999 },
