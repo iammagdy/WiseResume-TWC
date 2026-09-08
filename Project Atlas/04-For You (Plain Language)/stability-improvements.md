@@ -2,6 +2,14 @@
 
 **Last verified:** 2026-09-08
 
+## Subscription choices are now easier to understand (2026-09-08)
+
+**What was the situation:** The subscription area showed useful details, but the current plan, daily usage, and upgrade choices were spread across a long stack of similar cards.
+
+**What changed:** The page now presents the current plan first, puts resume and AI usage beside the plan benefits, and makes the next available monthly upgrades easier to compare. Cancellation and payment status messages remain available when relevant.
+
+**What you'll notice:** The subscription page feels more like a focused WiseResume workspace, with clearer hierarchy and a simpler path from understanding your plan to choosing an upgrade. No payment provider, price, or existing subscription data was changed.
+
 ## Sandbox payment testing now stops safely when its test environment is incomplete (2026-09-08)
 
 **What was the situation:** The new payment integration had not yet been proven with Whop Sandbox, and running a real test could have mixed test payment records with the live application if the separate test data area was not confirmed first.

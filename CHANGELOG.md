@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-09-08 — Subscription workspace redesign
+
+- **Subscription workspace** (`src/pages/SubscriptionPage.tsx`): redesigned the subscription surface around current-plan context, usage, plan benefits, recurring monthly upgrade cards, and subscription management while preserving the existing checkout, cancellation, resolver, and lifecycle state flows.
+- **Customer-facing billing contract**: the page continues to expose only Free, Pro ($5/month), and Ultimate ($10/month) with Whop as the default provider and PayPal as the explicit alternative through the existing confirmation modal.
+- **Validation**: TypeScript and diff-whitespace checks passed; browser review confirmed the redesigned Free-state desktop layout renders with the existing WiseResume shell and real usage/plan data.
+
 ## 2026-09-08 — Whop Sandbox provider signature blocker
 
 - Public transport and deployed secret injection passed a safe signed malformed-body probe, but Whop's official Sandbox Test delivery still returned `401 unauthorized`. No payment or lifecycle E2E was run; status is `WHOP_WEBHOOK_SIGNATURE_FAILURE`.
