@@ -1019,6 +1019,8 @@ class WhopCheckoutProvider {
     if (!endpoint || !key || !companyId) failProviderDiagnostic('provider.runtime_configuration', 'missing_runtime_credential');
     if (typeof this.fetchImpl !== 'function') failProviderDiagnostic('provider.runtime_configuration', 'fetch_unavailable');
 
+    const appOrigin = asString(input.appOrigin || this.env.BILLING_CHECKOUT_APPROVED_APP_URL || 'https://wiseresume.app').trim().replace(/\/$/, '');
+
     const metadata = {
       wiseresume_user_id: input.customData.app_user_id,
       wiseresume_plan: input.plan,
@@ -1035,10 +1037,9 @@ class WhopCheckoutProvider {
           Accept: 'application/json',
         },
         body: JSON.stringify({
-          account_id: companyId,
-          plan: { id: input.priceId },
+          plan_id: input.priceId,
           metadata,
-          redirect_url: `${input.appOrigin}/subscription?billing=pending`,
+          redirect_url: `${appOrigin}/subscription?billing=pending`,
           allow_promo_codes: true,
         }),
       });
@@ -1986,6 +1987,7 @@ class BillingCheckoutService {
           returnPath: SAFE_RETURN_PATH,
           correlationId: sessionInput.correlationId,
           providerRequestId,
+          appOrigin: this.config.approvedAppUrl,
         };
     try {
       const providerResult = await providerOperation('provider.create_checkout', 'provider_operation_failure', () => this.provider.createCheckout(providerInput));

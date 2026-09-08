@@ -318,9 +318,8 @@ function isAdminFunction(fnName: string): boolean {
 function messageFromPayload(parsed: unknown): string | null {
   if (typeof parsed === 'string' && parsed.trim()) return parsed;
   if (typeof parsed !== 'object' || parsed === null) return null;
-  const obj = parsed as Record<string, unknown>;
-  if (typeof obj.error === 'string' && obj.error.trim()) return obj.error;
   if (typeof obj.message === 'string' && obj.message.trim()) return obj.message;
+  if (typeof obj.error === 'string' && obj.error.trim()) return obj.error;
   if (typeof obj.error === 'object' && obj.error !== null) {
     const nested = messageFromPayload(obj.error);
     if (nested) return nested;

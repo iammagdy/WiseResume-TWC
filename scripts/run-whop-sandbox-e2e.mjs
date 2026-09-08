@@ -31,14 +31,32 @@ page.on('response', async (response) => {
   if (!/billing|checkout/i.test(functionName)) return;
   let code = '';
   let shape = '';
+  let status = response.status();
   try {
     const payload = await response.json();
-    code = typeof payload?.error?.code === 'string' ? payload.error.code : typeof payload?.code === 'string' ? payload.code : '';
-    const data = payload?.data && typeof payload.data === 'object' ? payload.data : payload;
+    let body = payload;
+    if (typeof payload?.responseBody === 'string') {
+      try {
+        body = JSON.parse(payload.responseBody);
+      } catch {
+        body = payload.responseBody;
+      }
+      if (typeof payload?.responseStatusCode === 'number') {
+        status = payload.responseStatusCode;
+      }
+    }
+    code = typeof body?.error === 'string'
+      ? body.error
+      : typeof body?.error?.code === 'string'
+        ? body.error.code
+        : typeof body?.code === 'string'
+          ? body.code
+          : '';
+    const data = body?.data && typeof body.data === 'object' ? body.data : body;
     const checkoutUrl = typeof data?.checkout_url === 'string' ? data.checkout_url : '';
     shape = `state=${typeof data?.state === 'string' ? data.state : 'none'} provider=${typeof data?.provider === 'string' ? data.provider : 'none'} plan=${typeof data?.plan === 'string' ? data.plan : 'none'} checkout=${Boolean(checkoutUrl)} origin=${checkoutUrl ? new URL(checkoutUrl).origin : 'none'}`;
   } catch {}
-  console.log(`BILLING_CHECKOUT_RESPONSE status=${response.status()} code=${code || 'none'} ${shape}`);
+  console.log(`BILLING_CHECKOUT_RESPONSE status=${status} code=${code || 'none'} ${shape}`);
 });
 
 async function login() {
@@ -89,8 +107,14 @@ async function openProviderCheckout(provider, planPattern) {
     throw new Error(`${provider.toUpperCase()}_CHECKOUT_NAVIGATION_FAILED`);
   }
   if (provider === 'Whop' && new URL(page.url()).hostname !== 'sandbox.whop.com') throw new Error('WHOP_SANDBOX_PAYMENT_ENVIRONMENT_GUARD_FAILURE');
-  const checkoutBody = await page.locator('body').innerText().catch(() => '');
-  if (planPattern && !planPattern.test(checkoutBody) && provider === 'Whop') throw new Error('hosted checkout plan/price was not visible');
+  if (planPattern && provider === 'Whop') {
+    try {
+      await page.locator('body').filter({ hasText: planPattern }).waitFor({ timeout: 15_000 });
+    } catch {
+      const checkoutBody = await page.locator('body').innerText().catch(() => '');
+      if (!planPattern.test(checkoutBody)) throw new Error('hosted checkout plan/price was not visible');
+    }
+  }
   return page.url();
 }
 

@@ -36,7 +36,8 @@ const provider = new t.WhopCheckoutProvider({
   assert.equal(result.checkoutReference, 'ch_test');
   assert.match(requests[0].url, /sandbox-api\.whop\.com\/api\/v1\/checkout_configurations$/);
   const body = JSON.parse(requests[0].options.body);
-  assert.deepEqual(body.plan, { id: 'plan_4JJSQLj5zEKVn' });
+  assert.equal(body.plan_id, 'plan_4JJSQLj5zEKVn');
+  assert.equal(body.redirect_url, 'https://wiseresume.app/subscription?billing=pending');
   assert.equal(body.metadata.wiseresume_user_id, 'appwrite_user');
   assert.equal(body.metadata.wiseresume_plan, 'pro');
   assert.equal(body.allow_promo_codes, true);
