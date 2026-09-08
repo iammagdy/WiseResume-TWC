@@ -1,5 +1,13 @@
 # Project Atlas — Active Operational & Handover State
 
+## Whop Sandbox Actions runner prepared (2026-09-08)
+
+* **Verdict:** `OWNER_ACTION_REQUIRED_WORKFLOW_DEFAULT_BRANCH`
+* **Branch:** `feat/whop-payments-integration`, commit `30e17ded`.
+* **Prepared:** Added `.github/workflows/whop-sandbox-e2e.yml` and `scripts/provision-whop-sandbox-qa.cjs`. The runner is manual-only, Appwrite-only, masks the ephemeral QA user ID, deploys only the confirmed Whop QA-ID consumers, and uploads no browser state or credentials.
+* **Execution blocker:** GitHub Actions returned HTTP 404 when dispatching the new workflow from the feature branch because the workflow is not yet present on the repository default branch. No QA account, deployment, payment, or Production resource was changed.
+* **Next action:** Open the normal feature-branch PR and merge through the repository’s review gate; after the workflow exists on the default branch, dispatch it against `feat/whop-payments-integration`.
+
 ## Whop Sandbox E2E — WiseResume runtime provider gate (2026-09-08)
 
 * **Verdict:** `OWNER_ACTION_REQUIRED_WISERESUME_SANDBOX_RUNTIME`.
