@@ -38,7 +38,30 @@ jobs:
           APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
           WISE_RESUME_E2E_EMAIL: ${{ secrets.WISE_RESUME_E2E_EMAIL }}
           WISE_RESUME_E2E_PASSWORD: ${{ secrets.WISE_RESUME_E2E_PASSWORD }}
-        run: node scripts/provision-whop-sandbox-qa.cjs
+        run: |
+          node --input-type=commonjs <<'NODE'
+          const fs = require('fs');
+          const sdk = require('node-appwrite');
+          const endpoint = process.env.APPWRITE_ENDPOINT;
+          const projectId = process.env.APPWRITE_PROJECT_ID;
+          const email = String(process.env.WISE_RESUME_E2E_EMAIL || '').trim().toLowerCase();
+          const password = String(process.env.WISE_RESUME_E2E_PASSWORD || '');
+          const apiKey = process.env.APPWRITE_API_KEY;
+          if (!email || !password || !apiKey) throw new Error('required Appwrite QA configuration is missing');
+          (async () => {
+            const client = new sdk.Client().setEndpoint(endpoint).setProject(projectId).setKey(apiKey);
+            const users = new sdk.Users(client);
+            const listed = await users.list([sdk.Query.equal('email', [email]), sdk.Query.limit(1)]);
+            let user = listed.users?.[0];
+            if (!user) user = await users.create(sdk.ID.unique(), email, undefined, password, 'WiseResume Whop Sandbox QA');
+            if (!user.emailVerification) await users.updateEmailVerification(user.$id, true);
+            const id = String(user.$id || '');
+            if (!id) throw new Error('Appwrite did not return a QA user ID');
+            process.stdout.write(`::add-mask::${id}\n`);
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, `qa_user_id=${id}\n`);
+            console.log('QA_USER_PROVISIONED=true');
+          })().catch(error => { console.error(`[qa-provision] ${error.message}`); process.exit(1); });
+          NODE
 
       - name: Deploy only Whop QA-ID consumers
         env:
@@ -71,9 +94,22 @@ jobs:
       - name: Build feature branch frontend
         run: npm run build
 
-      - name: Report browser E2E boundary
+      - name: Start feature-branch preview
         run: |
-          echo 'SANDBOX_ACCOUNT_PROVISIONED=true'
-          echo 'TARGETED_CONSUMERS=billing-checkout,ai-gateway,coupons'
-          echo 'BROWSER_STORAGE_ARTIFACTS=disabled'
-          echo 'PAYMENT_EXECUTION=requires-provider-checkout-automation'
+          (npm run preview -- --host 127.0.0.1 --port 4173 > /tmp/wiseresume-preview.log 2>&1 & echo $! > /tmp/wiseresume-preview.pid)
+          for attempt in $(seq 1 30); do
+            if curl --silent --fail http://127.0.0.1:4173/subscription > /dev/null; then exit 0; fi
+            sleep 2
+          done
+          echo '[e2e] feature preview did not start' >&2
+          exit 1
+
+      - name: Run authenticated Whop Sandbox browser E2E
+        env:
+          E2E_BASE_URL: http://127.0.0.1:4173
+          WISE_RESUME_E2E_EMAIL: ${{ secrets.WISE_RESUME_E2E_EMAIL }}
+          WISE_RESUME_E2E_PASSWORD: ${{ secrets.WISE_RESUME_E2E_PASSWORD }}
+          WHOP_SANDBOX_TEST_CARD: ${{ secrets.WHOP_SANDBOX_TEST_CARD }}
+          WHOP_SANDBOX_TEST_EXPIRY: ${{ secrets.WHOP_SANDBOX_TEST_EXPIRY }}
+          WHOP_SANDBOX_TEST_CVC: ${{ secrets.WHOP_SANDBOX_TEST_CVC }}
+        run: node scripts/run-whop-sandbox-e2e.mjs
