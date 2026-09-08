@@ -4,6 +4,27 @@
 **Status:** `RELEASE_READY_PENDING_OWNER_AUTHORIZATION` (Frontend: `BUILT_LOCAL` [vite build passed, 0 sourcemaps], Backend: `TESTED_LOCAL` [294/294 unit tests passed across 3 suites], Vitest: `PASS` [20/20 tests], TypeScript: `PASS` [0 errors], Whitespace: `PASS` [git diff --check clean], Browser QA: `LOCAL_BROWSER_QA_PASS` [11/11 scenarios], PayPal Sandbox: `VERIFIED`, Production PayPal: `UNTOUCHED`, `PAYPAL_PRODUCTION_READY = NO`) — WiseResume PayPal Checkout, Coupons & Subscription Redesign has resolved all release blockers including the blocking of active one-time stacking, full capture lifecycle ordering, webhook capture handling, single-use coupon concurrency protection, QA coupon boundary enforcement, and existing-paid-user safety. Deployment, git push, production seeding, and live payment remain strictly held pending owner authorization.
 **Location:** `Project Atlas/WHERE_WE_STOPPED.md`
 
+## Whop Sandbox E2E continuation — final deployment graph ready (2026-09-08)
+
+* **Verdict:** `WHOP_SANDBOX_DEPLOYMENT_READY_FINAL`.
+* **Branch:** `feat/whop-payments-integration`; existing working-tree changes preserved; no commit or push.
+* **Contract correction:** Whop webhook handling now accepts current `account_id` envelopes, keeps dot-notation events, and resolves Sandbox/Production catalog IDs from environment-specific variables. Standard Webhooks raw-body/HMAC/timestamp checks remain covered locally.
+* **Validation:** TypeScript PASS; i18n PASS; full Vitest PASS (`237 passed, 1 skipped; 1,382 passed, 1 todo`); build PASS (`5,895` modules, no sourcemaps); focused Whop tests PASS.
+* **Sandbox status:** Correct key path authenticated successfully (`SANDBOX_API_AUTH_PASS`) and the Sandbox catalog was readable without exposing the key. No schema mutation, webhook registration, deployment, or payment was attempted.
+* **Environment gate:** Whop uses `WHOP_ACCESS_ENVIRONMENT` and optional `WHOP_CHECKOUT_ENVIRONMENT`; `BILLING_CHECKOUT_ENVIRONMENT` remains unchanged, so PayPal and RevenueCat contracts are not globally switched.
+* **Minimum targets:** `billing-checkout`, `ai-gateway`, `coupons`, and `whop-webhook`; schema preparation is conditional on explicit `whop-webhook` targeting. `WHOP_SANDBOX_QA_USER_ID` and a public HTTPS endpoint remain owner actions.
+* **What's New decision:** `WHATS_NEW_DEFER_UNTIL_PRODUCTION`; the customer-facing provider switch remains unverified and disabled pending isolated Sandbox lifecycle evidence and the normal production review gate.
+
+## Current Active Handover — WiseResume Whop Additive Integration (2026-09-08)
+
+* **Workstream Verdict:** `IMPLEMENTED_UNVERIFIED` / `OWNER_ACTION_REQUIRED`.
+* **Branch:** `feat/whop-payments-integration` (no commit or push).
+* **Implemented locally:** current Whop REST `v1` checkout creation, strict authoritative product/plan mapping, server-only metadata correlation, additive Whop provider state, signed/idempotent webhook hub, schema setup script, deployment manifest/policy wiring, UI provider awareness, and focused tests.
+* **Authoritative Production catalog:** product `prod_WrbEGZdSaG2af`; Pro `plan_4JJSQLj5zEKVn`; Ultimate `plan_kt5MScAplbCuN`. The old API-only product remains untouched.
+* **Sandbox status:** not verified. Separate Sandbox catalog IDs, API key, and webhook secret are required; Production IDs were not sent to Sandbox APIs.
+* **Stop conditions respected:** no real payment, no production API/webhook secret, no Appwrite/Vercel deployment, no schema execution, no website/DNS/Appwrite data architecture change, and no PayPal removal.
+* **Release decision:** `WHATS_NEW_DEFER_UNTIL_PRODUCTION` remains in force until signed Sandbox lifecycle verification and the normal production review gate are complete.
+
 ## Current Active Handover — WiseResume PayPal Checkout Final Release Review Gate (2026-09-08)
 
 * **Workstream Verdict:** `RELEASE_READY_PENDING_OWNER_AUTHORIZATION` (Status: `TESTED_LOCAL — RELEASE_READY_PENDING_OWNER_AUTHORIZATION`, `PAYPAL_PRODUCTION_READY = NO`).

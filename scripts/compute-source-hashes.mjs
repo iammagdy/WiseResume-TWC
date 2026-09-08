@@ -35,6 +35,7 @@ const HUBS = [
   'coupons',
   'revenuecat-webhook',
   'paypal-webhook',
+  'whop-webhook',
   'email-service',
   'email-templates',
   'job-import',

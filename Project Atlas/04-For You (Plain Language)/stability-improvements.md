@@ -1,6 +1,14 @@
 # Stability improvements
 
-**Last verified:** 2026-08-29
+**Last verified:** 2026-09-08
+
+## Sandbox payment testing now stops safely when its test environment is incomplete (2026-09-08)
+
+**What was the situation:** The new payment integration had not yet been proven with Whop Sandbox, and running a real test could have mixed test payment records with the live application if the separate test data area was not confirmed first.
+
+**What changed:** The payment service now recognizes Whop’s current event format and keeps Sandbox and live product settings separate. Testing is paused until the private Sandbox key is available to the test environment, a separate test data area is confirmed, and a secure test webhook address is provided.
+
+**What you'll notice:** Nothing is switched on for customers, no payment was made, and the live WiseResume application remains unchanged. The local integration checks and build pass; only the external Sandbox proof remains.
 
 ## A payment-provider issue can now be pinpointed safely (2026-08-29)
 

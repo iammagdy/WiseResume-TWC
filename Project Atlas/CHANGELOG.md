@@ -1,5 +1,22 @@
 # WiseResume Atlas Master Changelog
 
+### 2026-09-08 - Whop final Sandbox deployment graph and environment gate (`WHOP_SANDBOX_DEPLOYMENT_READY_FINAL`)
+
+- Correct Sandbox key path authenticated successfully without exposing the secret; Sandbox catalog reads returned HTTP 200.
+- Added Whop-specific checkout/access environment isolation so `BILLING_CHECKOUT_ENVIRONMENT` is not globally switched for Whop Sandbox.
+- Confirmed minimum targeted consumers: `billing-checkout`, `ai-gateway`, `coupons`, and `whop-webhook`; schema preparation remains explicitly conditional and unexecuted.
+- Remaining owner actions: server-side `WHOP_SANDBOX_QA_USER_ID`, public HTTPS webhook endpoint/signing secret, targeted Sandbox deployment/schema authorization, then authentic Sandbox lifecycle tests.
+
+### 2026-09-08 - Whop additive checkout integration (`IMPLEMENTED_UNVERIFIED`)
+
+- Added a server-owned Whop checkout provider using the current versioned Whop REST API `v1`.
+- Added strict production catalog mapping for the authorized WiseResume Payments product: Pro `$5/month` and Ultimate `$10/month`.
+- Added a separate signed, idempotent `whop-webhook` hub and provider-neutral Whop subscription state/ledger schema definitions.
+- Extended the existing resolver, coupon subscription state, AI plan lookup, and provider routing without removing or rewriting PayPal.
+- Added local contract tests for checkout metadata, strict plan validation, webhook signatures, lifecycle state, and fail-closed resolver behavior.
+- Sandbox E2E is not claimed: secure Sandbox credentials/catalog/webhook configuration are still `OWNER_ACTION_REQUIRED`.
+- No production secrets, schema mutation, deployment, website/DNS/Appwrite/Vercel change, or real payment was performed.
+
 ### 2026-09-08 - WiseResume PayPal Checkout Final Release Blocker Patch (`TESTED_LOCAL`)
 
 - **Workstream Verdict:** `RELEASE_READY_PENDING_OWNER_AUTHORIZATION` (Status: `TESTED_LOCAL — RELEASE_READY_PENDING_OWNER_AUTHORIZATION`, `PAYPAL_PRODUCTION_READY = NO`).
@@ -2986,3 +3003,8 @@
 - **DevKitUI** (`src/components/dev-kit/DevKitUI.tsx`): restored the shared DevKit helper module deleted in the visual refresh, preserving `DevKitLoading`, `DevKitMetricCard`, `DevKitSection`, and `DevKitTabBar` exports required by `AdminUsersPanel`, `OverviewPanel`, and `GrowthTrafficPanel`.
 - **DevKit shared styling** (`src/components/dev-kit/DevKitUI.tsx`): aligned restored helpers with the Phase 1 dark DevKit shell using subtle borders, black translucent surfaces, status color accents, and responsive tab controls.
 - **Verification**: confirmed TypeScript and targeted DevKit ESLint checks pass for `DevKitUI.tsx`, `DevToolsPage.tsx`, `HomePanel.tsx`, `DiagnosticsPanel.tsx`, `EmailHubPanel.tsx`, `FeatureFlagsPanel.tsx`, and `AICommandCenterPanel.tsx`.
+# 2026-09-08 — Whop Sandbox contract hardening and E2E boundary audit
+
+- **Webhook contract correction** (`appwrite-hubs/whop-webhook/src/main.js`): accepted the current Whop `account_id` envelope field, retained dot-notation event names, and resolved Whop company/product/plan IDs from environment-specific Sandbox or Production catalog variables.
+- **Validation**: Whop focused contracts passed; full Vitest passed with 1,382 tests across 237 files, TypeScript, i18n, and the production build passed.
+- **Boundary**: Sandbox E2E remains blocked by unavailable local credential path, absent isolated Sandbox Appwrite persistence, and absent public HTTPS webhook endpoint. No payment, deployment, Production mutation, commit, or push occurred.

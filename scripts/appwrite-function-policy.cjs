@@ -140,6 +140,12 @@ const FUNCTION_EXECUTION_POLICIES = Object.freeze({
     handlerAuth: 'Requires successful PayPal webhook signature verification before parsing or mutating state',
     execute: Object.freeze(['any']),
   }),
+  'whop-webhook': Object.freeze({
+    classification: 'anonymous-public',
+    caller: 'Whop Standard Webhook delivery',
+    handlerAuth: 'Verifies the Standard Webhooks signature over the exact raw body before parsing or mutating state',
+    execute: Object.freeze(['any']),
+  }),
   'email-service': Object.freeze({
     classification: 'anonymous-public',
     caller: 'Public auth email flows, authenticated account actions, and signed internal admin email actions',

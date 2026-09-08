@@ -28,6 +28,7 @@ import {
   getCouponQuote,
   getOrCreatePlanAttemptKey,
   clearPlanAttemptKey,
+  isWhopProviderActive,
   type BillingCheckoutPlan,
   type BillingPaymentMode,
   type CouponQuote,
@@ -63,11 +64,13 @@ export function PaymentConfirmationModal({
 
   const basePrice = BASE_PLAN_PRICES[plan] ?? 5.0;
   const isUltimate = plan === 'premium';
+  const isWhop = isWhopProviderActive();
   const planDisplayName = isUltimate ? 'Ultimate' : 'Pro';
 
   // Reset transient modal state on open
   useEffect(() => {
     if (open) {
+      if (isWhop) setPaymentMode('subscription');
       setCheckoutError(null);
       setCouponError(null);
       setIsSubmitting(false);
@@ -80,7 +83,8 @@ export function PaymentConfirmationModal({
     }
   }, [open]);
 
-  // When switching modes, if switching to subscription, clear applied coupon
+  // Whop supports the authoritative monthly recurring catalog only. Keep the
+  // existing PayPal one-time option intact for the PayPal fallback.
   const handleSelectMode = (mode: BillingPaymentMode) => {
     setPaymentMode(mode);
     setCheckoutError(null);
@@ -211,7 +215,7 @@ export function PaymentConfirmationModal({
               </Badge>
             </div>
             <DialogDescription className="sr-only">
-              Choose between a recurring monthly subscription or a one-time 30-day access payment.
+              {isWhop ? 'Choose a monthly recurring subscription.' : 'Choose between a recurring monthly subscription or a one-time 30-day access payment.'}
             </DialogDescription>
           </DialogHeader>
         </div>
@@ -254,7 +258,7 @@ export function PaymentConfirmationModal({
               </button>
 
               {/* Option 2: 30-Day Access (One-Time) */}
-              <button
+              {!isWhop && <button
                 type="button"
                 onClick={() => handleSelectMode('one_time')}
                 className={`relative flex flex-col p-3.5 sm:p-4 rounded-xl border text-left transition-all duration-200 ${
@@ -281,7 +285,7 @@ export function PaymentConfirmationModal({
                 <p className="text-[11px] text-muted-foreground mt-1 leading-snug">
                   Fixed 30 days. No automatic renewal.
                 </p>
-              </button>
+              </button>}
             </div>
           </div>
 
@@ -292,7 +296,11 @@ export function PaymentConfirmationModal({
               Coupon Code
             </label>
 
-            {paymentMode === 'subscription' ? (
+            {isWhop ? (
+              <div className="rounded-xl border border-border/70 bg-muted/30 p-3 text-xs text-muted-foreground leading-relaxed">
+                Whop handles recurring subscription promo codes at checkout when available.
+              </div>
+            ) : paymentMode === 'subscription' ? (
               <div className="rounded-xl border border-border/70 bg-muted/30 p-3 flex items-start gap-2.5 text-xs text-muted-foreground leading-relaxed">
                 <AlertCircle className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" />
                 <div>
@@ -387,7 +395,7 @@ export function PaymentConfirmationModal({
                 <p className="text-[10px] text-muted-foreground">
                   {paymentMode === 'subscription'
                     ? 'Billed monthly until canceled'
-                    : 'One-time charge for 30 days'}
+                  : 'One-time charge for 30 days'}
                 </p>
               </div>
               <span className="text-2xl font-bold tracking-tight text-foreground">
@@ -400,7 +408,7 @@ export function PaymentConfirmationModal({
           <div className="space-y-1 text-center">
             <p className="text-xs text-muted-foreground flex items-center justify-center gap-1.5 font-medium">
               <CreditCard className="w-3.5 h-3.5 text-primary" />
-              Pay with PayPal or debit/credit card (where available)
+              {isWhop ? 'Pay with Whop-supported payment methods' : 'Pay with PayPal or debit/credit card (where available)'}
             </p>
             <p className="text-[10px] text-muted-foreground/80 flex items-center justify-center gap-1">
               <ShieldCheck className="w-3 h-3 text-emerald-500" />
@@ -428,10 +436,10 @@ export function PaymentConfirmationModal({
             {isSubmitting ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
-                Connecting to PayPal…
+                Connecting to {isWhop ? 'Whop' : 'PayPal'}…
               </>
             ) : (
-              'Continue to PayPal'
+              `Continue to ${isWhop ? 'Whop' : 'PayPal'}`
             )}
           </Button>
           <Button

@@ -81,6 +81,7 @@ const HUBS = [
     { id: 'billing-checkout', name: 'Billing Checkout', file: 'billing-checkout.tar.gz' },
     { id: 'revenuecat-webhook', name: 'RevenueCat Subscription Webhook', file: 'revenuecat-webhook.tar.gz' },
     { id: 'paypal-webhook', name: 'PayPal Subscription Webhook', file: 'paypal-webhook.tar.gz' },
+    { id: 'whop-webhook', name: 'Whop Subscription Webhook', file: 'whop-webhook.tar.gz' },
     { id: 'wisehire-gateway', name: 'WiseHire Gateway Hub', file: 'wisehire-gateway.tar.gz' },
     { id: 'public-share', name: 'Public Share Hub', file: 'public-share.tar.gz' },
     { id: 'ai-health', name: 'AI Health Hub', file: 'ai-health.tar.gz' },
@@ -133,6 +134,7 @@ const SAFE_SMOKE_CHECKS = new Map([
     ['job-feed-sync', { auth: 'anonymous-platform', body: { action: 'permission-probe' }, okStatuses: [401, 403] }],
     // paypal-webhook is fail-closed: an unsigned request must be REJECTED with 400 or 401.
     ['paypal-webhook', { auth: 'none', body: {}, okStatuses: [400, 401] }],
+    ['whop-webhook', { auth: 'none', body: {}, okStatuses: [400, 401] }],
 ]);
 
 function selectedHubIds() {
@@ -381,18 +383,18 @@ async function deployFunction(hub) {
     return readyDeployment;
 }
 
-async function ensureVariable(fnId, key, value) {
+async function ensureVariable(fnId, key, value, secret = false) {
     if (!value) return;
     try {
         const vars = await functions.listVariables(fnId);
         const existing = vars.variables.find(v => v.key === key);
         if (existing) {
             if (existing.value !== value) {
-                await functions.updateVariable(fnId, existing.$id, key, value);
+                await functions.updateVariable(fnId, existing.$id, key, value, secret);
                 console.log(`  Updated ${key} on ${fnId}`);
             }
         } else {
-            await functions.createVariable(fnId, sdk.ID.unique(), key, value);
+            await functions.createVariable(fnId, sdk.ID.unique(), key, value, secret);
             console.log(`  Created ${key} on ${fnId}`);
         }
     } catch (e) {
@@ -702,8 +704,18 @@ async function ensureAiGatewayVariables() {
         ['PUBLIC_SHARE_TOKEN_SECRET', process.env.PUBLIC_SHARE_TOKEN_SECRET],
         ['GATEWAY_SMOKE_SECRET', process.env.GATEWAY_SMOKE_SECRET],
         ['ADMIN_TEST_HMAC_SECRET', process.env.ADMIN_TEST_HMAC_SECRET],
-        ['PAYPAL_ACCESS_ENVIRONMENT', process.env.PAYPAL_ACCESS_ENVIRONMENT || 'sandbox'],
+        ['PAYPAL_ACCESS_ENVIRONMENT', process.env.PAYPAL_ACCESS_ENVIRONMENT],
         ['BILLING_CHECKOUT_QA_USER_ID', process.env.BILLING_CHECKOUT_QA_USER_ID],
+        ['WHOP_ACCESS_ENVIRONMENT', process.env.WHOP_ACCESS_ENVIRONMENT],
+        ['WHOP_SANDBOX_QA_USER_ID', process.env.WHOP_SANDBOX_QA_USER_ID],
+        ['WHOP_SANDBOX_COMPANY_ID', process.env.WHOP_SANDBOX_COMPANY_ID],
+        ['WHOP_SANDBOX_PRODUCT_ID', process.env.WHOP_SANDBOX_PRODUCT_ID],
+        ['WHOP_SANDBOX_PRO_PLAN_ID', process.env.WHOP_SANDBOX_PRO_PLAN_ID],
+        ['WHOP_SANDBOX_PREMIUM_PLAN_ID', process.env.WHOP_SANDBOX_PREMIUM_PLAN_ID],
+        ['WHOP_PRODUCTION_COMPANY_ID', process.env.WHOP_PRODUCTION_COMPANY_ID],
+        ['WHOP_PRODUCTION_PRODUCT_ID', process.env.WHOP_PRODUCTION_PRODUCT_ID],
+        ['WHOP_PRODUCTION_PRO_PLAN_ID', process.env.WHOP_PRODUCTION_PRO_PLAN_ID],
+        ['WHOP_PRODUCTION_PREMIUM_PLAN_ID', process.env.WHOP_PRODUCTION_PREMIUM_PLAN_ID],
     ];
     for (const [key, value] of vars) await ensureVariable('ai-gateway', key, value);
 }
@@ -877,6 +889,7 @@ async function ensurePaypalWebhookVariables() {
 
 async function isProductionBillingConfigured() {
     const targetEnvironment = (
+        (provider === 'whop' && process.env.WHOP_CHECKOUT_ENVIRONMENT) ||
         process.env.BILLING_CHECKOUT_ENVIRONMENT ||
         await existingVariableValue('billing-checkout', 'BILLING_CHECKOUT_ENVIRONMENT')
     )?.toLowerCase();
@@ -889,6 +902,7 @@ async function isProductionBillingConfigured() {
         process.env.BILLING_PRODUCTION_PREMIUM_PRICE_ID ||
         process.env.BILLING_PRODUCTION_PREMIUM_PRODUCT_ID ||
         process.env.BILLING_PRODUCTION_PADDLE_API_KEY
+        || process.env.WHOP_PRODUCTION_API_KEY
     ) {
         return true;
     }
@@ -991,6 +1005,35 @@ async function ensureBillingCheckoutVariables() {
         if (productionPaddleKey) {
             await ensureVariable('billing-checkout', 'BILLING_PRODUCTION_PADDLE_API_KEY', productionPaddleKey);
         }
+    } else if (provider === 'whop') {
+        const sandboxKey = process.env.WHOP_SANDBOX_API_KEY || await existingVariableValue('billing-checkout', 'WHOP_SANDBOX_API_KEY');
+        if (!sandboxKey) throw new Error('WHOP_SANDBOX_API_KEY is required to deploy billing-checkout');
+        await ensureVariable('billing-checkout', 'WHOP_SANDBOX_API_KEY', sandboxKey);
+        const companyId = process.env.WHOP_COMPANY_ID || await existingVariableValue('billing-checkout', 'WHOP_COMPANY_ID');
+        if (companyId) await ensureNonSecretCatalogVariable('billing-checkout', 'WHOP_COMPANY_ID', companyId);
+        for (const [key, value] of [
+            ['WHOP_CHECKOUT_ENVIRONMENT', process.env.WHOP_CHECKOUT_ENVIRONMENT],
+            ['WHOP_ACCESS_ENVIRONMENT', process.env.WHOP_ACCESS_ENVIRONMENT],
+            ['WHOP_SANDBOX_QA_USER_ID', process.env.WHOP_SANDBOX_QA_USER_ID],
+            ['WHOP_SANDBOX_COMPANY_ID', process.env.WHOP_SANDBOX_COMPANY_ID],
+            ['WHOP_SANDBOX_PRODUCT_ID', process.env.WHOP_SANDBOX_PRODUCT_ID],
+            ['WHOP_SANDBOX_PRO_PLAN_ID', process.env.WHOP_SANDBOX_PRO_PLAN_ID],
+            ['WHOP_SANDBOX_PREMIUM_PLAN_ID', process.env.WHOP_SANDBOX_PREMIUM_PLAN_ID],
+            ['WHOP_PRODUCTION_COMPANY_ID', process.env.WHOP_PRODUCTION_COMPANY_ID],
+            ['WHOP_PRODUCTION_PRODUCT_ID', process.env.WHOP_PRODUCTION_PRODUCT_ID],
+            ['WHOP_PRODUCTION_PRO_PLAN_ID', process.env.WHOP_PRODUCTION_PRO_PLAN_ID],
+            ['WHOP_PRODUCTION_PREMIUM_PLAN_ID', process.env.WHOP_PRODUCTION_PREMIUM_PLAN_ID],
+            ['BILLING_SANDBOX_PRO_PRICE_ID', process.env.BILLING_SANDBOX_PRO_PRICE_ID],
+            ['BILLING_SANDBOX_PRO_PRODUCT_ID', process.env.BILLING_SANDBOX_PRO_PRODUCT_ID],
+            ['BILLING_SANDBOX_PREMIUM_PRICE_ID', process.env.BILLING_SANDBOX_PREMIUM_PRICE_ID],
+            ['BILLING_SANDBOX_PREMIUM_PRODUCT_ID', process.env.BILLING_SANDBOX_PREMIUM_PRODUCT_ID],
+            ['BILLING_PRODUCTION_PRO_PRICE_ID', process.env.BILLING_PRODUCTION_PRO_PRICE_ID],
+            ['BILLING_PRODUCTION_PRO_PRODUCT_ID', process.env.BILLING_PRODUCTION_PRO_PRODUCT_ID],
+            ['BILLING_PRODUCTION_PREMIUM_PRICE_ID', process.env.BILLING_PRODUCTION_PREMIUM_PRICE_ID],
+            ['BILLING_PRODUCTION_PREMIUM_PRODUCT_ID', process.env.BILLING_PRODUCTION_PREMIUM_PRODUCT_ID],
+        ]) if (value) await ensureNonSecretCatalogVariable('billing-checkout', key, value);
+        const productionWhopKey = process.env.WHOP_PRODUCTION_API_KEY || await existingVariableValue('billing-checkout', 'WHOP_PRODUCTION_API_KEY');
+        if (productionWhopKey) await ensureVariable('billing-checkout', 'WHOP_PRODUCTION_API_KEY', productionWhopKey);
     } else {
         throw new Error(`Unsupported BILLING_CHECKOUT_PROVIDER: "${provider}"`);
     }
@@ -1036,16 +1079,24 @@ async function ensureCouponsWiseHireVariables(fnIds) {
             ).trim().toLowerCase();
             await ensureVariable('coupons', 'BILLING_CHECKOUT_PROVIDER_READY', checkoutProviderReady);
 
-            const accessEnv = (
-                process.env.PAYPAL_ACCESS_ENVIRONMENT ||
-                await existingVariableValue('coupons', 'PAYPAL_ACCESS_ENVIRONMENT') ||
-                'sandbox'
-            ).trim().toLowerCase();
-            await ensureVariable('coupons', 'PAYPAL_ACCESS_ENVIRONMENT', accessEnv);
+            const accessEnv = (process.env.PAYPAL_ACCESS_ENVIRONMENT || await existingVariableValue('coupons', 'PAYPAL_ACCESS_ENVIRONMENT') || '').trim().toLowerCase();
+            if (accessEnv) await ensureVariable('coupons', 'PAYPAL_ACCESS_ENVIRONMENT', accessEnv);
 
             const qaUserId = process.env.BILLING_CHECKOUT_QA_USER_ID ||
                 await existingVariableValue('coupons', 'BILLING_CHECKOUT_QA_USER_ID');
             if (qaUserId) await ensureVariable('coupons', 'BILLING_CHECKOUT_QA_USER_ID', qaUserId);
+            for (const [key, value] of [
+                ['WHOP_ACCESS_ENVIRONMENT', process.env.WHOP_ACCESS_ENVIRONMENT],
+                ['WHOP_SANDBOX_QA_USER_ID', process.env.WHOP_SANDBOX_QA_USER_ID],
+                ['WHOP_SANDBOX_COMPANY_ID', process.env.WHOP_SANDBOX_COMPANY_ID],
+                ['WHOP_SANDBOX_PRODUCT_ID', process.env.WHOP_SANDBOX_PRODUCT_ID],
+                ['WHOP_SANDBOX_PRO_PLAN_ID', process.env.WHOP_SANDBOX_PRO_PLAN_ID],
+                ['WHOP_SANDBOX_PREMIUM_PLAN_ID', process.env.WHOP_SANDBOX_PREMIUM_PLAN_ID],
+                ['WHOP_PRODUCTION_COMPANY_ID', process.env.WHOP_PRODUCTION_COMPANY_ID],
+                ['WHOP_PRODUCTION_PRODUCT_ID', process.env.WHOP_PRODUCTION_PRODUCT_ID],
+                ['WHOP_PRODUCTION_PRO_PLAN_ID', process.env.WHOP_PRODUCTION_PRO_PLAN_ID],
+                ['WHOP_PRODUCTION_PREMIUM_PLAN_ID', process.env.WHOP_PRODUCTION_PREMIUM_PLAN_ID],
+            ]) if (value) await ensureNonSecretCatalogVariable('coupons', key, value);
         }
         if (fnId === 'public-share') {
             const publicShareSecret = process.env.PUBLIC_SHARE_TOKEN_SECRET ||
@@ -1195,6 +1246,29 @@ async function syncVariablesForHubs(hubIds) {
         await ensurePaypalWebhookVariables();
         console.log('\nEnsuring PayPal subscription schemas...');
         execSync('node scripts/setup_paypal_schema.cjs', { cwd: ROOT, stdio: 'inherit' });
+    }
+
+    if (selected.has('whop-webhook')) {
+        for (const [key, value, secret] of [
+            ['APPWRITE_API_KEY', process.env.APPWRITE_API_KEY, true],
+            ['APPWRITE_ENDPOINT', process.env.APPWRITE_ENDPOINT || 'https://fra.cloud.appwrite.io/v1', false],
+            ['APPWRITE_PROJECT_ID', process.env.APPWRITE_PROJECT_ID || '69fd362b001eb325a192', false],
+            ['WHOP_WEBHOOK_SECRET', process.env.WHOP_WEBHOOK_SECRET, true],
+            ['WHOP_ACCESS_ENVIRONMENT', process.env.WHOP_ACCESS_ENVIRONMENT || 'sandbox', false],
+            ['WHOP_SANDBOX_QA_USER_ID', process.env.WHOP_SANDBOX_QA_USER_ID, false],
+            ['WHOP_SANDBOX_COMPANY_ID', process.env.WHOP_SANDBOX_COMPANY_ID, false],
+            ['WHOP_SANDBOX_PRODUCT_ID', process.env.WHOP_SANDBOX_PRODUCT_ID, false],
+            ['WHOP_SANDBOX_PRO_PLAN_ID', process.env.WHOP_SANDBOX_PRO_PLAN_ID, false],
+            ['WHOP_SANDBOX_PREMIUM_PLAN_ID', process.env.WHOP_SANDBOX_PREMIUM_PLAN_ID, false],
+            ['WHOP_PRODUCTION_COMPANY_ID', process.env.WHOP_PRODUCTION_COMPANY_ID, false],
+            ['WHOP_PRODUCTION_PRODUCT_ID', process.env.WHOP_PRODUCTION_PRODUCT_ID, false],
+            ['WHOP_PRODUCTION_PRO_PLAN_ID', process.env.WHOP_PRODUCTION_PRO_PLAN_ID, false],
+            ['WHOP_PRODUCTION_PREMIUM_PLAN_ID', process.env.WHOP_PRODUCTION_PREMIUM_PLAN_ID, false],
+        ]) {
+            if (value) await ensureVariable('whop-webhook', key, value, secret);
+        }
+        console.log('\nEnsuring Whop provider-state schemas...');
+        execSync('node scripts/setup_whop_schema.cjs', { cwd: ROOT, stdio: 'inherit' });
     }
 
     if (selected.has('billing-checkout')) {

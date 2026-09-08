@@ -3,6 +3,11 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
+process.env.WHOP_SANDBOX_PRODUCT_ID = 'prod_WrbEGZdSaG2af';
+process.env.WHOP_SANDBOX_PRO_PLAN_ID = 'plan_4JJSQLj5zEKVn';
+process.env.WHOP_SANDBOX_PREMIUM_PLAN_ID = 'plan_kt5MScAplbCuN';
+process.env.WHOP_SANDBOX_QA_USER_ID = 'qa_user_1';
+
 const coupons = require('../../appwrite-hubs/coupons/src/main.js');
 const { getMySubscription } = coupons.__test;
 
@@ -71,6 +76,41 @@ test('coupons getMySubscription - QA user in sandbox with checkout enabled', asy
   assert.equal(res.result.status, 200);
   const data = res.result.payload.data;
   assert.equal(data.can_subscribe, true);
+});
+
+test('coupons getMySubscription - Whop state exposes cancellation and checkout readiness', async () => {
+  const res = createMockRes();
+  await getMySubscription({}, res, {
+    user: { $id: 'qa_user_1' },
+    subscription: null,
+    providerStates: {
+      providerState: null,
+      paypalProviderState: null,
+      whopProviderState: {
+        user_id: 'qa_user_1',
+        membership_id: 'mem_1',
+        product_id: 'prod_WrbEGZdSaG2af',
+        plan_id: 'plan_4JJSQLj5zEKVn',
+        plan: 'pro',
+        environment: 'sandbox',
+        status: 'active',
+        expires_at: '2099-01-01T00:00:00.000Z',
+        will_renew: true,
+      },
+    },
+    providerEnvironment: 'sandbox',
+    paypalEnvironment: 'sandbox',
+    qaUserId: 'qa_user_1',
+    checkoutEnabled: true,
+    checkoutProvider: 'whop',
+    checkoutProviderReady: true,
+  });
+
+  assert.equal(res.result.status, 200);
+  assert.equal(res.result.payload.data.effective_plan, 'pro');
+  assert.equal(res.result.payload.data.provider_source, 'whop');
+  assert.equal(res.result.payload.data.can_cancel_subscription, true);
+  assert.equal(res.result.payload.data.can_subscribe, true);
 });
 
 test('coupons getMySubscription - checkout disabled by configuration', async () => {

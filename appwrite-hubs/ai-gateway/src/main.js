@@ -9,6 +9,7 @@ const runtimeReceipts = require('./runtime-receipts.cjs');
 const {
   resolveEffectivePlan,
   configuredProviderEnvironment,
+  configuredWhopProviderEnvironment,
 } = require('@wiseresume/subscription-resolver');
 
 function enableLLMObs() { /* Datadog removed - dd-trace has native Windows binaries incompatible with Linux Appwrite */ }
@@ -1097,6 +1098,7 @@ async function getEffectivePlan(db, userId) {
   let subscription = null;
   let providerState = null;
   let paypalProviderState = null;
+  let whopProviderState = null;
   try {
     const res = await db.listDocuments(DB_ID, SUBSCRIPTIONS_COLLECTION_ID, [
       sdk.Query.equal('user_id', userId),
@@ -1118,6 +1120,15 @@ async function getEffectivePlan(db, userId) {
     providerState = null;
   }
   try {
+    const whopRes = await db.listDocuments(DB_ID, 'whop_subscription_state', [
+      sdk.Query.equal('user_id', userId),
+      sdk.Query.limit(1),
+    ]);
+    whopProviderState = whopRes.documents?.[0] || null;
+  } catch {
+    whopProviderState = null;
+  }
+  try {
     const paypalRes = await db.listDocuments(DB_ID, PAYPAL_STATE_COLLECTION_ID, [
       sdk.Query.equal('user_id', userId),
       sdk.Query.limit(1),
@@ -1132,7 +1143,9 @@ async function getEffectivePlan(db, userId) {
     subscription,
     providerState,
     paypalProviderState,
+    whopProviderState,
     providerEnvironment: configuredProviderEnvironment(),
+    whopProviderEnvironment: configuredWhopProviderEnvironment(),
     userId,
   }).plan;
   return Object.prototype.hasOwnProperty.call(PLAN_DAILY_LIMITS, plan) ? plan : 'free';

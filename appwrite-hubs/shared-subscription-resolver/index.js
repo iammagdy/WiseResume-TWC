@@ -4,7 +4,7 @@ const crypto = require('crypto');
 
 const PLAN_RANK = Object.freeze({ free: 0, pro: 1, premium: 2 });
 const VALID_PAID_PLANS = new Set(['pro', 'premium']);
-const VALID_PROVIDER_STATUSES = new Set(['active', 'canceled', 'billing_issue']);
+const VALID_PROVIDER_STATUSES = new Set(['active', 'past_due', 'canceled', 'billing_issue']);
 const VALID_PROVIDER_ENVIRONMENTS = new Set(['sandbox', 'production']);
 
 function normalizePlan(value) {
@@ -27,8 +27,28 @@ function configuredPaypalProviderEnvironment(env = process.env) {
   return normalizeProviderEnvironment(env.PAYPAL_ACCESS_ENVIRONMENT);
 }
 
+function configuredWhopProviderEnvironment(env = process.env) {
+  return normalizeProviderEnvironment(env.WHOP_ACCESS_ENVIRONMENT);
+}
+
 function configuredQaUserId(env = process.env) {
   return String(env.BILLING_CHECKOUT_QA_USER_ID || '').trim();
+}
+
+function configuredWhopQaUserId(env = process.env) {
+  return String(env.WHOP_SANDBOX_QA_USER_ID || '').trim();
+}
+
+function configuredWhopCatalog(environment, env = process.env) {
+  const prefix = environment === 'sandbox' ? 'WHOP_SANDBOX' : environment === 'production' ? 'WHOP_PRODUCTION' : '';
+  if (!prefix) return { productId: '', planIds: {} };
+  return {
+    productId: String(env[`${prefix}_PRODUCT_ID`] || '').trim(),
+    planIds: {
+      pro: String(env[`${prefix}_PRO_PLAN_ID`] || '').trim(),
+      premium: String(env[`${prefix}_PREMIUM_PLAN_ID`] || '').trim(),
+    },
+  };
 }
 
 function isFutureTimestamp(value, nowMs = Date.now()) {
@@ -45,9 +65,12 @@ function candidate(plan, source, metadata = {}) {
 function buildPlanCandidates({
   subscription = null,
   providerState = null,
+  whopProviderState = null,
   paypalProviderState = null,
   providerEnvironment = '',
   paypalProviderEnvironment = '',
+  whopProviderEnvironment = '',
+  whopQaUserId = '',
   qaUserId = '',
   userId = '',
   nowMs = Date.now(),
@@ -70,6 +93,43 @@ function buildPlanCandidates({
   // mode and the persisted provider state carries the same mode. Unknown mode
   // is deliberately fail-closed so Sandbox state cannot grant future Production access.
   const selectedRcEnvironment = normalizeProviderEnvironment(providerEnvironment);
+  const selectedWhopEnvironment = normalizeProviderEnvironment(whopProviderEnvironment || selectedRcEnvironment || process.env.WHOP_ACCESS_ENVIRONMENT);
+
+  // Whop provider state is isolated from PayPal and RevenueCat. Only the
+  // authoritative environment, product/plan mapping, status, and future
+  // provider expiry can produce a candidate.
+  const whopStateEnvironment = normalizeProviderEnvironment(whopProviderState?.environment);
+  const whopPlan = normalizePlan(whopProviderState?.plan);
+  const whopStatus = String(whopProviderState?.status || '').trim().toLowerCase();
+  const whopCatalog = configuredWhopCatalog(selectedWhopEnvironment);
+  const whopStateUserId = String(whopProviderState?.user_id || '').trim();
+  const currentCanonicalUserId = String(userId || '').trim();
+  const effectiveWhopQaUser = String(whopQaUserId || configuredWhopQaUserId()).trim();
+  const whopIdentityMatches = Boolean(
+    whopStateUserId && currentCanonicalUserId && whopStateUserId === currentCanonicalUserId &&
+    String(whopProviderState?.membership_id || '').trim() &&
+    whopCatalog.productId && String(whopProviderState?.product_id || '').trim() === whopCatalog.productId &&
+    whopCatalog.planIds[whopPlan] && String(whopProviderState?.plan_id || '').trim() === whopCatalog.planIds[whopPlan]
+  );
+  const whopQaAllowed = selectedWhopEnvironment !== 'sandbox' || (
+    effectiveWhopQaUser && currentCanonicalUserId === effectiveWhopQaUser
+  );
+  if (
+    selectedWhopEnvironment &&
+    whopStateEnvironment === selectedWhopEnvironment &&
+    whopPlan &&
+    VALID_PAID_PLANS.has(whopPlan) &&
+    VALID_PROVIDER_STATUSES.has(whopStatus) &&
+    isFutureTimestamp(whopProviderState?.expires_at, nowMs) &&
+    whopIdentityMatches &&
+    whopQaAllowed
+  ) {
+    candidates.push(candidate(whopPlan, 'whop', {
+      expiresAt: whopProviderState.expires_at,
+      providerEnvironment: selectedWhopEnvironment,
+      status: whopStatus,
+    }));
+  }
 
   // RevenueCat Provider Candidate (decoupled from PayPal environment)
   const rcStateEnvironment = normalizeProviderEnvironment(providerState?.environment);
@@ -532,6 +592,7 @@ module.exports = {
   normalizeProviderEnvironment,
   configuredProviderEnvironment,
   configuredPaypalProviderEnvironment,
+  configuredWhopProviderEnvironment,
   configuredQaUserId,
   isFutureTimestamp,
   buildPlanCandidates,

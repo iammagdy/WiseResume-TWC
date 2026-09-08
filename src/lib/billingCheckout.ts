@@ -100,6 +100,15 @@ export const APPROVED_PAYPAL_ORIGINS = Object.freeze([
   'https://www.paypal.com',
 ]);
 
+export const WHOP_ENVIRONMENT_ORIGINS = Object.freeze({
+  sandbox: 'https://sandbox.whop.com',
+  production: 'https://whop.com',
+} as const);
+
+export function isWhopProviderActive(): boolean {
+  return String(import.meta.env.VITE_BILLING_CHECKOUT_PROVIDER || '').trim().toLowerCase() === 'whop';
+}
+
 export function getApprovedPayPalOrigins(environment?: string): readonly string[] {
   let env = environment;
 
@@ -127,7 +136,9 @@ export function getApprovedPayPalOrigins(environment?: string): readonly string[
 export function isValidCheckoutUrl(urlString: string, environment?: string): boolean {
   try {
     const url = new URL(urlString);
-    const approved = getApprovedPayPalOrigins(environment);
+    const approved = isWhopProviderActive()
+      ? (environment === 'sandbox' ? [WHOP_ENVIRONMENT_ORIGINS.sandbox] : environment === 'production' ? [WHOP_ENVIRONMENT_ORIGINS.production] : [])
+      : getApprovedPayPalOrigins(environment);
     return url.protocol === 'https:' && approved.includes(url.origin);
   } catch {
     return false;

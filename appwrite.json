@@ -179,6 +179,16 @@
       "ignore": [".git", ".gitignore", "*.tar.gz"]
     },
     {
+      "functionId": "whop-webhook",
+      "name": "Whop Subscription Webhook",
+      "runtime": "node-22",
+      "execute": ["any"],
+      "path": "appwrite-hubs/whop-webhook",
+      "entrypoint": "src/main.js",
+      "commands": "npm ci --omit=dev --ignore-scripts",
+      "ignore": [".git", ".gitignore", "*.tar.gz"]
+    },
+    {
       "functionId": "email-service",
       "name": "Email Service Hub",
       "runtime": "node-22",

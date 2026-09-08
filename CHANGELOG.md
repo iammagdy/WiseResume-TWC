@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-09-08 — Whop Sandbox contract hardening and E2E boundary audit
+
+- **Webhook contract correction** (`appwrite-hubs/whop-webhook/src/main.js`): accepted the current Whop `account_id` envelope field, retained dot-notation event names, and resolved Whop company/product/plan IDs from environment-specific Sandbox or Production catalog variables.
+- **Local validation** (`tests/hubs/whop-webhook.test.cjs`, `tests/hubs/whop-checkout.test.cjs`, `tests/hubs/whop-resolver.test.cjs`): focused Whop contracts passed; full Vitest passed with 1,382 tests across 237 files, TypeScript, i18n, and production build passed.
+- **Sandbox boundary**: no Appwrite write, webhook registration, payment, deployment, commit, or push occurred; authenticated Sandbox catalog reads were limited to non-mutating verification.
+- **Final deployment graph**: corrected Sandbox key path authenticated successfully; Whop now has a provider-specific checkout/access environment contract, with targeted consumers identified as `billing-checkout`, `ai-gateway`, `coupons`, and `whop-webhook`. QA-user provisioning, schema execution, public webhook registration, and deployment remain pending owner authorization.
+
 ## 2026-09-08 — PayPal Orders v2 checkout, coupons redesign, safety net & modal UX hardening
 
 - **PayPal Orders v2 checkout & coupons redesign** (`src/components/subscription/PaymentConfirmationModal.tsx`, `src/pages/SubscriptionPage.tsx`, `appwrite-hubs/billing-checkout/src/main.js`, `appwrite-hubs/coupons/src/main.js`):

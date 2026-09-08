@@ -863,6 +863,32 @@ assert.equal(readConfig({ BILLING_CHECKOUT_ENVIRONMENT: 'production', BILLING_PR
 assert.equal(readConfig({ BILLING_CHECKOUT_ENVIRONMENT: 'production', BILLING_PRODUCTION_PRO_PRICE_ID: 'pri_01m192gqtw1cxrkctafjcahmfe', BILLING_PRODUCTION_PRO_PRODUCT_ID: 'pro_01m1924dqce7nd69khnakxftzw', BILLING_PRODUCTION_PREMIUM_PRICE_ID: 'pri_01m192m6bwzvarmcr05c78by7r', BILLING_PRODUCTION_PREMIUM_PRODUCT_ID: 'pro_01m192jr9nzd6k5ysa6yhk5aq7' }).catalog.premium.priceId, 'pri_01m192m6bwzvarmcr05c78by7r');
 // Sandbox environment never picks up Production catalog IDs.
 assert.equal(readConfig({ BILLING_CHECKOUT_ENVIRONMENT: 'sandbox', BILLING_PRODUCTION_PRO_PRICE_ID: 'pri_01m192gqtw1cxrkctafjcahmfe', BILLING_SANDBOX_PRO_PRICE_ID: 'sp', BILLING_SANDBOX_PRO_PRODUCT_ID: 'sprod', BILLING_SANDBOX_PREMIUM_PRICE_ID: 'su', BILLING_SANDBOX_PREMIUM_PRODUCT_ID: 'suprod' }).catalog.pro.priceId, 'sp');
+// Whop can select its own checkout environment without changing the shared
+// billing environment used by PayPal/RevenueCat routing.
+{
+  const whopSandbox = readConfig({
+    BILLING_CHECKOUT_PROVIDER: 'whop',
+    BILLING_CHECKOUT_ENVIRONMENT: 'production',
+    WHOP_CHECKOUT_ENVIRONMENT: 'sandbox',
+    WHOP_SANDBOX_PRO_PLAN_ID: 'whop_sandbox_pro',
+    WHOP_SANDBOX_PRODUCT_ID: 'whop_sandbox_product',
+  });
+  assert.equal(whopSandbox.environment, 'sandbox');
+  assert.equal(whopSandbox.catalog.pro.priceId, 'whop_sandbox_pro');
+  assert.equal(whopSandbox.catalog.pro.productId, 'whop_sandbox_product');
+  assert.equal(readConfig({
+    BILLING_CHECKOUT_PROVIDER: 'paypal',
+    BILLING_CHECKOUT_ENVIRONMENT: 'production',
+    WHOP_CHECKOUT_ENVIRONMENT: 'sandbox',
+  }).environment, 'production');
+  assert.equal(readConfig({
+    BILLING_CHECKOUT_PROVIDER: 'whop',
+    BILLING_CHECKOUT_ENVIRONMENT: 'production',
+    WHOP_CHECKOUT_ENVIRONMENT: 'sandbox',
+    WHOP_SANDBOX_QA_USER_ID: 'whop_qa_user',
+    BILLING_CHECKOUT_QA_USER_ID: 'paypal_qa_user',
+  }).qaUserId, 'whop_qa_user');
+}
 
 console.log('✓ billing-checkout: authenticated, fail-closed, environment-isolated, automatic-only, idempotent, rate-limited, non-granting contract OK');
 }
