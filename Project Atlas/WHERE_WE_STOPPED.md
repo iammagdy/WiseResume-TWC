@@ -1,5 +1,14 @@
 # Project Atlas — Active Operational & Handover State
 
+## Whop Sandbox runner implementation and bootstrap PR (2026-09-08)
+
+* **Verdict:** `OWNER_ACTION_REQUIRED_BOOTSTRAP_REQUIRED_CHECK`
+* **Feature branch:** `feat/whop-payments-integration`, latest commit `94e18f41`.
+* **Implementation:** The Sandbox workflow now provisions the Appwrite QA account inside Actions, masks the ephemeral ID, deploys only the confirmed QA-ID consumers, starts the feature-branch preview, creates an authenticated in-memory Playwright session, and attempts the hosted Whop checkout using runtime-protected payment inputs. No auth state or credentials are uploaded.
+* **Bootstrap PR:** PR #319 contains only `.github/workflows/whop-sandbox-e2e.yml`, based on `origin/main`.
+* **Current blocker:** Required `TestSprite Pre-Check` reports `No tests detected`, leaving PR #319 `UNSTABLE`; no bypass or merge was performed. Consequently the new workflow has not yet been registered on the default branch and has no runnable Actions execution ID.
+* **Next action:** Resolve the repository’s required TestSprite check for the workflow-only PR, merge PR #319 normally, then dispatch the workflow against the feature branch.
+
 ## Whop Sandbox Actions runner prepared (2026-09-08)
 
 * **Verdict:** `OWNER_ACTION_REQUIRED_WORKFLOW_DEFAULT_BRANCH`
