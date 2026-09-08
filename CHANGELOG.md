@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-09-08 — Whop Sandbox browser harness modal flow
+
+- **Sandbox browser E2E** (`scripts/run-whop-sandbox-e2e.mjs`): aligned the subscription assertions with the redesigned flow by opening the payment confirmation modal before checking Whop/PayPal provider choices, while retaining the Sandbox environment/catalog guard before card entry.
+- **Validation**: `node --check scripts/run-whop-sandbox-e2e.mjs` and `git diff --check` passed; GitHub Actions run `34224160311` reached the browser step and exposed the former pre-modal assertion.
+
 ## 2026-09-08 — Secure Whop Sandbox Actions runner
 
 - **QA automation** (`.github/workflows/whop-sandbox-e2e.yml`, `scripts/provision-whop-sandbox-qa.cjs`): added a manual, feature-branch-only Appwrite QA runner that consumes protected credentials inside GitHub Actions, masks the ephemeral user ID, deploys only `billing-checkout`, `ai-gateway`, and `coupons`, and never uploads browser state or credentials.

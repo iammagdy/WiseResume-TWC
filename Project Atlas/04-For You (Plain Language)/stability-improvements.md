@@ -2,6 +2,14 @@
 
 **Last verified:** 2026-09-08
 
+## Sandbox payment testing now follows the redesigned payment window (2026-09-08)
+
+**What was the situation:** The automated Sandbox check looked for payment providers before the payment window had been opened, so it stopped even though the subscription page itself loaded correctly.
+
+**What changed:** The check now opens the payment window first, confirms Whop is the default choice and PayPal is available as the alternative, and keeps the Sandbox safety checks before any test payment information is entered.
+
+**What you'll notice:** Nothing changes for customers. WiseResume's internal payment check now follows the same steps a customer sees.
+
 ## Internal test-account setup is safer (2026-09-08)
 
 **What was the situation:** Internal account setup messages could reveal private account details and temporary verification information in automated logs.

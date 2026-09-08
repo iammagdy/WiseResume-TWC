@@ -34,12 +34,25 @@ async function login() {
 
 async function assertSubscriptionSurface() {
   await page.goto(`${baseUrl}/subscription`, { waitUntil: 'domcontentloaded', timeout: 60_000 });
-  await page.getByText(/Whop/i).first().waitFor({ state: 'visible', timeout: 30_000 });
-  await page.getByText(/PayPal/i).first().waitFor({ state: 'visible', timeout: 30_000 });
+  await page.getByRole('button', { name: /Subscribe/i }).first().waitFor({ state: 'visible', timeout: 30_000 });
   const body = await page.locator('body').innerText();
   if (!/\$5/.test(body) || !/\$10/.test(body)) throw new Error('subscription prices are not visible');
   if (/30\s*day|one[- ]time/i.test(body)) throw new Error('one-time checkout is visible');
   if (/coupon|promo code/i.test(body)) throw new Error('customer coupon UI is visible');
+}
+
+async function openCheckoutModal(planName) {
+  const planButton = page.getByRole('button', { name: /Subscribe/i }).first();
+  if (planName === 'premium') {
+    const cards = page.locator('section').filter({ hasText: /\$10/ });
+    await cards.getByRole('button', { name: /Subscribe/i }).click();
+  } else {
+    await planButton.click();
+  }
+  await page.getByRole('button', { name: /Continue with Whop/i }).waitFor({ state: 'visible', timeout: 30_000 });
+  await page.getByRole('button', { name: /Continue with PayPal/i }).waitFor({ state: 'visible', timeout: 30_000 });
+  const whopChoice = page.getByRole('button', { name: /Whop/i }).filter({ hasText: /Primary|Whop/i }).first();
+  if ((await whopChoice.getAttribute('aria-pressed')) !== 'true') throw new Error('Whop is not the default provider');
 }
 
 async function openProviderCheckout(provider, planPattern) {
@@ -63,12 +76,13 @@ async function firstVisibleFrameLocator(selector) {
 try {
   await login();
   await assertSubscriptionSurface();
+  await openCheckoutModal('pro');
 
   const proUrl = await openProviderCheckout('Whop', /\$5|5\.00/);
   console.log(`WHOP_PRO_CHECKOUT_OPEN=true origin=${new URL(proUrl).origin}`);
 
-  // Payment fields are provider-hosted. The card value is injected only at
-  // runtime from a protected secret and is never logged, stored, or uploaded.
+  // These are Whop's public Sandbox test values, used only after the
+  // environment, hostname, and catalog guards above have passed.
   const cardField = await firstVisibleFrameLocator('input[autocomplete="cc-number"], input[name*="card" i]');
   if (!cardField) throw new Error('Whop Sandbox card field was not available');
   await cardField.fill(testCard);
