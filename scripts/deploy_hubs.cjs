@@ -390,7 +390,7 @@ async function ensureVariable(fnId, key, value, secret = false) {
         const existing = vars.variables.find(v => v.key === key);
         if (existing) {
             if (existing.value !== value) {
-                await functions.updateVariable(fnId, existing.$id, key, value, secret);
+                await functions.updateVariable(fnId, existing.$id, key, value, Boolean(secret || existing.secret));
                 console.log(`  Updated ${key} on ${fnId}`);
             }
         } else {

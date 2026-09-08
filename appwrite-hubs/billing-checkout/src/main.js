@@ -985,7 +985,9 @@ function parseWhopCheckout(payload, input) {
   if (returnedProductId && returnedProductId !== input.productId) {
     failProviderDiagnostic('provider.transaction_validation', 'product_mismatch');
   }
-  if (!recurring || billingPeriod !== 30 || initialPrice !== expectedAmount || renewalPrice !== expectedAmount) {
+  const hasBillingPeriod = plan?.billing_period !== undefined && plan?.billing_period !== null;
+  const invalidBillingPeriod = hasBillingPeriod && billingPeriod !== 30;
+  if (!recurring || invalidBillingPeriod || initialPrice !== expectedAmount || renewalPrice !== expectedAmount) {
     failProviderDiagnostic('provider.transaction_validation', 'recurring_catalog_mismatch');
   }
   if (!purchaseUrl) failProviderDiagnostic('provider.transaction_validation', 'invalid_checkout_url');
@@ -1048,6 +1050,9 @@ class WhopCheckoutProvider {
     }
     if (!response?.ok) {
       const status = Number(response?.status);
+      let errorBody = '';
+      try { errorBody = (await response.text()).slice(0, 300); } catch (_) {}
+      console.log(`[whop-checkout] API error: status=${status} body=${errorBody}`);
       const category = status === 401 || status === 403 ? 'provider_auth_rejected'
         : status === 400 || status === 422 ? 'provider_request_rejected'
           : status === 429 ? 'provider_rate_limited'
@@ -1056,6 +1061,7 @@ class WhopCheckoutProvider {
     }
     let payload;
     try { payload = await response.json(); } catch (_) { failProviderDiagnostic('provider.response_json', 'invalid_json'); }
+    console.log(`[whop-checkout] API response: id=${payload?.id} plan_id=${payload?.plan?.id} plan_type=${payload?.plan?.plan_type} period=${payload?.plan?.billing_period} initial=${payload?.plan?.initial_price} renewal=${payload?.plan?.renewal_price}`);
     return parseWhopCheckout(payload, input);
   }
 

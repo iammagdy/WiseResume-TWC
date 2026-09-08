@@ -55,6 +55,12 @@ page.on('response', async (response) => {
     const data = body?.data && typeof body.data === 'object' ? body.data : body;
     const checkoutUrl = typeof data?.checkout_url === 'string' ? data.checkout_url : '';
     shape = `state=${typeof data?.state === 'string' ? data.state : 'none'} provider=${typeof data?.provider === 'string' ? data.provider : 'none'} plan=${typeof data?.plan === 'string' ? data.plan : 'none'} checkout=${Boolean(checkoutUrl)} origin=${checkoutUrl ? new URL(checkoutUrl).origin : 'none'}`;
+    if (payload?.errors) {
+      console.log(`BILLING_CHECKOUT_EXECUTION_ERRORS=${String(payload.errors).replace(/\s+/g, ' ').slice(0, 500)}`);
+    }
+    if (payload?.logs) {
+      console.log(`BILLING_CHECKOUT_EXECUTION_LOGS=${String(payload.logs).replace(/\s+/g, ' ').slice(0, 500)}`);
+    }
   } catch {}
   console.log(`BILLING_CHECKOUT_RESPONSE status=${status} code=${code || 'none'} ${shape}`);
 });
