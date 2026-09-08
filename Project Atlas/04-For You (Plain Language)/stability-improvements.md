@@ -2,6 +2,14 @@
 
 **Last verified:** 2026-09-08
 
+## Sandbox checkout handoff is now easier to diagnose (2026-09-08)
+
+**What was the situation:** The payment service responded successfully, but the internal check could not tell whether the hosted payment window address was accepted or simply failed to open.
+
+**What changed:** The check now records only safe technical details about the response shape and payment-window address, without recording private account or payment information.
+
+**What you'll notice:** Nothing changes for customers. If a future Sandbox handoff fails, the reason will be identified more clearly and safely.
+
 ## Checkout failures now report a clearer safe result (2026-09-08)
 
 **What was the situation:** When the payment window could not open, the internal check waited too long and did not show whether the payment service had returned a safe error.

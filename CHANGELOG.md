@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-09-08 — Whop Sandbox checkout handoff diagnostics
+
+- **Sandbox browser E2E** (`scripts/run-whop-sandbox-e2e.mjs`): adds non-sensitive checkout response shape diagnostics (status, state, provider, plan, URL presence, and origin) to distinguish a server response-shape rejection from hosted navigation failure.
+- **Validation**: GitHub Actions run `34227067252` passed targeted deployment, 29 isolation tests, build, and preview; it stopped after the billing endpoint returned HTTP 201 but the browser did not receive a hosted checkout navigation.
+
 ## 2026-09-08 — Whop Sandbox checkout diagnostics
 
 - **Sandbox browser E2E** (`scripts/run-whop-sandbox-e2e.mjs`): records only billing-function HTTP status and normalized error code, and fails checkout navigation with a bounded provider-specific diagnostic instead of an opaque one-minute timeout.

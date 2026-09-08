@@ -30,11 +30,15 @@ page.on('response', async (response) => {
   const functionName = requestUrl.match(/functions\/([^/]+)/i)?.[1] || 'unknown';
   if (!/billing|checkout/i.test(functionName)) return;
   let code = '';
+  let shape = '';
   try {
     const payload = await response.json();
     code = typeof payload?.error?.code === 'string' ? payload.error.code : typeof payload?.code === 'string' ? payload.code : '';
+    const data = payload?.data && typeof payload.data === 'object' ? payload.data : payload;
+    const checkoutUrl = typeof data?.checkout_url === 'string' ? data.checkout_url : '';
+    shape = `state=${typeof data?.state === 'string' ? data.state : 'none'} provider=${typeof data?.provider === 'string' ? data.provider : 'none'} plan=${typeof data?.plan === 'string' ? data.plan : 'none'} checkout=${Boolean(checkoutUrl)} origin=${checkoutUrl ? new URL(checkoutUrl).origin : 'none'}`;
   } catch {}
-  console.log(`BILLING_CHECKOUT_RESPONSE status=${response.status()} code=${code || 'none'}`);
+  console.log(`BILLING_CHECKOUT_RESPONSE status=${response.status()} code=${code || 'none'} ${shape}`);
 });
 
 async function login() {
