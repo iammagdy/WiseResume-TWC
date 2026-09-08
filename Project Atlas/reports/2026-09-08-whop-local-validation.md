@@ -2,7 +2,7 @@
 
 ## Verdict
 
-`WHOP_SANDBOX_DEPLOYED_BLOCKED_PUBLIC_WEBHOOK_ENDPOINT` — schema and targeted function deployment completed; authentic E2E is blocked until a public HTTPS webhook route exists.
+`OWNER_ACTION_REQUIRED_PROVIDER_CONSOLE` — the owner reports the custom domain is verified, but the live execution environment cannot resolve it; authentic E2E remains blocked until public DNS/HTTPS transport is reachable.
 
 ## Evidence
 
@@ -20,11 +20,11 @@
 
 ## Not verified
 
-No real or Sandbox payment, browser buyer checkout through WiseResume, signed provider delivery, payout setup, or Production deployment was performed. Sandbox QA and API secrets were provisioned through protected server-side paths. No public HTTPS webhook endpoint was available.
+No real or Sandbox payment, browser buyer checkout through WiseResume, signed provider delivery, payout setup, or Production Whop activation was performed. Sandbox QA and API secrets remain in protected server-side paths. The owner-reported domain was not publicly resolvable from the execution environment.
 
 ## Blocking evidence
 
-- `WHOP_SANDBOX_QA_USER_ID` is not currently ready through the approved server-side deployment path; Sandbox E2E must remain fail-closed until supplied.
-- No public HTTPS engineering webhook endpoint exists, so webhook creation remains pending.
-- `https://whop-webhook.wiseresume.app` did not resolve; the direct Appwrite API route is authenticated and returned HTTP 401, so it is not a valid Whop webhook target.
-- The existing schema workflow targets the current Appwrite project explicitly and must be owner-authorized before execution; no schema mutation was performed.
+- `WHOP_SANDBOX_QA_USER_ID` is configured through the protected server-side deployment path and is not printed here.
+- Webhook creation remains pending because the owner-reported hostname did not resolve during a live POST probe: `No such host is known`.
+- The direct Appwrite API route is authenticated and returned HTTP 401, so it is not a valid external Whop webhook target.
+- The existing schema workflow targeted the current Appwrite project explicitly; the two Whop collections were provisioned in the authorized Sandbox-gated deployment. No additional schema mutation was performed during this transport recheck.

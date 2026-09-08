@@ -1,5 +1,13 @@
 # Project Atlas — Active Operational & Handover State
 
+## Whop Sandbox E2E continuation — public transport still blocked (2026-09-08)
+
+* **Verdict:** `OWNER_ACTION_REQUIRED_PROVIDER_CONSOLE`.
+* **Evidence:** The owner reports Appwrite custom-domain verification for `https://whop-webhook.wiseresume.app`; however, a live HTTPS POST probe from this execution environment failed at DNS resolution with `No such host is known`.
+* **State preserved:** Whop schema and the four targeted Sandbox-gated functions are deployed and READY; execute access for `whop-webhook` is public (`any`) while signature validation remains server-side and fail-closed.
+* **Not performed:** No Sandbox webhook, signing secret, test delivery, checkout, payment, refund, or Production Whop change was created.
+* **Next action:** Owner should recheck custom-domain DNS/propagation and rerun an external POST probe. Continue only after the request reaches `whop-webhook` and an unsigned request is rejected by the function rather than by platform DNS/authentication.
+
 **Last Verified:** 2026-09-08
 **Status:** `RELEASE_READY_PENDING_OWNER_AUTHORIZATION` (Frontend: `BUILT_LOCAL` [vite build passed, 0 sourcemaps], Backend: `TESTED_LOCAL` [294/294 unit tests passed across 3 suites], Vitest: `PASS` [20/20 tests], TypeScript: `PASS` [0 errors], Whitespace: `PASS` [git diff --check clean], Browser QA: `LOCAL_BROWSER_QA_PASS` [11/11 scenarios], PayPal Sandbox: `VERIFIED`, Production PayPal: `UNTOUCHED`, `PAYPAL_PRODUCTION_READY = NO`) — WiseResume PayPal Checkout, Coupons & Subscription Redesign has resolved all release blockers including the blocking of active one-time stacking, full capture lifecycle ordering, webhook capture handling, single-use coupon concurrency protection, QA coupon boundary enforcement, and existing-paid-user safety. Deployment, git push, production seeding, and live payment remain strictly held pending owner authorization.
 **Location:** `Project Atlas/WHERE_WE_STOPPED.md`

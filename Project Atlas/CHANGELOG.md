@@ -1,5 +1,9 @@
 # WiseResume Atlas Master Changelog
 
+### 2026-09-08 - Whop public webhook transport recheck (`OWNER_ACTION_REQUIRED_PROVIDER_CONSOLE`)
+
+- Appwrite custom-domain verification is owner-reported, but the live hostname `whop-webhook.wiseresume.app` failed DNS resolution during an HTTPS POST probe. No Whop Sandbox webhook, signing secret, or payment was created.
+
 ### 2026-09-08 - Whop final Sandbox deployment graph and environment gate (`WHOP_SANDBOX_DEPLOYMENT_READY_FINAL`)
 
 - Correct Sandbox key path authenticated successfully without exposing the secret; Sandbox catalog reads returned HTTP 200.

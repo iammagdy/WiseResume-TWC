@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-09-08 — Whop Sandbox public transport recheck
+
+- The owner-reported `whop-webhook.wiseresume.app` custom domain still failed live DNS resolution from the execution environment (`No such host is known`). No Sandbox webhook, secret, payment, or Production Whop change was performed; E2E remains blocked pending reachable HTTPS transport.
+
 ## 2026-09-08 — Whop Sandbox contract hardening and E2E boundary audit
 
 - **Sandbox deployment result**: the authorized Whop schema and four targeted functions reached READY. E2E stopped safely because no public HTTPS webhook endpoint resolved; no webhook or payment was created.

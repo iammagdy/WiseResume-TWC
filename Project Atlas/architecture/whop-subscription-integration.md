@@ -1,7 +1,7 @@
 # WiseResume × Whop Subscription Integration
 
 **Date:** 2026-09-08
-**Status:** `WHOP_SANDBOX_DEPLOYED_BLOCKED_PUBLIC_WEBHOOK_ENDPOINT`
+**Status:** `OWNER_ACTION_REQUIRED_PROVIDER_CONSOLE`
 **Branch:** `feat/whop-payments-integration`
 
 ## Scope
@@ -44,7 +44,7 @@ The schema workflow runs `scripts/setup_whop_schema.cjs` only when `whop-webhook
 
 ## Current runtime boundary
 
-The Whop schema is ready and the targeted `billing-checkout`, `ai-gateway`, `coupons`, and `whop-webhook` functions reached Appwrite `ready` status. No Whop webhook was registered because no public HTTPS route was available: the expected custom hostname did not resolve, while the direct Appwrite API route returned `401` without Appwrite authentication. A real public endpoint is required before Whop can deliver signed events.
+The Whop schema is ready and the targeted `billing-checkout`, `ai-gateway`, `coupons`, and `whop-webhook` functions reached Appwrite `ready` status. The owner reports that `whop-webhook.wiseresume.app` is verified in Appwrite, but a live HTTPS POST probe from the execution environment returned DNS error `No such host is known`. No Whop webhook was registered and no signing secret or payment was created. A publicly resolvable endpoint is required before Whop can deliver signed events.
 
 ## Sandbox boundary
 
@@ -54,7 +54,7 @@ The webhook implementation now accepts the current `account_id` envelope field a
 
 ## Required owner actions before release
 
-1. Provide a public HTTPS Sandbox webhook endpoint, create one Sandbox webhook with the required dot-notation events, and store its signing secret outside the repository.
+1. Recheck DNS/custom-domain propagation for `https://whop-webhook.wiseresume.app` until an external HTTPS POST reaches the deployed function; then create one Sandbox webhook with the required dot-notation events and store its signing secret outside the repository.
 2. Run the signed Sandbox lifecycle matrix, then separately configure Production credentials and webhook only after review.
 3. Update legal/payment copy that still references the frozen PayPal/Paddle history before enabling Whop for customers.
 
