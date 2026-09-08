@@ -1,7 +1,7 @@
 # WiseResume × Whop Subscription Integration
 
 **Date:** 2026-09-08
-**Status:** `OWNER_ACTION_REQUIRED_PROVIDER_CONSOLE`
+**Status:** `WHOP_WEBHOOK_SIGNATURE_FAILURE`
 **Branch:** `feat/whop-payments-integration`
 
 ## Scope
@@ -51,6 +51,12 @@ The Whop schema is ready and the targeted `billing-checkout`, `ai-gateway`, `cou
 Local contract tests pass and the Sandbox API/catalog was authenticated non-mutatingly. Sandbox state uses the existing Appwrite project with explicit environment and QA-user gates; Production plan IDs are rejected in Sandbox mode. Sandbox uses `https://sandbox-api.whop.com/api/v1` and `https://sandbox.whop.com`; the current Whop documentation says Sandbox supports card payments only, so alternative methods shown in a browser must not be treated as verified Production support.
 
 The webhook implementation now accepts the current `account_id` envelope field and resolves company, product, and plan IDs from environment-specific Whop catalog variables. Event names remain current dot notation (`payment.succeeded`, `membership.activated`, and so on). The manual verifier follows Standard Webhooks with the exact raw body, HMAC-SHA256, constant-time comparison, and five-minute timestamp replay protection.
+
+## Current provider evidence
+
+The public endpoint and Appwrite execute policy now work. A signed malformed-body probe using the stored Sandbox secret reached the deployed function and returned the expected `400 malformed_body`, proving secret injection and local Standard Webhooks verification. Whop's official Sandbox Test action still returns `401 unauthorized`, so authentic provider signature compatibility remains unresolved and no payment E2E is claimed.
+
+The current Sandbox secret format is `ws_` followed by 64 hexadecimal characters; the verifier supports it as well as the older `whsec_` Base64 format.
 
 ## Required owner actions before release
 

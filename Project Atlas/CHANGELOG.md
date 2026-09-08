@@ -1,5 +1,9 @@
 # WiseResume Atlas Master Changelog
 
+### 2026-09-08 - Whop Sandbox provider signature blocker (`WHOP_WEBHOOK_SIGNATURE_FAILURE`)
+
+- Public DNS/HTTPS and the deployed `ws_` secret verifier path passed a safe probe; Whop-generated Sandbox Test delivery still returned `401 unauthorized`. No payment was attempted.
+
 ### 2026-09-08 - Whop public webhook transport recheck (`OWNER_ACTION_REQUIRED_PROVIDER_CONSOLE`)
 
 - Appwrite custom-domain verification is owner-reported, but the live hostname `whop-webhook.wiseresume.app` failed DNS resolution during an HTTPS POST probe. No Whop Sandbox webhook, signing secret, or payment was created.

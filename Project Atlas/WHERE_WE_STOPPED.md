@@ -1,5 +1,13 @@
 # Project Atlas — Active Operational & Handover State
 
+## Whop Sandbox E2E — provider signature blocker (2026-09-08)
+
+* **Verdict:** `WHOP_WEBHOOK_SIGNATURE_FAILURE`.
+* **Transport:** Public DNS/HTTPS reaches `whop-webhook.wiseresume.app`; an unsigned request is rejected with `401` and a provider-generated test request reaches the function.
+* **Verifier evidence:** A locally signed malformed body using the stored Sandbox secret returns `400 malformed_body`, proving the deployed secret injection and verifier path. Whop's official Sandbox Test action still returns `401 unauthorized`.
+* **State:** No Sandbox payment or lifecycle E2E was attempted after the provider-signature failure. Production Whop, PayPal, RevenueCat, Vercel, and DNS were not changed.
+* **Next action:** Reconcile the exact Whop Sandbox Standard Webhooks secret/header contract using the Whop delivery log, then rerun the provider-generated test before any payment.
+
 ## Whop Sandbox E2E continuation — public transport still blocked (2026-09-08)
 
 * **Verdict:** `OWNER_ACTION_REQUIRED_PROVIDER_CONSOLE`.

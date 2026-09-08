@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-09-08 — Whop Sandbox provider signature blocker
+
+- Public transport and deployed secret injection passed a safe signed malformed-body probe, but Whop's official Sandbox Test delivery still returned `401 unauthorized`. No payment or lifecycle E2E was run; status is `WHOP_WEBHOOK_SIGNATURE_FAILURE`.
+
 ## 2026-09-08 — Whop Sandbox public transport recheck
 
 - The owner-reported `whop-webhook.wiseresume.app` custom domain still failed live DNS resolution from the execution environment (`No such host is known`). No Sandbox webhook, secret, payment, or Production Whop change was performed; E2E remains blocked pending reachable HTTPS transport.
