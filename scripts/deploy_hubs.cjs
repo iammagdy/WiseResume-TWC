@@ -404,11 +404,13 @@ async function ensureVariable(fnId, key, value, secret = false) {
 
 async function ensureNonSecretCatalogVariable(fnId, key, value) {
     if (!value) throw new Error(`Missing required catalog ID value for ${key}`);
+    let explicitlyEnsuredNonSecret = false;
     const vars = await functions.listVariables(fnId);
     const existing = (vars.variables || []).find(v => v.key === key);
 
     if (!existing) {
         await functions.createVariable(fnId, sdk.ID.unique(), key, value, false);
+        explicitlyEnsuredNonSecret = true;
         console.log(`  Created ${key} on ${fnId} (secret=false)`);
     } else if (existing.secret === false) {
         if (existing.value === value) {
@@ -416,6 +418,7 @@ async function ensureNonSecretCatalogVariable(fnId, key, value) {
             return;
         }
         await functions.updateVariable(fnId, existing.$id, key, value, false);
+        explicitlyEnsuredNonSecret = true;
         console.log(`  Updated ${key} on ${fnId} (secret=false)`);
     } else if (existing.secret === true) {
         console.log(`  [CATALOG SECRET RECREATION] ${key} on ${fnId} is currently secret=true. Verifying runtime gates...`);
@@ -443,6 +446,7 @@ async function ensureNonSecretCatalogVariable(fnId, key, value) {
         }
 
         await functions.createVariable(fnId, sdk.ID.unique(), key, value, false);
+        explicitlyEnsuredNonSecret = true;
         console.log(`  Recreated ${key} on ${fnId} (secret=false)`);
     } else {
         throw new Error(`[CATALOG DEPLOY RECREATION BLOCKED] Cannot recreate catalog variable ${key} on ${fnId}: secret metadata is unverified/undefined.`);
@@ -451,7 +455,11 @@ async function ensureNonSecretCatalogVariable(fnId, key, value) {
     // Fresh persisted readback
     const fresh = await functions.listVariables(fnId);
     const verified = (fresh.variables || []).find(v => v.key === key);
-    if (!verified || verified.value !== value || verified.secret !== false) {
+    // Some Appwrite deployments omit the `secret` field from listVariables
+    // readbacks. Never accept an explicit secret=true value; when metadata is
+    // absent, only trust a variable we just created/updated with secret=false.
+    const secretMetadataSafe = verified?.secret === false || (verified?.secret === undefined && explicitlyEnsuredNonSecret);
+    if (!verified || verified.value !== value || !secretMetadataSafe) {
         throw new Error(`[CATALOG DEPLOY READBACK FAILURE] Failed to verify non-secret ${key} on ${fnId}. Got secret: ${verified?.secret}`);
     }
 }
