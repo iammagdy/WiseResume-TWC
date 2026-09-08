@@ -2,7 +2,7 @@
 
 ## Verdict
 
-`WHOP_WEBHOOK_SIGNATURE_FAILURE` — public transport and secret injection pass, but Whop's official Sandbox Test delivery still receives `401 unauthorized` from the deployed verifier.
+`WHOP_SANDBOX_PROVIDER_TEST_SIGNATURE_PASS` — Whop's official Sandbox Test delivery reached the deployed verifier and passed signature validation; the synthetic payload was safely rejected at the company boundary with `mutated:false`.
 
 ## Evidence
 
@@ -19,15 +19,17 @@
 - Targeted deployment run completed: Whop schema ready; all four selected functions reached `ready`. No PayPal, RevenueCat, admin, or unrelated hub was deployed.
 - Public transport pass: DNS resolves through public resolvers, and a POST using DNS override reached Appwrite with an execution ID.
 - Signed verifier probe pass: a locally signed malformed body returned `400 malformed_body`, proving the deployed function accepted the signature and rejected only the invalid JSON.
-- Whop-generated Test delivery: failed with `401 unauthorized` after the `ws_` hex-secret compatibility fix; authentic provider signature compatibility is not yet proven.
+- Whop-generated Test delivery after the literal-secret fix: HTTP `400`, sanitized response `company_mismatch`, `mutated:false`. This proves provider transport and signature verification, but is not a real membership/payment lifecycle event.
+- Correct current Whop contract: the complete `ws_...` secret is the literal UTF-8 HMAC key; no prefix stripping, hex decoding, or Base64 decoding is performed.
+- The previous locally signed malformed-body probe was self-consistency evidence only because it used the old incorrect key derivation.
 
 ## Not verified
 
-No real or Sandbox payment, browser buyer checkout through WiseResume, successful authentic provider delivery, payout setup, or Production Whop activation was performed. Sandbox QA and API secrets remain in protected server-side paths.
+No real or Sandbox payment, browser buyer checkout through WiseResume, payout setup, or Production Whop activation was performed. The provider-generated test delivery was authentic transport/signature evidence, but its synthetic payload did not represent a real lifecycle event. Sandbox QA and API secrets remain in protected server-side paths.
 
 ## Blocking evidence
 
 - `WHOP_SANDBOX_QA_USER_ID` is configured through the protected server-side deployment path and is not printed here.
-- Whop webhook exists and is configured, but its official Sandbox Test delivery returns `401 unauthorized`; provider signature compatibility remains blocked.
-- The direct Appwrite API route is authenticated and returned HTTP 401, so it is not a valid external Whop webhook target.
+- Whop webhook exists and is configured; the official Sandbox Test delivery now passes the signature boundary and is rejected safely for synthetic `company_mismatch`.
+- The direct Appwrite API route remains authenticated and is not the external Whop target; the verified custom domain is used instead.
 - The existing schema workflow targeted the current Appwrite project explicitly; the two Whop collections were provisioned in the authorized Sandbox-gated deployment. No additional schema mutation was performed during this transport recheck.

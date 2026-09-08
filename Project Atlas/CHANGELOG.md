@@ -3021,3 +3021,9 @@
 - **Webhook contract correction** (`appwrite-hubs/whop-webhook/src/main.js`): accepted the current Whop `account_id` envelope field, retained dot-notation event names, and resolved Whop company/product/plan IDs from environment-specific Sandbox or Production catalog variables.
 - **Validation**: Whop focused contracts passed; full Vitest passed with 1,382 tests across 237 files, TypeScript, i18n, and the production build passed.
 - **Boundary**: Sandbox E2E remains blocked by unavailable local credential path, absent isolated Sandbox Appwrite persistence, and absent public HTTPS webhook endpoint. No payment, deployment, Production mutation, commit, or push occurred.
+## 2026-09-08 - Whop Sandbox literal-secret webhook fix
+
+- **Verdict:** `WHOP_SANDBOX_PROVIDER_TEST_SIGNATURE_PASS`.
+- **Fix:** Current Whop `ws_...` webhook secrets are now passed as complete UTF-8 HMAC keys. No prefix stripping or hex/Base64 decoding is used; signatures cover `{webhook-id}.{webhook-timestamp}.{raw body}` and accept only `v1` entries.
+- **Evidence:** Provider-generated Sandbox Test delivery through `https://whop-webhook.wiseresume.app` returned sanitized `company_mismatch` with `mutated:false`, proving the signature boundary passed. The old self-signed malformed-body result was self-consistency evidence only.
+- **Deployment:** Workflow `34211965267` succeeded with target `whop-webhook`; no schema mutation or unrelated hub deployment occurred. No Production Whop change was performed.

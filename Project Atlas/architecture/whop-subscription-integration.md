@@ -1,7 +1,7 @@
 # WiseResume × Whop Subscription Integration
 
 **Date:** 2026-09-08
-**Status:** `WHOP_WEBHOOK_SIGNATURE_FAILURE`
+**Status:** `WHOP_SANDBOX_PROVIDER_TEST_SIGNATURE_PASS`
 **Branch:** `feat/whop-payments-integration`
 
 ## Scope
@@ -54,14 +54,14 @@ The webhook implementation now accepts the current `account_id` envelope field a
 
 ## Current provider evidence
 
-The public endpoint and Appwrite execute policy now work. A signed malformed-body probe using the stored Sandbox secret reached the deployed function and returned the expected `400 malformed_body`, proving secret injection and local Standard Webhooks verification. Whop's official Sandbox Test action still returns `401 unauthorized`, so authentic provider signature compatibility remains unresolved and no payment E2E is claimed.
+The public endpoint and Appwrite execute policy work. After the verifier fix, Whop's official Sandbox Test action reached the deployed function and returned `400 company_mismatch` with `mutated:false`. This is the expected safe rejection for Whop's synthetic test payload and proves the provider-generated signature passed verification and processing reached the company/catalog boundary. No payment E2E is claimed yet.
 
-The current Sandbox secret format is `ws_` followed by 64 hexadecimal characters; the verifier supports it as well as the older `whsec_` Base64 format.
+Whop's current `ws_` secret is used verbatim as UTF-8 HMAC key bytes. The signed message is `{webhook-id}.{webhook-timestamp}.{raw body}` with HMAC-SHA256 and a Base64 `v1,` signature. The earlier local malformed-body probe was only self-consistency evidence because it used the incorrect hex-suffix derivation; it was not provider compatibility proof. The verifier now rejects unsupported secret formats rather than guessing.
 
 ## Required owner actions before release
 
-1. Recheck DNS/custom-domain propagation for `https://whop-webhook.wiseresume.app` until an external HTTPS POST reaches the deployed function; then create one Sandbox webhook with the required dot-notation events and store its signing secret outside the repository.
-2. Run the signed Sandbox lifecycle matrix, then separately configure Production credentials and webhook only after review.
+1. Run the authorized Sandbox checkout and lifecycle matrix using the existing webhook `hook_KpMNHCmLzLqPn`; the provider test transport and signature gate are now proven.
+2. Separately configure Production credentials and webhook only after review; no Production activation is implied by this Sandbox result.
 3. Update legal/payment copy that still references the frozen PayPal/Paddle history before enabling Whop for customers.
 
 No Production Whop change, Vercel change, production webhook, or real payment was performed in this pass.

@@ -74,3 +74,9 @@
 - **Avatar privacy** (`src/lib/avatarStorage.ts`, `src/components/settings/EditProfileSheet.tsx`, `src/components/editor/ResumePhotoSheet.tsx`): new public avatar URLs use random IDs, replacement/rollback cleanup is explicit, and the public-direct-link behavior is disclosed before upload.
 - **Verification**: 212 Vitest files passed with 1 skipped (1,190 tests passed, 1 todo); all 44 hub test files passed; TypeScript, full ESLint, English/Arabic catalog and coverage checks, production/server builds, no-sourcemap verification, and `npm audit --audit-level=high` passed. The export browser fixture passed in isolation after its first full-run teardown timed out while hub tests were running concurrently.
 - **Release boundary**: no deployment, schema execution, production session change, secret change, commit, or push was performed. Coordinated release and isolated staging smoke tests remain required.
+## 2026-09-08 — Whop Sandbox provider signature contract fixed
+
+- **Verdict:** `WHOP_SANDBOX_PROVIDER_TEST_SIGNATURE_PASS`. Updated `whop-webhook` to use the complete current `ws_...` secret verbatim as UTF-8 HMAC key bytes, with strict `v1,` parsing and raw-body verification.
+- **Validation:** Independent Whop-compatible regression tests, TypeScript, i18n, syntax, diff check, and production build passed.
+- **Provider evidence:** Existing Whop Sandbox webhook `hook_KpMNHCmLzLqPn` test delivery reached the deployed function and returned sanitized `company_mismatch` / `mutated:false` instead of `401 unauthorized`; no payment or lifecycle event was claimed.
+- **Deployment:** Targeted Appwrite workflow `34211965267` succeeded for `whop-webhook` only. Production Whop, PayPal, RevenueCat, Vercel, DNS, and payments were unchanged.

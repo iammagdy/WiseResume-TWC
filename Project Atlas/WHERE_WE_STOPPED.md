@@ -1,12 +1,13 @@
 # Project Atlas — Active Operational & Handover State
 
-## Whop Sandbox E2E — provider signature blocker (2026-09-08)
+## Whop Sandbox E2E — provider signature fixed (2026-09-08)
 
-* **Verdict:** `WHOP_WEBHOOK_SIGNATURE_FAILURE`.
-* **Transport:** Public DNS/HTTPS reaches `whop-webhook.wiseresume.app`; an unsigned request is rejected with `401` and a provider-generated test request reaches the function.
-* **Verifier evidence:** A locally signed malformed body using the stored Sandbox secret returns `400 malformed_body`, proving the deployed secret injection and verifier path. Whop's official Sandbox Test action still returns `401 unauthorized`.
-* **State:** No Sandbox payment or lifecycle E2E was attempted after the provider-signature failure. Production Whop, PayPal, RevenueCat, Vercel, and DNS were not changed.
-* **Next action:** Reconcile the exact Whop Sandbox Standard Webhooks secret/header contract using the Whop delivery log, then rerun the provider-generated test before any payment.
+* **Verdict:** `WHOP_SANDBOX_PROVIDER_TEST_SIGNATURE_PASS`.
+* **Transport:** Public DNS/HTTPS reaches `whop-webhook.wiseresume.app`; unsigned requests remain rejected and the provider-generated test reaches function code.
+* **Verifier evidence:** After switching to the literal full `ws_...` UTF-8 HMAC key, Whop's official Sandbox Test returned HTTP `400` with sanitized `company_mismatch` and `mutated:false`, proving signature validation passed and the request reached the safe company/catalog boundary.
+* **Root cause:** The previous verifier stripped `ws_` and hex-decoded the suffix. Current Whop signs with the complete secret string as the HMAC key. The prior self-signed malformed-body probe was self-consistency evidence only.
+* **State:** No Sandbox payment or lifecycle E2E has been attempted yet. Production Whop, PayPal, RevenueCat, Vercel, and DNS were not changed.
+* **Next action:** Run the authorized real Sandbox Pro/Ultimate lifecycle matrix using the existing webhook; do not recreate the webhook.
 
 ## Whop Sandbox E2E continuation — public transport still blocked (2026-09-08)
 
