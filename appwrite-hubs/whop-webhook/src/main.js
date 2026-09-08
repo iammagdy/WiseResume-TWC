@@ -74,18 +74,15 @@ function verifySignature(raw, req, secret, nowSeconds = Math.floor(Date.now() / 
   const timestampSeconds = Number(timestamp);
   if (!webhookId || !timestamp || !Number.isSafeInteger(timestampSeconds) || Math.abs(nowSeconds - timestampSeconds) > SIGNATURE_TOLERANCE_SECONDS) return false;
   if (!secret || !signatureHeader) return false;
-  let key;
-  try {
-    if (secret.startsWith('whsec_')) key = Buffer.from(secret.slice(6), 'base64');
-    else if (secret.startsWith('ws_')) key = Buffer.from(secret.slice(3), 'hex');
-    else key = Buffer.from(secret, 'base64');
-  } catch { return false; }
+  if (!secret.startsWith('ws_')) return false;
+  const key = Buffer.from(secret, 'utf8');
   if (!key.length) return false;
   const expected = crypto.createHmac('sha256', key).update(`${webhookId}.${timestamp}.${raw}`).digest('base64');
   return signatureHeader.split(/\s+/).some(value => {
-    const provided = value.replace(/^v\d+,/, '');
-    const a = Buffer.from(provided);
-    const b = Buffer.from(expected);
+    const match = /^v1,([A-Za-z0-9+/]+={0,2})$/.exec(value);
+    if (!match) return false;
+    const a = Buffer.from(match[1], 'base64');
+    const b = Buffer.from(expected, 'base64');
     return a.length === b.length && crypto.timingSafeEqual(a, b);
   });
 }

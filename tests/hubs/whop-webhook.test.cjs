@@ -11,17 +11,18 @@ const webhook = require('../../appwrite-hubs/whop-webhook/src/main.js');
 const { __test: t } = webhook;
 
 function signed(raw, secret, id = 'msg_test', timestamp = Math.floor(Date.now() / 1000)) {
-  const key = secret.startsWith('whsec_')
-    ? Buffer.from(secret.slice(6), 'base64')
-    : secret.startsWith('ws_')
-      ? Buffer.from(secret.slice(3), 'hex')
-      : Buffer.from(secret, 'base64');
+  const key = Buffer.from(secret, 'utf8');
   const sig = crypto.createHmac('sha256', key).update(`${id}.${timestamp}.${raw}`).digest('base64');
   return { 'webhook-id': id, 'webhook-timestamp': String(timestamp), 'webhook-signature': `v1,${sig}` };
 }
 
-const secret = `whsec_${Buffer.from('test-secret').toString('base64')}`;
-const sandboxSecret = `ws_${Buffer.from('sandbox-test-secret').toString('hex')}`;
+function signedWithKey(raw, key, id = 'msg_test', timestamp = Math.floor(Date.now() / 1000)) {
+  const sig = crypto.createHmac('sha256', key).update(`${id}.${timestamp}.${raw}`).digest('base64');
+  return { 'webhook-id': id, 'webhook-timestamp': String(timestamp), 'webhook-signature': `v1,${sig}` };
+}
+
+const secret = `ws_${'a'.repeat(64)}`;
+const wrongSecret = `ws_${'b'.repeat(64)}`;
 const raw = JSON.stringify({
   id: 'msg_1', api_version: 'v1', type: 'membership.activated',
   timestamp: new Date().toISOString(), account_id: process.env.WHOP_SANDBOX_COMPANY_ID,
@@ -35,8 +36,13 @@ const raw = JSON.stringify({
 });
 
 assert.equal(t.verifySignature(raw, { headers: signed(raw, secret, 'msg_1') }, secret), true);
-assert.equal(t.verifySignature(raw, { headers: signed(raw, sandboxSecret, 'msg_1') }, sandboxSecret), true);
+assert.equal(t.verifySignature(raw, { headers: signed(raw, secret, 'msg_1') }, wrongSecret), false);
+assert.equal(t.verifySignature(raw, { headers: signedWithKey(raw, Buffer.from(secret.slice(3), 'hex'), 'msg_1') }, secret), false);
+assert.equal(t.verifySignature(raw, { headers: signedWithKey(raw, Buffer.from(secret.slice(3), 'base64'), 'msg_1') }, secret), false);
+assert.equal(t.verifySignature(raw, { headers: { ...signed(raw, secret, 'msg_1'), 'webhook-signature': `v2,${signed(raw, secret, 'msg_1')['webhook-signature'].slice(3)}` } }, secret), false);
+assert.equal(t.verifySignature(raw, { headers: { ...signed(raw, secret, 'msg_1'), 'webhook-signature': `v2,invalid ${signed(raw, secret, 'msg_1')['webhook-signature']}` } }, secret), true);
 assert.equal(t.verifySignature(`${raw}x`, { headers: signed(raw, secret, 'msg_1') }, secret), false);
+assert.equal(t.verifySignature(JSON.stringify(JSON.parse(raw), null, 2), { headers: signed(raw, secret, 'msg_1') }, secret), false);
 assert.equal(t.verifySignature(raw, { headers: signed(raw, secret, 'msg_1', 1) }, secret), false);
 assert.equal(t.verifySignature(raw, { headers: {} }, secret), false);
 
