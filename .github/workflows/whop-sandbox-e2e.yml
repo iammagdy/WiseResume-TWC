@@ -109,7 +109,10 @@ jobs:
           E2E_BASE_URL: http://127.0.0.1:4173
           WISE_RESUME_E2E_EMAIL: ${{ secrets.WISE_RESUME_E2E_EMAIL }}
           WISE_RESUME_E2E_PASSWORD: ${{ secrets.WISE_RESUME_E2E_PASSWORD }}
-          WHOP_SANDBOX_TEST_CARD: ${{ secrets.WHOP_SANDBOX_TEST_CARD }}
-          WHOP_SANDBOX_TEST_EXPIRY: ${{ secrets.WHOP_SANDBOX_TEST_EXPIRY }}
-          WHOP_SANDBOX_TEST_CVC: ${{ secrets.WHOP_SANDBOX_TEST_CVC }}
+          WHOP_ACCESS_ENVIRONMENT: sandbox
+          WHOP_CHECKOUT_ENVIRONMENT: sandbox
+          WHOP_SANDBOX_COMPANY_ID: biz_4To0HUTEuAbKkl
+          WHOP_SANDBOX_PRODUCT_ID: prod_b7Vm6yYS2ROI6
+          WHOP_SANDBOX_PRO_PLAN_ID: plan_ECWULjIBMFBE5
+          WHOP_SANDBOX_PREMIUM_PLAN_ID: plan_YCBJ6FvCkKuRv
         run: node scripts/run-whop-sandbox-e2e.mjs
