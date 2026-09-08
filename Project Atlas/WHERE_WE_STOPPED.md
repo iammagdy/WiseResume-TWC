@@ -1,5 +1,14 @@
 # Project Atlas — Active Operational & Handover State
 
+## Whop Sandbox workflow execution (2026-09-08)
+
+* **Verdict:** `OWNER_ACTION_REQUIRED_SANDBOX_PAYMENT_INPUTS`
+* **Workflow run:** `34222246096`, checked out feature SHA `626a091b`.
+* **Passed:** protected Appwrite QA provisioning, masked QA-ID handling, targeted deployment of `billing-checkout`, `ai-gateway`, and `coupons`, Node hub tests, and feature-branch build.
+* **Stopped:** the browser runner refused to proceed because protected Sandbox card/expiry/CVC inputs are absent. It does not embed, print, or artifact payment test data.
+* **Safety:** no payment was submitted; no auth state was uploaded; no Production Whop, PayPal, RevenueCat, Vercel, or DNS changes occurred.
+* **Next action:** provide an approved protected runtime source for the documented Sandbox payment inputs, then rerun the existing workflow. Do not put those values in source, logs, or artifacts.
+
 ## Whop Sandbox runner implementation and bootstrap PR (2026-09-08)
 
 * **Verdict:** `OWNER_ACTION_REQUIRED_BOOTSTRAP_REQUIRED_CHECK`
