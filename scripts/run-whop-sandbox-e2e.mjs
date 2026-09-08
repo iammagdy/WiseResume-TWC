@@ -124,10 +124,16 @@ async function openProviderCheckout(provider, planPattern) {
   return page.url();
 }
 
-async function firstVisibleFrameLocator(selector) {
-  for (const frame of page.frames()) {
-    const locator = frame.locator(selector).first();
-    if (await locator.isVisible().catch(() => false)) return locator;
+async function firstVisibleFrameLocator(selector, timeoutMs = 20_000) {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    for (const frame of page.frames()) {
+      try {
+        const locator = frame.locator(selector).first();
+        if (await locator.isVisible()) return locator;
+      } catch (_) {}
+    }
+    await page.waitForTimeout(500);
   }
   return null;
 }

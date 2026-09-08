@@ -973,7 +973,7 @@ function parseWhopCheckout(payload, input) {
   const returnedProductId = safeProviderString(plan?.product?.id || plan?.product_id);
   const recurring = asString(plan?.plan_type).toLowerCase() === 'renewal';
   const billingPeriod = Number(plan?.billing_period || 0);
-  const initialPrice = Number(plan?.initial_price);
+  const initialPrice = plan?.initial_price !== undefined && plan?.initial_price !== null ? Number(plan.initial_price) : null;
   const renewalPrice = Number(plan?.renewal_price);
 
   if (!checkoutReference || !checkoutReference.startsWith('ch_')) {
@@ -987,7 +987,8 @@ function parseWhopCheckout(payload, input) {
   }
   const hasBillingPeriod = plan?.billing_period !== undefined && plan?.billing_period !== null;
   const invalidBillingPeriod = hasBillingPeriod && billingPeriod !== 30;
-  if (!recurring || invalidBillingPeriod || initialPrice !== expectedAmount || renewalPrice !== expectedAmount) {
+  const invalidInitialPrice = initialPrice !== null && initialPrice !== expectedAmount && initialPrice !== 0;
+  if (!recurring || invalidBillingPeriod || invalidInitialPrice || renewalPrice !== expectedAmount) {
     failProviderDiagnostic('provider.transaction_validation', 'recurring_catalog_mismatch');
   }
   if (!purchaseUrl) failProviderDiagnostic('provider.transaction_validation', 'invalid_checkout_url');
