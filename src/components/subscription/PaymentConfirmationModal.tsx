@@ -186,9 +186,9 @@ export function PaymentConfirmationModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md sm:max-w-lg p-0 gap-0 overflow-hidden rounded-2xl">
+      <DialogContent className="max-w-md sm:max-w-lg max-h-[calc(100dvh-2rem)] flex flex-col p-0 gap-0 overflow-hidden rounded-2xl">
         {/* Header Banner */}
-        <div className="bg-gradient-to-br from-primary/15 via-primary/5 to-background border-b border-border p-6 pb-5">
+        <div className="shrink-0 bg-gradient-to-br from-primary/15 via-primary/5 to-background border-b border-border p-5 sm:p-6 pb-4 sm:pb-5">
           <DialogHeader className="gap-2 text-left">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -216,7 +216,7 @@ export function PaymentConfirmationModal({
           </DialogHeader>
         </div>
 
-        <div className="p-6 space-y-5">
+        <div className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-4 sm:space-y-5 overscroll-contain">
           {/* Payment Mode Selector */}
           <div className="space-y-2.5">
             <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
@@ -227,7 +227,7 @@ export function PaymentConfirmationModal({
               <button
                 type="button"
                 onClick={() => handleSelectMode('subscription')}
-                className={`relative flex flex-col p-4 rounded-xl border text-left transition-all duration-200 ${
+                className={`relative flex flex-col p-3.5 sm:p-4 rounded-xl border text-left transition-all duration-200 ${
                   paymentMode === 'subscription'
                     ? 'border-primary bg-primary/5 ring-2 ring-primary/20 shadow-sm'
                     : 'border-border hover:border-border/80 bg-card hover:bg-muted/40'
@@ -257,7 +257,7 @@ export function PaymentConfirmationModal({
               <button
                 type="button"
                 onClick={() => handleSelectMode('one_time')}
-                className={`relative flex flex-col p-4 rounded-xl border text-left transition-all duration-200 ${
+                className={`relative flex flex-col p-3.5 sm:p-4 rounded-xl border text-left transition-all duration-200 ${
                   paymentMode === 'one_time'
                     ? 'border-primary bg-primary/5 ring-2 ring-primary/20 shadow-sm'
                     : 'border-border hover:border-border/80 bg-card hover:bg-muted/40'
