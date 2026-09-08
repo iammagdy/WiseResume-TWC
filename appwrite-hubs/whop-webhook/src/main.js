@@ -74,7 +74,11 @@ function verifySignature(raw, req, secret, nowSeconds = Math.floor(Date.now() / 
   const timestampSeconds = Number(timestamp);
   if (!webhookId || !timestamp || !Number.isSafeInteger(timestampSeconds) || Math.abs(nowSeconds - timestampSeconds) > SIGNATURE_TOLERANCE_SECONDS) return false;
   if (!secret || !signatureHeader) return false;
-  const encodedSecret = secret.startsWith('whsec_') ? secret.slice(6) : secret;
+  const encodedSecret = secret.startsWith('whsec_')
+    ? secret.slice(6)
+    : secret.startsWith('ws_')
+      ? secret.slice(3)
+      : secret;
   let key;
   try { key = Buffer.from(encodedSecret, 'base64'); } catch { return false; }
   if (!key.length) return false;
