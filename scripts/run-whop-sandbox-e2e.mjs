@@ -50,8 +50,11 @@ async function openCheckoutModal(planName) {
     await planButton.click();
   }
   await page.getByRole('button', { name: /Continue with Whop/i }).waitFor({ state: 'visible', timeout: 30_000 });
-  await page.getByRole('button', { name: /Continue with PayPal/i }).waitFor({ state: 'visible', timeout: 30_000 });
-  const whopChoice = page.getByRole('button', { name: /Whop/i }).filter({ hasText: /Primary|Whop/i }).first();
+  const providerChoices = page.locator('fieldset button');
+  if (await providerChoices.count() < 2) throw new Error('provider choices are not visible');
+  const whopChoice = providerChoices.filter({ hasText: /Whop/i }).first();
+  const paypalChoice = providerChoices.filter({ hasText: /PayPal/i }).first();
+  await paypalChoice.waitFor({ state: 'visible', timeout: 30_000 });
   if ((await whopChoice.getAttribute('aria-pressed')) !== 'true') throw new Error('Whop is not the default provider');
 }
 

@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-09-08 — Whop Sandbox provider-choice selector correction
+
+- **Sandbox browser E2E** (`scripts/run-whop-sandbox-e2e.mjs`): checks the payment modal's provider-choice buttons directly, matching the redesigned labels for Whop and PayPal before continuing to hosted checkout.
+- **Validation**: GitHub Actions run `34225267436` passed targeted deployment and 29 isolation/checkout tests; it stopped only at the prior provider-label assertion.
+
 ## 2026-09-08 — Whop Sandbox browser harness modal flow
 
 - **Sandbox browser E2E** (`scripts/run-whop-sandbox-e2e.mjs`): aligned the subscription assertions with the redesigned flow by opening the payment confirmation modal before checking Whop/PayPal provider choices, while retaining the Sandbox environment/catalog guard before card entry.

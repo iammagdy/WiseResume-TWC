@@ -2,6 +2,14 @@
 
 **Last verified:** 2026-09-08
 
+## Payment-provider choices are checked in the right place (2026-09-08)
+
+**What was the situation:** The internal payment check expected the PayPal button to use wording from the next step, while the redesigned payment window uses a shorter provider label.
+
+**What changed:** The check now confirms the actual Whop and PayPal choices inside the payment window and verifies that Whop starts selected.
+
+**What you'll notice:** Nothing changes for customers. The payment check now matches the labels and layout shown by the redesigned WiseResume window.
+
 ## Sandbox payment testing now follows the redesigned payment window (2026-09-08)
 
 **What was the situation:** The automated Sandbox check looked for payment providers before the payment window had been opened, so it stopped even though the subscription page itself loaded correctly.
