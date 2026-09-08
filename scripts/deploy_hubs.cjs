@@ -1405,6 +1405,21 @@ async function run() {
                     throw new Error('BILLING_PRODUCTION_PADDLE_API_KEY is required before deploying billing-checkout when configured for Production');
                 }
             }
+        } else if (provider === 'whop') {
+            const sandboxKey = process.env.WHOP_SANDBOX_API_KEY ||
+                await existingVariableValue('billing-checkout', 'WHOP_SANDBOX_API_KEY');
+            if (!sandboxKey) {
+                throw new Error('WHOP_SANDBOX_API_KEY is required before deploying billing-checkout with provider=whop');
+            }
+            const checkoutEnvironment = (
+                process.env.WHOP_CHECKOUT_ENVIRONMENT ||
+                process.env.BILLING_CHECKOUT_ENVIRONMENT ||
+                await existingVariableValue('billing-checkout', 'BILLING_CHECKOUT_ENVIRONMENT') ||
+                ''
+            ).trim().toLowerCase();
+            if (checkoutEnvironment === 'sandbox' && !(process.env.WHOP_SANDBOX_QA_USER_ID || await existingVariableValue('billing-checkout', 'WHOP_SANDBOX_QA_USER_ID'))) {
+                throw new Error('WHOP_SANDBOX_QA_USER_ID is required before deploying Whop Sandbox checkout');
+            }
         } else {
             throw new Error(`Unsupported BILLING_CHECKOUT_PROVIDER: "${provider}"`);
         }
