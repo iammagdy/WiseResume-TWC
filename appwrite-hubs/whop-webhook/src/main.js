@@ -74,13 +74,12 @@ function verifySignature(raw, req, secret, nowSeconds = Math.floor(Date.now() / 
   const timestampSeconds = Number(timestamp);
   if (!webhookId || !timestamp || !Number.isSafeInteger(timestampSeconds) || Math.abs(nowSeconds - timestampSeconds) > SIGNATURE_TOLERANCE_SECONDS) return false;
   if (!secret || !signatureHeader) return false;
-  const encodedSecret = secret.startsWith('whsec_')
-    ? secret.slice(6)
-    : secret.startsWith('ws_')
-      ? secret.slice(3)
-      : secret;
   let key;
-  try { key = Buffer.from(encodedSecret, 'base64'); } catch { return false; }
+  try {
+    if (secret.startsWith('whsec_')) key = Buffer.from(secret.slice(6), 'base64');
+    else if (secret.startsWith('ws_')) key = Buffer.from(secret.slice(3), 'hex');
+    else key = Buffer.from(secret, 'base64');
+  } catch { return false; }
   if (!key.length) return false;
   const expected = crypto.createHmac('sha256', key).update(`${webhookId}.${timestamp}.${raw}`).digest('base64');
   return signatureHeader.split(/\s+/).some(value => {
