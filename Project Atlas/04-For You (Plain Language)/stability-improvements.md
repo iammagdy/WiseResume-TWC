@@ -2,6 +2,14 @@
 
 **Last verified:** 2026-09-08
 
+## Internal test-account setup is safer (2026-09-08)
+
+**What was the situation:** Internal account setup messages could reveal private account details and temporary verification information in automated logs.
+
+**What changed:** The setup tools now report only safe progress results while keeping private identifiers, email addresses, verification links, and temporary security values out of logs.
+
+**What you'll notice:** Nothing changes in the product. Future internal payment testing can run with less risk of exposing private setup information.
+
 ## Subscription choices are now easier to understand (2026-09-08)
 
 **What was the situation:** The subscription area showed useful details, but the current plan, daily usage, and upgrade choices were spread across a long stack of similar cards.

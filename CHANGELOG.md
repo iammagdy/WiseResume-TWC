@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-09-08 — Appwrite QA signup output hardened
+
+- **QA tooling** (`scripts/signup-and-send-verification.cjs`, `scripts/e2e-signup-test.mjs`): removed logging of account identifiers, email addresses, verification URLs, token previews, response bodies, and page URLs. The existing Appwrite-only signup and verification flow is unchanged; output is now status-only.
+
 ## 2026-09-08 — Subscription workspace redesign
 
 - **Subscription workspace** (`src/pages/SubscriptionPage.tsx`): redesigned the subscription surface around current-plan context, usage, plan benefits, recurring monthly upgrade cards, and subscription management while preserving the existing checkout, cancellation, resolver, and lifecycle state flows.
