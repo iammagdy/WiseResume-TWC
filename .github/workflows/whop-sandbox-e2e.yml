@@ -89,7 +89,7 @@ jobs:
         run: node scripts/deploy_hubs.cjs --only="billing-checkout,ai-gateway,coupons"
 
       - name: Run Whop isolation and checkout tests
-        run: npx vitest run tests/hubs/whop-resolver.test.cjs tests/hubs/billing-checkout.test.cjs tests/hubs/coupons-subscription.test.cjs --reporter=dot
+        run: node --test tests/hubs/whop-resolver.test.cjs tests/hubs/billing-checkout.test.cjs tests/hubs/coupons-subscription.test.cjs
 
       - name: Build feature branch frontend
         run: npm run build
