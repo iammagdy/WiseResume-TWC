@@ -1,5 +1,27 @@
 # Changelog
 
+## 2026-09-08 — PayPal Orders v2 checkout, coupons redesign, safety net & modal UX hardening
+
+- **PayPal Orders v2 checkout & coupons redesign** (`src/components/subscription/PaymentConfirmationModal.tsx`, `src/pages/SubscriptionPage.tsx`, `appwrite-hubs/billing-checkout/src/main.js`, `appwrite-hubs/coupons/src/main.js`):
+  - Added multi-tier PayPal Orders v2 integration supporting both recurring subscriptions and 30-day one-time access with stacking protection.
+  - Rebuilt the payment confirmation flow with dynamic plan terms, real-time coupon validation, currency alignment ($0.50 floor for QA/coupons), and order initiation with anti-tamper session locks.
+  - Implemented single-use discount coupon architecture with usage quotas, expiration, and user restrictions.
+  - Merged in PR #315 (`7be0d637`) and PR #316 (`57c55672`).
+- **Asynchronous order safety net** (`appwrite-hubs/paypal-webhook/src/main.js`):
+  - Implemented authoritative `CHECKOUT.ORDER.APPROVED` webhook safety-net handler that captures approved PayPal orders server-side if the buyer closes the browser before return redirect.
+  - Enforces strict currency (`USD`), QA boundary, amount verification, and deterministic capture idempotency (`ordcap_{orderId}`) prior to entitlement fulfillment.
+  - Coexists idempotently with browser-side capture (`captureBillingOrder`), preventing double-capture and double-granting. 168 tests in `tests/hubs/paypal-webhook.test.cjs` verify all concurrent and edge cases.
+- **Production webhook synchronization**:
+  - Live PayPal webhook `3FS524418K949645E` subscribed to all 16 required billing and order event types.
+- **Modal scrolling and pinned CTA actions** (`src/components/subscription/PaymentConfirmationModal.tsx`):
+  - Resolved modal clipping on constrained viewports / high zoom levels by converting `DialogContent` to `flex flex-col max-h-[calc(100dvh-2rem)] overflow-hidden` (PR #317).
+  - Pinned "Continue to PayPal" and "Cancel" buttons to a fixed footer (`shrink-0 border-t bg-card/95 backdrop-blur`) and applied `min-h-0` to the scrollable container (`overflow-y-auto flex-1 min-h-0`), ensuring checkout CTA is persistently visible and directly actionable across all screen sizes (PR #318).
+- **Production release & verification**:
+  - Appwrite Hubs `billing-checkout` (deployment `6a9f373d274d2527e522`) and `paypal-webhook` (deployment `6a9f31509734dd44b5a1`) deployed and active.
+  - Vercel production deployment verified live on `https://wiseresume.app` at commit `712918df`.
+  - 10/10 pre-payment browser smoke checks passed against production.
+  - Owner live verification completed and release formally authorized as complete.
+
 ## 2026-08-29 — Billing checkout records safe provider-boundary diagnostics
 
 - **Billing checkout** (`appwrite-hubs/billing-checkout/src/main.js`): adds fixed, allowlisted diagnostics for runtime configuration, transport, provider HTTP status, JSON decoding, transaction validation, safe result validation, and post-provider persistence. The diagnostic contains only a fixed stage/category and, for HTTP failures, a numeric status; it never logs request/provider payloads, identifiers, URLs, credentials, headers, or raw errors.
