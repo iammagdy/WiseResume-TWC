@@ -2,7 +2,7 @@
 
 ## Verdict
 
-`WHOP_SANDBOX_DEPLOYMENT_READY_FINAL` — deployment, webhook registration, schema mutation, and E2E remain owner-authorized next steps.
+`WHOP_SANDBOX_DEPLOYED_BLOCKED_PUBLIC_WEBHOOK_ENDPOINT` — schema and targeted function deployment completed; authentic E2E is blocked until a public HTTPS webhook route exists.
 
 ## Evidence
 
@@ -16,13 +16,15 @@
 - Correct Sandbox key path was read in memory only; authenticated catalog reads returned HTTP 200 (`SANDBOX_API_AUTH_PASS`). No key value was printed, logged, or persisted in the repository.
 - Environment isolation was hardened: Whop checkout may use `WHOP_CHECKOUT_ENVIRONMENT`, Whop entitlement uses `WHOP_ACCESS_ENVIRONMENT`, while `BILLING_CHECKOUT_ENVIRONMENT`, `BILLING_ACCESS_ENVIRONMENT`, and `PAYPAL_ACCESS_ENVIRONMENT` retain their existing provider contracts.
 - Minimum runtime targets are `billing-checkout`, `ai-gateway`, `coupons`, and `whop-webhook`; the schema step is conditional on explicit `whop-webhook` selection.
+- Targeted deployment run completed: Whop schema ready; all four selected functions reached `ready`. No PayPal, RevenueCat, admin, or unrelated hub was deployed.
 
 ## Not verified
 
-No real or Sandbox payment, browser buyer checkout through WiseResume, signed provider delivery, payout setup, Production deployment, or secret configuration was performed. No Whop Sandbox QA user variable or public HTTPS webhook endpoint was provisioned.
+No real or Sandbox payment, browser buyer checkout through WiseResume, signed provider delivery, payout setup, or Production deployment was performed. Sandbox QA and API secrets were provisioned through protected server-side paths. No public HTTPS webhook endpoint was available.
 
 ## Blocking evidence
 
 - `WHOP_SANDBOX_QA_USER_ID` is not currently ready through the approved server-side deployment path; Sandbox E2E must remain fail-closed until supplied.
 - No public HTTPS engineering webhook endpoint exists, so webhook creation remains pending.
+- `https://whop-webhook.wiseresume.app` did not resolve; the direct Appwrite API route is authenticated and returned HTTP 401, so it is not a valid Whop webhook target.
 - The existing schema workflow targets the current Appwrite project explicitly and must be owner-authorized before execution; no schema mutation was performed.

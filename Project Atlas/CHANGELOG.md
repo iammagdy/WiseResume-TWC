@@ -7,6 +7,11 @@
 - Confirmed minimum targeted consumers: `billing-checkout`, `ai-gateway`, `coupons`, and `whop-webhook`; schema preparation remains explicitly conditional and unexecuted.
 - Remaining owner actions: server-side `WHOP_SANDBOX_QA_USER_ID`, public HTTPS webhook endpoint/signing secret, targeted Sandbox deployment/schema authorization, then authentic Sandbox lifecycle tests.
 
+### 2026-09-08 - Whop targeted Sandbox deployment stopped at webhook endpoint
+
+- Whop schema and the four authorized runtime targets reached Appwrite `ready` status.
+- No Whop webhook or payment was created. The expected public webhook hostname did not resolve, and the direct Appwrite API route returned HTTP 401; status is `OWNER_ACTION_REQUIRED_SANDBOX_WEBHOOK_ENDPOINT`.
+
 ### 2026-09-08 - Whop additive checkout integration (`IMPLEMENTED_UNVERIFIED`)
 
 - Added a server-owned Whop checkout provider using the current versioned Whop REST API `v1`.

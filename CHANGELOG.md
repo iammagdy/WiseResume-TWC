@@ -2,6 +2,8 @@
 
 ## 2026-09-08 — Whop Sandbox contract hardening and E2E boundary audit
 
+- **Sandbox deployment result**: the authorized Whop schema and four targeted functions reached READY. E2E stopped safely because no public HTTPS webhook endpoint resolved; no webhook or payment was created.
+
 - **Webhook contract correction** (`appwrite-hubs/whop-webhook/src/main.js`): accepted the current Whop `account_id` envelope field, retained dot-notation event names, and resolved Whop company/product/plan IDs from environment-specific Sandbox or Production catalog variables.
 - **Local validation** (`tests/hubs/whop-webhook.test.cjs`, `tests/hubs/whop-checkout.test.cjs`, `tests/hubs/whop-resolver.test.cjs`): focused Whop contracts passed; full Vitest passed with 1,382 tests across 237 files, TypeScript, i18n, and production build passed.
 - **Sandbox boundary**: no Appwrite write, webhook registration, payment, deployment, commit, or push occurred; authenticated Sandbox catalog reads were limited to non-mutating verification.

@@ -6,13 +6,14 @@
 
 ## Whop Sandbox E2E continuation — final deployment graph ready (2026-09-08)
 
-* **Verdict:** `WHOP_SANDBOX_DEPLOYMENT_READY_FINAL`.
+* **Verdict:** `OWNER_ACTION_REQUIRED_SANDBOX_WEBHOOK_ENDPOINT`.
 * **Branch:** `feat/whop-payments-integration`; existing working-tree changes preserved; no commit or push.
 * **Contract correction:** Whop webhook handling now accepts current `account_id` envelopes, keeps dot-notation events, and resolves Sandbox/Production catalog IDs from environment-specific variables. Standard Webhooks raw-body/HMAC/timestamp checks remain covered locally.
 * **Validation:** TypeScript PASS; i18n PASS; full Vitest PASS (`237 passed, 1 skipped; 1,382 passed, 1 todo`); build PASS (`5,895` modules, no sourcemaps); focused Whop tests PASS.
-* **Sandbox status:** Correct key path authenticated successfully (`SANDBOX_API_AUTH_PASS`) and the Sandbox catalog was readable without exposing the key. No schema mutation, webhook registration, deployment, or payment was attempted.
+* **Sandbox status:** Correct key path authenticated successfully (`SANDBOX_API_AUTH_PASS`) and the Sandbox catalog was readable without exposing the key. Whop schema and the four targeted functions were deployed successfully; no webhook or payment was performed.
 * **Environment gate:** Whop uses `WHOP_ACCESS_ENVIRONMENT` and optional `WHOP_CHECKOUT_ENVIRONMENT`; `BILLING_CHECKOUT_ENVIRONMENT` remains unchanged, so PayPal and RevenueCat contracts are not globally switched.
-* **Minimum targets:** `billing-checkout`, `ai-gateway`, `coupons`, and `whop-webhook`; schema preparation is conditional on explicit `whop-webhook` targeting. `WHOP_SANDBOX_QA_USER_ID` and a public HTTPS endpoint remain owner actions.
+* **Minimum targets:** `billing-checkout`, `ai-gateway`, `coupons`, and `whop-webhook`; all reached `ready`. `WHOP_SANDBOX_QA_USER_ID` is configured server-side. The custom webhook hostname did not resolve and the direct Appwrite API route returned 401; public HTTPS endpoint remains the blocker.
+* **Safety note:** An earlier run invoked pre-existing AI runtime/coupon/public-audit schema checks before cancellation; logs showed existing schemas/attributes and no new Whop-unrelated function deployment. The corrected workflow now skips those checks for Whop runs.
 * **What's New decision:** `WHATS_NEW_DEFER_UNTIL_PRODUCTION`; the customer-facing provider switch remains unverified and disabled pending isolated Sandbox lifecycle evidence and the normal production review gate.
 
 ## Current Active Handover — WiseResume Whop Additive Integration (2026-09-08)

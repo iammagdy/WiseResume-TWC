@@ -1,7 +1,7 @@
 # WiseResume × Whop Subscription Integration
 
 **Date:** 2026-09-08
-**Status:** `WHOP_SANDBOX_DEPLOYMENT_READY_FINAL` / `OWNER_ACTION_REQUIRED_SANDBOX_QA_AND_DEPLOYMENT`
+**Status:** `WHOP_SANDBOX_DEPLOYED_BLOCKED_PUBLIC_WEBHOOK_ENDPOINT`
 **Branch:** `feat/whop-payments-integration`
 
 ## Scope
@@ -42,18 +42,20 @@ The minimum targeted Sandbox deployment is `billing-checkout`, `ai-gateway`, `co
 
 The schema workflow runs `scripts/setup_whop_schema.cjs` only when `whop-webhook` is an explicit target, with an explicit existing Appwrite project ID and server-only collection creation. The script has no project-ID fallback. Sandbox state is accepted only for the configured Sandbox QA user, matching canonical user ownership, environment, product, and plan.
 
+## Current runtime boundary
+
+The Whop schema is ready and the targeted `billing-checkout`, `ai-gateway`, `coupons`, and `whop-webhook` functions reached Appwrite `ready` status. No Whop webhook was registered because no public HTTPS route was available: the expected custom hostname did not resolve, while the direct Appwrite API route returned `401` without Appwrite authentication. A real public endpoint is required before Whop can deliver signed events.
+
 ## Sandbox boundary
 
-Local contract tests pass, but Sandbox end-to-end verification is blocked in this workspace. The owner reports a key at `C:\Users\lenovo.whop\sandbox.env`, but that path is not present in the current execution environment, so no authenticated Sandbox request was attempted. The repository also has only the Production Appwrite project configuration and no approved Sandbox Appwrite project/database or environment-qualified provider-state boundary; a real webhook must not write Sandbox events into Production collections. Production plan IDs must not be reused against the separate Sandbox API. Sandbox uses `https://sandbox-api.whop.com/api/v1` and `https://sandbox.whop.com`; the current Whop documentation says Sandbox supports card payments only, so alternative methods shown in a browser must not be treated as verified Production support.
+Local contract tests pass and the Sandbox API/catalog was authenticated non-mutatingly. Sandbox state uses the existing Appwrite project with explicit environment and QA-user gates; Production plan IDs are rejected in Sandbox mode. Sandbox uses `https://sandbox-api.whop.com/api/v1` and `https://sandbox.whop.com`; the current Whop documentation says Sandbox supports card payments only, so alternative methods shown in a browser must not be treated as verified Production support.
 
 The webhook implementation now accepts the current `account_id` envelope field and resolves company, product, and plan IDs from environment-specific Whop catalog variables. Event names remain current dot notation (`payment.succeeded`, `membership.activated`, and so on). The manual verifier follows Standard Webhooks with the exact raw body, HMAC-SHA256, constant-time comparison, and five-minute timestamp replay protection.
 
 ## Required owner actions before release
 
-1. Make the Sandbox key available to the approved local/server-side test environment without exposing it, then verify `SANDBOX_API_AUTH_PASS` against `https://sandbox-api.whop.com/api/v1`.
-2. Provide an approved non-Production Appwrite project/database or another documented environment-isolated persistence boundary, including the QA user identity.
-3. Provide a public HTTPS Sandbox webhook endpoint, create one Sandbox webhook with the required dot-notation events, and store its signing secret outside the repository.
-4. Run the signed Sandbox lifecycle matrix, then separately configure Production credentials and webhook only after review.
-4. Update legal/payment copy that still references the frozen PayPal/Paddle history before enabling Whop for customers.
+1. Provide a public HTTPS Sandbox webhook endpoint, create one Sandbox webhook with the required dot-notation events, and store its signing secret outside the repository.
+2. Run the signed Sandbox lifecycle matrix, then separately configure Production credentials and webhook only after review.
+3. Update legal/payment copy that still references the frozen PayPal/Paddle history before enabling Whop for customers.
 
-No Appwrite schema mutation, deployment, Vercel change, production webhook, API secret creation, or real payment was performed in this pass.
+No Production Whop change, Vercel change, production webhook, or real payment was performed in this pass.
