@@ -8,6 +8,7 @@ const {
   configuredPaypalProviderEnvironment,
   configuredWhopProviderEnvironment,
   configuredQaUserId,
+  configuredWhopQaUserId,
 } = require('@wiseresume/subscription-resolver');
 
 const DB_ID = 'main';
@@ -346,12 +347,14 @@ async function getMySubscription(body, res, dependencies = {}) {
   const configuredPaypalEnv = dependencies.paypalEnvironment !== undefined
     ? dependencies.paypalEnvironment
     : configuredPaypalProviderEnvironment();
-  const configuredQaUser = dependencies.qaUserId !== undefined
-    ? dependencies.qaUserId
-    : configuredQaUserId();
   const checkoutProvider = dependencies.checkoutProvider !== undefined
     ? String(dependencies.checkoutProvider || '').trim().toLowerCase()
     : String(process.env.BILLING_CHECKOUT_PROVIDER || '').trim().toLowerCase();
+  const configuredQaUser = dependencies.qaUserId !== undefined
+    ? dependencies.qaUserId
+    : checkoutProvider === 'whop'
+      ? (configuredWhopQaUserId() || configuredQaUserId())
+      : configuredQaUserId();
   const configuredWhopEnv = dependencies.whopProviderEnvironment !== undefined
     ? dependencies.whopProviderEnvironment
     : checkoutProvider === 'whop' && dependencies.providerEnvironment !== undefined
@@ -439,7 +442,7 @@ async function getMySubscription(body, res, dependencies = {}) {
   const isProviderReady = dependencies.checkoutProviderReady !== undefined
     ? Boolean(dependencies.checkoutProviderReady)
     : String(process.env.BILLING_CHECKOUT_PROVIDER_READY || '').toLowerCase() === 'true';
-  const runtimeEnv = checkoutProvider === 'whop' ? configuredProviderEnv : String(configuredPaypalEnv || '').trim().toLowerCase();
+  const runtimeEnv = checkoutProvider === 'whop' ? configuredWhopEnv : String(configuredPaypalEnv || '').trim().toLowerCase();
   const isSandbox = runtimeEnv === 'sandbox';
   const isProduction = runtimeEnv === 'production';
   const hasValidQaUser = Boolean(configuredQaUser && String(configuredQaUser).trim().length > 0);

@@ -1091,6 +1091,7 @@ async function ensureCouponsWiseHireVariables(fnIds) {
                 await existingVariableValue('coupons', 'BILLING_CHECKOUT_QA_USER_ID');
             if (qaUserId) await ensureVariable('coupons', 'BILLING_CHECKOUT_QA_USER_ID', qaUserId);
             for (const [key, value] of [
+                ['WHOP_CHECKOUT_ENVIRONMENT', process.env.WHOP_CHECKOUT_ENVIRONMENT],
                 ['WHOP_ACCESS_ENVIRONMENT', process.env.WHOP_ACCESS_ENVIRONMENT],
                 ['WHOP_SANDBOX_QA_USER_ID', process.env.WHOP_SANDBOX_QA_USER_ID],
                 ['WHOP_SANDBOX_COMPANY_ID', process.env.WHOP_SANDBOX_COMPANY_ID],

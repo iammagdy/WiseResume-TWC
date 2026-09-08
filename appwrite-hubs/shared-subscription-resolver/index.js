@@ -28,7 +28,7 @@ function configuredPaypalProviderEnvironment(env = process.env) {
 }
 
 function configuredWhopProviderEnvironment(env = process.env) {
-  return normalizeProviderEnvironment(env.WHOP_ACCESS_ENVIRONMENT);
+  return normalizeProviderEnvironment(env.WHOP_ACCESS_ENVIRONMENT || env.WHOP_CHECKOUT_ENVIRONMENT);
 }
 
 function configuredQaUserId(env = process.env) {
@@ -594,6 +594,7 @@ module.exports = {
   configuredPaypalProviderEnvironment,
   configuredWhopProviderEnvironment,
   configuredQaUserId,
+  configuredWhopQaUserId,
   isFutureTimestamp,
   buildPlanCandidates,
   resolveEffectivePlan,
