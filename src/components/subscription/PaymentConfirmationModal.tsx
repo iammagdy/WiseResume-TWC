@@ -216,7 +216,7 @@ export function PaymentConfirmationModal({
           </DialogHeader>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-4 sm:space-y-5 overscroll-contain">
+        <div className="flex-1 min-h-0 overflow-y-auto p-5 sm:p-6 space-y-4 overscroll-contain">
           {/* Payment Mode Selector */}
           <div className="space-y-2.5">
             <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
@@ -321,16 +321,17 @@ export function PaymentConfirmationModal({
                   variant="ghost"
                   size="sm"
                   onClick={handleRemoveCoupon}
-                  className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground rounded-lg"
-                  aria-label="Remove coupon"
+                  className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
                 >
-                  <X className="w-3.5 h-3.5" />
+                  <X className="w-4 h-4" />
+                  <span className="sr-only">Remove coupon</span>
                 </Button>
               </div>
             ) : (
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 <div className="flex gap-2">
                   <Input
+                    type="text"
                     placeholder="Enter coupon code"
                     value={couponInput}
                     onChange={(e) => {
@@ -340,7 +341,7 @@ export function PaymentConfirmationModal({
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') {
                         e.preventDefault();
-                        handleApplyCoupon();
+                        void handleApplyCoupon();
                       }
                     }}
                     className="h-10 text-xs font-mono uppercase"
@@ -414,34 +415,34 @@ export function PaymentConfirmationModal({
               <div>{checkoutError}</div>
             </div>
           )}
+        </div>
 
-          {/* Action Buttons */}
-          <div className="space-y-2 pt-1">
-            <Button
-              type="button"
-              onClick={handleCheckout}
-              disabled={isSubmitting}
-              className="w-full h-11 font-semibold text-sm gap-2"
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Connecting to PayPal…
-                </>
-              ) : (
-                'Continue to PayPal'
-              )}
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => onOpenChange(false)}
-              disabled={isSubmitting}
-              className="w-full h-9 text-xs text-muted-foreground hover:text-foreground"
-            >
-              Cancel
-            </Button>
-          </div>
+        {/* Pinned Action Buttons Footer */}
+        <div className="shrink-0 border-t border-border bg-card/95 backdrop-blur px-5 sm:px-6 py-3.5 space-y-2">
+          <Button
+            type="button"
+            onClick={handleCheckout}
+            disabled={isSubmitting}
+            className="w-full h-11 font-semibold text-sm gap-2"
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Connecting to PayPal…
+              </>
+            ) : (
+              'Continue to PayPal'
+            )}
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => onOpenChange(false)}
+            disabled={isSubmitting}
+            className="w-full h-8 text-xs text-muted-foreground hover:text-foreground"
+          >
+            Cancel
+          </Button>
         </div>
       </DialogContent>
     </Dialog>
