@@ -81,6 +81,11 @@ async function openProviderCheckout(provider, planPattern) {
   try {
     await page.waitForURL(url => provider === 'Whop' ? /sandbox\.whop\.com/i.test(url.toString()) : /paypal\.com/i.test(url.toString()), { timeout: 20_000 });
   } catch {
+    const alert = page.getByRole('alert').first();
+    if (await alert.isVisible().catch(() => false)) {
+      const message = (await alert.innerText()).replace(/\s+/g, ' ').trim().slice(0, 120);
+      console.log(`${provider.toUpperCase()}_CHECKOUT_UI_ERROR=${message}`);
+    }
     throw new Error(`${provider.toUpperCase()}_CHECKOUT_NAVIGATION_FAILED`);
   }
   if (provider === 'Whop' && new URL(page.url()).hostname !== 'sandbox.whop.com') throw new Error('WHOP_SANDBOX_PAYMENT_ENVIRONMENT_GUARD_FAILURE');

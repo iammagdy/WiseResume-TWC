@@ -2,6 +2,14 @@
 
 **Last verified:** 2026-09-08
 
+## Payment-window errors are shown safely during testing (2026-09-08)
+
+**What was the situation:** The testing check could see that the payment request reached the service but could not see the short error shown in the payment window.
+
+**What changed:** It now records only that safe, visible error message when the payment window cannot open; private request details remain excluded.
+
+**What you'll notice:** Nothing changes for customers. Sandbox testing can identify payment-window issues without exposing account or payment information.
+
 ## Sandbox checkout handoff is now easier to diagnose (2026-09-08)
 
 **What was the situation:** The payment service responded successfully, but the internal check could not tell whether the hosted payment window address was accepted or simply failed to open.

@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-09-08 — Whop Sandbox UI error diagnostics
+
+- **Sandbox browser E2E** (`scripts/run-whop-sandbox-e2e.mjs`): reports only the bounded, rendered checkout error when hosted navigation fails, preserving secret and payload redaction.
+- **Validation**: GitHub Actions run `34227558666` passed targeted deployment, 29 isolation tests, build, and preview; the Appwrite execution envelope did not expose the function response body to the browser listener.
+
 ## 2026-09-08 — Whop Sandbox checkout handoff diagnostics
 
 - **Sandbox browser E2E** (`scripts/run-whop-sandbox-e2e.mjs`): adds non-sensitive checkout response shape diagnostics (status, state, provider, plan, URL presence, and origin) to distinguish a server response-shape rejection from hosted navigation failure.
