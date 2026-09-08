@@ -1,6 +1,7 @@
 import { appwriteFunctions } from '@/lib/appwrite-functions';
 
 export type BillingCheckoutPlan = 'pro' | 'premium';
+export type BillingCheckoutProvider = 'whop' | 'paypal';
 export type BillingPaymentMode = 'subscription' | 'one_time';
 
 export type BillingCheckoutErrorCode =
@@ -34,6 +35,7 @@ export type BillingCheckoutSession = {
   expires_at: string;
   checkout_reference?: string;
   checkout_url?: string;
+  provider?: BillingCheckoutProvider;
 };
 
 export type BillingCheckoutResult =
@@ -105,8 +107,12 @@ export const WHOP_ENVIRONMENT_ORIGINS = Object.freeze({
   production: 'https://whop.com',
 } as const);
 
+export function getDefaultCheckoutProvider(): BillingCheckoutProvider {
+  return String(import.meta.env.VITE_BILLING_CHECKOUT_PROVIDER || 'whop').trim().toLowerCase() === 'paypal' ? 'paypal' : 'whop';
+}
+
 export function isWhopProviderActive(): boolean {
-  return String(import.meta.env.VITE_BILLING_CHECKOUT_PROVIDER || '').trim().toLowerCase() === 'whop';
+  return getDefaultCheckoutProvider() === 'whop';
 }
 
 export function getApprovedPayPalOrigins(environment?: string): readonly string[] {
@@ -133,10 +139,11 @@ export function getApprovedPayPalOrigins(environment?: string): readonly string[
   return Object.freeze([]);
 }
 
-export function isValidCheckoutUrl(urlString: string, environment?: string): boolean {
+export function isValidCheckoutUrl(urlString: string, environment?: string, provider: BillingCheckoutProvider = getDefaultCheckoutProvider()): boolean {
   try {
     const url = new URL(urlString);
-    const approved = isWhopProviderActive()
+    const inferredProvider: BillingCheckoutProvider = provider === getDefaultCheckoutProvider() && !url.origin.includes('whop.com') ? 'paypal' : provider;
+    const approved = inferredProvider === 'whop'
       ? (environment === 'sandbox' ? [WHOP_ENVIRONMENT_ORIGINS.sandbox] : environment === 'production' ? [WHOP_ENVIRONMENT_ORIGINS.production] : [])
       : getApprovedPayPalOrigins(environment);
     return url.protocol === 'https:' && approved.includes(url.origin);
@@ -238,7 +245,7 @@ function isSafeSession(value: unknown, environment?: string): value is BillingCh
   if (!session.session_reference || !session.expires_at || !session.plan || session.state !== 'created_or_reused') return false;
   if (session.plan !== 'pro' && session.plan !== 'premium') return false;
   if (session.checkout_url !== undefined) {
-    if (!isValidCheckoutUrl(session.checkout_url, environment)) return false;
+    if (!isValidCheckoutUrl(session.checkout_url, environment, session.provider || getDefaultCheckoutProvider())) return false;
   }
   return true;
 }
@@ -248,6 +255,7 @@ export async function createBillingCheckoutSession(
   options: {
     idempotencyKey?: string;
     environment?: string;
+    provider?: BillingCheckoutProvider;
     paymentMode?: BillingPaymentMode;
     couponCode?: string | null;
   } = {},
@@ -258,12 +266,9 @@ export async function createBillingCheckoutSession(
     plan,
     idempotency_key: idempotencyKey,
   };
-  if (options.paymentMode) {
-    body.payment_mode = options.paymentMode;
-  }
-  if (options.couponCode) {
-    body.coupon_code = options.couponCode;
-  }
+  if (options.provider) body.provider = options.provider;
+  if (options.paymentMode) body.payment_mode = options.paymentMode;
+  if (options.couponCode) body.coupon_code = options.couponCode;
 
   const result = await appwriteFunctions.invoke<CheckoutEnvelope>('billing-checkout', {
     body,
@@ -414,6 +419,7 @@ export async function captureBillingOrder(orderId: string): Promise<CaptureOrder
 
 export async function cancelBillingSubscription(options: {
   reason?: string;
+  provider?: BillingCheckoutProvider;
 } = {}): Promise<CancelSubscriptionResult> {
   const result = await appwriteFunctions.invoke<{
     status?: string;
@@ -424,6 +430,7 @@ export async function cancelBillingSubscription(options: {
     body: {
       action: 'cancel-subscription',
       reason: options.reason,
+      provider: options.provider,
     },
   });
 
@@ -453,7 +460,7 @@ export async function cancelBillingSubscription(options: {
 
 export function openServerCheckout(session: BillingCheckoutSession, environment?: string): boolean {
   if (!session.checkout_url) return false;
-  if (!isValidCheckoutUrl(session.checkout_url, environment)) return false;
+  if (!isValidCheckoutUrl(session.checkout_url, environment, session.provider || getDefaultCheckoutProvider())) return false;
   try {
     window.location.assign(session.checkout_url);
     return true;

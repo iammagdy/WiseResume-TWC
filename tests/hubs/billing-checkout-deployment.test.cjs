@@ -189,6 +189,16 @@ test('deploy-appwrite-hubs workflow exposes explicit paypal_environment input an
   );
 });
 
+test('deploy-appwrite-hubs keeps Whop environment provider-specific and gates credentials by environment', () => {
+  const workflow = read('.github/workflows/deploy-appwrite-hubs.yml');
+  assert.match(workflow, /whop_environment:\s*\n\s*description:/);
+  assert.match(workflow, /WHOP_ACCESS_ENVIRONMENT:\s*\$\{\{\s*\(inputs\.checkout_provider == 'whop'\)/);
+  assert.match(workflow, /WHOP_CHECKOUT_ENVIRONMENT:\s*\$\{\{\s*\(inputs\.checkout_provider == 'whop'\)/);
+  assert.match(workflow, /BILLING_CHECKOUT_ENVIRONMENT:\s*''/);
+  assert.match(workflow, /WHOP_SANDBOX_API_KEY:\s*\$\{\{\s*\(inputs\.checkout_provider == 'whop'/);
+  assert.match(workflow, /WHOP_PRODUCTION_API_KEY:\s*\$\{\{\s*\(inputs\.checkout_provider == 'whop'/);
+});
+
 test('scripts/deploy_hubs.cjs defines two-stage ensurePaypalWebhookVariables contract with anti-downgrade', () => {
   const script = read('scripts/deploy_hubs.cjs');
   assert.match(script, /ensurePaypalWebhookVariables/, 'deploy_hubs.cjs must define ensurePaypalWebhookVariables');

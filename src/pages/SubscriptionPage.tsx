@@ -350,6 +350,9 @@ export default function SubscriptionPage() {
     setCancelError(null);
     const result = await cancelBillingSubscription({
       reason: 'User requested cancellation in subscription settings',
+      provider: subscriptionData?.provider_source === 'whop' || subscriptionData?.provider_source === 'paypal'
+        ? subscriptionData.provider_source
+        : undefined,
     });
 
     setIsCanceling(false);
@@ -848,7 +851,7 @@ export default function SubscriptionPage() {
                   <span className="text-sm text-muted-foreground">{t('app.aiStudio.subscriptionPage.perMonth', '/month')}</span>
                 </div>
                 <p className="text-[11px] text-muted-foreground">
-                  {t('app.aiStudio.subscriptionPage.planOptionsNote', 'Available as monthly subscription or one-time 30-day access')}
+                  {t('app.aiStudio.subscriptionPage.planOptionsNote', 'Monthly subscription · cancel anytime')}
                 </p>
                 <div className="space-y-1.5">
                   {PLAN_FEATURES[target as keyof typeof PLAN_FEATURES].map((feature, index) => {

@@ -18,7 +18,10 @@ const response = {
 };
 const requests = [];
 const provider = new t.WhopCheckoutProvider({
-  env: { WHOP_SANDBOX_API_KEY: 'sandbox-key' },
+  env: {
+    WHOP_SANDBOX_API_KEY: 'sandbox-key',
+    WHOP_SANDBOX_COMPANY_ID: 'biz_sandbox_test',
+  },
   fetchImpl: async (url, options) => { requests.push({ url, options }); return response; },
 });
 

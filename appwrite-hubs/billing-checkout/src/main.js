@@ -21,6 +21,7 @@ const MAX_CREATIONS_PER_USER = 3;
 const CHECKOUT_TRANSACTION_TTL_SECONDS = 60;
 const MAX_BODY_BYTES = 8 * 1024;
 const ALLOWED_PLANS = new Set(['pro', 'premium']);
+const ALLOWED_PROVIDERS = new Set(['whop', 'paypal']);
 const PLAN_RANK = Object.freeze({ free: 0, pro: 1, premium: 2 });
 const SAFE_RETURN_PATH = '/subscription?billing=pending';
 const SAFE_SOURCE = 'wiseresume-web';
@@ -204,33 +205,33 @@ function validateRequest(body) {
   const logicalBody = { ...(isRecord(body?.data) ? body.data : body) };
   delete logicalBody.__headers;
   if (logicalBody.action === 'cancel-subscription') {
-    const allowedKeys = new Set(['action', 'reason']);
+    const allowedKeys = new Set(['action', 'reason', 'provider']);
     if (Object.keys(logicalBody).some(key => !allowedKeys.has(key))) {
       fail('invalid_request', 400, 'Invalid checkout request.');
     }
+    const provider = logicalBody.provider ? asString(logicalBody.provider).trim().toLowerCase() : null;
+    if (provider && !ALLOWED_PROVIDERS.has(provider)) fail('invalid_request', 400, 'Invalid checkout provider.');
     return {
       action: 'cancel-subscription',
       reason: asString(logicalBody.reason).slice(0, 128),
+      provider,
     };
   }
   if (logicalBody.action === 'quote') {
-    const allowedKeys = new Set(['action', 'plan', 'payment_mode', 'coupon_code']);
+    const allowedKeys = new Set(['action', 'plan', 'provider']);
     if (Object.keys(logicalBody).some(key => !allowedKeys.has(key))) {
       fail('invalid_request', 400, 'Invalid checkout request.');
     }
     if (typeof logicalBody.plan !== 'string' || !ALLOWED_PLANS.has(logicalBody.plan)) {
       fail('invalid_plan', 400, 'This checkout plan is not available.');
     }
-    const paymentMode = logicalBody.payment_mode ? asString(logicalBody.payment_mode).trim().toLowerCase() : 'subscription';
-    if (!['subscription', 'one_time'].includes(paymentMode)) {
-      fail('invalid_request', 400, 'Invalid payment mode.');
-    }
     const couponCode = logicalBody.coupon_code ? asString(logicalBody.coupon_code).trim().toUpperCase().slice(0, 64) : null;
     return {
       action: 'quote',
       plan: logicalBody.plan,
-      paymentMode,
-      couponCode: couponCode || null,
+      paymentMode: 'subscription',
+      couponCode: null,
+      provider: logicalBody.provider ? asString(logicalBody.provider).trim().toLowerCase() : null,
     };
   }
   if (logicalBody.action === 'capture-order') {
@@ -247,7 +248,7 @@ function validateRequest(body) {
       orderId,
     };
   }
-  const allowedKeys = new Set(['action', 'plan', 'payment_mode', 'coupon_code', 'idempotency_key']);
+  const allowedKeys = new Set(['action', 'plan', 'provider', 'payment_mode', 'coupon_code', 'idempotency_key']);
   if (Object.keys(logicalBody).some(key => !allowedKeys.has(key))) {
     fail('invalid_request', 400, 'Invalid checkout request.');
   }
@@ -256,9 +257,11 @@ function validateRequest(body) {
     fail('invalid_plan', 400, 'This checkout plan is not available.');
   }
   const paymentMode = logicalBody.payment_mode ? asString(logicalBody.payment_mode).trim().toLowerCase() : 'subscription';
-  if (!['subscription', 'one_time'].includes(paymentMode)) {
+  if (paymentMode !== 'subscription') {
     fail('invalid_request', 400, 'Invalid payment mode.');
   }
+  const provider = logicalBody.provider ? asString(logicalBody.provider).trim().toLowerCase() : null;
+  if (provider && !ALLOWED_PROVIDERS.has(provider)) fail('invalid_request', 400, 'Invalid checkout provider.');
   const couponCode = logicalBody.coupon_code ? asString(logicalBody.coupon_code).trim().toUpperCase().slice(0, 64) : null;
   if (logicalBody.idempotency_key !== undefined) {
     if (typeof logicalBody.idempotency_key !== 'string' || !/^[A-Za-z0-9._:-]{1,128}$/.test(logicalBody.idempotency_key)) {
@@ -271,6 +274,7 @@ function validateRequest(body) {
     paymentMode,
     couponCode: couponCode || null,
     idempotencyKey: logicalBody.idempotency_key || null,
+    provider,
   };
 }
 
@@ -320,7 +324,7 @@ function buildCatalog(env = process.env, environment = normalizeEnvironment(env.
 }
 
 function readConfig(env = process.env, overrides = {}) {
-  const provider = asString(env.BILLING_CHECKOUT_PROVIDER).trim().toLowerCase();
+  const provider = asString(overrides.provider || env.BILLING_CHECKOUT_PROVIDER).trim().toLowerCase();
   const requestedEnvironment = provider === 'whop'
     ? asString(env.WHOP_CHECKOUT_ENVIRONMENT || env.BILLING_CHECKOUT_ENVIRONMENT)
     : asString(env.BILLING_CHECKOUT_ENVIRONMENT);
@@ -342,6 +346,7 @@ function readConfig(env = process.env, overrides = {}) {
     catalogEnvironment: environment,
     catalog: buildCatalog(env, environment, provider),
     ...overrides,
+    provider,
   };
   return config;
 }
@@ -432,13 +437,14 @@ function safeProviderResult(result, config) {
   return { checkoutReference: reference, providerTransactionId: transactionId, checkoutUrl, collectionMode };
 }
 
-function publicSessionResponse(session, providerResult) {
+function publicSessionResponse(session, providerResult, provider = '') {
   const data = {
     session_reference: asString(session.publicReference || session.public_reference),
     plan: session.plan,
     state: 'created_or_reused',
     expires_at: asString(session.expiresAt || session.expires_at),
   };
+  if (ALLOWED_PROVIDERS.has(provider)) data.provider = provider;
   const mode = asString(session.paymentMode || session.payment_mode);
   if (mode && mode === 'one_time') {
     data.payment_mode = 'one_time';
@@ -1002,7 +1008,14 @@ class WhopCheckoutProvider {
   async createCheckout(input) {
     const endpoint = WHOP_API_ORIGINS[input.environment];
     const key = asString(this.env[whopApiKeyVariable(input.environment)]).trim();
-    const companyId = whopCatalogValue(this.env, input.environment, 'COMPANY_ID', WHOP_COMPANY_ID);
+    // Never fall back from a Sandbox catalog to Production identifiers. A
+    // missing environment-specific catalog must fail closed.
+    const companyId = whopCatalogValue(
+      this.env,
+      input.environment,
+      'COMPANY_ID',
+      input.environment === 'production' ? WHOP_COMPANY_ID : '',
+    );
     if (!endpoint || !key || !companyId) failProviderDiagnostic('provider.runtime_configuration', 'missing_runtime_credential');
     if (typeof this.fetchImpl !== 'function') failProviderDiagnostic('provider.runtime_configuration', 'fetch_unavailable');
 
@@ -1901,14 +1914,7 @@ class BillingCheckoutService {
         }
       }
     }
-    if (paymentMode === 'one_time') {
-      if (normalizeEffectivePlan(currentPlan) === 'premium' && plan === 'pro') {
-        fail('active_higher_plan_exists', 409, 'Your account already has an active higher plan.');
-      }
-      if (normalizeEffectivePlan(currentPlan) !== 'free') {
-        fail('active_paid_entitlement_exists', 409, 'Active paid entitlement already exists.');
-      }
-    }
+    if (paymentMode === 'one_time') fail('invalid_request', 400, 'One-time purchases are no longer available.');
     assertNotAlreadyEntitled(currentPlan, plan);
 
     let coupon = null;
@@ -1953,7 +1959,7 @@ class BillingCheckoutService {
     const requestKey = idempotencyKey || opaqueReference('attempt');
     const requestKeyFingerprint = hash(requestKey);
     const modeKey = paymentMode === 'one_time' ? `one_time:${finalAmount}:${coupon?.code || 'none'}` : catalog.priceId;
-    const sessionKey = hash(`${userId}:${plan}:${this.config.environment}:${modeKey}:${requestKeyFingerprint}:${replayBucket}`);
+    const sessionKey = hash(`${userId}:${plan}:${this.config.provider}:${this.config.environment}:${modeKey}:${requestKeyFingerprint}:${replayBucket}`);
     const sessionInput = {
       userId, plan, environment: this.config.environment, priceId: catalog.priceId,
       productId: catalog.productId, entitlementId: catalog.entitlementId, sessionKey,
@@ -1962,24 +1968,10 @@ class BillingCheckoutService {
       rateLimitExpiresAt: new Date(nowMs + RATE_LIMIT_WINDOW_MS).toISOString(),
     };
     const reservation = await this.store.reserve(sessionInput);
-    if (reservation.outcome === 'reused') return publicSessionResponse({ ...reservation.session, paymentMode }, null);
-    const providerRequestIdPrefix = paymentMode === 'one_time' ? 'wr_ord_' : 'wr_sub_';
+    if (reservation.outcome === 'reused') return publicSessionResponse({ ...reservation.session, paymentMode }, null, this.config.provider);
+    const providerRequestIdPrefix = 'wr_sub_';
     const providerRequestId = `${providerRequestIdPrefix}${hash(reservation.session.session_key).slice(0, 32)}`;
-    const providerInput = paymentMode === 'one_time'
-      ? {
-          environment: this.config.environment,
-          plan,
-          amount: finalAmount,
-          couponCode: coupon?.code || null,
-          appOrigin: this.config.approvedAppUrl,
-          customData: {
-            app_user_id: userId,
-            checkout_session_reference: reservation.session.public_reference,
-            source: SAFE_SOURCE,
-          },
-          providerRequestId,
-        }
-      : {
+    const providerInput = {
           environment: this.config.environment,
           plan,
           priceId: catalog.priceId,
@@ -1996,12 +1988,10 @@ class BillingCheckoutService {
           providerRequestId,
         };
     try {
-      const providerResult = paymentMode === 'one_time'
-        ? await providerOperation('provider.create_order', 'provider_operation_failure', () => this.provider.createOrder(providerInput))
-        : await providerOperation('provider.create_checkout', 'provider_operation_failure', () => this.provider.createCheckout(providerInput));
+      const providerResult = await providerOperation('provider.create_checkout', 'provider_operation_failure', () => this.provider.createCheckout(providerInput));
       const result = await providerOperation('provider.safe_result_validation', 'safe_result_validation_failure', () => safeProviderResult(providerResult, this.config));
       await providerOperation('provider.persist_complete', 'persistence_failure', () => this.store.complete(reservation.session, result, this.now()));
-      return publicSessionResponse({ ...reservation.session, expiresAt: sessionInput.expiresAt, plan, paymentMode }, result);
+      return publicSessionResponse({ ...reservation.session, expiresAt: sessionInput.expiresAt, plan, paymentMode }, result, this.config.provider);
     } catch (error) {
       const safeCode = error instanceof BillingCheckoutError ? error.code : 'provider_unavailable';
       if (isAmbiguousProviderError(error) && typeof this.store.markUncertain === 'function') {
@@ -2382,7 +2372,12 @@ async function handleBillingCheckout({ req, res, error }, dependencies = {}) {
     const user = dependencies.user || await resolveCanonicalUser(clients.account);
     if (!user || typeof user.$id !== 'string') fail('unauthorized', 401, 'Authentication is required.');
     const request = validateRequest(body);
-    const config = dependencies.config || readConfig();
+    const configuredProvider = request.provider || asString(process.env.BILLING_CHECKOUT_PROVIDER).trim().toLowerCase() || 'whop';
+    const config = dependencies.config
+      ? (request.provider && request.provider !== dependencies.config.provider
+        ? readConfig(process.env, { provider: request.provider })
+        : dependencies.config)
+      : readConfig(process.env, { provider: configuredProvider });
     const store = dependencies.store || new AppwriteCheckoutStore(clients.databases, config.environment, {
       paypalProviderEnvironment: configuredProviderEnvironment(),
       whopProviderEnvironment: configuredWhopProviderEnvironment(),
@@ -2403,11 +2398,11 @@ async function handleBillingCheckout({ req, res, error }, dependencies = {}) {
       return res.json(response, 200);
     }
     if (request.action === 'quote') {
-      const response = await service.quote({
+    const response = await service.quote({
         userId: user.$id,
         plan: request.plan,
-        paymentMode: request.paymentMode,
-        couponCode: request.couponCode,
+        paymentMode: 'subscription',
+        couponCode: null,
       });
       return res.json(response, 200);
     }

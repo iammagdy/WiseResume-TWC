@@ -888,8 +888,13 @@ async function ensurePaypalWebhookVariables() {
 }
 
 async function isProductionBillingConfigured() {
+    const configuredProvider = (
+        process.env.BILLING_CHECKOUT_PROVIDER ||
+        await existingVariableValue('billing-checkout', 'BILLING_CHECKOUT_PROVIDER') ||
+        ''
+    ).trim().toLowerCase();
     const targetEnvironment = (
-        (provider === 'whop' && process.env.WHOP_CHECKOUT_ENVIRONMENT) ||
+        (configuredProvider === 'whop' && process.env.WHOP_CHECKOUT_ENVIRONMENT) ||
         process.env.BILLING_CHECKOUT_ENVIRONMENT ||
         await existingVariableValue('billing-checkout', 'BILLING_CHECKOUT_ENVIRONMENT')
     )?.toLowerCase();
@@ -1023,14 +1028,6 @@ async function ensureBillingCheckoutVariables() {
             ['WHOP_PRODUCTION_PRODUCT_ID', process.env.WHOP_PRODUCTION_PRODUCT_ID],
             ['WHOP_PRODUCTION_PRO_PLAN_ID', process.env.WHOP_PRODUCTION_PRO_PLAN_ID],
             ['WHOP_PRODUCTION_PREMIUM_PLAN_ID', process.env.WHOP_PRODUCTION_PREMIUM_PLAN_ID],
-            ['BILLING_SANDBOX_PRO_PRICE_ID', process.env.BILLING_SANDBOX_PRO_PRICE_ID],
-            ['BILLING_SANDBOX_PRO_PRODUCT_ID', process.env.BILLING_SANDBOX_PRO_PRODUCT_ID],
-            ['BILLING_SANDBOX_PREMIUM_PRICE_ID', process.env.BILLING_SANDBOX_PREMIUM_PRICE_ID],
-            ['BILLING_SANDBOX_PREMIUM_PRODUCT_ID', process.env.BILLING_SANDBOX_PREMIUM_PRODUCT_ID],
-            ['BILLING_PRODUCTION_PRO_PRICE_ID', process.env.BILLING_PRODUCTION_PRO_PRICE_ID],
-            ['BILLING_PRODUCTION_PRO_PRODUCT_ID', process.env.BILLING_PRODUCTION_PRO_PRODUCT_ID],
-            ['BILLING_PRODUCTION_PREMIUM_PRICE_ID', process.env.BILLING_PRODUCTION_PREMIUM_PRICE_ID],
-            ['BILLING_PRODUCTION_PREMIUM_PRODUCT_ID', process.env.BILLING_PRODUCTION_PREMIUM_PRODUCT_ID],
         ]) if (value) await ensureNonSecretCatalogVariable('billing-checkout', key, value);
         const productionWhopKey = process.env.WHOP_PRODUCTION_API_KEY || await existingVariableValue('billing-checkout', 'WHOP_PRODUCTION_API_KEY');
         if (productionWhopKey) await ensureVariable('billing-checkout', 'WHOP_PRODUCTION_API_KEY', productionWhopKey);

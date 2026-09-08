@@ -1697,3 +1697,13 @@ When completing a task or ending a work session:
 2. Update **Section 2 (Latest Important Commits)** with new commit hashes.
 3. Add any new blocked items or recommendations to **Section 4 & 5**.
 4. Log the update in `Project Atlas/CHANGELOG.md`.
+## Whop primary / PayPal alternative recurring-only finalization (2026-09-08)
+
+* **Local implementation status:** `IMPLEMENTED_UNVERIFIED` — Whop is the default checkout preference and PayPal remains an explicit alternative. New customer checkout accepts recurring monthly subscriptions only; historical PayPal one-time handlers and data were not deleted.
+* **Checkout safety:** The browser sends only `provider=whop|paypal`, plan, and an idempotency key. The server remains authoritative for provider, environment, product, plan, amount, currency, credentials, metadata, and checkout URL origin. Whop Sandbox catalog fallback to Production identifiers was removed; missing environment-specific catalog values fail closed.
+* **Promo behavior:** The new customer modal no longer exposes WiseResume coupon entry or one-time access. Whop hosted checkout remains the discount authority through `allow_promo_codes: true`; historical coupon collections and handlers remain for compatibility/admin use.
+* **Environment contract:** `.github/workflows/deploy-appwrite-hubs.yml` now has an explicit `whop_environment` input. `WHOP_ACCESS_ENVIRONMENT` and `WHOP_CHECKOUT_ENVIRONMENT` select Whop Sandbox/Production independently. `BILLING_CHECKOUT_ENVIRONMENT` is not changed by Whop deployment, preserving PayPal and RevenueCat isolation.
+* **Cancellation:** The subscription page sends the server-resolved `provider_source` when requesting cancellation, so an alternative PayPal subscription is not incorrectly sent to Whop.
+* **Validation:** Focused backend/deployment suites pass (30/30 tests), Whop checkout contract passes, focused frontend billing suites pass (47/47), full Vitest passes (237 files; 1,378 passed, 1 todo), TypeScript passes, i18n passes, build passes with no sourcemaps, and changed Node files pass syntax checks.
+* **Sandbox/Production boundary:** No Production Whop API key, webhook, payment, payout, DNS, Vercel, PayPal, RevenueCat, Appwrite schema, or deployment change was performed by this local finalization pass. Real Whop Sandbox Pro/Ultimate provider lifecycle evidence remains pending targeted runtime deployment and authorized QA-user checkout.
+* **Next action:** Review the staged diff, commit and push `feat/whop-payments-integration`, then run only the approved targeted Sandbox deployment with `checkout_provider=whop`, `whop_environment=sandbox`; do not merge or activate Production.

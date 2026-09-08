@@ -17,11 +17,19 @@ on:
       checkout_provider:
         description: 'Checkout provider when billing-checkout is targeted'
         required: false
-        default: 'paypal'
+        default: 'whop'
         type: choice
         options:
           - paypal
           - whop
+      whop_environment:
+        description: 'Whop API/catalog environment when Whop is targeted'
+        required: false
+        default: 'sandbox'
+        type: choice
+        options:
+          - sandbox
+          - production
 
 permissions:
   contents: read
@@ -203,7 +211,10 @@ jobs:
           BILLING_PRODUCTION_PREMIUM_PRICE_ID: ${{ (inputs.paypal_environment == 'production') && (secrets.BILLING_PRODUCTION_PREMIUM_PRICE_ID || vars.BILLING_PRODUCTION_PREMIUM_PRICE_ID) || 'pri_01m192m6bwzvarmcr05c78by7r' }}
           BILLING_PRODUCTION_PREMIUM_PRODUCT_ID: ${{ (inputs.paypal_environment == 'production') && (secrets.BILLING_PRODUCTION_PREMIUM_PRODUCT_ID || vars.BILLING_PRODUCTION_PREMIUM_PRODUCT_ID) || 'pro_01m192jr9nzd6k5ysa6yhk5aq7' }}
           PAYPAL_ACCESS_ENVIRONMENT: ${{ contains(inputs.target, 'paypal-webhook') && (inputs.paypal_environment || 'sandbox') || '' }}
-          BILLING_CHECKOUT_ENVIRONMENT: ${{ (inputs.checkout_provider == 'whop') && 'production' || '' }}
+          # Keep the provider-neutral checkout environment untouched. Whop has
+          # its own environment contract below, so Sandbox testing cannot move
+          # PayPal or another provider into Sandbox mode.
+          BILLING_CHECKOUT_ENVIRONMENT: ''
           PAYPAL_CLIENT_ID: ${{ (inputs.paypal_environment == 'production') && secrets.PAYPAL_PRODUCTION_CLIENT_ID || secrets.PAYPAL_SANDBOX_CLIENT_ID }}
           PAYPAL_CLIENT_SECRET: ${{ (inputs.paypal_environment == 'production') && secrets.PAYPAL_PRODUCTION_CLIENT_SECRET || secrets.PAYPAL_SANDBOX_CLIENT_SECRET }}
           PAYPAL_WEBHOOK_ID: ${{ (inputs.paypal_environment == 'production') && (secrets.PAYPAL_PRODUCTION_WEBHOOK_ID || vars.PAYPAL_PRODUCTION_WEBHOOK_ID) || (secrets.PAYPAL_SANDBOX_WEBHOOK_ID || vars.PAYPAL_SANDBOX_WEBHOOK_ID) }}
@@ -215,8 +226,8 @@ jobs:
           BILLING_SANDBOX_PRO_PRODUCT_ID: PROD-1XU04121YA801240V
           BILLING_SANDBOX_PREMIUM_PRICE_ID: P-56D04005HN592501XNKN6I3Q
           BILLING_SANDBOX_PREMIUM_PRODUCT_ID: PROD-1XU04121YA801240V
-          WHOP_ACCESS_ENVIRONMENT: ${{ (inputs.checkout_provider == 'whop') && 'sandbox' || '' }}
-          WHOP_CHECKOUT_ENVIRONMENT: ${{ (inputs.checkout_provider == 'whop') && 'sandbox' || '' }}
+          WHOP_ACCESS_ENVIRONMENT: ${{ (inputs.checkout_provider == 'whop') && (inputs.whop_environment || 'sandbox') || '' }}
+          WHOP_CHECKOUT_ENVIRONMENT: ${{ (inputs.checkout_provider == 'whop') && (inputs.whop_environment || 'sandbox') || '' }}
           WHOP_SANDBOX_QA_USER_ID: ${{ secrets.WHOP_SANDBOX_QA_USER_ID || secrets.BILLING_CHECKOUT_QA_USER_ID || vars.BILLING_CHECKOUT_QA_USER_ID }}
           WHOP_SANDBOX_COMPANY_ID: ${{ vars.WHOP_SANDBOX_COMPANY_ID }}
           WHOP_SANDBOX_PRODUCT_ID: ${{ vars.WHOP_SANDBOX_PRODUCT_ID }}
@@ -226,7 +237,8 @@ jobs:
           WHOP_PRODUCTION_PRODUCT_ID: ${{ vars.WHOP_PRODUCTION_PRODUCT_ID }}
           WHOP_PRODUCTION_PRO_PLAN_ID: ${{ vars.WHOP_PRODUCTION_PRO_PLAN_ID }}
           WHOP_PRODUCTION_PREMIUM_PLAN_ID: ${{ vars.WHOP_PRODUCTION_PREMIUM_PLAN_ID }}
-          WHOP_SANDBOX_API_KEY: ${{ secrets.WHOP_SANDBOX_API_KEY }}
+          WHOP_SANDBOX_API_KEY: ${{ (inputs.checkout_provider == 'whop' && (inputs.whop_environment || 'sandbox') == 'sandbox') && secrets.WHOP_SANDBOX_API_KEY || '' }}
+          WHOP_PRODUCTION_API_KEY: ${{ (inputs.checkout_provider == 'whop' && inputs.whop_environment == 'production') && secrets.WHOP_PRODUCTION_API_KEY || '' }}
           WHOP_WEBHOOK_SECRET: ${{ secrets.WHOP_WEBHOOK_SECRET }}
           HUB_TARGET: ${{ steps.targets.outputs.targets_csv }}
         run: node scripts/deploy_hubs.cjs --only="${HUB_TARGET}"

@@ -1,10 +1,12 @@
 # WiseResume × Whop Subscription Integration
 
 **Date:** 2026-09-08
-**Status:** `OWNER_ACTION_REQUIRED_WISERESUME_SANDBOX_RUNTIME`
+**Status:** `IMPLEMENTED_UNVERIFIED` (local recurring-only/provider-choice finalization; Sandbox lifecycle still pending)
 **Branch:** `feat/whop-payments-integration`
 
 ## Scope
+
+The current customer model is recurring-only: Whop is the default provider and PayPal is an explicit alternative. One-time purchase creation is rejected by the public billing request validator, while historical PayPal one-time lifecycle code remains intact for existing records.
 
 Whop is an additive payment provider for the existing WiseResume billing architecture. PayPal remains deployed and frozen as the backup provider with the documented status `PAYPAL_RELEASE_COMPLETE`, `LIVE_SUCCESSFUL_PAYMENT_UNVERIFIED`, `LIVE_PAYMENT_ATTEMPT_DECLINED`, `INTEGRATION_FROZEN_AS_BACKUP`.
 
@@ -35,6 +37,8 @@ The browser return URL is UX-only. Membership lifecycle events are the only Whop
 Webhook handling verifies the Standard Webhooks signature against the exact raw body before JSON parsing, enforces a five-minute timestamp tolerance, rejects unknown company/product/plan/user metadata, deduplicates by event ID, and ignores stale lifecycle events. The public endpoint and signing secret still require secure Appwrite configuration; no fake endpoint was created.
 
 ## Environment and deployment graph
+
+The deployment workflow exposes `whop_environment=sandbox|production` and maps it only to `WHOP_ACCESS_ENVIRONMENT`, `WHOP_CHECKOUT_ENVIRONMENT`, and the matching Whop credential. `BILLING_CHECKOUT_ENVIRONMENT` is intentionally not set by Whop deployment, so the provider-neutral/PayPal environment is not globally switched.
 
 `BILLING_CHECKOUT_ENVIRONMENT` remains the existing provider-neutral/PayPal checkout setting and is not changed for Whop Sandbox. When the selected checkout provider is Whop, optional `WHOP_CHECKOUT_ENVIRONMENT` selects the Whop API/catalog environment; `WHOP_ACCESS_ENVIRONMENT` independently selects the Whop state environment. `BILLING_ACCESS_ENVIRONMENT` remains the RevenueCat/general provider setting, while `PAYPAL_ACCESS_ENVIRONMENT` remains the PayPal state setting.
 

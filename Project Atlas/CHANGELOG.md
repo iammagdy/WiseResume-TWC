@@ -1,5 +1,13 @@
 # WiseResume Atlas Master Changelog
 
+### 2026-09-08 - Whop primary checkout finalization (`IMPLEMENTED_UNVERIFIED`)
+
+- Made Whop the default checkout preference while keeping PayPal as an explicit alternative; preserved historical PayPal one-time handlers/data without exposing one-time purchases in the new customer flow.
+- Removed customer-facing custom coupon/30-day access controls; Whop hosted checkout remains authoritative for promo codes via `allow_promo_codes: true`.
+- Added provider-aware session/URL handling, provider-aware cancellation routing, explicit Whop environment workflow input, and environment-specific fail-closed catalog resolution.
+- Local validation: full Vitest `237` files / `1,378` passed / `1 todo`, focused backend/deployment `30/30`, focused billing UI `47/47`, TypeScript PASS, i18n PASS, build PASS, no sourcemaps.
+- Real Whop Sandbox Pro/Ultimate lifecycle is not claimed yet. Production Whop changes: NONE.
+
 ### 2026-09-08 - Whop Sandbox provider signature blocker (`WHOP_WEBHOOK_SIGNATURE_FAILURE`)
 
 - Public DNS/HTTPS and the deployed `ws_` secret verifier path passed a safe probe; Whop-generated Sandbox Test delivery still returned `401 unauthorized`. No payment was attempted.
