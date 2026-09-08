@@ -1,7 +1,7 @@
 # WiseResume × Whop Subscription Integration
 
 **Date:** 2026-09-08
-**Status:** `WHOP_SANDBOX_PROVIDER_TEST_SIGNATURE_PASS`
+**Status:** `OWNER_ACTION_REQUIRED_WISERESUME_SANDBOX_RUNTIME`
 **Branch:** `feat/whop-payments-integration`
 
 ## Scope
@@ -58,9 +58,11 @@ The public endpoint and Appwrite execute policy work. After the verifier fix, Wh
 
 Whop's current `ws_` secret is used verbatim as UTF-8 HMAC key bytes. The signed message is `{webhook-id}.{webhook-timestamp}.{raw body}` with HMAC-SHA256 and a Base64 `v1,` signature. The earlier local malformed-body probe was only self-consistency evidence because it used the incorrect hex-suffix derivation; it was not provider compatibility proof. The verifier now rejects unsupported secret formats rather than guessing.
 
+The authenticated WiseResume subscription flow was opened for QA verification. Its upgrade modal selected PayPal and displayed `Continue to PayPal`, so no server-created Whop checkout was initiated. This is a runtime provider-selection blocker, not a Whop webhook or catalog failure. A QA-only runtime path must select Whop Sandbox before real Pro/Ultimate lifecycle evidence can be collected.
+
 ## Required owner actions before release
 
-1. Run the authorized Sandbox checkout and lifecycle matrix using the existing webhook `hook_KpMNHCmLzLqPn`; the provider test transport and signature gate are now proven.
+1. Provision or expose an explicitly isolated WiseResume QA runtime that selects Whop Sandbox for the authorized QA user, without changing the global Production billing provider.
 2. Separately configure Production credentials and webhook only after review; no Production activation is implied by this Sandbox result.
 3. Update legal/payment copy that still references the frozen PayPal/Paddle history before enabling Whop for customers.
 

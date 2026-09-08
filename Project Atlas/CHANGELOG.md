@@ -3027,3 +3027,8 @@
 - **Fix:** Current Whop `ws_...` webhook secrets are now passed as complete UTF-8 HMAC keys. No prefix stripping or hex/Base64 decoding is used; signatures cover `{webhook-id}.{webhook-timestamp}.{raw body}` and accept only `v1` entries.
 - **Evidence:** Provider-generated Sandbox Test delivery through `https://whop-webhook.wiseresume.app` returned sanitized `company_mismatch` with `mutated:false`, proving the signature boundary passed. The old self-signed malformed-body result was self-consistency evidence only.
 - **Deployment:** Workflow `34211965267` succeeded with target `whop-webhook`; no schema mutation or unrelated hub deployment occurred. No Production Whop change was performed.
+## 2026-09-08 - Whop Sandbox E2E runtime-provider gate
+
+- **Verdict:** `OWNER_ACTION_REQUIRED_WISERESUME_SANDBOX_RUNTIME`.
+- **Evidence:** Authenticated WiseResume subscription browser flow displayed `Continue to PayPal`; no Whop checkout or payment was initiated. The existing Whop webhook provider-signature test remains verified.
+- **Next action:** Provide an explicitly isolated QA runtime that selects Whop Sandbox without changing the global Production billing provider.

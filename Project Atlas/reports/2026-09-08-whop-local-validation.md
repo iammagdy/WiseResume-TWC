@@ -2,7 +2,7 @@
 
 ## Verdict
 
-`WHOP_SANDBOX_PROVIDER_TEST_SIGNATURE_PASS` — Whop's official Sandbox Test delivery reached the deployed verifier and passed signature validation; the synthetic payload was safely rejected at the company boundary with `mutated:false`.
+`OWNER_ACTION_REQUIRED_WISERESUME_SANDBOX_RUNTIME` — Whop's official Sandbox Test delivery passed signature validation, but the authenticated WiseResume subscription flow still selects PayPal, so no real Whop checkout can be started safely.
 
 ## Evidence
 
@@ -31,5 +31,7 @@ No real or Sandbox payment, browser buyer checkout through WiseResume, payout se
 
 - `WHOP_SANDBOX_QA_USER_ID` is configured through the protected server-side deployment path and is not printed here.
 - Whop webhook exists and is configured; the official Sandbox Test delivery now passes the signature boundary and is rejected safely for synthetic `company_mismatch`.
+- WiseResume browser QA reached the subscription page, but the upgrade modal offered `Continue to PayPal`; no Whop checkout was created or paid.
+- A real Whop E2E requires an isolated QA runtime/provider selection. Changing the global Production provider was intentionally not attempted.
 - The direct Appwrite API route remains authenticated and is not the external Whop target; the verified custom domain is used instead.
 - The existing schema workflow targeted the current Appwrite project explicitly; the two Whop collections were provisioned in the authorized Sandbox-gated deployment. No additional schema mutation was performed during this transport recheck.

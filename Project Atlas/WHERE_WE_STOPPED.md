@@ -1,5 +1,13 @@
 # Project Atlas — Active Operational & Handover State
 
+## Whop Sandbox E2E — WiseResume runtime provider gate (2026-09-08)
+
+* **Verdict:** `OWNER_ACTION_REQUIRED_WISERESUME_SANDBOX_RUNTIME`.
+* **Evidence:** The authenticated WiseResume subscription page loaded successfully, but the Pro upgrade modal offered `Continue to PayPal` and the Ultimate flow is likewise PayPal-routed. No Whop checkout was created, and no payment button was pressed.
+* **Interpretation:** The deployed WiseResume runtime is still selecting PayPal for checkout. The Whop webhook signature boundary is verified, but a real Whop lifecycle cannot begin until an explicitly isolated QA runtime selects Whop Sandbox for the authorized QA user.
+* **Safety:** No global billing environment, PayPal, RevenueCat, Vercel, DNS, Production Whop resource, schema, or payment was changed.
+* **Next action:** Owner must authorize/provision a QA-only Whop checkout-provider runtime path (or provide an already configured WiseResume QA deployment/session). Then rerun the server-created Pro checkout before testing Ultimate and lifecycle events.
+
 ## Whop Sandbox E2E — provider signature fixed (2026-09-08)
 
 * **Verdict:** `WHOP_SANDBOX_PROVIDER_TEST_SIGNATURE_PASS`.

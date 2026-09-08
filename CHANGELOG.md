@@ -80,3 +80,8 @@
 - **Validation:** Independent Whop-compatible regression tests, TypeScript, i18n, syntax, diff check, and production build passed.
 - **Provider evidence:** Existing Whop Sandbox webhook `hook_KpMNHCmLzLqPn` test delivery reached the deployed function and returned sanitized `company_mismatch` / `mutated:false` instead of `401 unauthorized`; no payment or lifecycle event was claimed.
 - **Deployment:** Targeted Appwrite workflow `34211965267` succeeded for `whop-webhook` only. Production Whop, PayPal, RevenueCat, Vercel, DNS, and payments were unchanged.
+## 2026-09-08 — Whop Sandbox E2E paused at WiseResume provider selection
+
+- **Verdict:** `OWNER_ACTION_REQUIRED_WISERESUME_SANDBOX_RUNTIME`.
+- **Evidence:** Authenticated subscription UI loaded, but the upgrade modal selected PayPal (`Continue to PayPal`), so a real WiseResume-created Whop Sandbox checkout could not be started safely.
+- **Boundary:** No payment, global provider switch, PayPal/RevenueCat change, Production Whop change, or infrastructure change was performed. Whop provider signature verification remains passed.
