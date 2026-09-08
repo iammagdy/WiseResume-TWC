@@ -24,6 +24,19 @@ const browser = await chromium.launch({ headless: true });
 const context = await browser.newContext({ viewport: { width: 1440, height: 1000 }, colorScheme: 'light' });
 const page = await context.newPage();
 
+page.on('response', async (response) => {
+  if (!/\/functions\//i.test(response.url())) return;
+  const requestUrl = response.url();
+  const functionName = requestUrl.match(/functions\/([^/]+)/i)?.[1] || 'unknown';
+  if (!/billing|checkout/i.test(functionName)) return;
+  let code = '';
+  try {
+    const payload = await response.json();
+    code = typeof payload?.error?.code === 'string' ? payload.error.code : typeof payload?.code === 'string' ? payload.code : '';
+  } catch {}
+  console.log(`BILLING_CHECKOUT_RESPONSE status=${response.status()} code=${code || 'none'}`);
+});
+
 async function login() {
   await page.goto(`${baseUrl}/auth`, { waitUntil: 'domcontentloaded', timeout: 60_000 });
   await page.locator('input[type="email"]').fill(email);
@@ -61,7 +74,11 @@ async function openCheckoutModal(planName) {
 async function openProviderCheckout(provider, planPattern) {
   const button = page.getByRole('button', { name: new RegExp(`Continue with ${provider}`, 'i') }).first();
   await button.click();
-  await page.waitForURL(url => provider === 'Whop' ? /sandbox\.whop\.com/i.test(url.toString()) : /paypal\.com/i.test(url.toString()), { timeout: 60_000 });
+  try {
+    await page.waitForURL(url => provider === 'Whop' ? /sandbox\.whop\.com/i.test(url.toString()) : /paypal\.com/i.test(url.toString()), { timeout: 20_000 });
+  } catch {
+    throw new Error(`${provider.toUpperCase()}_CHECKOUT_NAVIGATION_FAILED`);
+  }
   if (provider === 'Whop' && new URL(page.url()).hostname !== 'sandbox.whop.com') throw new Error('WHOP_SANDBOX_PAYMENT_ENVIRONMENT_GUARD_FAILURE');
   const checkoutBody = await page.locator('body').innerText().catch(() => '');
   if (planPattern && !planPattern.test(checkoutBody) && provider === 'Whop') throw new Error('hosted checkout plan/price was not visible');

@@ -2,6 +2,14 @@
 
 **Last verified:** 2026-09-08
 
+## Checkout failures now report a clearer safe result (2026-09-08)
+
+**What was the situation:** When the payment window could not open, the internal check waited too long and did not show whether the payment service had returned a safe error.
+
+**What changed:** The check now records only a safe status and error category from the billing request and reports a clear checkout-navigation failure.
+
+**What you'll notice:** Nothing changes for customers. Future Sandbox checks will identify the failing handoff more quickly without exposing private information.
+
 ## Sandbox checkout now opens from the feature preview (2026-09-08)
 
 **What was the situation:** The feature preview could prepare a valid Sandbox checkout but then reject its safe Whop address before opening it.

@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-09-08 — Whop Sandbox checkout diagnostics
+
+- **Sandbox browser E2E** (`scripts/run-whop-sandbox-e2e.mjs`): records only billing-function HTTP status and normalized error code, and fails checkout navigation with a bounded provider-specific diagnostic instead of an opaque one-minute timeout.
+- **Validation**: GitHub Actions run `34226523519` passed targeted deployments, isolation tests (29/29), build, and preview; it stopped at checkout navigation without exposing a provider error.
+
 ## 2026-09-08 — Whop Sandbox checkout URL environment inference
 
 - **Checkout validation** (`src/lib/billingCheckout.ts`): shared environment inference now applies to Whop URLs as well as PayPal URLs, allowing local feature-preview Sandbox checkout while retaining Production-domain and explicit-environment isolation.
