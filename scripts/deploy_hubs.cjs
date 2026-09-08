@@ -1021,7 +1021,7 @@ async function ensureBillingCheckoutVariables() {
     } else if (provider === 'whop') {
         const sandboxKey = process.env.WHOP_SANDBOX_API_KEY || await existingVariableValue('billing-checkout', 'WHOP_SANDBOX_API_KEY');
         if (!sandboxKey) throw new Error('WHOP_SANDBOX_API_KEY is required to deploy billing-checkout');
-        await ensureVariable('billing-checkout', 'WHOP_SANDBOX_API_KEY', sandboxKey);
+        await ensureVariable('billing-checkout', 'WHOP_SANDBOX_API_KEY', sandboxKey, true);
         const companyId = process.env.WHOP_COMPANY_ID || await existingVariableValue('billing-checkout', 'WHOP_COMPANY_ID');
         if (companyId) await ensureNonSecretCatalogVariable('billing-checkout', 'WHOP_COMPANY_ID', companyId);
         for (const [key, value] of [
@@ -1038,7 +1038,7 @@ async function ensureBillingCheckoutVariables() {
             ['WHOP_PRODUCTION_PREMIUM_PLAN_ID', process.env.WHOP_PRODUCTION_PREMIUM_PLAN_ID],
         ]) if (value) await ensureNonSecretCatalogVariable('billing-checkout', key, value);
         const productionWhopKey = process.env.WHOP_PRODUCTION_API_KEY || await existingVariableValue('billing-checkout', 'WHOP_PRODUCTION_API_KEY');
-        if (productionWhopKey) await ensureVariable('billing-checkout', 'WHOP_PRODUCTION_API_KEY', productionWhopKey);
+        if (productionWhopKey) await ensureVariable('billing-checkout', 'WHOP_PRODUCTION_API_KEY', productionWhopKey, true);
     } else {
         throw new Error(`Unsupported BILLING_CHECKOUT_PROVIDER: "${provider}"`);
     }
