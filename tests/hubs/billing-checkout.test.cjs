@@ -890,6 +890,88 @@ assert.equal(readConfig({ BILLING_CHECKOUT_ENVIRONMENT: 'sandbox', BILLING_PRODU
   }).qaUserId, 'whop_qa_user');
 }
 
+// Section 11 Focused Tests: Whop Sandbox QA Isolation & Readiness
+{
+  const whopEnv = {
+    BILLING_CHECKOUT_ENABLED: 'true',
+    BILLING_CHECKOUT_PROVIDER_READY: 'true',
+    BILLING_CHECKOUT_PROVIDER: 'whop',
+    BILLING_CHECKOUT_ENVIRONMENT: 'production',
+    WHOP_CHECKOUT_ENVIRONMENT: 'sandbox',
+    WHOP_ACCESS_ENVIRONMENT: 'sandbox',
+    WHOP_SANDBOX_QA_USER_ID: 'qa_sandbox_user_123',
+    WHOP_SANDBOX_COMPANY_ID: 'biz_test',
+    WHOP_SANDBOX_PRODUCT_ID: 'prod_test',
+    WHOP_SANDBOX_PRO_PLAN_ID: 'plan_test_pro',
+    WHOP_SANDBOX_PREMIUM_PLAN_ID: 'plan_test_premium',
+    WHOP_SANDBOX_API_KEY: 'test_key',
+  };
+
+  const whopCalls = [];
+  const fakeWhopProvider = {
+    async createCheckout(input) {
+      whopCalls.push(input);
+      return {
+        checkoutReference: 'ch_test_123',
+        providerEnvironment: 'sandbox',
+        collectionMode: 'automatic',
+        providerTransactionId: 'ch_test_123',
+        checkoutUrl: 'https://sandbox.whop.com/checkout/plan_test_pro?id=ch_test_123',
+      };
+    },
+  };
+
+  const store = new MemoryCheckoutStore({ nowMs });
+
+  // Test A: bound Sandbox QA user + Pro + Whop -> checkout request allowed
+  const resultQa = await invoke({ action: 'create-session', plan: 'pro', provider: 'whop' }, {
+    user: { $id: 'qa_sandbox_user_123' },
+    store,
+    provider: fakeWhopProvider,
+    config: readConfig(whopEnv, { provider: 'whop' }),
+    now: () => nowMs,
+  });
+  assert.equal(resultQa.response.status, 'success');
+  assert.equal(resultQa.response.data.plan, 'pro');
+  assert.equal(resultQa.response.data.provider, 'whop');
+  assert.equal(resultQa.response.data.checkout_url, 'https://sandbox.whop.com/checkout/plan_test_pro?id=ch_test_123');
+  assert.equal(whopCalls.length, 1);
+  assert.equal(whopCalls[0].collectionMode, 'automatic');
+  assert.equal(whopCalls[0].environment, 'sandbox');
+  assert.equal(whopCalls[0].priceId, 'plan_test_pro');
+
+  // Test B: ordinary unmatched user -> Whop Sandbox checkout blocked (payments_disabled 403)
+  const resultNonQa = await invoke({ action: 'create-session', plan: 'pro', provider: 'whop' }, {
+    user: { $id: 'ordinary_unmatched_user_456' },
+    store,
+    provider: fakeWhopProvider,
+    config: readConfig(whopEnv, { provider: 'whop' }),
+    now: () => nowMs,
+  });
+  assert.equal(resultNonQa.response.error, 'payments_disabled');
+  assert.equal(resultNonQa.response.statusCode, 403);
+  assert.equal(whopCalls.length, 1); // No new provider call
+
+  // Test C: Pro request uses recurring Whop configuration
+  assert.equal(whopCalls[0].collectionMode, 'automatic');
+  assert.equal(whopCalls[0].plan, 'pro');
+
+  // Test D: Whop request does not depend on PayPal global readiness
+  const paypalDisabledEnv = {
+    ...whopEnv,
+    PAYPAL_ACCESS_ENVIRONMENT: 'disabled',
+  };
+  const resultIndependent = await invoke({ action: 'create-session', plan: 'pro', provider: 'whop' }, {
+    user: { $id: 'qa_sandbox_user_123' },
+    store,
+    provider: fakeWhopProvider,
+    config: readConfig(paypalDisabledEnv, { provider: 'whop' }),
+    now: () => nowMs,
+  });
+  assert.equal(resultIndependent.response.status, 'success');
+  assert.equal(resultIndependent.response.data.provider, 'whop');
+}
+
 console.log('✓ billing-checkout: authenticated, fail-closed, environment-isolated, automatic-only, idempotent, rate-limited, non-granting contract OK');
 }
 

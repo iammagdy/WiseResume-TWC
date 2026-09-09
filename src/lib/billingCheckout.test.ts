@@ -170,9 +170,21 @@ describe('server-owned billing checkout client', () => {
         });
       }
     } finally {
-      import.meta.env.VITE_BILLING_PUBLIC_MODE = originalPublicMode;
-      import.meta.env.VITE_BILLING_ENVIRONMENT = originalBillingEnv;
-      import.meta.env.VITE_CHECKOUT_ENVIRONMENT = originalCheckoutEnv;
+      if (originalPublicMode !== undefined) {
+        import.meta.env.VITE_BILLING_PUBLIC_MODE = originalPublicMode;
+      } else {
+        delete import.meta.env.VITE_BILLING_PUBLIC_MODE;
+      }
+      if (originalBillingEnv !== undefined) {
+        import.meta.env.VITE_BILLING_ENVIRONMENT = originalBillingEnv;
+      } else {
+        delete import.meta.env.VITE_BILLING_ENVIRONMENT;
+      }
+      if (originalCheckoutEnv !== undefined) {
+        import.meta.env.VITE_CHECKOUT_ENVIRONMENT = originalCheckoutEnv;
+      } else {
+        delete import.meta.env.VITE_CHECKOUT_ENVIRONMENT;
+      }
     }
   });
 
@@ -344,5 +356,109 @@ describe('server-owned billing checkout client', () => {
         coupon_code: 'SAVE50',
       },
     });
+  });
+
+  it('validates Whop Sandbox checkout URLs on wiseresume.app without explicit environment', async () => {
+    const { isValidCheckoutUrl, getApprovedPayPalOrigins, billingCheckoutTestHelpers } = await import('./billingCheckout');
+    const originalLocation = window.location;
+    try {
+      Object.defineProperty(window, 'location', {
+        configurable: true,
+        value: new URL('https://wiseresume.app/subscription'),
+      });
+
+      // Whop defaults to Sandbox since Whop Production is not activated
+      expect(isValidCheckoutUrl('https://sandbox.whop.com/checkout/plan_ECWULjIBMFBE5', undefined, 'whop')).toBe(true);
+      expect(isValidCheckoutUrl('https://whop.com/checkout/plan_ECWULjIBMFBE5', undefined, 'whop')).toBe(false);
+      expect(isValidCheckoutUrl('https://sandbox.whop.com.attacker.com/checkout', undefined, 'whop')).toBe(false);
+
+      // PayPal remains strictly Production on wiseresume.app
+      expect(getApprovedPayPalOrigins()).toEqual(['https://www.paypal.com']);
+      expect(isValidCheckoutUrl('https://www.paypal.com/webapps/billing/subscriptions?ba_token=BA-PROD', undefined, 'paypal')).toBe(true);
+      expect(isValidCheckoutUrl('https://www.sandbox.paypal.com/webapps/billing/subscriptions?ba_token=BA-SANDBOX', undefined, 'paypal')).toBe(false);
+    } finally {
+      Object.defineProperty(window, 'location', {
+        configurable: true,
+        value: originalLocation,
+      });
+    }
+  });
+
+  it('creates Whop Sandbox checkout session successfully on wiseresume.app', async () => {
+    invokeMock.mockResolvedValue({
+      data: {
+        status: 'success',
+        data: {
+          session_reference: 'sess_whop_123',
+          plan: 'pro',
+          provider: 'whop',
+          state: 'created_or_reused',
+          expires_at: '2026-09-09T12:00:00.000Z',
+          checkout_reference: 'ch_whop_123',
+          checkout_url: 'https://sandbox.whop.com/checkout/plan_ECWULjIBMFBE5?idempotency_key=web-123',
+        },
+      },
+      error: null,
+    });
+
+    const { createBillingCheckoutSession, openServerCheckout } = await import('./billingCheckout');
+    const originalLocation = window.location;
+    const assignMock = vi.fn();
+    try {
+      Object.defineProperty(window, 'location', {
+        configurable: true,
+        value: {
+          hostname: 'wiseresume.app',
+          href: 'https://wiseresume.app/subscription',
+          assign: assignMock,
+        },
+      });
+
+      const result = await createBillingCheckoutSession('pro', {
+        provider: 'whop',
+        idempotencyKey: 'test-whop-idemp',
+      });
+
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.session.checkout_url).toBe('https://sandbox.whop.com/checkout/plan_ECWULjIBMFBE5?idempotency_key=web-123');
+        expect(result.session.provider).toBe('whop');
+        expect(openServerCheckout(result.session)).toBe(true);
+        expect(assignMock).toHaveBeenCalledWith('https://sandbox.whop.com/checkout/plan_ECWULjIBMFBE5?idempotency_key=web-123');
+      }
+    } finally {
+      Object.defineProperty(window, 'location', {
+        configurable: true,
+        value: originalLocation,
+      });
+    }
+  });
+
+  it('shows checkout unavailable fallback only when session is malformed or URL is untrusted', async () => {
+    invokeMock.mockResolvedValue({
+      data: {
+        status: 'success',
+        data: {
+          session_reference: 'sess_bad_url',
+          plan: 'pro',
+          provider: 'whop',
+          state: 'created_or_reused',
+          expires_at: '2026-09-09T12:00:00.000Z',
+          checkout_url: 'https://evil-phishing-site.com/checkout',
+        },
+      },
+      error: null,
+    });
+
+    const { createBillingCheckoutSession } = await import('./billingCheckout');
+    const result = await createBillingCheckoutSession('pro', {
+      provider: 'whop',
+    });
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.code).toBe('unknown');
+      expect(result.message).toBe('Checkout is temporarily unavailable. Please try again later.');
+    }
   });
 });

@@ -115,22 +115,42 @@ export function isWhopProviderActive(): boolean {
   return getDefaultCheckoutProvider() === 'whop';
 }
 
-function getCheckoutEnvironment(environment?: string): string {
+function getCheckoutEnvironment(environment?: string, provider?: BillingCheckoutProvider): string {
   let env = environment;
 
   if (typeof env === 'undefined' || env === '') {
-    if (typeof window !== 'undefined' && /^(?:www\.)?wiseresume\.app$/i.test(window.location.hostname)) {
-      env = 'production';
-    } else if (typeof import.meta.env.VITE_BILLING_PUBLIC_MODE !== 'undefined') {
-      env = import.meta.env.VITE_BILLING_PUBLIC_MODE as string;
-    } else if (typeof import.meta.env.VITE_BILLING_ENVIRONMENT !== 'undefined') {
-      env = import.meta.env.VITE_BILLING_ENVIRONMENT as string;
-    } else if (typeof import.meta.env.VITE_CHECKOUT_ENVIRONMENT !== 'undefined') {
-      env = import.meta.env.VITE_CHECKOUT_ENVIRONMENT as string;
-    } else if (typeof import.meta.env.VITE_WHOP_CHECKOUT_ENVIRONMENT !== 'undefined') {
-      env = import.meta.env.VITE_WHOP_CHECKOUT_ENVIRONMENT as string;
-    } else if (import.meta.env.DEV) {
-      env = 'sandbox';
+    const isDefined = (v: unknown): v is string => typeof v !== 'undefined' && v !== 'undefined';
+
+    const isWiseresumeApp = typeof window !== 'undefined' && /^(?:www\.)?wiseresume\.app$/i.test(window.location?.hostname || '');
+
+    if (provider === 'whop') {
+      const whopEnv = import.meta.env.VITE_WHOP_CHECKOUT_ENVIRONMENT;
+      if (isDefined(whopEnv) && whopEnv.trim() !== '') {
+        env = whopEnv.trim();
+      } else if (isWiseresumeApp) {
+        // Whop production is disabled / not activated platform-wide; canonical site runs Whop Sandbox for QA
+        env = 'sandbox';
+      } else if (isDefined(import.meta.env.VITE_BILLING_PUBLIC_MODE)) {
+        env = import.meta.env.VITE_BILLING_PUBLIC_MODE as string;
+      } else if (isDefined(import.meta.env.VITE_BILLING_ENVIRONMENT)) {
+        env = import.meta.env.VITE_BILLING_ENVIRONMENT as string;
+      } else if (isDefined(import.meta.env.VITE_CHECKOUT_ENVIRONMENT)) {
+        env = import.meta.env.VITE_CHECKOUT_ENVIRONMENT as string;
+      } else if (import.meta.env.DEV) {
+        env = 'sandbox';
+      }
+    } else {
+      if (isWiseresumeApp) {
+        env = 'production';
+      } else if (isDefined(import.meta.env.VITE_BILLING_PUBLIC_MODE)) {
+        env = import.meta.env.VITE_BILLING_PUBLIC_MODE as string;
+      } else if (isDefined(import.meta.env.VITE_BILLING_ENVIRONMENT)) {
+        env = import.meta.env.VITE_BILLING_ENVIRONMENT as string;
+      } else if (isDefined(import.meta.env.VITE_CHECKOUT_ENVIRONMENT)) {
+        env = import.meta.env.VITE_CHECKOUT_ENVIRONMENT as string;
+      } else if (import.meta.env.DEV) {
+        env = 'sandbox';
+      }
     }
   }
 
@@ -138,7 +158,7 @@ function getCheckoutEnvironment(environment?: string): string {
 }
 
 export function getApprovedPayPalOrigins(environment?: string): readonly string[] {
-  const normalized = getCheckoutEnvironment(environment);
+  const normalized = getCheckoutEnvironment(environment, 'paypal');
 
   if (normalized === 'sandbox') return Object.freeze([PAYPAL_ENVIRONMENT_ORIGINS.sandbox]);
   if (normalized === 'production') return Object.freeze([PAYPAL_ENVIRONMENT_ORIGINS.production]);
@@ -148,9 +168,12 @@ export function getApprovedPayPalOrigins(environment?: string): readonly string[
 export function isValidCheckoutUrl(urlString: string, environment?: string, provider: BillingCheckoutProvider = getDefaultCheckoutProvider()): boolean {
   try {
     const url = new URL(urlString);
-    const inferredProvider: BillingCheckoutProvider = provider === getDefaultCheckoutProvider() && !url.origin.includes('whop.com') ? 'paypal' : provider;
+    const inferredProvider: BillingCheckoutProvider = url.origin.includes('whop.com')
+      ? 'whop'
+      : (provider === 'whop' && !url.origin.includes('paypal.com') ? 'whop' : 'paypal');
+    const env = getCheckoutEnvironment(environment, inferredProvider);
     const approved = inferredProvider === 'whop'
-      ? (getCheckoutEnvironment(environment) === 'sandbox' ? [WHOP_ENVIRONMENT_ORIGINS.sandbox] : getCheckoutEnvironment(environment) === 'production' ? [WHOP_ENVIRONMENT_ORIGINS.production] : [])
+      ? (env === 'sandbox' ? [WHOP_ENVIRONMENT_ORIGINS.sandbox] : env === 'production' ? [WHOP_ENVIRONMENT_ORIGINS.production] : [])
       : getApprovedPayPalOrigins(environment);
     return url.protocol === 'https:' && approved.includes(url.origin);
   } catch {
@@ -245,13 +268,14 @@ function makeIdempotencyKey(): string {
   return `web-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
 }
 
-function isSafeSession(value: unknown, environment?: string): value is BillingCheckoutSession {
+function isSafeSession(value: unknown, environment?: string, provider?: BillingCheckoutProvider): value is BillingCheckoutSession {
   if (!value || typeof value !== 'object') return false;
   const session = value as Partial<BillingCheckoutSession>;
   if (!session.session_reference || !session.expires_at || !session.plan || session.state !== 'created_or_reused') return false;
   if (session.plan !== 'pro' && session.plan !== 'premium') return false;
+  const resolvedProvider = session.provider || provider || getDefaultCheckoutProvider();
   if (session.checkout_url !== undefined) {
-    if (!isValidCheckoutUrl(session.checkout_url, environment, session.provider || getDefaultCheckoutProvider())) return false;
+    if (!isValidCheckoutUrl(session.checkout_url, environment, resolvedProvider)) return false;
   }
   return true;
 }
@@ -295,7 +319,7 @@ export async function createBillingCheckoutSession(
   }
 
   const envelope = result.data;
-  if (!envelope || envelope.status !== 'success' || !isSafeSession(envelope.data, options.environment)) {
+  if (!envelope || envelope.status !== 'success' || !isSafeSession(envelope.data, options.environment, options.provider)) {
     return {
       ok: false,
       code: 'unknown',
@@ -480,6 +504,7 @@ export const billingCheckoutTestHelpers = {
   isSafeSession,
   isValidCheckoutUrl,
   getApprovedPayPalOrigins,
+  getCheckoutEnvironment,
   makeIdempotencyKey,
   normalizeErrorCode,
   APPROVED_PAYPAL_ORIGINS,
