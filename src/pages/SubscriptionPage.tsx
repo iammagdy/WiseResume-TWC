@@ -175,8 +175,9 @@ export default function SubscriptionPage() {
   const subscriptionData = meData?.subscription;
   const isSubscriptionResolving = (meLoading || meFetching) && subscriptionData === undefined;
   const canSubscribe = subscriptionData?.can_subscribe === true;
-  const canCancelSubscription = subscriptionData?.can_cancel_subscription ?? false;
-  const renewalCancellationPending = subscriptionData?.renewal_cancellation_pending === true;
+  const isPaid = isPro || isPremium;
+  const canCancelSubscription = isPaid && (subscriptionData?.can_cancel_subscription ?? false);
+  const renewalCancellationPending = isPaid && (subscriptionData?.renewal_cancellation_pending === true);
   const providerExpiresAt = subscriptionData?.provider_expires_at ?? null;
   const effectiveExpiresAt = subscriptionData?.expires_at ?? null;
   const willRenew = subscriptionData?.will_renew;
@@ -420,13 +421,12 @@ export default function SubscriptionPage() {
 
   const isLoading = planLoading || resumesLoading || creditsLoading;
   const upgradeTargets: string[] = isPremium ? [] : isPro ? ['premium'] : ['pro', 'premium'];
-  const isPaid = isPro || isPremium;
 
   const formattedExpiration = formatDate(providerExpiresAt || effectiveExpiresAt);
 
   return (
-    <div className="flex-1 min-h-0 overflow-hidden bg-background">
-      <header className="pt-safe sticky top-0 z-10 border-b border-border/70 bg-background/90 px-4 backdrop-blur-md sm:px-6">
+    <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-background">
+      <header className="shrink-0 pt-safe sticky top-0 z-10 border-b border-border/70 bg-background/90 px-4 backdrop-blur-md sm:px-6">
         <div className="mx-auto flex h-14 max-w-6xl items-center gap-3">
           <BackButton />
           <div className="min-w-0">
@@ -437,7 +437,8 @@ export default function SubscriptionPage() {
         </div>
       </header>
 
-      <main className="mx-auto h-full max-w-6xl overflow-y-auto px-4 py-6 pb-28 sm:px-6 lg:py-8">
+      <main className="flex-1 min-h-0 w-full overflow-y-auto px-4 py-6 pb-28 sm:px-6 lg:py-8">
+        <div className="mx-auto max-w-6xl space-y-6">
         <section className="relative overflow-hidden rounded-3xl border border-primary/20 bg-card p-6 shadow-sm sm:p-8">
           <div className="pointer-events-none absolute -right-16 -top-24 h-64 w-64 rounded-full bg-primary/10 blur-3xl" />
           <div className="relative grid gap-8 lg:grid-cols-[1.4fr_0.8fr] lg:items-end">
@@ -499,9 +500,35 @@ export default function SubscriptionPage() {
 
         {!isPremium && <section className="mt-6"><div className="mb-3 flex items-end justify-between gap-3"><div><p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">{t('app.aiStudio.subscriptionPage.nextStep', 'Next step')}</p><h2 className="mt-1 text-xl font-bold">{t('app.aiStudio.subscriptionPage.choosePlan', 'Choose the support you need')}</h2></div><p className="hidden text-xs text-muted-foreground sm:block">{t('app.aiStudio.subscriptionPage.planOptionsNote', 'Monthly subscription · cancel anytime')}</p></div><div className="grid gap-4 md:grid-cols-2">{upgradeTargets.map((target) => { const targetPlan = target as BillingCheckoutPlan; const isTargetPremium = target === 'premium'; const isPreparing = checkoutStatus === 'preparing' && checkoutPlan === targetPlan; const blocked = isSubscriptionResolving || !canSubscribe || checkoutStatus === 'preparing' || target === plan || (isPro && isTargetPremium); return <Card key={target} className={`relative overflow-hidden rounded-2xl ${isTargetPremium ? 'border-amber-400/50' : 'border-primary/30'}`}><CardContent className="flex h-full flex-col p-5"><div className="flex items-start justify-between gap-3"><div className={`flex h-10 w-10 items-center justify-center rounded-xl ${isTargetPremium ? 'bg-amber-500/15 text-amber-600' : 'bg-primary/10 text-primary'}`}><PlanIcon plan={target} className="h-5 w-5" /></div><Badge variant="outline" className={isTargetPremium ? 'border-amber-400/50 text-amber-600' : 'border-primary/30 text-primary'}>{isTargetPremium ? t('app.aiStudio.subscriptionPage.powerUsers', 'POWER USERS') : t('app.aiStudio.subscriptionPage.popular', 'POPULAR')}</Badge></div><div className="mt-4 flex items-baseline gap-1"><span className="text-3xl font-bold">{PLAN_PRICES[target]}</span><span className="text-sm text-muted-foreground">{t('app.aiStudio.subscriptionPage.perMonth', '/month')}</span></div><p className="mt-1 text-xs text-muted-foreground">{t('app.aiStudio.subscriptionPage.planOptionsNote', 'Monthly subscription · cancel anytime')}</p><div className="mt-4 flex-1 space-y-2">{PLAN_FEATURES[target as keyof typeof PLAN_FEATURES].slice(0, 5).map((feature, index) => { const Icon = feature.icon; return <div key={`${target}-feature-${index}`} className="flex items-start gap-2 text-sm"><Icon className={`mt-0.5 h-4 w-4 shrink-0 ${isTargetPremium ? 'text-amber-600' : 'text-primary'}`} /><span>{t(`app.aiStudio.planFeatures.${target}.${index}`, feature.label)}</span></div>; })}</div><Button className="mt-5 h-11 w-full gap-2" disabled={blocked} onClick={() => beginCheckout(targetPlan)} data-track={`subscription-subscribe-cta-${target}`}>{isPreparing && <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />}{t('app.aiStudio.subscriptionPage.subscribe', 'Subscribe')}</Button>{isPro && isTargetPremium && <p className="mt-2 text-center text-xs text-muted-foreground">{t('app.aiStudio.subscriptionPage.planChangesUnavailable', 'Plan changes are temporarily unavailable.')}</p>}{!isSubscriptionResolving && !canSubscribe && <p className="mt-2 text-center text-xs text-muted-foreground">{t('app.aiStudio.subscriptionPage.enrollmentClosed', 'Subscription enrollments are currently closed.')}</p>}</CardContent></Card>; })}</div></section>}
 
-        {(canCancelSubscription || renewalCancellationPending) && <Card className="mt-6 rounded-2xl"><CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between"><div><p className="flex items-center gap-2 text-sm font-semibold"><ShieldCheck className="h-4 w-4 text-primary" />{t('app.aiStudio.subscriptionPage.manageTitle', 'Subscription Management')}</p><p className="mt-1 text-xs text-muted-foreground">{(plan === 'free' || subscriptionData?.effective_plan === 'free') ? t('app.aiStudio.subscriptionPage.paidAccessEndedPendingCancellation', 'Your paid access has ended. Your subscription cancellation is still being confirmed.') : renewalCancellationPending ? t('app.aiStudio.subscriptionPage.canceling', 'Canceled') : t('app.aiStudio.subscriptionPage.activePlanNote', 'You have an active {{plan}} subscription.', { plan: planLabel(plan) })}</p></div>{canCancelSubscription && !renewalCancellationPending && <Button variant="outline" className="shrink-0 border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={() => setCancelDialogOpen(true)}>{t('app.aiStudio.subscriptionPage.cancelSubscription', 'Cancel subscription')}</Button>}</CardContent></Card>}
+        {(canCancelSubscription || renewalCancellationPending) && (
+          <Card className="rounded-2xl">
+            <CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="flex items-center gap-2 text-sm font-semibold">
+                  <ShieldCheck className="h-4 w-4 text-primary" />
+                  {t('app.aiStudio.subscriptionPage.manageTitle', 'Subscription Management')}
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {renewalCancellationPending
+                    ? t('app.aiStudio.subscriptionPage.canceling', 'Canceled')
+                    : t('app.aiStudio.subscriptionPage.activePlanNote', 'You have an active {{plan}} subscription.', { plan: planLabel(plan) })}
+                </p>
+              </div>
+              {canCancelSubscription && !renewalCancellationPending && (
+                <Button
+                  variant="outline"
+                  className="shrink-0 border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                  onClick={() => setCancelDialogOpen(true)}
+                >
+                  {t('app.aiStudio.subscriptionPage.cancelSubscription', 'Cancel subscription')}
+                </Button>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         <div className="mt-6 flex items-center gap-3 rounded-2xl border border-border bg-card p-4"><Share2 className="h-5 w-5 shrink-0 text-primary" /><div className="min-w-0 flex-1"><p className="text-sm font-semibold">{t('app.aiStudio.subscriptionPage.shareTitle', 'Share WiseResume')}</p><p className="mt-0.5 text-xs text-muted-foreground">{t('app.aiStudio.subscriptionPage.shareDescription', 'Send the app link to a friend')}</p></div><Button variant="outline" size="sm" onClick={() => navigate('/referral')}>{t('app.aiStudio.subscriptionPage.share', 'Share')}</Button></div>
+        </div>
 
         <Dialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}><DialogContent className="max-w-md"><DialogHeader><DialogTitle>{t('app.aiStudio.subscriptionPage.cancelDialogTitle', 'Cancel Subscription')}</DialogTitle><DialogDescription>{formattedExpiration ? t('app.aiStudio.subscriptionPage.cancelDialogDescriptionWithDate', 'Are you sure you want to cancel your subscription? Your access will remain active until {{date}}.', { date: formattedExpiration }) : t('app.aiStudio.subscriptionPage.cancelDialogDescriptionNeutral', 'Are you sure you want to cancel your subscription? Your cancellation will stop future renewals.')}</DialogDescription></DialogHeader>{cancelError && <div role="alert" className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">{cancelError}</div>}<DialogFooter><Button variant="outline" onClick={() => setCancelDialogOpen(false)} disabled={isCanceling}>{t('app.aiStudio.subscriptionPage.keepSubscription', 'Keep Subscription')}</Button><Button variant="destructive" onClick={handleConfirmCancel} disabled={isCanceling}>{isCanceling && <Loader2 className="h-4 w-4 animate-spin" />}{isCanceling ? t('app.aiStudio.subscriptionPage.canceling', 'Canceling…') : t('app.aiStudio.subscriptionPage.confirmCancel', 'Confirm Cancellation')}</Button></DialogFooter></DialogContent></Dialog>
 

@@ -180,3 +180,83 @@ describe('AuthPage OAuth Error Handling', () => {
     });
   });
 });
+
+describe('AuthPage Signup Plan Intent Resolution and Display', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    sessionStorage.clear();
+    mockLocation.pathname = '/auth';
+  });
+
+  it('unit test: resolveSignupPlanIntent handles all shapes correctly', async () => {
+    const { resolveSignupPlanIntent, displayPlanLabel } = await import('../AuthPage');
+
+    // Missing / empty / non-string
+    expect(resolveSignupPlanIntent(null)).toBeNull();
+    expect(resolveSignupPlanIntent(undefined)).toBeNull();
+    expect(resolveSignupPlanIntent('')).toBeNull();
+    expect(resolveSignupPlanIntent('   ')).toBeNull();
+    expect(resolveSignupPlanIntent({})).toBeNull();
+    expect(resolveSignupPlanIntent({ plan: 'pro' })).toBeNull();
+    expect(resolveSignupPlanIntent(['pro'])).toBeNull();
+
+    // Malformed strings / object stringification
+    expect(resolveSignupPlanIntent('[object Object]')).toBeNull();
+    expect(resolveSignupPlanIntent('free')).toBeNull();
+    expect(resolveSignupPlanIntent('unknown_tier')).toBeNull();
+    expect(resolveSignupPlanIntent('{"id":"pro"}')).toBeNull();
+
+    // Valid Pro
+    expect(resolveSignupPlanIntent('pro')).toBe('pro');
+    expect(resolveSignupPlanIntent('PRO')).toBe('pro');
+    expect(resolveSignupPlanIntent('  pro  ')).toBe('pro');
+    expect(displayPlanLabel('pro')).toBe('Pro');
+
+    // Valid Ultimate / Premium
+    expect(resolveSignupPlanIntent('premium')).toBe('premium');
+    expect(resolveSignupPlanIntent('PREMIUM')).toBe('premium');
+    expect(resolveSignupPlanIntent('ultimate')).toBe('premium');
+    expect(resolveSignupPlanIntent('  ULTIMATE  ')).toBe('premium');
+    expect(displayPlanLabel('premium')).toBe('Ultimate');
+  });
+
+  it('normal signup without plan parameter renders NO plan enrollment notice', async () => {
+    renderWithProviders(<AuthPage />, {
+      initialPath: '/auth?mode=signup',
+    });
+
+    expect(screen.queryByText(/signing up for the/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/\[object Object\]/i)).not.toBeInTheDocument();
+  });
+
+  it('explicit Pro signup renders human-readable Pro plan notice', async () => {
+    renderWithProviders(<AuthPage />, {
+      initialPath: '/auth?mode=signup&plan=pro',
+    });
+
+    expect(screen.getByText(/You're signing up for the/i)).toBeInTheDocument();
+    expect(screen.getByText('Pro')).toBeInTheDocument();
+    expect(screen.queryByText(/\[object Object\]/i)).not.toBeInTheDocument();
+  });
+
+  it('explicit Ultimate signup (via ultimate or premium) renders human-readable Ultimate plan notice', async () => {
+    renderWithProviders(<AuthPage />, {
+      initialPath: '/auth?mode=signup&plan=ultimate',
+    });
+
+    expect(screen.getByText(/You're signing up for the/i)).toBeInTheDocument();
+    expect(screen.getByText('Ultimate')).toBeInTheDocument();
+    expect(screen.queryByText(/\[object Object\]/i)).not.toBeInTheDocument();
+  });
+
+  it('malformed [object Object] in plan parameter renders NO plan notice and never displays [object Object]', async () => {
+    sessionStorage.setItem('signup_plan_intent', '[object Object]');
+    renderWithProviders(<AuthPage />, {
+      initialPath: '/auth?mode=signup&plan=[object%20Object]',
+    });
+
+    expect(screen.queryByText(/signing up for the/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/\[object Object\]/i)).not.toBeInTheDocument();
+    expect(sessionStorage.getItem('signup_plan_intent')).toBeNull();
+  });
+});

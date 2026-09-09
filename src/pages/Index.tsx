@@ -226,10 +226,15 @@ const Index = () => {
     };
   }, []);
 
-  const handleCTA = useCallback((plan?: string) => {
+  const handleCTA = useCallback((plan?: unknown) => {
     triggerHaptic.medium();
-    if (plan) {
-      navigate(`/auth?mode=signup&plan=${plan}`);
+    const normalizedPlan = typeof plan === 'string' ? plan.trim().toLowerCase() : '';
+    const validPlan = normalizedPlan === 'pro' || normalizedPlan === 'premium' || normalizedPlan === 'ultimate'
+      ? normalizedPlan
+      : null;
+
+    if (validPlan) {
+      navigate(`/auth?mode=signup&plan=${validPlan}`);
     } else {
       void Promise.resolve(navigate("/auth?mode=signup")).catch(() => {
         toast.error('Unable to start sign-up. Please try again or contact support.');

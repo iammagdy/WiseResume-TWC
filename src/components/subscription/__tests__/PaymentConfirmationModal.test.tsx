@@ -56,4 +56,62 @@ describe('PaymentConfirmationModal', () => {
     fireEvent.click(screen.getByRole('button', { name: /continue with whop/i }));
     await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('Checkout unavailable.'));
   });
+
+  it('regression: clears stale attempt key on modal open and does not reuse consumed key on explicit retry', async () => {
+    sessionStorage.setItem('wr_billing_attempt_pro', 'web-stale-consumed-key-123');
+    sessionStorage.setItem('wr_billing_attempt_pro_ts', String(Date.now() - 3600000));
+
+    // Opening modal clears stale key
+    const { rerender } = render(
+      <LocaleProvider initialLocale="en">
+        <PaymentConfirmationModal open={true} onOpenChange={vi.fn()} plan="pro" />
+      </LocaleProvider>
+    );
+    expect(sessionStorage.getItem('wr_billing_attempt_pro')).toBeNull();
+
+    // First checkout attempt generates key A and encounters idempotency conflict
+    vi.mocked(billingModule.createBillingCheckoutSession).mockResolvedValueOnce({
+      ok: false,
+      code: 'idempotency_conflict',
+      message: 'This checkout request key cannot be replayed.',
+      retryable: false,
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /continue with whop/i }));
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('This checkout request key cannot be replayed.'));
+
+    const firstKey = vi.mocked(billingModule.createBillingCheckoutSession).mock.calls[0][1]?.idempotencyKey;
+    expect(firstKey).toMatch(/^web-/);
+    // Key was cleared upon receiving non-retryable idempotency conflict
+    expect(sessionStorage.getItem('wr_billing_attempt_pro')).toBeNull();
+
+    // User explicitly retries: second call receives a FRESH distinct attempt key
+    vi.mocked(billingModule.createBillingCheckoutSession).mockResolvedValueOnce({
+      ok: true,
+      session: {
+        session_reference: 'sess_fresh',
+        checkout_url: 'https://sandbox.whop.com/checkout/ch_fresh',
+        plan: 'pro',
+        state: 'created_or_reused',
+        expires_at: new Date(Date.now() + 3600000).toISOString(),
+        provider: 'whop',
+      },
+    });
+    vi.mocked(billingModule.openServerCheckout).mockReturnValueOnce(true);
+
+    fireEvent.click(screen.getByRole('button', { name: /continue with whop/i }));
+    await waitFor(() => expect(billingModule.createBillingCheckoutSession).toHaveBeenCalledTimes(2));
+
+    const secondKey = vi.mocked(billingModule.createBillingCheckoutSession).mock.calls[1][1]?.idempotencyKey;
+    expect(secondKey).toMatch(/^web-/);
+    expect(secondKey).not.toBe(firstKey);
+
+    // Closing modal also purges attempt key
+    rerender(
+      <LocaleProvider initialLocale="en">
+        <PaymentConfirmationModal open={false} onOpenChange={vi.fn()} plan="pro" />
+      </LocaleProvider>
+    );
+    expect(sessionStorage.getItem('wr_billing_attempt_pro')).toBeNull();
+  });
 });
