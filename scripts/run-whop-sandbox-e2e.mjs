@@ -33,6 +33,18 @@ page.on('console', (msg) => {
 page.on('pageerror', (err) => console.log(`[pageerror] ${err.message}`));
 
 page.on('response', async (response) => {
+  const resUrl = response.url();
+  if (/whop\.com|stripe|basis|payment/i.test(resUrl)) {
+    if (response.status() >= 400 || /checkout|confirm|pay|intent|order|membership/i.test(resUrl)) {
+      let bodySnippet = '';
+      try {
+        const text = await response.text();
+        bodySnippet = text.slice(0, 200).replace(/\s+/g, ' ');
+      } catch (_) {}
+      console.log(`[network] ${response.status()} ${response.request().method()} ${resUrl.split('?')[0]} ${bodySnippet ? `body=${bodySnippet}` : ''}`);
+    }
+  }
+
   if (!/\/functions\//i.test(response.url())) return;
   const requestUrl = response.url();
   const functionName = requestUrl.match(/functions\/([^/]+)/i)?.[1] || 'unknown';
@@ -241,15 +253,57 @@ try {
   const proUrl = await openProviderCheckout('Whop', /\$5|5\.00/);
   console.log(`WHOP_PRO_CHECKOUT_OPEN=true origin=${new URL(proUrl).origin}`);
 
-  // Fill guest customer email if Whop hosted checkout prompts for it
-  const emailField = await firstVisibleFrameLocator('input[type="email"], input[name*="email" i], input[autocomplete="email"]', 5_000);
+  // 1. Email (if guest customer email prompt is shown)
+  const emailField = await firstVisibleFrameLocator('input[type="email"], input[name="email"]', 3_000);
   if (emailField) {
-    console.log('[e2e] Filling email field...');
-    await emailField.fill(email);
+    const val = (await emailField.inputValue().catch(() => '')).trim();
+    if (!val) {
+      console.log('[e2e] Filling email field...');
+      await emailField.fill(email);
+    }
   }
 
-  // These are Whop's public Sandbox test values, used only after the
-  // environment, hostname, and catalog guards above have passed.
+  // 2. Name
+  const nameField = await firstVisibleFrameLocator('input[name="name"][type="text"], input[placeholder="Name"]', 3_000);
+  if (nameField) {
+    const val = (await nameField.inputValue().catch(() => '')).trim();
+    if (!val) {
+      console.log('[e2e] Filling name field...');
+      await nameField.fill('WiseResume QA');
+    }
+  }
+
+  // 3. Address Line 1
+  const line1Field = await firstVisibleFrameLocator('input[name="line1"][type="text"], input[placeholder*="Address line 1" i]', 3_000);
+  if (line1Field) {
+    const val = (await line1Field.inputValue().catch(() => '')).trim();
+    if (!val) {
+      console.log('[e2e] Filling address line 1...');
+      await line1Field.fill('123 Main St');
+    }
+  }
+
+  // 4. City
+  const cityField = await firstVisibleFrameLocator('input[name="city"][type="text"], input[placeholder*="City" i]', 3_000);
+  if (cityField) {
+    const val = (await cityField.inputValue().catch(() => '')).trim();
+    if (!val) {
+      console.log('[e2e] Filling city...');
+      await cityField.fill('New York');
+    }
+  }
+
+  // 5. Postal / ZIP code
+  const postalField = await firstVisibleFrameLocator('input[name="zip"][type="text"], input[placeholder*="ZIP" i], input[autocomplete="postal-code"]', 3_000);
+  if (postalField) {
+    const val = (await postalField.inputValue().catch(() => '')).trim();
+    if (!val) {
+      console.log('[e2e] Filling postal code...');
+      await postalField.fill('10001');
+    }
+  }
+
+  // 6. Card Details (inside provider frames)
   const cardField = await firstVisibleFrameLocator('input[autocomplete="cc-number"], input[name*="card" i]');
   if (!cardField) throw new Error('Whop Sandbox card field was not available');
   await cardField.fill(testCard);
@@ -258,54 +312,7 @@ try {
   if (!expiryField || !cvcField) throw new Error('Whop Sandbox expiry/CVC fields were not available');
   await expiryField.fill(testExpiry);
   await cvcField.fill(testCvc);
-
-  // Fill postal code / ZIP code if present
-  const postalField = await firstVisibleFrameLocator('input[autocomplete="postal-code"], input[name*="postal" i], input[name*="zip" i], input[placeholder*="zip" i], input[placeholder*="postal" i]', 3_000);
-  if (postalField) {
-    console.log('[e2e] Filling postal code field...');
-    await postalField.fill('10001');
-    await postalField.press('Tab').catch(() => {});
-  }
-
-  // Phone if present and empty
-  const phoneField = await firstVisibleFrameLocator('input[type="tel"], input[autocomplete="tel"], input[name*="phone" i]', 2_000);
-  if (phoneField && (await phoneField.inputValue().catch(() => '')) === '') {
-    console.log('[e2e] Filling phone field...');
-    await phoneField.fill('5555555555');
-  }
-
-  // Fill all required / empty contact and billing address fields across all frames
-  for (const frame of page.frames()) {
-    try {
-      const inputs = await frame.locator('input').all();
-      for (const inp of inputs) {
-        if (await inp.isVisible().catch(() => false)) {
-          const val = (await inp.inputValue().catch(() => '')).trim();
-          if (val) continue;
-          const name = ((await inp.getAttribute('name').catch(() => '')) || '').toLowerCase();
-          const auto = ((await inp.getAttribute('autocomplete').catch(() => '')) || '').toLowerCase();
-          const ph = ((await inp.getAttribute('placeholder').catch(() => '')) || '').toLowerCase();
-
-          if (/address|line1/i.test(name) || /address-line1/i.test(auto) || /address/i.test(ph)) {
-            console.log(`[e2e] Filling address line 1: name="${name}" auto="${auto}"`);
-            await inp.fill('123 Main St');
-          } else if (/city|address-level2/i.test(name) || /address-level2/i.test(auto) || /city/i.test(ph)) {
-            console.log(`[e2e] Filling city: name="${name}" auto="${auto}"`);
-            await inp.fill('New York');
-          } else if (/state|address-level1/i.test(name) || /address-level1/i.test(auto) || /state/i.test(ph)) {
-            console.log(`[e2e] Filling state: name="${name}" auto="${auto}"`);
-            await inp.fill('NY');
-          } else if (/postal|zip/i.test(name) || /postal-code/i.test(auto) || /zip/i.test(ph)) {
-            console.log(`[e2e] Filling zip: name="${name}" auto="${auto}"`);
-            await inp.fill('10001');
-          } else if (/name/i.test(name) || /name/i.test(auto) || /name/i.test(ph)) {
-            console.log(`[e2e] Filling name: name="${name}" auto="${auto}"`);
-            await inp.fill('WiseResume QA');
-          }
-        }
-      }
-    } catch (_) {}
-  }
+  await cvcField.press('Tab').catch(() => {});
 
   // Check required checkboxes if unchecked
   for (const frame of page.frames()) {
@@ -319,6 +326,10 @@ try {
       }
     } catch (_) {}
   }
+
+  // Ensure no combobox is open and blur
+  await page.keyboard.press('Escape').catch(() => {});
+  await page.waitForTimeout(1_000);
 
   await dumpFrameState('form-filled');
 
@@ -351,6 +362,7 @@ try {
 
   const postSubmitStart = Date.now();
   let paymentSubmitted = false;
+  let clickCount = 1;
 
   while (Date.now() - postSubmitStart < 45_000) {
     const currentUrl = page.url();
@@ -407,6 +419,18 @@ try {
         console.log(`[e2e] Successfully returned to app: ${page.url()}`);
       }
       break;
+    }
+
+    // If after 5s the button is still visible and enabled on the checkout page, retry click
+    if (Date.now() - postSubmitStart > 5_000 && clickCount < 3 && /sandbox\.whop\.com\/checkout\//i.test(currentUrl)) {
+      const stillVisible = await submitCandidate.locator.isVisible().catch(() => false);
+      const stillDisabled = (await submitCandidate.locator.isDisabled().catch(() => true)) ||
+        ((await submitCandidate.locator.getAttribute('aria-disabled').catch(() => '')) === 'true');
+      if (stillVisible && !stillDisabled) {
+        console.log(`[e2e] Button still visible and enabled after ${Math.round((Date.now() - postSubmitStart) / 1000)}s, clicking again (attempt #${clickCount + 1})...`);
+        await submitCandidate.locator.click().catch(() => {});
+        clickCount++;
+      }
     }
 
     await page.waitForTimeout(2_000);
