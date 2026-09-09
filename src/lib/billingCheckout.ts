@@ -128,8 +128,7 @@ function getCheckoutEnvironment(environment?: string, provider?: BillingCheckout
       if (isDefined(whopEnv) && whopEnv.trim() !== '') {
         env = whopEnv.trim();
       } else if (isWiseresumeApp) {
-        // Whop production is disabled / not activated platform-wide; canonical site runs Whop Sandbox for QA
-        env = 'sandbox';
+        env = 'production';
       } else if (isDefined(import.meta.env.VITE_BILLING_PUBLIC_MODE)) {
         env = import.meta.env.VITE_BILLING_PUBLIC_MODE as string;
       } else if (isDefined(import.meta.env.VITE_BILLING_ENVIRONMENT)) {

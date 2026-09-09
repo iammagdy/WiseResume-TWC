@@ -417,7 +417,43 @@ function createMockUsers(validUserIds = []) {
     assert.equal(second.mutated, false);
   }
 
-  console.log('All Whop webhook test scenarios (A through I) passed successfully.');
+  // Scenario J: Production membership.activated for normal user creates active Production Ultimate state
+  {
+    process.env.WHOP_ACCESS_ENVIRONMENT = 'production';
+    const PROD_USER = 'normal_prod_user_777';
+    const prodUsers = createMockUsers([PROD_USER]);
+    const db = createMockDatabases();
+    db.store.billing_checkout_sessions.set('sess_prod_ultimate', {
+      checkout_reference: 'ch_prod_ult_1', user_id: PROD_USER, plan: 'premium', environment: 'production',
+    });
+
+    const prodActEvent = {
+      id: 'msg_prod_act_1', api_version: 'v1', type: 'membership.activated',
+      timestamp: new Date().toISOString(), account_id: 'biz_B7fMXLLj18wv8J',
+      data: {
+        id: 'mem_prod_ult', checkout_configuration_id: 'ch_prod_ult_1',
+        plan: { id: 'plan_kt5MScAplbCuN' },
+        product: { id: 'prod_WrbEGZdSaG2af' },
+        renewal_period_end: new Date(Date.now() + 86400000).toISOString(),
+        cancel_at_period_end: false,
+        metadata: { wiseresume_user_id: PROD_USER },
+      },
+    };
+
+    const res = await t.processEvent(db, prodUsers, t.eventData(prodActEvent, 'msg_prod_act_1'));
+    assert.equal(res.outcome, 'processed');
+    assert.equal(res.mutated, true);
+    assert.equal(db.store.whop_subscription_state.size, 1);
+    const doc = Array.from(db.store.whop_subscription_state.values())[0];
+    assert.equal(doc.user_id, PROD_USER);
+    assert.equal(doc.plan, 'premium');
+    assert.equal(doc.environment, 'production');
+    assert.equal(doc.status, 'active');
+    assert.equal(doc.membership_id, 'mem_prod_ult');
+    process.env.WHOP_ACCESS_ENVIRONMENT = 'sandbox';
+  }
+
+  console.log('All Whop webhook test scenarios (A through J) passed successfully.');
 })().catch(err => {
   console.error('Test failure:', err);
   process.exit(1);

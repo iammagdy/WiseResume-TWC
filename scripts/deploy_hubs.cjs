@@ -720,10 +720,10 @@ async function ensureAiGatewayVariables() {
         ['WHOP_SANDBOX_PRODUCT_ID', process.env.WHOP_SANDBOX_PRODUCT_ID],
         ['WHOP_SANDBOX_PRO_PLAN_ID', process.env.WHOP_SANDBOX_PRO_PLAN_ID],
         ['WHOP_SANDBOX_PREMIUM_PLAN_ID', process.env.WHOP_SANDBOX_PREMIUM_PLAN_ID],
-        ['WHOP_PRODUCTION_COMPANY_ID', process.env.WHOP_PRODUCTION_COMPANY_ID],
-        ['WHOP_PRODUCTION_PRODUCT_ID', process.env.WHOP_PRODUCTION_PRODUCT_ID],
-        ['WHOP_PRODUCTION_PRO_PLAN_ID', process.env.WHOP_PRODUCTION_PRO_PLAN_ID],
-        ['WHOP_PRODUCTION_PREMIUM_PLAN_ID', process.env.WHOP_PRODUCTION_PREMIUM_PLAN_ID],
+        ['WHOP_PRODUCTION_COMPANY_ID', process.env.WHOP_PRODUCTION_COMPANY_ID || 'biz_B7fMXLLj18wv8J'],
+        ['WHOP_PRODUCTION_PRODUCT_ID', process.env.WHOP_PRODUCTION_PRODUCT_ID || 'prod_WrbEGZdSaG2af'],
+        ['WHOP_PRODUCTION_PRO_PLAN_ID', process.env.WHOP_PRODUCTION_PRO_PLAN_ID || 'plan_4JJSQLj5zEKVn'],
+        ['WHOP_PRODUCTION_PREMIUM_PLAN_ID', process.env.WHOP_PRODUCTION_PREMIUM_PLAN_ID || 'plan_kt5MScAplbCuN'],
     ];
     for (const [key, value] of vars) await ensureVariable('ai-gateway', key, value);
 }
@@ -1019,10 +1019,11 @@ async function ensureBillingCheckoutVariables() {
             await ensureVariable('billing-checkout', 'BILLING_PRODUCTION_PADDLE_API_KEY', productionPaddleKey);
         }
     } else if (provider === 'whop') {
+        const whopEnv = (process.env.WHOP_CHECKOUT_ENVIRONMENT || 'sandbox').trim().toLowerCase();
         const sandboxKey = process.env.WHOP_SANDBOX_API_KEY || await existingVariableValue('billing-checkout', 'WHOP_SANDBOX_API_KEY');
-        if (!sandboxKey) throw new Error('WHOP_SANDBOX_API_KEY is required to deploy billing-checkout');
-        await ensureVariable('billing-checkout', 'WHOP_SANDBOX_API_KEY', sandboxKey, true);
-        const companyId = process.env.WHOP_COMPANY_ID || await existingVariableValue('billing-checkout', 'WHOP_COMPANY_ID');
+        if (whopEnv === 'sandbox' && !sandboxKey) throw new Error('WHOP_SANDBOX_API_KEY is required to deploy billing-checkout in sandbox mode');
+        if (sandboxKey) await ensureVariable('billing-checkout', 'WHOP_SANDBOX_API_KEY', sandboxKey, true);
+
         const existingWhopQa = await existingVariableValue('billing-checkout', 'WHOP_SANDBOX_QA_USER_ID');
         const targetWhopQa = existingWhopQa || process.env.WHOP_SANDBOX_QA_USER_ID;
         for (const [key, value] of [
@@ -1033,12 +1034,13 @@ async function ensureBillingCheckoutVariables() {
             ['WHOP_SANDBOX_PRODUCT_ID', process.env.WHOP_SANDBOX_PRODUCT_ID],
             ['WHOP_SANDBOX_PRO_PLAN_ID', process.env.WHOP_SANDBOX_PRO_PLAN_ID],
             ['WHOP_SANDBOX_PREMIUM_PLAN_ID', process.env.WHOP_SANDBOX_PREMIUM_PLAN_ID],
-            ['WHOP_PRODUCTION_COMPANY_ID', process.env.WHOP_PRODUCTION_COMPANY_ID],
-            ['WHOP_PRODUCTION_PRODUCT_ID', process.env.WHOP_PRODUCTION_PRODUCT_ID],
-            ['WHOP_PRODUCTION_PRO_PLAN_ID', process.env.WHOP_PRODUCTION_PRO_PLAN_ID],
-            ['WHOP_PRODUCTION_PREMIUM_PLAN_ID', process.env.WHOP_PRODUCTION_PREMIUM_PLAN_ID],
+            ['WHOP_PRODUCTION_COMPANY_ID', process.env.WHOP_PRODUCTION_COMPANY_ID || 'biz_B7fMXLLj18wv8J'],
+            ['WHOP_PRODUCTION_PRODUCT_ID', process.env.WHOP_PRODUCTION_PRODUCT_ID || 'prod_WrbEGZdSaG2af'],
+            ['WHOP_PRODUCTION_PRO_PLAN_ID', process.env.WHOP_PRODUCTION_PRO_PLAN_ID || 'plan_4JJSQLj5zEKVn'],
+            ['WHOP_PRODUCTION_PREMIUM_PLAN_ID', process.env.WHOP_PRODUCTION_PREMIUM_PLAN_ID || 'plan_kt5MScAplbCuN'],
         ]) if (value) await ensureNonSecretCatalogVariable('billing-checkout', key, value);
         const productionWhopKey = process.env.WHOP_PRODUCTION_API_KEY || await existingVariableValue('billing-checkout', 'WHOP_PRODUCTION_API_KEY');
+        if (whopEnv === 'production' && !productionWhopKey) throw new Error('WHOP_PRODUCTION_API_KEY is required to deploy billing-checkout in production mode');
         if (productionWhopKey) await ensureVariable('billing-checkout', 'WHOP_PRODUCTION_API_KEY', productionWhopKey, true);
     } else {
         throw new Error(`Unsupported BILLING_CHECKOUT_PROVIDER: "${provider}"`);
@@ -1101,10 +1103,10 @@ async function ensureCouponsWiseHireVariables(fnIds) {
                 ['WHOP_SANDBOX_PRODUCT_ID', process.env.WHOP_SANDBOX_PRODUCT_ID],
                 ['WHOP_SANDBOX_PRO_PLAN_ID', process.env.WHOP_SANDBOX_PRO_PLAN_ID],
                 ['WHOP_SANDBOX_PREMIUM_PLAN_ID', process.env.WHOP_SANDBOX_PREMIUM_PLAN_ID],
-                ['WHOP_PRODUCTION_COMPANY_ID', process.env.WHOP_PRODUCTION_COMPANY_ID],
-                ['WHOP_PRODUCTION_PRODUCT_ID', process.env.WHOP_PRODUCTION_PRODUCT_ID],
-                ['WHOP_PRODUCTION_PRO_PLAN_ID', process.env.WHOP_PRODUCTION_PRO_PLAN_ID],
-                ['WHOP_PRODUCTION_PREMIUM_PLAN_ID', process.env.WHOP_PRODUCTION_PREMIUM_PLAN_ID],
+                ['WHOP_PRODUCTION_COMPANY_ID', process.env.WHOP_PRODUCTION_COMPANY_ID || 'biz_B7fMXLLj18wv8J'],
+                ['WHOP_PRODUCTION_PRODUCT_ID', process.env.WHOP_PRODUCTION_PRODUCT_ID || 'prod_WrbEGZdSaG2af'],
+                ['WHOP_PRODUCTION_PRO_PLAN_ID', process.env.WHOP_PRODUCTION_PRO_PLAN_ID || 'plan_4JJSQLj5zEKVn'],
+                ['WHOP_PRODUCTION_PREMIUM_PLAN_ID', process.env.WHOP_PRODUCTION_PREMIUM_PLAN_ID || 'plan_kt5MScAplbCuN'],
             ]) if (value) await ensureNonSecretCatalogVariable('coupons', key, value);
         }
         if (fnId === 'public-share') {
@@ -1269,10 +1271,10 @@ async function syncVariablesForHubs(hubIds) {
             ['WHOP_SANDBOX_PRODUCT_ID', process.env.WHOP_SANDBOX_PRODUCT_ID, false],
             ['WHOP_SANDBOX_PRO_PLAN_ID', process.env.WHOP_SANDBOX_PRO_PLAN_ID, false],
             ['WHOP_SANDBOX_PREMIUM_PLAN_ID', process.env.WHOP_SANDBOX_PREMIUM_PLAN_ID, false],
-            ['WHOP_PRODUCTION_COMPANY_ID', process.env.WHOP_PRODUCTION_COMPANY_ID, false],
-            ['WHOP_PRODUCTION_PRODUCT_ID', process.env.WHOP_PRODUCTION_PRODUCT_ID, false],
-            ['WHOP_PRODUCTION_PRO_PLAN_ID', process.env.WHOP_PRODUCTION_PRO_PLAN_ID, false],
-            ['WHOP_PRODUCTION_PREMIUM_PLAN_ID', process.env.WHOP_PRODUCTION_PREMIUM_PLAN_ID, false],
+            ['WHOP_PRODUCTION_COMPANY_ID', process.env.WHOP_PRODUCTION_COMPANY_ID || 'biz_B7fMXLLj18wv8J', false],
+            ['WHOP_PRODUCTION_PRODUCT_ID', process.env.WHOP_PRODUCTION_PRODUCT_ID || 'prod_WrbEGZdSaG2af', false],
+            ['WHOP_PRODUCTION_PRO_PLAN_ID', process.env.WHOP_PRODUCTION_PRO_PLAN_ID || 'plan_4JJSQLj5zEKVn', false],
+            ['WHOP_PRODUCTION_PREMIUM_PLAN_ID', process.env.WHOP_PRODUCTION_PREMIUM_PLAN_ID || 'plan_kt5MScAplbCuN', false],
         ]) {
             if (value) await ensureVariable('whop-webhook', key, value, secret);
         }

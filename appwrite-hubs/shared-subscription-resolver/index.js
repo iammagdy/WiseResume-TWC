@@ -43,10 +43,10 @@ function configuredWhopCatalog(environment, env = process.env) {
   const prefix = environment === 'sandbox' ? 'WHOP_SANDBOX' : environment === 'production' ? 'WHOP_PRODUCTION' : '';
   if (!prefix) return { productId: '', planIds: {} };
   return {
-    productId: String(env[`${prefix}_PRODUCT_ID`] || '').trim(),
+    productId: String(env[`${prefix}_PRODUCT_ID`] || (environment === 'production' ? 'prod_WrbEGZdSaG2af' : '')).trim(),
     planIds: {
-      pro: String(env[`${prefix}_PRO_PLAN_ID`] || '').trim(),
-      premium: String(env[`${prefix}_PREMIUM_PLAN_ID`] || '').trim(),
+      pro: String(env[`${prefix}_PRO_PLAN_ID`] || (environment === 'production' ? 'plan_4JJSQLj5zEKVn' : '')).trim(),
+      premium: String(env[`${prefix}_PREMIUM_PLAN_ID`] || (environment === 'production' ? 'plan_kt5MScAplbCuN' : '')).trim(),
     },
   };
 }
