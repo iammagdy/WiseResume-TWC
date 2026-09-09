@@ -595,6 +595,7 @@ module.exports = {
   configuredWhopProviderEnvironment,
   configuredQaUserId,
   configuredWhopQaUserId,
+  configuredWhopCatalog,
   isFutureTimestamp,
   buildPlanCandidates,
   resolveEffectivePlan,

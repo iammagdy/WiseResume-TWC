@@ -146,6 +146,12 @@ try {
   const proUrl = await openProviderCheckout('Whop', /\$5|5\.00/);
   console.log(`WHOP_PRO_CHECKOUT_OPEN=true origin=${new URL(proUrl).origin}`);
 
+  // Fill guest customer email/name if Whop hosted checkout prompts for them
+  const emailField = await firstVisibleFrameLocator('input[type="email"], input[name*="email" i], input[autocomplete="email"]', 5_000);
+  if (emailField) await emailField.fill(email);
+  const nameField = await firstVisibleFrameLocator('input[autocomplete="name"], input[name*="name" i]', 3_000);
+  if (nameField) await nameField.fill('WiseResume QA');
+
   // These are Whop's public Sandbox test values, used only after the
   // environment, hostname, and catalog guards above have passed.
   const cardField = await firstVisibleFrameLocator('input[autocomplete="cc-number"], input[name*="card" i]');
@@ -156,9 +162,9 @@ try {
   if (!expiryField || !cvcField) throw new Error('Whop Sandbox expiry/CVC fields were not available');
   await expiryField.fill(testExpiry);
   await cvcField.fill(testCvc);
-  const submit = page.getByRole('button', { name: /pay|subscribe|start/i }).last();
+  const submit = page.getByRole('button', { name: /pay|subscribe|start|complete|continue/i }).last();
   await submit.click();
-  await page.waitForTimeout(12_000);
+  await page.waitForURL(url => !/sandbox\.whop\.com/i.test(url.toString()), { timeout: 30_000 }).catch(() => {});
   if (/sandbox\.whop\.com/i.test(page.url())) throw new Error('Whop Sandbox checkout did not return after payment submission');
   console.log('WHOP_PRO_PAYMENT_SUBMITTED=true');
 } finally {

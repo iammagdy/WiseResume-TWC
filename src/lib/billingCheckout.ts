@@ -127,6 +127,8 @@ function getCheckoutEnvironment(environment?: string): string {
       env = import.meta.env.VITE_BILLING_ENVIRONMENT as string;
     } else if (typeof import.meta.env.VITE_CHECKOUT_ENVIRONMENT !== 'undefined') {
       env = import.meta.env.VITE_CHECKOUT_ENVIRONMENT as string;
+    } else if (typeof import.meta.env.VITE_WHOP_CHECKOUT_ENVIRONMENT !== 'undefined') {
+      env = import.meta.env.VITE_WHOP_CHECKOUT_ENVIRONMENT as string;
     } else if (import.meta.env.DEV) {
       env = 'sandbox';
     }

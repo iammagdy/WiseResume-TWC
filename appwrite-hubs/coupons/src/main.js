@@ -9,6 +9,7 @@ const {
   configuredWhopProviderEnvironment,
   configuredQaUserId,
   configuredWhopQaUserId,
+  configuredWhopCatalog,
 } = require('@wiseresume/subscription-resolver');
 
 const DB_ID = 'main';
@@ -389,13 +390,16 @@ async function getMySubscription(body, res, dependencies = {}) {
     : configuredProviderEnvironment();
   const whopPlan = String(whopProviderState?.plan || '').trim().toLowerCase();
   const whopStatus = String(whopProviderState?.status || '').trim().toLowerCase();
+  const whopCatalog = configuredWhopCatalog(configuredWhopEnv);
+  const expectedWhopProductId = whopCatalog.productId || WHOP_PRODUCT_ID;
+  const expectedWhopPlanId = whopCatalog.planIds?.[whopPlan] || WHOP_PLAN_IDS[whopPlan];
   const hasValidWhopRecord = Boolean(
     whopProviderState &&
     String(whopProviderState.user_id || '').trim() === user.$id &&
     String(whopProviderState.membership_id || '').trim().startsWith('mem_') &&
-    String(whopProviderState.product_id || '').trim() === WHOP_PRODUCT_ID &&
-    WHOP_PLAN_IDS[whopPlan] === String(whopProviderState.plan_id || '').trim() &&
-    String(whopProviderState.environment || '').trim().toLowerCase() === configuredProviderEnv
+    String(whopProviderState.product_id || '').trim() === expectedWhopProductId &&
+    expectedWhopPlanId === String(whopProviderState.plan_id || '').trim() &&
+    String(whopProviderState.environment || '').trim().toLowerCase() === configuredWhopEnv
   );
   const isWhopCancellableStatus = ['active', 'past_due'].includes(whopStatus);
   const whopWillRenew = typeof whopProviderState?.will_renew === 'boolean' ? whopProviderState.will_renew : null;

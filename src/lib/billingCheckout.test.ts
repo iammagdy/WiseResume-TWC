@@ -117,12 +117,16 @@ describe('server-owned billing checkout client', () => {
       expect(getApprovedPayPalOrigins()).toEqual(['https://www.sandbox.paypal.com']);
       expect(isValidCheckoutUrl('https://www.sandbox.paypal.com/checkoutnow?token=BA-TEST')).toBe(true);
       expect(isValidCheckoutUrl('https://www.paypal.com/checkoutnow?token=BA-TEST')).toBe(false);
+      expect(isValidCheckoutUrl('https://sandbox.whop.com/checkout/plan_test', undefined, 'whop')).toBe(true);
+      expect(isValidCheckoutUrl('https://whop.com/checkout/plan_test', undefined, 'whop')).toBe(false);
 
       // 2. VITE_BILLING_PUBLIC_MODE=production -> Live allowed, Sandbox rejected
       import.meta.env.VITE_BILLING_PUBLIC_MODE = 'production';
       expect(getApprovedPayPalOrigins()).toEqual(['https://www.paypal.com']);
       expect(isValidCheckoutUrl('https://www.paypal.com/checkoutnow?token=BA-PROD')).toBe(true);
       expect(isValidCheckoutUrl('https://www.sandbox.paypal.com/checkoutnow?token=BA-PROD')).toBe(false);
+      expect(isValidCheckoutUrl('https://whop.com/checkout/plan_test', undefined, 'whop')).toBe(true);
+      expect(isValidCheckoutUrl('https://sandbox.whop.com/checkout/plan_test', undefined, 'whop')).toBe(false);
 
       // 3. disabled -> both rejected
       import.meta.env.VITE_BILLING_PUBLIC_MODE = 'disabled';

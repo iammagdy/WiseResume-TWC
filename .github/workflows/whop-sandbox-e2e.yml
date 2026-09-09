@@ -92,9 +92,14 @@ jobs:
         run: node scripts/deploy_hubs.cjs --only="billing-checkout,ai-gateway,coupons"
 
       - name: Run Whop isolation and checkout tests
-        run: node --test tests/hubs/whop-resolver.test.cjs tests/hubs/billing-checkout.test.cjs tests/hubs/coupons-subscription.test.cjs
+        run: node --test tests/hubs/whop-resolver.test.cjs tests/hubs/billing-checkout.test.cjs tests/hubs/coupons-subscription.test.cjs tests/hubs/whop-checkout.test.cjs
 
       - name: Build feature branch frontend
+        env:
+          VITE_BILLING_PUBLIC_MODE: sandbox
+          VITE_CHECKOUT_ENVIRONMENT: sandbox
+          VITE_BILLING_ENVIRONMENT: sandbox
+          VITE_WHOP_CHECKOUT_ENVIRONMENT: sandbox
         run: npm run build
 
       - name: Start feature-branch preview
