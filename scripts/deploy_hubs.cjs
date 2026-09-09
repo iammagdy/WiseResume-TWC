@@ -1090,6 +1090,7 @@ async function ensureCouponsWiseHireVariables(fnIds) {
 
             const qaUserId = process.env.BILLING_CHECKOUT_QA_USER_ID ||
                 await existingVariableValue('coupons', 'BILLING_CHECKOUT_QA_USER_ID');
+            if (qaUserId) await ensureVariable('coupons', 'BILLING_CHECKOUT_QA_USER_ID', qaUserId);
             const existingWhopQa = await existingVariableValue('coupons', 'WHOP_SANDBOX_QA_USER_ID');
             const targetWhopQa = existingWhopQa || process.env.WHOP_SANDBOX_QA_USER_ID;
             for (const [key, value] of [
