@@ -1,5 +1,43 @@
 # Project Atlas — Active Operational & Handover State
 
+## DevKit Billing & Entitlements 2026 Refresh — Reconciled, Deployed & Production Verified (2026-09-09)
+
+* **Verdict:** `VERIFIED_READY`
+* **Status:** `PRODUCTION_DEPLOYED__DEVKIT_REFRESH_PASSED__ENTITLEMENT_DATA_MUTATION_NONE`
+* **Authority & Mandate:**
+  - Owner authorized complete end-to-end DevKit refresh reconciling August + September billing evolution.
+  - Multi-provider architecture acknowledged: Whop Sandbox QA, PayPal alternative, RevenueCat legacy, manual grants, trials, coupons.
+  - Public display label `Ultimate` decoupled from internal canonical database/API key `premium`.
+  - Strictly zero mutations to existing customer entitlements or subscriptions (`ENTITLEMENT_DATA_MUTATION = NONE`).
+  - Active provider warning modal prevents accidental plan overrides on users with active subscriptions.
+* **Pull Request Merged:**
+  - **PR #328 (`feat/devkit-billing-entitlements-refresh`):** Squash merged to `main` at commit `bf6fc37b` after green CI checks (`Security regression suite: pass`, `Typecheck + portfolio tests: pass`, `Vercel: pass`).
+* **Deployments:**
+  - **Vercel Production Deployment:** Deployment `6355433541` (commit `bf6fc37b`) completed `SUCCESS` (`Deployment has completed`). Verified live on `https://wiseresume.app`.
+  - **Targeted Appwrite Deployment (`admin-devkit-data`):** Workflow `deploy-appwrite-hubs.yml` run `34382160988` (Job `102569422214`) completed `SUCCESS` in 1m1s. Active source hash: `2c9407515c1856ee38709466c3c8ead5c60d992340a0a0ecdec74cb7b111eeee`.
+* **Backend Billing Intelligence in `admin-devkit-data`:**
+  - Authoritative multi-provider resolver priority: Active Paid Provider > Active Trial > Active Coupon > Manual Admin Grant > Pure Free.
+  - Access classification: `PAID_PROVIDER`, `MANUAL_ADMIN`, `MANUAL_PLUS_PAID_PROVIDER`, `MULTIPLE_PROVIDER_SOURCES`, `LEGACY_PROVIDER`, `TRIAL`, `COUPON`, `FREE`.
+  - New action: `get-user-billing` returns `why_effective` natural language explanation, provider subscription details (Whop, PayPal, RevenueCat) with masked external IDs, payment confirmation evidence, and event timeline.
+  - Global stats updated to truthfully count active Whop and PayPal subscriptions.
+  - Contract test suite: `tests/hubs/devkit-billing-intelligence.test.cjs` passes 18/18 scenarios (100%).
+* **Frontend DevKit UI Refresh:**
+  - `src/lib/devkit/planDisplay.ts`: Authoritative presentation mapping helpers (`getPlanDisplayLabel`, `formatAccessSource`, `getSourceBadgeStyle`, `formatProviderStatus`, `formatAccessClassification`) + unit tests (13/13 passing).
+  - `src/components/dev-kit/AdminUsersPanel.tsx`: Updated God Mode stats card to `Ultimate Users` (`effective_plan = premium`), filter tabs display `Ultimate` (internal key `premium`), table columns show Effective Plan (badge + source pill), Base Plan, Provider badge (source + status + env), quick action buttons (`U`, `P`, `F`), and active-provider warning before manual plan changes.
+  - `src/components/dev-kit/UserDetailDrawer.tsx`: Added comprehensive **Access & Entitlements** section, Effective Plan badge and source pill in top header, "Why this plan" card, provider cards, timeline, and provider override warning dialog.
+  - Canonical post-mutation refetching via `fetchPage(page)` and `fetchBilling(user.user_id)`.
+* **Runtime Audits & Production Browser QA:**
+  - **Live Appwrite Audit:** Executed via GitHub Actions run `34382556142` (`whop-sandbox-e2e.yml` in `audit_qa_vars` mode). Verified `ENTITLEMENT_DATA_MUTATION = NONE` across 68 total auth users (60 free, 1 pro, 7 ultimate, 8 manual grants, 2 whop, 4 revenuecat; identical to pre-deployment baseline). Report committed to `Project Atlas/reports/devkit/2026-09-09-legacy-premium-accounts-audit.md`.
+  - **Headless Edge CDP Browser QA:**
+    - Panel Verification (`prod_devkit_01_users_panel.png`): God Mode stat cards show Total (68), Ultimate (7, `effective_plan = premium`), Pro (1, `effective_plan = pro`); filter tabs display `Ultimate`; table rows display Effective Plan badges with provider source pills (`Whop`, `Manual Grant`), Base Plan, Provider status, and quick action buttons (`U`, `P`, `F`).
+    - UserDetailDrawer Verification (`prod_devkit_02_user_drawer_access.png`, `prod_devkit_04_drawer_access_details.png`): Header displays user identity, Pro badge, and Whop source pill; Access & Entitlements section displays Effective Plan, Base Stored Plan, Classification (`Paid Provider Subscriber`), and Plan Override controls with `Ultimate`.
+    - Active-Provider Warning Modal Verification (`prod_devkit_03_active_provider_warning.png`): Clicking plan override on an active provider user prompts `⚠️ Active Provider Subscription Detected` warning modal explaining that manual overrides do not cancel recurring billing in the provider dashboard.
+* **Safety Boundaries Retained:**
+  - Zero checkouts or payments created.
+  - Whop Production remains DISABLED / NOT ACTIVATED.
+  - Sandbox checkout strictly gated to `WHOP_SANDBOX_QA_USER_ID`.
+  - All PII masked in reports and logs.
+
 ## Final Same-Day Closeout: CI Fix, TestSprite Removed, Subscription Regressions Merged, Production Deployed & Verified (2026-09-09)
 
 * **Verdict:** `VERIFIED_READY`

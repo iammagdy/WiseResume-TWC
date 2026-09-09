@@ -1,6 +1,27 @@
 # WiseResume Atlas Master Changelog
 
-### 2026-09-09 - Final Same-Day Closeout: CI Fix, TestSprite Removed, Subscription Regressions Merged, Production Deployed & Verified
+### 2026-09-09 - DevKit Billing & Entitlements 2026 Refresh: Multi-Provider Reconciliation, Ultimate Labeling, Targeted Hub Deployment & Production Verification
+
+- **Verdict:** `VERIFIED_READY` (Status: `PRODUCTION_DEPLOYED__DEVKIT_REFRESH_PASSED__ENTITLEMENT_DATA_MUTATION_NONE`).
+- **PR #328 Merged (`feat/devkit-billing-entitlements-refresh`):** Reconciled DevKit/Admin dashboard with multi-provider reality (Whop Sandbox QA, PayPal alternative, RevenueCat legacy, manual grants, trials, coupons) while decoupling public display (`Ultimate`) from internal canonical database/API keys (`premium`). Merged to `main` at `bf6fc37b`.
+- **Backend Billing Intelligence in `admin-devkit-data`:**
+  - Integrated shared subscription resolver with authoritative provider precedence: Active Paid Provider > Active Trial > Active Coupon > Manual Admin Grant > Pure Free.
+  - Implemented access classification (`PAID_PROVIDER`, `MANUAL_ADMIN`, `MANUAL_PLUS_PAID_PROVIDER`, `MULTIPLE_PROVIDER_SOURCES`, `LEGACY_PROVIDER`, `TRIAL`, `COUPON`, `FREE`).
+  - Added `get-user-billing` action yielding `why_effective` explanation, provider status cards (Whop, PayPal, RevenueCat) with masked external IDs, payment confirmation evidence, and event timeline.
+  - Updated global stats to count active Whop and PayPal subscriptions distinctly.
+  - Comprehensive contract test suite (`tests/hubs/devkit-billing-intelligence.test.cjs`) covering all 18 multi-provider billing scenarios: 18/18 passed (100%).
+- **Frontend DevKit UI Refresh:**
+  - `src/lib/devkit/planDisplay.ts`: Authoritative presentation mapping helpers (`getPlanDisplayLabel`, `formatAccessSource`, `getSourceBadgeStyle`, `formatProviderStatus`, `formatAccessClassification`) + unit test suite (13/13 passed).
+  - `AdminUsersPanel.tsx`: Updated God Mode stats card to `Ultimate Users` (`effective_plan = premium`), filter tabs display `Ultimate` (internal key `premium`), table columns show Effective Plan (badge + source pill), Base Plan, Provider badge (source + status + env), quick action buttons (`U`, `P`, `F`), and active-provider warning before manual plan changes.
+  - `UserDetailDrawer.tsx`: Added comprehensive **Access & Entitlements** section, Effective Plan badge and source pill in top header, "Why this plan" card, provider cards, timeline, and provider override warning dialog.
+  - Enforced canonical refetching (`await fetchPage(page)`, `await fetchBilling(user.user_id)`) with zero optimistic patching.
+- **Deployments:**
+  - Vercel Production deployment `6355433541` (commit `bf6fc37b`) completed `SUCCESS` and verified live on `https://wiseresume.app`.
+  - Targeted Appwrite deployment for `admin-devkit-data` via GitHub Actions run `34382160988` completed `SUCCESS` with source hash `2c9407515c1856ee38709466c3c8ead5c60d992340a0a0ecdec74cb7b111eeee`.
+- **Runtime Audits & Production QA:**
+  - Re-ran production read-only audit via GitHub Actions run `34382556142` (`whop-sandbox-e2e.yml` in `audit_qa_vars` mode): verified `ENTITLEMENT_DATA_MUTATION = NONE` (68 total users, 60 free, 1 pro, 7 ultimate, 8 manual grants, 2 whop, 4 revenuecat; identical to pre-deployment baseline).
+  - Headless Edge CDP browser QA against production `https://wiseresume.app/devkit`: verified God Mode stats card shows `ULTIMATE` (`effective_plan = premium`), search/filter tabs show `ULTIMATE`, table columns show Effective Plan / Base Plan / Provider, drawer displays Access & Entitlements and "Why this plan" cards, and active provider warning modal triggers on manual plan override.
+- **Strict Scope Boundaries:** Whop Production remains DISABLED / NOT ACTIVATED. Zero checkouts or payments created. All PII masked in reports and logs.
 
 - **Verdict:** `VERIFIED_READY` (Status: `PRODUCTION_DEPLOYED__FULL_BROWSER_QA_PASSED__ZERO_ERRORS`).
 - **PR #327 Merged (`fix/billing-one-time-contract-tests`):** Aligned 5 obsolete billing contract tests in `tests/hubs/billing-checkout.paypal.test.cjs` to enforce HTTP 400 `invalid_request: One-time purchases are no longer available.` following one-time purchase retirement. All 377 billing tests pass. Merged to `main` at `1e0aa83b`.
