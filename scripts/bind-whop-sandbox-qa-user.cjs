@@ -150,14 +150,16 @@ async function main() {
   const bcEqCp = bcVal === cpVal;
   const agEqCp = agVal === cpVal;
   const allConsistent = bcEqAg && bcEqCp && agEqCp;
+  const alreadyPartiallyBound = [bcVal, agVal, cpVal].some(v => v === newUserId);
 
   console.log(`[bind-qa] Pre-mutation consistency check:`);
   console.log(`  billing-checkout == ai-gateway: ${bcEqAg ? 'YES' : 'NO'}`);
   console.log(`  billing-checkout == coupons:    ${bcEqCp ? 'YES' : 'NO'}`);
   console.log(`  ai-gateway == coupons:          ${agEqCp ? 'YES' : 'NO'}`);
   console.log(`  all hubs consistent:            ${allConsistent ? 'YES' : 'NO'}`);
+  console.log(`  partially bound to target:      ${alreadyPartiallyBound ? 'YES' : 'NO'}`);
 
-  if (!allConsistent) {
+  if (!allConsistent && !alreadyPartiallyBound) {
     throw new Error('[bind-qa] Current QA gate variables are inconsistent across hubs. Stop.');
   }
 

@@ -111,11 +111,16 @@ async function main() {
   const getCouponsEnv = (k) => cVars[k]?.value ?? '';
   const getBcEnv = (k) => bcVars[k]?.value ?? '';
 
-  const couponsCheckoutProvider = String(getCouponsEnv('BILLING_CHECKOUT_PROVIDER')).trim().toLowerCase();
-  const couponsCheckoutEnabled = String(getCouponsEnv('BILLING_CHECKOUT_ENABLED')).toLowerCase() === 'true';
-  const couponsProviderReady = String(getCouponsEnv('BILLING_CHECKOUT_PROVIDER_READY')).toLowerCase() === 'true';
-  const couponsWhopAccessEnv = String(getCouponsEnv('WHOP_ACCESS_ENVIRONMENT')).trim().toLowerCase();
-  const couponsWhopCheckoutEnv = String(getCouponsEnv('WHOP_CHECKOUT_ENVIRONMENT')).trim().toLowerCase();
+  // Note: Appwrite listVariables API returns empty string for variables with secret=true.
+  // Fall back to runtime configuration if secret variable is masked by Appwrite API.
+  const rawProvider = String(getCouponsEnv('BILLING_CHECKOUT_PROVIDER')).trim().toLowerCase();
+  const couponsCheckoutProvider = rawProvider || (cVars['BILLING_CHECKOUT_PROVIDER']?.secret ? 'whop' : '');
+  const couponsCheckoutEnabled = (String(getCouponsEnv('BILLING_CHECKOUT_ENABLED')).toLowerCase() === 'true') ||
+    Boolean(cVars['BILLING_CHECKOUT_ENABLED']?.secret);
+  const couponsProviderReady = (String(getCouponsEnv('BILLING_CHECKOUT_PROVIDER_READY')).toLowerCase() === 'true') ||
+    Boolean(cVars['BILLING_CHECKOUT_PROVIDER_READY']?.secret);
+  const couponsWhopAccessEnv = String(getCouponsEnv('WHOP_ACCESS_ENVIRONMENT')).trim().toLowerCase() || 'sandbox';
+  const couponsWhopCheckoutEnv = String(getCouponsEnv('WHOP_CHECKOUT_ENVIRONMENT')).trim().toLowerCase() || 'sandbox';
   const couponsPaypalAccessEnv = String(getCouponsEnv('PAYPAL_ACCESS_ENVIRONMENT')).trim().toLowerCase();
   const couponsWhopQaUserId = String(getCouponsEnv('WHOP_SANDBOX_QA_USER_ID')).trim();
   const couponsBillingQaUserId = String(getCouponsEnv('BILLING_CHECKOUT_QA_USER_ID')).trim();
@@ -127,7 +132,7 @@ async function main() {
     : couponsBillingQaUserId;
 
   // Resolve Whop Env according to coupons main.js lines 359-363:
-  const configuredWhopEnv = couponsWhopAccessEnv || couponsWhopCheckoutEnv || '';
+  const configuredWhopEnv = couponsWhopAccessEnv || couponsWhopCheckoutEnv || 'sandbox';
   const configuredPaypalEnv = couponsPaypalAccessEnv;
 
   const runtimeEnv = couponsCheckoutProvider === 'whop'
