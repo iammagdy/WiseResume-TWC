@@ -2,6 +2,15 @@ name: Whop Sandbox E2E
 
 on:
   workflow_dispatch:
+    inputs:
+      mode:
+        description: 'E2E run mode'
+        required: false
+        default: 'full_e2e'
+        type: choice
+        options:
+          - full_e2e
+          - verify_existing_payment
 
 permissions:
   contents: read
@@ -67,6 +76,7 @@ jobs:
           NODE
 
       - name: Deploy only Whop QA-ID consumers
+        if: github.event.inputs.mode != 'verify_existing_payment'
         env:
           APPWRITE_ENDPOINT: https://fra.cloud.appwrite.io/v1
           APPWRITE_PROJECT_ID: 69fd362b001eb325a192
@@ -95,6 +105,7 @@ jobs:
         run: node --test tests/hubs/whop-resolver.test.cjs tests/hubs/billing-checkout.test.cjs tests/hubs/coupons-subscription.test.cjs tests/hubs/whop-checkout.test.cjs
 
       - name: Build feature branch frontend
+        if: github.event.inputs.mode != 'verify_existing_payment'
         env:
           VITE_BILLING_PUBLIC_MODE: sandbox
           VITE_CHECKOUT_ENVIRONMENT: sandbox
@@ -103,6 +114,7 @@ jobs:
         run: npm run build
 
       - name: Start feature-branch preview
+        if: github.event.inputs.mode != 'verify_existing_payment'
         run: |
           (npm run preview -- --host 127.0.0.1 --port 4173 > /tmp/wiseresume-preview.log 2>&1 & echo $! > /tmp/wiseresume-preview.pid)
           for attempt in $(seq 1 30); do
@@ -113,6 +125,7 @@ jobs:
           exit 1
 
       - name: Run authenticated Whop Sandbox browser E2E
+        if: github.event.inputs.mode != 'verify_existing_payment'
         env:
           E2E_BASE_URL: http://127.0.0.1:4173
           WISE_RESUME_E2E_EMAIL: ${{ secrets.WISE_RESUME_E2E_EMAIL }}
@@ -125,8 +138,24 @@ jobs:
           WHOP_SANDBOX_PREMIUM_PLAN_ID: plan_YCBJ6FvCkKuRv
         run: node scripts/run-whop-sandbox-e2e.mjs
 
+      - name: Run read-only post-payment verification
+        if: github.event.inputs.mode == 'verify_existing_payment'
+        env:
+          APPWRITE_ENDPOINT: https://fra.cloud.appwrite.io/v1
+          APPWRITE_PROJECT_ID: 69fd362b001eb325a192
+          APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
+          WHOP_SANDBOX_API_KEY: ${{ secrets.WHOP_SANDBOX_API_KEY }}
+          WHOP_SANDBOX_QA_USER_ID: ${{ steps.provision.outputs.qa_user_id }}
+          WHOP_ACCESS_ENVIRONMENT: sandbox
+          WHOP_CHECKOUT_ENVIRONMENT: sandbox
+          WHOP_SANDBOX_COMPANY_ID: biz_4To0HUTEuAbKkl
+          WHOP_SANDBOX_PRODUCT_ID: prod_b7Vm6yYS2ROI6
+          WHOP_SANDBOX_PRO_PLAN_ID: plan_ECWULjIBMFBE5
+          WHOP_SANDBOX_PREMIUM_PLAN_ID: plan_YCBJ6FvCkKuRv
+        run: node scripts/verify-whop-sandbox-post-payment.cjs
+
       - name: Dump billing-checkout execution logs on failure
-        if: always()
+        if: always() && github.event.inputs.mode != 'verify_existing_payment'
         env:
           APPWRITE_ENDPOINT: https://fra.cloud.appwrite.io/v1
           APPWRITE_PROJECT_ID: 69fd362b001eb325a192
