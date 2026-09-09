@@ -180,6 +180,35 @@ async function main() {
   console.log(`bcQaUser:               ${maskId(bcQaUser)} (matches=${bcQaUser === userId})`);
 
   console.log('\n======================================================');
+  console.log('6. LIVE EXECUTION OF coupons HUB (get-subscription)');
+  console.log('======================================================');
+  try {
+    const jwtObj = await users.createJWT(userId);
+    const execution = await functions.createExecution(
+      'coupons',
+      JSON.stringify({
+        action: 'get-subscription',
+        __headers: {
+          'X-Appwrite-JWT': jwtObj.jwt,
+        },
+      }),
+      false, // synchronous
+      '/',
+      'POST',
+      {
+        'content-type': 'application/json',
+      }
+    );
+    console.log(`Execution status: ${execution.status} (code: ${execution.statusCode})`);
+    console.log(`Execution response: ${execution.responseBody}`);
+    if (execution.errors) {
+      console.log(`Execution errors: ${execution.errors}`);
+    }
+  } catch (err) {
+    console.log(`Execution invocation failed: ${err.message}`);
+  }
+
+  console.log('\n======================================================');
   console.log('AUDIT COMPLETED SAFELY — NO CHECKOUT/PAYMENT/DEPLOY');
   console.log('======================================================\n');
 }
