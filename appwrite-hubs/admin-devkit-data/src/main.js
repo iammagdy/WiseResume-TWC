@@ -4,7 +4,7 @@ const sdk = require('node-appwrite');
 const axios = require('axios');
 const crypto = require('crypto');
 const { normalizeUserQuery, filterAndSortUsers } = require('./user-query.cjs');
-const { deriveExactUserCounts, buildUsageStats, summarizeCompletionHealth } = require('./phase1-semantics.cjs');
+const { deriveExactUserCounts, buildUsageStats, summarizeCompletionHealth, effectivePlanCount } = require('./phase1-semantics.cjs');
 const {
   resolveEffectivePlan,
   buildPlanCandidates,
@@ -882,71 +882,68 @@ async function handleGlobalStats(log) {
   const todaySince = new Date(new Date().setHours(0, 0, 0, 0)).toISOString();
   const [
     profiles,
-    premiumEffective,
-    premiumBase,
-    proEffective,
-    proBase,
+    subscriptionsRes,
     suspended,
     auth,
     activeToday,
     whopStates,
     paypalStates,
+    rcStates,
   ] = await Promise.all([
     safeList(null, 'profiles', [sdk.Query.limit(1)]),
-    safeList(null, 'subscriptions', [sdk.Query.equal('effective_plan', 'premium'), sdk.Query.limit(1)]),
-    safeList(null, 'subscriptions', [sdk.Query.equal('plan', 'premium'), sdk.Query.limit(1)]),
-    safeList(null, 'subscriptions', [sdk.Query.equal('effective_plan', 'pro'), sdk.Query.limit(1)]),
-    safeList(null, 'subscriptions', [sdk.Query.equal('plan', 'pro'), sdk.Query.limit(1)]),
+    safeList(null, 'subscriptions', [sdk.Query.limit(500)]),
     safeList(null, 'profiles', [sdk.Query.equal('is_suspended', true), sdk.Query.limit(1)]),
     listUsers([sdk.Query.limit(1)]).catch(e => ({ total: null, error: e.message })),
     countUniqueTodayVisitors(todaySince),
-    safeList(null, WHOP_STATE_COLLECTION, [sdk.Query.equal('status', 'active'), sdk.Query.limit(100)]),
-    safeList(null, PAYPAL_STATE_COLLECTION, [sdk.Query.equal('status', 'active'), sdk.Query.limit(100)]),
+    safeList(null, WHOP_STATE_COLLECTION, [sdk.Query.limit(500)]),
+    safeList(null, PAYPAL_STATE_COLLECTION, [sdk.Query.limit(500)]),
+    safeList(null, PROVIDER_STATE_COLLECTION, [sdk.Query.limit(500)]),
   ]);
 
-  const metric = source => effectivePlanCount(source);
-
+  const totalUsers = auth.error ? null : (auth.total ?? 0);
+  const subDocs = subscriptionsRes.documents || [];
   const whopDocs = whopStates.documents || [];
   const paypalDocs = paypalStates.documents || [];
+  const rcDocs = rcStates.documents || [];
 
-  let activeWhopPro = 0;
-  let activeWhopPremium = 0;
-  for (const w of whopDocs) {
-    if (w.plan === 'pro') activeWhopPro++;
-    if (w.plan === 'premium' || w.plan === 'ultimate') activeWhopPremium++;
-  }
-
-  let activePaypalPro = 0;
-  let activePaypalPremium = 0;
-  for (const p of paypalDocs) {
-    if (p.plan === 'pro') activePaypalPro++;
-    if (p.plan === 'premium' || p.plan === 'ultimate') activePaypalPremium++;
-  }
-
-  const resolvedProTotal = (metric(proEffective) || 0) + activeWhopPro + activePaypalPro;
-  const resolvedPremiumTotal = (metric(premiumEffective) || 0) + activeWhopPremium + activePaypalPremium;
+  // Canonical user-level aggregation: evaluate each unique user with potential paid signals
+  // using resolveUserPlanDetails so every user is counted in AT MOST ONE effective plan.
+  const aggregated = aggregateCanonicalUserStats({
+    subscriptions: subDocs,
+    whopStates: whopDocs,
+    paypalStates: paypalDocs,
+    rcStates: rcDocs,
+    totalAuthUsers: totalUsers,
+  });
 
   const availability = {
     total: auth.error ? 'error' : 'available',
     profiles: profiles.error ? 'error' : 'available',
-    premium: premiumEffective.error ? 'error' : 'available',
-    pro: proEffective.error ? 'error' : 'available',
+    subscriptions: subscriptionsRes.error ? 'error' : 'available',
+    whop: whopStates.error ? 'error' : 'available',
+    paypal: paypalStates.error ? 'error' : 'available',
+    revenuecat: rcStates.error ? 'error' : 'available',
     suspended: suspended.error ? 'error' : 'available',
     activeToday: activeToday.error ? 'error' : (activeToday.truncated ? 'partial' : 'available'),
   };
-  log(`handleGlobalStats: effective_plan premium=${resolvedPremiumTotal} pro=${resolvedProTotal}; activeToday=${activeToday.count ?? 'unavailable'}`);
+
+  log(`handleGlobalStats: canonical effective_plan premium=${aggregated.premium} pro=${aggregated.pro} free=${aggregated.free}; activeToday=${activeToday.count ?? 'unavailable'}`);
+
   return {
-    total: auth.error ? null : (auth.total ?? 0),
-    profilesTotal: metric(profiles),
-    premium: resolvedPremiumTotal,
-    ultimate: resolvedPremiumTotal,
-    pro: resolvedProTotal,
-    suspended: metric(suspended),
+    total: totalUsers,
+    profilesTotal: profiles.total ?? null,
+    premium: aggregated.premium,
+    ultimate: aggregated.ultimate,
+    pro: aggregated.pro,
+    free: aggregated.free,
+    suspended: suspended.total ?? null,
     activeToday: activeToday.count,
+    provider_state_counts: aggregated.provider_state_counts,
     sources: {
-      ultimate: { field: 'effective_plan', count: resolvedPremiumTotal, legacyPlanCount: metric(premiumBase), status: availability.premium },
-      premium: { field: 'effective_plan', count: resolvedPremiumTotal, legacyPlanCount: metric(premiumBase), status: availability.premium },
-      pro: { field: 'effective_plan', count: resolvedProTotal, legacyPlanCount: metric(proBase), status: availability.pro },
+      ultimate: { field: 'canonical_effective_plan', count: aggregated.ultimate, status: availability.subscriptions },
+      premium: { field: 'canonical_effective_plan', count: aggregated.premium, status: availability.subscriptions },
+      pro: { field: 'canonical_effective_plan', count: aggregated.pro, status: availability.subscriptions },
+      free: { field: 'canonical_effective_plan', count: aggregated.free, status: availability.total },
     },
     availability,
   };
@@ -975,6 +972,222 @@ async function getPaypalProviderState(databases, userId) {
 async function getWhopProviderState(databases, userId) {
   const res = await safeList(databases, WHOP_STATE_COLLECTION, [sdk.Query.equal('user_id', userId), sdk.Query.limit(1)]);
   return res.documents[0] || null;
+}
+
+function aggregateCanonicalUserStats({
+  subscriptions = [],
+  whopStates = [],
+  paypalStates = [],
+  rcStates = [],
+  totalAuthUsers = null,
+  resolveUserPlanDetailsFn = resolveUserPlanDetails,
+}) {
+  const userCandidatesMap = new Map();
+  for (const s of subscriptions) {
+    if (!s.user_id) continue;
+    if (!userCandidatesMap.has(s.user_id)) {
+      userCandidatesMap.set(s.user_id, { subscription: s, whop: null, paypal: null, rc: null });
+    } else {
+      userCandidatesMap.get(s.user_id).subscription = s;
+    }
+  }
+  for (const w of whopStates) {
+    if (!w.user_id) continue;
+    if (!userCandidatesMap.has(w.user_id)) {
+      userCandidatesMap.set(w.user_id, { subscription: null, whop: w, paypal: null, rc: null });
+    } else {
+      userCandidatesMap.get(w.user_id).whop = w;
+    }
+  }
+  for (const p of paypalStates) {
+    if (!p.user_id) continue;
+    if (!userCandidatesMap.has(p.user_id)) {
+      userCandidatesMap.set(p.user_id, { subscription: null, whop: null, paypal: p, rc: null });
+    } else {
+      userCandidatesMap.get(p.user_id).paypal = p;
+    }
+  }
+  for (const r of rcStates) {
+    if (!r.user_id) continue;
+    if (!userCandidatesMap.has(r.user_id)) {
+      userCandidatesMap.set(r.user_id, { subscription: null, whop: null, paypal: null, rc: r });
+    } else {
+      userCandidatesMap.get(r.user_id).rc = r;
+    }
+  }
+
+  let canonicalPremiumUsers = 0;
+  let canonicalProUsers = 0;
+
+  for (const [userId, candidateData] of userCandidatesMap.entries()) {
+    const { resolution } = resolveUserPlanDetailsFn({
+      subscription: candidateData.subscription,
+      providerState: candidateData.rc,
+      whopProviderState: candidateData.whop,
+      paypalProviderState: candidateData.paypal,
+      userId,
+    });
+    if (resolution.plan === 'premium') {
+      canonicalPremiumUsers++;
+    } else if (resolution.plan === 'pro') {
+      canonicalProUsers++;
+    }
+  }
+
+  const canonicalFreeUsers = totalAuthUsers !== null
+    ? Math.max(0, totalAuthUsers - canonicalPremiumUsers - canonicalProUsers)
+    : null;
+
+  let whopActivePro = 0;
+  let whopActivePremium = 0;
+  for (const w of whopStates) {
+    if (['active', 'trialing'].includes(String(w.status).toLowerCase())) {
+      if (w.plan === 'pro') whopActivePro++;
+      if (w.plan === 'premium' || w.plan === 'ultimate') whopActivePremium++;
+    }
+  }
+
+  let paypalActivePro = 0;
+  let paypalActivePremium = 0;
+  for (const p of paypalStates) {
+    if (['active', 'trialing', 'approved'].includes(String(p.status).toLowerCase())) {
+      if (p.plan === 'pro') paypalActivePro++;
+      if (p.plan === 'premium' || p.plan === 'ultimate') paypalActivePremium++;
+    }
+  }
+
+  let rcActivePro = 0;
+  let rcActivePremium = 0;
+  for (const r of rcStates) {
+    if (['active', 'trialing'].includes(String(r.status).toLowerCase())) {
+      if (r.plan === 'pro') rcActivePro++;
+      if (r.plan === 'premium' || r.plan === 'ultimate') rcActivePremium++;
+    }
+  }
+
+  const provider_state_counts = {
+    whop: {
+      active_pro: whopActivePro,
+      active_ultimate: whopActivePremium,
+      active_total: whopActivePro + whopActivePremium,
+      total_records: whopStates.length,
+    },
+    paypal: {
+      active_pro: paypalActivePro,
+      active_ultimate: paypalActivePremium,
+      active_total: paypalActivePro + paypalActivePremium,
+      total_records: paypalStates.length,
+    },
+    revenuecat: {
+      active_pro: rcActivePro,
+      active_ultimate: rcActivePremium,
+      active_total: rcActivePro + rcActivePremium,
+      total_records: rcStates.length,
+    },
+  };
+
+  return {
+    premium: canonicalPremiumUsers,
+    ultimate: canonicalPremiumUsers,
+    pro: canonicalProUsers,
+    free: canonicalFreeUsers,
+    provider_state_counts,
+  };
+}
+
+function evaluatePaymentEvidence({ provider, state, ledger = [] }) {
+  if (!state) {
+    return {
+      payment_evidence_status: 'unavailable',
+      payment_evidence_source: null,
+      payment_evidence_at: null,
+      payment_confirmed: false,
+      payment_evidence: 'No subscription record on file',
+    };
+  }
+
+  if (provider === 'whop') {
+    // 1. Check for processed payment.succeeded event in ledger
+    const succeededLedgerEvent = (ledger || []).find(e =>
+      String(e.event_type || '').toLowerCase() === 'payment.succeeded' &&
+      ['processed', 'success', 'completed'].includes(String(e.processing_status || '').toLowerCase())
+    );
+
+    // 2. Or check latest_event_type on state document
+    const isStateSucceeded = String(state.latest_event_type || '').toLowerCase() === 'payment.succeeded';
+
+    if (succeededLedgerEvent || isStateSucceeded) {
+      const at = succeededLedgerEvent?.received_at ||
+        (succeededLedgerEvent?.event_timestamp_ms ? new Date(succeededLedgerEvent.event_timestamp_ms).toISOString() : null) ||
+        (state.latest_event_timestamp_ms ? new Date(state.latest_event_timestamp_ms).toISOString() : null) ||
+        state.updated_at || state.$updatedAt || null;
+      return {
+        payment_evidence_status: 'confirmed',
+        payment_evidence_source: succeededLedgerEvent ? 'whop_event_ledger' : 'whop_webhook_latest_event',
+        payment_evidence_at: at,
+        payment_confirmed: true,
+        payment_evidence: 'Confirmed payment via Whop payment.succeeded webhook',
+      };
+    }
+
+    return {
+      payment_evidence_status: 'not_confirmed',
+      payment_evidence_source: null,
+      payment_evidence_at: null,
+      payment_confirmed: false,
+      payment_evidence: 'Payment not confirmed (no processed payment.succeeded event)',
+    };
+  }
+
+  if (provider === 'paypal') {
+    const hasPaymentId = Boolean(state.last_entitlement_payment_id);
+    const succeededLedgerEvent = (ledger || []).find(e =>
+      ['payment.sale.completed', 'payment.capture.completed'].includes(String(e.event_type || '').toLowerCase()) &&
+      ['processed', 'success', 'completed'].includes(String(e.processing_status || '').toLowerCase())
+    );
+
+    if (hasPaymentId || succeededLedgerEvent) {
+      const at = state.last_entitlement_payment_ts_ms ? new Date(state.last_entitlement_payment_ts_ms).toISOString() :
+        (succeededLedgerEvent?.received_at ||
+         (succeededLedgerEvent?.event_timestamp_ms ? new Date(succeededLedgerEvent.event_timestamp_ms).toISOString() : null) ||
+         state.updated_at || state.$updatedAt || null);
+      const paymentId = state.last_entitlement_payment_id || succeededLedgerEvent?.payment_id || null;
+      return {
+        payment_evidence_status: 'confirmed',
+        payment_evidence_source: hasPaymentId ? 'paypal_subscription_state_capture' : 'paypal_event_ledger_sale_completed',
+        payment_evidence_at: at,
+        payment_confirmed: true,
+        payment_evidence: paymentId ? `Confirmed payment via PayPal capture (${paymentId})` : 'Confirmed payment via PayPal sale completed',
+      };
+    }
+
+    return {
+      payment_evidence_status: 'not_confirmed',
+      payment_evidence_source: null,
+      payment_evidence_at: null,
+      payment_confirmed: false,
+      payment_evidence: 'Payment not confirmed (no capture or payment event recorded)',
+    };
+  }
+
+  if (provider === 'revenuecat') {
+    const isActive = String(state.status || '').toLowerCase() === 'active';
+    return {
+      payment_evidence_status: 'unavailable',
+      payment_evidence_source: 'revenuecat_legacy_state',
+      payment_evidence_at: state.$updatedAt || null,
+      payment_confirmed: false,
+      payment_evidence: isActive ? 'Active legacy entitlement (authoritative receipt capture unavailable)' : 'Inactive legacy entitlement',
+    };
+  }
+
+  return {
+    payment_evidence_status: 'unavailable',
+    payment_evidence_source: null,
+    payment_evidence_at: null,
+    payment_confirmed: false,
+    payment_evidence: 'Evidence unavailable',
+  };
 }
 
 function resolveUserPlanDetails({
@@ -1016,6 +1229,17 @@ function resolveUserPlanDetails({
     userId,
     nowMs,
   });
+
+  const valid_entitlement_providers = candidates
+    .filter(c => ['whop', 'paypal', 'revenuecat'].includes(c.source))
+    .map(c => c.source);
+  const valid_entitlement_provider = valid_entitlement_providers.length > 0;
+  const provider_record_present = Boolean(
+    (whopProviderState && (whopProviderState.membership_id || whopProviderState.status)) ||
+    (paypalProviderState && (paypalProviderState.subscription_id || paypalProviderState.status)) ||
+    (providerState && (providerState.status || providerState.plan))
+  );
+
   return {
     resolution: {
       ...resolution,
@@ -1025,15 +1249,30 @@ function resolveUserPlanDetails({
       ...c,
       rank: PLAN_RANK[c.plan] ?? 0,
     })),
+    valid_entitlement_providers,
+    valid_entitlement_provider,
+    provider_record_present,
   };
 }
 
-function classifyUserAccess({ subscription, whopState, paypalState, rcState, effective }) {
+function classifyUserAccess({ subscription, whopState, paypalState, rcState, effective, candidates, validProviders }) {
   const isPaidEffective = effective && (effective.plan === 'pro' || effective.plan === 'premium');
-  const hasWhop = whopState && (whopState.status === 'active' || whopState.status === 'completed' || whopState.status === 'trialing');
-  const hasPaypal = paypalState && (paypalState.status === 'active' || paypalState.status === 'approved' || paypalState.status === 'trialing');
-  const hasRc = rcState && (rcState.status === 'active' || rcState.status === 'trialing');
-  const activeProviders = [hasWhop && 'whop', hasPaypal && 'paypal', hasRc && 'revenuecat'].filter(Boolean);
+
+  // Authoritative provider validity: only consider providers accepted by shared resolver
+  const acceptedProviders = validProviders || (candidates
+    ? candidates.filter(c => ['whop', 'paypal', 'revenuecat'].includes(c.source)).map(c => c.source)
+    : null);
+
+  let activeProviders;
+  if (acceptedProviders) {
+    activeProviders = acceptedProviders;
+  } else {
+    // Defensive fallback when candidates are not supplied
+    const hasWhop = whopState && (whopState.status === 'active' || whopState.status === 'completed' || whopState.status === 'trialing');
+    const hasPaypal = paypalState && (paypalState.status === 'active' || paypalState.status === 'approved' || paypalState.status === 'trialing');
+    const hasRc = rcState && (rcState.status === 'active' || rcState.status === 'trialing');
+    activeProviders = [hasWhop && 'whop', hasPaypal && 'paypal', hasRc && 'revenuecat'].filter(Boolean);
+  }
 
   const basePlan = subscription?.plan;
   const hasManualPaid = basePlan === 'pro' || basePlan === 'premium';
@@ -1066,7 +1305,7 @@ function buildBillingExplanation({ effective, candidates, subscription, whopStat
       paypalState && paypalState.status === 'active' && `PayPal ${PLAN_LABELS[paypalState.plan] || paypalState.plan} (${paypalState.environment || 'sandbox'})`,
     ].filter(Boolean);
     if (activeProviders.length > 0) {
-      parts.push(`An active provider subscription (${activeProviders.join(', ')}) is also on file, but manual ${planLabel} takes precedence.`);
+      parts.push(`A provider subscription (${activeProviders.join(', ')}) is also on file, but manual ${planLabel} (tier rank ${effective.rank ?? 2}) takes precedence.`);
     }
   } else if (effective.source === 'whop') {
     parts.push(`User has ${planLabel} access via active Whop subscription in ${whopState?.environment || 'sandbox'} environment.`);
@@ -1272,7 +1511,7 @@ async function handleListUsersPage(body, log) {
       const paypalDoc = paypalMap.get(authUser.$id) || null;
       const rcDoc = rcMap.get(authUser.$id) || null;
 
-      const { resolution } = resolveUserPlanDetails({
+      const { resolution, candidates, valid_entitlement_providers, valid_entitlement_provider, provider_record_present } = resolveUserPlanDetails({
         subscription: s.$id ? s : null,
         providerState: rcDoc,
         whopProviderState: whopDoc,
@@ -1286,19 +1525,20 @@ async function handleListUsersPage(body, log) {
       const base_plan = s.plan ?? doc.plan ?? 'free';
       const base_plan_label = PLAN_LABELS[base_plan] || base_plan;
 
-      const activeProvider = (whopDoc?.status === 'active' || whopDoc?.status === 'trialing')
-        ? { source: 'whop', doc: whopDoc }
-        : (paypalDoc?.status === 'active' || paypalDoc?.status === 'trialing')
-          ? { source: 'paypal', doc: paypalDoc }
-          : (rcDoc?.status === 'active' || rcDoc?.status === 'trialing')
-            ? { source: 'revenuecat', doc: rcDoc }
-            : whopDoc
-              ? { source: 'whop', doc: whopDoc }
-              : paypalDoc
-                ? { source: 'paypal', doc: paypalDoc }
-                : rcDoc
-                  ? { source: 'revenuecat', doc: rcDoc }
-                  : null;
+      let selectedProvider = null;
+      if (valid_entitlement_providers.includes('whop')) {
+        selectedProvider = { source: 'whop', doc: whopDoc, valid: true };
+      } else if (valid_entitlement_providers.includes('paypal')) {
+        selectedProvider = { source: 'paypal', doc: paypalDoc, valid: true };
+      } else if (valid_entitlement_providers.includes('revenuecat')) {
+        selectedProvider = { source: 'revenuecat', doc: rcDoc, valid: true };
+      } else if (whopDoc) {
+        selectedProvider = { source: 'whop', doc: whopDoc, valid: false };
+      } else if (paypalDoc) {
+        selectedProvider = { source: 'paypal', doc: paypalDoc, valid: false };
+      } else if (rcDoc) {
+        selectedProvider = { source: 'revenuecat', doc: rcDoc, valid: false };
+      }
 
       const access_classification = classifyUserAccess({
         subscription: s.$id ? s : null,
@@ -1306,6 +1546,8 @@ async function handleListUsersPage(body, log) {
         paypalState: paypalDoc,
         rcState: rcDoc,
         effective: resolution,
+        candidates,
+        validProviders: valid_entitlement_providers,
       });
 
       return {
@@ -1322,9 +1564,11 @@ async function handleListUsersPage(body, log) {
         effective_plan,
         effective_plan_label,
         effective_source,
-        provider_source: activeProvider?.source || null,
-        provider_status: activeProvider?.doc?.status || null,
-        provider_environment: activeProvider?.doc?.environment || null,
+        provider_source: selectedProvider?.source || null,
+        provider_status: selectedProvider?.doc?.status || null,
+        provider_environment: selectedProvider?.doc?.environment || null,
+        valid_entitlement_provider: Boolean(selectedProvider?.valid),
+        provider_record_present,
         access_classification,
         plan_updated_at: s.$updatedAt ?? null,
         is_suspended: doc.is_suspended ?? false,
@@ -2376,7 +2620,7 @@ async function handleGetUserBilling(body, log) {
   const whopLedger = whopLedgerRes.documents || [];
   const paypalLedger = paypalLedgerRes.documents || [];
 
-  const { resolution, candidates } = resolveUserPlanDetails({
+  const { resolution, candidates, valid_entitlement_providers, valid_entitlement_provider, provider_record_present } = resolveUserPlanDetails({
     subscription,
     providerState: rcState,
     whopProviderState: whopState,
@@ -2396,6 +2640,8 @@ async function handleGetUserBilling(body, log) {
     paypalState,
     rcState,
     effective: resolution,
+    candidates,
+    validProviders: valid_entitlement_providers,
   });
 
   const why_effective = buildBillingExplanation({
@@ -2409,7 +2655,8 @@ async function handleGetUserBilling(body, log) {
 
   const providers = [];
   if (whopState) {
-    const isPaymentConfirmed = ['active', 'completed', 'paid'].includes(whopState.status);
+    const evidence = evaluatePaymentEvidence({ provider: 'whop', state: whopState, ledger: whopLedger });
+    const isValid = valid_entitlement_providers.includes('whop');
     providers.push({
       provider: 'whop',
       name: 'Whop',
@@ -2423,14 +2670,19 @@ async function handleGetUserBilling(body, log) {
       expires_at: whopState.expires_at || null,
       will_renew: whopState.will_renew !== false,
       latest_event_type: whopState.latest_event_type || null,
-      payment_confirmed: isPaymentConfirmed,
-      payment_evidence: isPaymentConfirmed ? 'Confirmed payment via Whop webhook' : 'Checkout session created (payment not confirmed)',
+      valid_entitlement_provider: isValid,
+      payment_confirmed: evidence.payment_confirmed,
+      payment_evidence_status: evidence.payment_evidence_status,
+      payment_evidence_source: evidence.payment_evidence_source,
+      payment_evidence_at: evidence.payment_evidence_at,
+      payment_evidence: evidence.payment_evidence,
       updated_at: whopState.updated_at || whopState.$updatedAt,
     });
   }
 
   if (paypalState) {
-    const isPaymentConfirmed = ['active', 'approved'].includes(paypalState.status);
+    const evidence = evaluatePaymentEvidence({ provider: 'paypal', state: paypalState, ledger: paypalLedger });
+    const isValid = valid_entitlement_providers.includes('paypal');
     providers.push({
       provider: 'paypal',
       name: 'PayPal',
@@ -2444,13 +2696,19 @@ async function handleGetUserBilling(body, log) {
       will_renew: paypalState.will_renew !== false,
       latest_event_type: paypalState.latest_event_type || null,
       last_payment_id: paypalState.last_entitlement_payment_id || null,
-      payment_confirmed: isPaymentConfirmed,
-      payment_evidence: isPaymentConfirmed ? 'Confirmed payment via PayPal webhook' : 'Subscription pending',
+      valid_entitlement_provider: isValid,
+      payment_confirmed: evidence.payment_confirmed,
+      payment_evidence_status: evidence.payment_evidence_status,
+      payment_evidence_source: evidence.payment_evidence_source,
+      payment_evidence_at: evidence.payment_evidence_at,
+      payment_evidence: evidence.payment_evidence,
       updated_at: paypalState.updated_at || paypalState.$updatedAt,
     });
   }
 
   if (rcState) {
+    const evidence = evaluatePaymentEvidence({ provider: 'revenuecat', state: rcState });
+    const isValid = valid_entitlement_providers.includes('revenuecat');
     providers.push({
       provider: 'revenuecat',
       name: 'RevenueCat',
@@ -2459,8 +2717,12 @@ async function handleGetUserBilling(body, log) {
       status: rcState.status,
       environment: rcState.environment,
       expires_at: rcState.expires_at || null,
-      payment_confirmed: rcState.status === 'active',
-      payment_evidence: rcState.status === 'active' ? 'Legacy RevenueCat active entitlement' : 'Inactive',
+      valid_entitlement_provider: isValid,
+      payment_confirmed: evidence.payment_confirmed,
+      payment_evidence_status: evidence.payment_evidence_status,
+      payment_evidence_source: evidence.payment_evidence_source,
+      payment_evidence_at: evidence.payment_evidence_at,
+      payment_evidence: evidence.payment_evidence,
       updated_at: rcState.$updatedAt,
     });
   }
@@ -2481,6 +2743,8 @@ async function handleGetUserBilling(body, log) {
       base_plan,
       base_plan_label,
       access_classification,
+      valid_entitlement_provider,
+      provider_record_present,
       candidates,
       why_effective,
       providers,
@@ -4000,4 +4264,6 @@ module.exports._test = {
   classifyUserAccess,
   buildBillingExplanation,
   buildBillingTimeline,
+  evaluatePaymentEvidence,
+  aggregateCanonicalUserStats,
 };

@@ -63,18 +63,23 @@ Total accounts touching `premium` / `ultimate` across any datastore: **10**
 
 ---
 
-## 4. Anomalies & Provider Inconsistencies
+## 4. Anomalies & Provider Inconsistencies (Reclassified)
 
-Detected Anomalies: **6**
+Detected Datastore Patterns: **6** (0 Requiring Immediate Manual Intervention)
 
-- **[ACTIVE_PROVIDER_BUT_STORED_FREE]**: `{"userId":"u_6a8***93c3","storedPlan":"free","effectivePlan":"free","provider":"revenuecat"}`
-- **[ACTIVE_PROVIDER_BUT_STORED_FREE]**: `{"userId":"u_6a8***92cb","storedPlan":"free","effectivePlan":"free","provider":"revenuecat"}`
-- **[ACTIVE_PROVIDER_BUT_STORED_FREE]**: `{"userId":"u_6a9***e4d6","storedPlan":"free","effectivePlan":"free","provider":"revenuecat"}`
-- **[ACTIVE_PROVIDER_BUT_STORED_FREE]**: `{"userId":"u_6a9***b7d0","storedPlan":"free","effectivePlan":"free","provider":"revenuecat"}`
-- **[ACTIVE_PROVIDER_BUT_STORED_FREE]**: `{"userId":"u_qa_***725e","storedPlan":"free","effectivePlan":"free","provider":"whop"}`
-- **[ACTIVE_PROVIDER_BUT_STORED_FREE]**: `{"userId":"u_6aa***ec13","storedPlan":"free","effectivePlan":"free","provider":"whop"}`
+| User ID | Provider | Stored Plan | Effective Plan | Classification | Detailed Root Cause Analysis | Action Required |
+|---|---|---|---|---|---|---|
+| `u_6a8***93c3` | RevenueCat | `free` | `free` | `LEGACY_MOBILE_STATE` | Grandfathered mobile record from 2025 development. Expiration timestamp is past / unrenewed; shared resolver correctly resolves effective access to Free. | None (Historical read-only record) |
+| `u_6a8***92cb` | RevenueCat | `free` | `free` | `LEGACY_MOBILE_STATE` | Grandfathered mobile record from 2025 development. Expiration timestamp is past; shared resolver correctly resolves effective access to Free. | None (Historical read-only record) |
+| `u_6a9***e4d6` | RevenueCat | `free` | `free` | `LEGACY_MOBILE_STATE` | Grandfathered mobile record from 2025 development. Expiration timestamp is past; shared resolver correctly resolves effective access to Free. | None (Historical read-only record) |
+| `u_6a9***b7d0` | RevenueCat | `free` | `free` | `LEGACY_MOBILE_STATE` | Grandfathered mobile record from 2025 development. Expiration timestamp is past; shared resolver correctly resolves effective access to Free. | None (Historical read-only record) |
+| `u_qa_***725e` | Whop | `free` | `free` | `SANDBOX_QA_GATED` | Internal QA test account with Sandbox Whop record. User ID does not match configured `WHOP_SANDBOX_QA_USER_ID`; shared resolver correctly enforces the Sandbox QA security boundary and rejects candidate. | None (Working as intended) |
+| `u_6aa***ec13` | Whop | `free` | `free` | `EXPECTED_ENVIRONMENT_ISOLATION` | Designated Whop Sandbox QA user (`debeg50114@fidhost.com`). In default Production environment audit mode, Sandbox provider records are fail-closed ignored (yielding Free). When evaluated in Sandbox QA mode, resolves to Pro. | None (Working as intended) |
 
-*Note: The `ACTIVE_PROVIDER_BUT_STORED_FREE` pattern occurs because the `profiles` collection only records the initial profile `plan: free`, while payment webhook state is stored in provider collections (`whop_subscription_state`, `revenuecat_subscription_state`). Prior to this DevKit refresh, the Admin Users panel read only `profiles` and `subscriptions`, showing these active paying users as Free. The 2026 DevKit billing intelligence refresh solves this by incorporating the authoritative multi-provider resolver.*
+### Architecture Context & Reconciliation:
+1. **Expected Architecture (`profiles.plan = 'free'`):** In WiseResume's multi-provider architecture, the `profiles` collection stores initial signup profile metadata (`plan: free`). Provider subscription lifecycles are written exclusively to dedicated provider collections (`whop_subscription_state`, `paypal_subscription_state`, `revenuecat_subscription_state`). A user having `profiles.plan: free` while holding provider documents is normal and expected architecture, not a data defect.
+2. **Authoritative Resolution:** The DevKit billing intelligence refresh incorporates the shared resolver (`buildPlanCandidates`), correctly evaluating environment matching, expiration timestamps, and Sandbox QA user gating.
+3. **Accounts Requiring Immediate Manual Review: 0.** None of these 6 accounts require manual data modification or intervention. All behavior conforms to expected architecture, sandbox gating, and legacy lifecycle boundaries.
 
 - Duplicate Provider Documents: **0**
 - Orphaned Provider Documents: **0**

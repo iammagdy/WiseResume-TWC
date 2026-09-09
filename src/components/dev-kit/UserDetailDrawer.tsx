@@ -27,6 +27,8 @@ import {
   getSourceBadgeStyle,
   formatProviderStatus,
   formatAccessClassification,
+  formatPaymentEvidenceStatus,
+  formatProviderValidation,
 } from '@/lib/devkit/planDisplay';
 
 export interface UserBillingProvider {
@@ -44,7 +46,11 @@ export interface UserBillingProvider {
   will_renew?: boolean;
   latest_event_type?: string | null;
   last_payment_id?: string | null;
+  valid_entitlement_provider?: boolean;
   payment_confirmed: boolean;
+  payment_evidence_status: 'confirmed' | 'unavailable' | 'not_confirmed';
+  payment_evidence_source?: string | null;
+  payment_evidence_at?: string | null;
   payment_evidence: string;
   updated_at?: string;
 }
@@ -66,6 +72,8 @@ export interface UserBillingDetails {
   base_plan: 'free' | 'pro' | 'premium';
   base_plan_label: string;
   access_classification: string;
+  valid_entitlement_provider?: boolean;
+  provider_record_present?: boolean;
   why_effective: string;
   providers: UserBillingProvider[];
   timeline: UserBillingTimelineItem[];
@@ -625,8 +633,8 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
     if (selectedPlan === user.plan_name && !forceOverride) { toast.info('Plan unchanged'); return; }
 
     const hasActiveProvider = Boolean(
-      billingDetails?.providers?.some(p => ['active', 'trialing', 'approved', 'completed'].includes(p.status.toLowerCase())) ||
-      (user.provider_source && ['active', 'trialing', 'approved', 'completed'].includes((user.provider_status || '').toLowerCase()))
+      billingDetails?.providers?.some(p => p.valid_entitlement_provider && ['active', 'trialing', 'approved', 'completed'].includes(p.status.toLowerCase())) ||
+      (user.valid_entitlement_provider && user.provider_source)
     );
 
     if (hasActiveProvider && !forceOverride) {
@@ -1729,16 +1737,24 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
                     <div className="space-y-2">
                       {billingDetails.providers.map((p, idx) => {
                         const statusObj = formatProviderStatus(p.status);
+                        const evidenceObj = formatPaymentEvidenceStatus(p.payment_evidence_status);
                         return (
                           <div key={`${p.provider}-${idx}`} className="p-3 rounded-xl border border-border bg-card/70 space-y-2 text-xs">
                             <div className="flex items-center justify-between">
                               <span className="font-bold text-foreground flex items-center gap-1.5">
-                                <span className={cn('w-2 h-2 rounded-full', p.payment_confirmed ? 'bg-emerald-500' : 'bg-amber-500')} />
+                                <span className={cn('w-2 h-2 rounded-full', evidenceObj.dotClass)} />
                                 {p.name} ({p.environment || 'production'})
                               </span>
-                              <span className={cn('text-[10px] uppercase font-bold', statusObj.className)}>
-                                {statusObj.label}
-                              </span>
+                              <div className="flex items-center gap-1.5">
+                                {p.valid_entitlement_provider === false && (
+                                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20 font-medium">
+                                    Inactive / Gated
+                                  </span>
+                                )}
+                                <span className={cn('text-[10px] uppercase font-bold', statusObj.className)}>
+                                  {statusObj.label}
+                                </span>
+                              </div>
                             </div>
                             <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-[11px] text-muted-foreground">
                               <div>Plan: <span className="font-semibold text-foreground">{p.plan_label}</span></div>
@@ -1746,12 +1762,23 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
                               {p.subscription_id && <div>Subscription: <span className="font-mono text-foreground">{p.subscription_id}</span></div>}
                               {p.expires_at && <div>Expires: <span className="text-foreground">{formatDate(p.expires_at)}</span></div>}
                             </div>
-                            {p.payment_evidence && (
-                              <div className="pt-1 border-t border-border/50 text-[10px] text-muted-foreground flex items-center justify-between">
-                                <span>Evidence: {p.payment_evidence}</span>
+                            <div className="pt-1.5 border-t border-border/50 text-[10px] text-muted-foreground space-y-1">
+                              <div className="flex items-center justify-between gap-2">
+                                <span className={cn('px-1.5 py-0.5 rounded text-[9px] font-semibold border inline-flex items-center gap-1', evidenceObj.badgeClass)}>
+                                  <span className={cn('w-1.5 h-1.5 rounded-full', evidenceObj.dotClass)} />
+                                  {evidenceObj.label}
+                                </span>
                                 {p.will_renew === false && <span className="text-amber-500 font-medium">Does not renew</span>}
                               </div>
-                            )}
+                              <p className="text-[10px] text-muted-foreground/80 leading-normal">
+                                {p.payment_evidence}
+                              </p>
+                              {p.payment_evidence_at && (
+                                <p className="text-[9px] text-muted-foreground/60">
+                                  Recorded: {formatDate(p.payment_evidence_at)} {p.payment_evidence_source ? `· ${p.payment_evidence_source}` : ''}
+                                </p>
+                              )}
+                            </div>
                           </div>
                         );
                       })}

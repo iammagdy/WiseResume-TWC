@@ -1,5 +1,28 @@
 # Project Atlas — Active Operational & Handover State
 
+## DevKit Billing Intelligence Truthfulness Hotfix — Evidence-Based Verification & Precedence Reconciliation (2026-09-09)
+
+* **Verdict:** `HOTFIX_VERIFIED__PENDING_MERGE_AND_TARGETED_DEPLOYMENT`
+* **Status:** `CONTRACT_TESTS_PASS_25_OF_25__SOURCE_HASH_UPDATED__PRECEDENCE_CORRECTED`
+* **Scope & Corrective Actions:**
+  - **Issue 1 (Payment Evidence Truthfulness):** Stopped inferring payment confirmation from provider subscription status (`active`, `completed`, `paid`). Added explicit `payment_evidence_status: 'confirmed' | 'unavailable' | 'not_confirmed'`, `payment_evidence_source`, and `payment_evidence_at`. Whop confirmed strictly on processed `payment.succeeded` event; PayPal confirmed strictly on capture/sale completed or `last_entitlement_payment_id`; RevenueCat truthfully marked `unavailable` with note "Active legacy entitlement (authoritative receipt capture unavailable)".
+  - **Issue 2 (Global Stats Deduplication):** Fixed double-counting in `handleGlobalStats`. Grouped records by `user_id` and evaluated canonical effective plan per user via `resolveEffectivePlan` in `aggregateCanonicalUserStats`. Guaranteed every user belongs to at most one bucket: Ultimate, Pro, or Free. Decoupled raw provider records into separate `provider_state_counts`.
+  - **Issue 3 (Provider Candidate Validity & Warning Alignment):** Evaluated candidate validity from the resolver (`valid_entitlement_provider` vs `provider_record_present`). Prevented false `PAID_PROVIDER` classifications and false warning modals when provider records are rejected/gated (e.g. Sandbox Whop on non-QA user).
+  - **Issue 4 (Resolver Precedence Truthfulness):** Reconciled documentation with canonical implementation in `appwrite-hubs/shared-subscription-resolver/index.js`: Tier-based precedence (`premium > pro > free`) across all valid candidates (paid providers, trials, coupons, manual grants), preserving earlier candidates on ties. PR #328's flat "Active Paid Provider > Active Trial > Active Coupon > Manual Admin Grant" description was inaccurate; shared resolver code was verified and left completely untouched.
+  - **Issue 5 (Legacy Audit Reclassification):** Reconciled "Accounts Requiring Review: 0" with the 6 detected anomalies in `Project Atlas/reports/devkit/2026-09-09-legacy-premium-accounts-audit.md`: 4 `LEGACY_MOBILE_STATE`, 1 `SANDBOX_QA_GATED`, 1 `EXPECTED_ENVIRONMENT_ISOLATION`. Confirmed 0 accounts require manual modification (`ENTITLEMENT_DATA_MUTATION = NONE`).
+  - **Issue 6 (QA Boundary Clarity):** Explicitly separated `MOCKED_PRODUCTION_BUNDLE_QA` from `LIVE_PRODUCTION_INTEGRATION_QA`. Provided `OWNER_BROWSER_VERIFICATION_REQUIRED` protocol for live administrative checks.
+* **Validation & Test Coverage:**
+  - `tests/hubs/devkit-billing-intelligence.test.cjs`: 25/25 passed (added payment evidence tests, stats deduplication test, resolver rejection test, manual admin + rejected provider test, and tier precedence test).
+  - `src/lib/devkit/planDisplay.test.ts`: 19/19 passed (added payment evidence status and provider validation helpers).
+  - `tsc --noEmit`: 0 errors.
+  - `npm run build`: Production bundle built clean in 53.98s (0 sourcemaps).
+  - Source hash for `admin-devkit-data` recomputed: `e721970ec968a3fd6d9b0726f4c5aac269393fb56606167dc0146ba480e1e76f`.
+* **Safety Boundaries Retained:**
+  - Whop Production remains DISABLED / NOT ACTIVATED.
+  - Public checkout remains strictly isolated to `WHOP_SANDBOX_QA_USER_ID`.
+  - Shared resolver code left untouched.
+  - Zero mutations to existing customer entitlements or subscriptions.
+
 ## DevKit Billing & Entitlements 2026 Refresh — Reconciled, Deployed & Production Verified (2026-09-09)
 
 * **Verdict:** `VERIFIED_READY`
@@ -16,11 +39,11 @@
   - **Vercel Production Deployment:** Deployment `6355433541` (commit `bf6fc37b`) completed `SUCCESS` (`Deployment has completed`). Verified live on `https://wiseresume.app`.
   - **Targeted Appwrite Deployment (`admin-devkit-data`):** Workflow `deploy-appwrite-hubs.yml` run `34382160988` (Job `102569422214`) completed `SUCCESS` in 1m1s. Active source hash: `2c9407515c1856ee38709466c3c8ead5c60d992340a0a0ecdec74cb7b111eeee`.
 * **Backend Billing Intelligence in `admin-devkit-data`:**
-  - Authoritative multi-provider resolver priority: Active Paid Provider > Active Trial > Active Coupon > Manual Admin Grant > Pure Free.
+  - Canonical multi-provider resolver priority: Tier-based rank (premium > pro > free) across all valid candidates (paid providers, trials, coupons, manual grants), preserving earlier candidates on ties. (Note: PR #328's initial notes described this as provider-source-based; corrected in hotfix).
   - Access classification: `PAID_PROVIDER`, `MANUAL_ADMIN`, `MANUAL_PLUS_PAID_PROVIDER`, `MULTIPLE_PROVIDER_SOURCES`, `LEGACY_PROVIDER`, `TRIAL`, `COUPON`, `FREE`.
   - New action: `get-user-billing` returns `why_effective` natural language explanation, provider subscription details (Whop, PayPal, RevenueCat) with masked external IDs, payment confirmation evidence, and event timeline.
-  - Global stats updated to truthfully count active Whop and PayPal subscriptions.
-  - Contract test suite: `tests/hubs/devkit-billing-intelligence.test.cjs` passes 18/18 scenarios (100%).
+  - Global stats updated to count active Whop and PayPal subscriptions.
+  - Contract test suite: `tests/hubs/devkit-billing-intelligence.test.cjs` passes 18/18 scenarios (expanded to 25/25 in hotfix).
 * **Frontend DevKit UI Refresh:**
   - `src/lib/devkit/planDisplay.ts`: Authoritative presentation mapping helpers (`getPlanDisplayLabel`, `formatAccessSource`, `getSourceBadgeStyle`, `formatProviderStatus`, `formatAccessClassification`) + unit tests (13/13 passing).
   - `src/components/dev-kit/AdminUsersPanel.tsx`: Updated God Mode stats card to `Ultimate Users` (`effective_plan = premium`), filter tabs display `Ultimate` (internal key `premium`), table columns show Effective Plan (badge + source pill), Base Plan, Provider badge (source + status + env), quick action buttons (`U`, `P`, `F`), and active-provider warning before manual plan changes.
