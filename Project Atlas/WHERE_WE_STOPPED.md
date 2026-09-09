@@ -2,8 +2,13 @@
 
 ## DevKit Billing Intelligence Truthfulness Hotfix — Evidence-Based Verification & Precedence Reconciliation (2026-09-09)
 
-* **Verdict:** `HOTFIX_VERIFIED__PENDING_MERGE_AND_TARGETED_DEPLOYMENT`
-* **Status:** `CONTRACT_TESTS_PASS_25_OF_25__SOURCE_HASH_UPDATED__PRECEDENCE_CORRECTED`
+* **Verdict:** `VERIFIED_READY`
+* **Status:** `HOTFIX_MERGED_AND_DEPLOYED__APPWRITE_SMOKE_PASS__ENTITLEMENT_DATA_MUTATION_NONE`
+* **Pull Request Merged:**
+  - **PR #329 (`fix/devkit-billing-truthfulness`):** Squash merged to `main` at commit `c7524f89` after green CI checks (`Security regression suite: pass`, `Typecheck + portfolio tests: pass`, `Vercel: pass`).
+* **Deployments & Post-Deployment Audit:**
+  - **Targeted Appwrite Deployment (`admin-devkit-data`):** Workflow `deploy-appwrite-hubs.yml` run `34387415399` (Job `102587084070`) completed `SUCCESS` in 1m45s. Deployment ID: `6aa1a14d06c8866b9e02`, status: `ready`. Smoke check: `admin-devkit-data` HTTP 200. Active source hash: `e721970ec968a3fd6d9b0726f4c5aac269393fb56606167dc0146ba480e1e76f`.
+  - **Live Appwrite Post-Deployment Audit:** Workflow `whop-sandbox-e2e.yml` in `audit_qa_vars` mode run `34387637729` (Job `102587834928`) completed `SUCCESS` in 37s. Verified `ENTITLEMENT_DATA_MUTATION = NONE` (identical baseline: 68 total auth users, 60 free, 1 pro, 7 ultimate, 8 manual grants, 2 whop, 4 revenuecat; identical 6 detected anomalies properly classified).
 * **Scope & Corrective Actions:**
   - **Issue 1 (Payment Evidence Truthfulness):** Stopped inferring payment confirmation from provider subscription status (`active`, `completed`, `paid`). Added explicit `payment_evidence_status: 'confirmed' | 'unavailable' | 'not_confirmed'`, `payment_evidence_source`, and `payment_evidence_at`. Whop confirmed strictly on processed `payment.succeeded` event; PayPal confirmed strictly on capture/sale completed or `last_entitlement_payment_id`; RevenueCat truthfully marked `unavailable` with note "Active legacy entitlement (authoritative receipt capture unavailable)".
   - **Issue 2 (Global Stats Deduplication):** Fixed double-counting in `handleGlobalStats`. Grouped records by `user_id` and evaluated canonical effective plan per user via `resolveEffectivePlan` in `aggregateCanonicalUserStats`. Guaranteed every user belongs to at most one bucket: Ultimate, Pro, or Free. Decoupled raw provider records into separate `provider_state_counts`.
