@@ -1,5 +1,45 @@
 # WiseResume Atlas Master Changelog
 
+### 2026-09-09 - Whop Production Activation: Live Catalog, Webhooks, Runtime Cutover & Targeted Deployment
+
+- **Verdict:** `WHOP_PRODUCTION_ACTIVATED__PENDING_FIRST_LIVE_TRANSACTION` (Status: `PRODUCTION_ACTIVATED__TARGETED_HUBS_DEPLOYED_AND_READY__NO_CHARGE_VERIFIED`).
+- **Owner Authorization & Governance Boundary:**
+  - Owner explicitly authorized full Whop production activation.
+  - Owner explicitly deferred manual DevKit browser verification (`DEVKIT_OWNER_BROWSER_VERIFICATION = DEFERRED_BY_OWNER`).
+  - Strict scope boundary enforced: ZERO FINANCIAL TRANSACTIONS. No real payment submitted, no test cards on production, no memberships created, zero liability.
+- **Authoritative Production Whop Catalog & IDs:**
+  - Company ID: `biz_B7fMXLLj18wv8J`
+  - Product ID: `prod_WrbEGZdSaG2af`
+  - Pro Plan ID: `plan_4JJSQLj5zEKVn` ($5/mo)
+  - Ultimate Plan ID: `plan_kt5MScAplbCuN` ($10/mo, internal DB key `premium`)
+  - Webhook Custom Domain: `https://whop-webhook.wiseresume.app`
+- **GitHub Repository Variables:**
+  - `WHOP_PRODUCTION_COMPANY_ID`: `biz_B7fMXLLj18wv8J`
+  - `WHOP_PRODUCTION_PRODUCT_ID`: `prod_WrbEGZdSaG2af`
+  - `WHOP_PRODUCTION_PRO_PLAN_ID`: `plan_4JJSQLj5zEKVn`
+  - `WHOP_PRODUCTION_PREMIUM_PLAN_ID`: `plan_kt5MScAplbCuN`
+  - `BILLING_CHECKOUT_PROVIDER`: `whop`
+- **PR #330 Merged (`feat/whop-production-activation`):**
+  - Updated `deploy_hubs.cjs` and `deploy-appwrite-hubs.yml` to preserve sandbox credentials across production deployments and inject production catalog defaults across hubs.
+  - Updated `whop-webhook` with production catalog resolution and company ID fallback.
+  - Hardened `shared-subscription-resolver` production catalog fallback for non-QA users.
+  - Updated `billing-checkout` with production Whop catalog defaults.
+  - Updated `src/lib/billingCheckout.ts` to route `wiseresume.app` to Whop production checkout.
+  - Merged to `main` at `e81434a93e916fd797f6f3f5cde6a34ea270b6c4` after passing full test suites (15 frontend, 33 hub contract, TypeScript, build).
+- **Deployments:**
+  - Vercel Production deployment `FikbLTS3nb521d3VrLsJr7Lg9nkL` completed `SUCCESS`.
+  - Targeted Appwrite deployment `deploy-appwrite-hubs.yml` run `34403183896` completed `SUCCESS` in 4m27s:
+    - `billing-checkout`: deployment `6aa1c61841935021a398`, status `ready`
+    - `whop-webhook`: deployment `6aa1c639da7495d16141`, status `ready`
+    - `coupons`: deployment `6aa1c65b3d8d0d62c4e8`, status `ready`
+    - `ai-gateway`: deployment `6aa1c67b0995cc58bfbc`, status `ready`
+- **Live Endpoint Verification:**
+  - `https://whop-webhook.wiseresume.app` verified live: HTTP 401 Unauthorized (fail-closed cryptographic signature verification active).
+  - `https://wiseresume.app/subscription` verified live: HTTP 200 OK.
+- **Safety Invariants Preserved:**
+  - Whop primary provider; PayPal frozen fallback.
+  - Appwrite Auth preserved; internal key `premium` strictly decoupled from public `Ultimate`.
+
 ### 2026-09-09 - DevKit Billing & Entitlements 2026 Refresh: Multi-Provider Reconciliation, Ultimate Labeling, Targeted Hub Deployment & Production Verification
 
 - **Verdict:** `VERIFIED_READY` (Status: `PRODUCTION_DEPLOYED__DEVKIT_REFRESH_PASSED__ENTITLEMENT_DATA_MUTATION_NONE`).
