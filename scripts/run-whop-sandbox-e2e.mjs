@@ -138,6 +138,56 @@ async function firstVisibleFrameLocator(selector, timeoutMs = 20_000) {
   return null;
 }
 
+async function findSubmitButton(timeoutMs = 15_000) {
+  const start = Date.now();
+  const selector = [
+    'button[type="submit"]',
+    'button:has-text("Pay")',
+    'button:has-text("Subscribe")',
+    'button:has-text("Join")',
+    'button:has-text("Start")',
+    'button:has-text("Complete")',
+    'button:has-text("Continue")',
+    'button:has-text("Checkout")',
+    '[role="button"]:has-text("Pay")',
+    '[role="button"]:has-text("Subscribe")',
+    '[role="button"]:has-text("Join")',
+    '[role="button"]:has-text("Start")',
+    '[role="button"]:has-text("Complete")',
+    '[role="button"]:has-text("Continue")',
+  ].join(', ');
+
+  while (Date.now() - start < timeoutMs) {
+    for (const frame of page.frames()) {
+      try {
+        const candidate = frame.locator(selector).first();
+        if (await candidate.isVisible()) {
+          return candidate;
+        }
+      } catch (_) {}
+    }
+    await page.waitForTimeout(500);
+  }
+
+  // Diagnostic dump across all frames if not found
+  console.log('[e2e] Could not find submit button by standard selectors. Dumping frames and buttons:');
+  for (let i = 0; i < page.frames().length; i++) {
+    const frame = page.frames()[i];
+    try {
+      const buttons = await frame.locator('button, [role="button"], input[type="submit"]').all();
+      for (const btn of buttons) {
+        if (await btn.isVisible().catch(() => false)) {
+          const text = await btn.innerText().catch(() => '');
+          const type = await btn.getAttribute('type').catch(() => '');
+          const role = await btn.getAttribute('role').catch(() => '');
+          console.log(`[frame ${i}] visible button: text="${text.trim().replace(/\s+/g, ' ')}" type="${type}" role="${role}"`);
+        }
+      }
+    } catch (_) {}
+  }
+  return null;
+}
+
 try {
   await login();
   await assertSubscriptionSurface();
@@ -162,7 +212,10 @@ try {
   if (!expiryField || !cvcField) throw new Error('Whop Sandbox expiry/CVC fields were not available');
   await expiryField.fill(testExpiry);
   await cvcField.fill(testCvc);
-  const submit = page.getByRole('button', { name: /pay|subscribe|start|complete|continue/i }).last();
+
+  await page.waitForTimeout(1_000);
+  const submit = await findSubmitButton(15_000);
+  if (!submit) throw new Error('Whop Sandbox submit button was not available');
   await submit.click();
   await page.waitForURL(url => !/sandbox\.whop\.com/i.test(url.toString()), { timeout: 30_000 }).catch(() => {});
   if (/sandbox\.whop\.com/i.test(page.url())) throw new Error('Whop Sandbox checkout did not return after payment submission');
