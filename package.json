@@ -78,7 +78,7 @@
     "@types/diff": "^7.0.2",
     "@types/pg": "^8.20.0",
     "@vercel/functions": "^3.9.3",
-    "@vercel/node": "^5.8.27",
+    "@vercel/node": "^5.10.2",
     "appwrite": "^26.2.0",
     "axios": "^1.19.0",
     "basic-ftp": "^6.0.2",
