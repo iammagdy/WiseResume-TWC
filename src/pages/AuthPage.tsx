@@ -17,10 +17,20 @@ import { clearPlanCache } from '@/lib/planCache';
 import { safeInternalRedirect } from '@/lib/security/safeInternalRedirect';
 import { authErrorMessage, classifyAuthError } from '@/lib/authError';
 
-const SIGNUP_PLAN_KEY = 'signup_plan_intent';
+export const SIGNUP_PLAN_KEY = 'signup_plan_intent';
 
-function displayPlanLabel(plan: string) {
-  return plan.toLowerCase() === 'premium' ? 'Ultimate' : plan.charAt(0).toUpperCase() + plan.slice(1);
+export type ValidSignupPlanIntent = 'pro' | 'premium';
+
+export function resolveSignupPlanIntent(raw: unknown): ValidSignupPlanIntent | null {
+  if (typeof raw !== 'string') return null;
+  const normalized = raw.trim().toLowerCase();
+  if (normalized === 'pro') return 'pro';
+  if (normalized === 'premium' || normalized === 'ultimate') return 'premium';
+  return null;
+}
+
+export function displayPlanLabel(plan: ValidSignupPlanIntent): string {
+  return plan === 'premium' ? 'Ultimate' : 'Pro';
 }
 
 export default function AuthPage() {
@@ -39,8 +49,8 @@ export default function AuthPage() {
   const [remember, setRemember] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [signupPlanIntent, setSignupPlanIntent] = useState<string | null>(
-    () => (typeof sessionStorage !== 'undefined' ? sessionStorage.getItem(SIGNUP_PLAN_KEY) : null),
+  const [signupPlanIntent, setSignupPlanIntent] = useState<ValidSignupPlanIntent | null>(
+    () => (typeof sessionStorage !== 'undefined' ? resolveSignupPlanIntent(sessionStorage.getItem(SIGNUP_PLAN_KEY)) : null),
   );
 
   const [forgotStep, setForgotStep] = useState<'email' | 'otp'>('email');
@@ -51,10 +61,14 @@ export default function AuthPage() {
   const redirectTo = safeInternalRedirect(searchParams.get('redirect'));
 
   useEffect(() => {
-    const planParam = searchParams.get('plan');
-    if (planParam) {
-      sessionStorage.setItem(SIGNUP_PLAN_KEY, planParam);
-      setSignupPlanIntent(planParam);
+    const rawPlan = searchParams.get('plan');
+    const validPlan = resolveSignupPlanIntent(rawPlan);
+    if (validPlan) {
+      sessionStorage.setItem(SIGNUP_PLAN_KEY, validPlan);
+      setSignupPlanIntent(validPlan);
+    } else if (rawPlan !== null) {
+      sessionStorage.removeItem(SIGNUP_PLAN_KEY);
+      setSignupPlanIntent(null);
     }
   }, [searchParams]);
 
@@ -379,7 +393,7 @@ export default function AuthPage() {
           'Account created! We had trouble sending the verification email — you can resend it from the next page.',
         );
       }
-      const planIntent = sessionStorage.getItem(SIGNUP_PLAN_KEY);
+      const planIntent = resolveSignupPlanIntent(sessionStorage.getItem(SIGNUP_PLAN_KEY));
       if (planIntent) {
         const label = displayPlanLabel(planIntent);
         toast.message(

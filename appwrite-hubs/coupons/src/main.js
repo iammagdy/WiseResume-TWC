@@ -406,10 +406,13 @@ async function getMySubscription(body, res, dependencies = {}) {
   const whopWillRenew = typeof whopProviderState?.will_renew === 'boolean' ? whopProviderState.will_renew : null;
   const isWhopEnvironmentMatch = hasValidWhopRecord;
 
-  // Crucial invariant: can_cancel_subscription requires active/billing_issue AND will_renew === true
+  // Crucial invariant: can_cancel_subscription requires effective paid entitlement,
+  // active/billing_issue provider status, and will_renew === true.
   const canCancelSubscription = Boolean(
-    (hasValidPaypalRecord && isEnvironmentMatch && isPaypalCancellableStatus && willRenew === true) ||
-    (isWhopEnvironmentMatch && isWhopCancellableStatus && whopWillRenew === true)
+    effectivePlan !== 'free' && (
+      (hasValidPaypalRecord && isEnvironmentMatch && isPaypalCancellableStatus && willRenew === true) ||
+      (isWhopEnvironmentMatch && isWhopCancellableStatus && whopWillRenew === true)
+    )
   );
 
   const providerExpiresAt = (isWhopEnvironmentMatch && whopProviderState?.expires_at)

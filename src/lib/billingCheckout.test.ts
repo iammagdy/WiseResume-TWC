@@ -216,6 +216,16 @@ describe('server-owned billing checkout client', () => {
     clearPlanAttemptKey();
     expect(sessionStorage.getItem(getPlanAttemptStorageKey('pro'))).toBeNull();
     expect(sessionStorage.getItem(getPlanAttemptStorageKey('premium'))).toBeNull();
+
+    // Stale key older than 14 minutes is discarded and replaced with fresh key
+    const baseTime = 1_000_000_000;
+    const keyAtT0 = getOrCreatePlanAttemptKey('pro', baseTime);
+    // 5 minutes later -> same key reused (in-flight window)
+    expect(getOrCreatePlanAttemptKey('pro', baseTime + 5 * 60 * 1000)).toBe(keyAtT0);
+    // 14.5 minutes later (>14m) -> stale, generates fresh key
+    const keyAfterExpiry = getOrCreatePlanAttemptKey('pro', baseTime + 14.5 * 60 * 1000);
+    expect(keyAfterExpiry).not.toBe(keyAtT0);
+    expect(keyAfterExpiry).toMatch(/^web-/);
   });
 
   it('validates approved PayPal origins in openServerCheckout', async () => {

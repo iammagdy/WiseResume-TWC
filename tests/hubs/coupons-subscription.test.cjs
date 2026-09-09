@@ -812,3 +812,35 @@ test('Section 11 Test E: PayPal alternative availability is preserved', async ()
   assert.equal(res3.result.status, 200);
   assert.equal(res3.result.payload.data.can_subscribe, true);
 });
+
+test('coupons getMySubscription - regression: effective plan Free guarantees can_cancel_subscription is false', async () => {
+  const res = createMockRes();
+  const pastDate = new Date(Date.now() - 3600000).toISOString();
+
+  // User with an expired PayPal state where status was active and will_renew was true
+  await getMySubscription({}, res, {
+    user: { $id: 'user_free_expired_sub' },
+    subscription: null,
+    providerStates: {
+      providerState: null,
+      paypalProviderState: {
+        user_id: 'user_free_expired_sub',
+        subscription_id: 'I-EXPIRED123',
+        plan: 'pro',
+        status: 'active',
+        environment: 'sandbox',
+        expires_at: pastDate,
+        will_renew: true,
+      },
+    },
+    paypalEnvironment: 'sandbox',
+    qaUserId: 'user_free_expired_sub',
+    checkoutEnabled: true,
+  });
+
+  assert.equal(res.result.status, 200);
+  const data = res.result.payload.data;
+  assert.equal(data.effective_plan, 'free');
+  assert.equal(data.can_cancel_subscription, false);
+  assert.equal(data.renewal_cancellation_pending, false);
+});

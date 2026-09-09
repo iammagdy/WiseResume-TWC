@@ -1155,7 +1155,7 @@ describe('SubscriptionPage PayPal Lifecycle & Cancellation', () => {
       expect(screen.queryByText(/popular/i)).not.toBeInTheDocument();
     });
 
-    it('renders pending cancellation copy and suppresses active Free subscription when renewal_cancellation_pending is true', () => {
+    it('does not render subscription management or cancel button when effectivePlan is free', () => {
       vi.mocked(usePlan).mockReturnValue({
         plan: 'free',
         isFree: true,
@@ -1166,15 +1166,49 @@ describe('SubscriptionPage PayPal Lifecycle & Cancellation', () => {
 
       vi.mocked(useMe).mockReturnValue({
         data: {
-          $id: 'user_refunded',
+          $id: 'user_free',
           subscription: {
             plan: 'free',
             effective_plan: 'free',
             status: null,
+            can_subscribe: true,
+            can_cancel_subscription: false,
+            renewal_cancellation_pending: false,
+            provider_source: null,
+            provider_status: null,
+            will_renew: false,
+          },
+        },
+        refetch: mockRefetchMe,
+      } as any);
+
+      renderWithProviders(<SubscriptionPage />);
+
+      expect(screen.queryByText(/Subscription Management/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/Your paid access has ended/i)).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /cancel subscription/i })).not.toBeInTheDocument();
+    });
+
+    it('renders pending cancellation copy and suppresses cancel button for active paid subscription when renewal_cancellation_pending is true', () => {
+      vi.mocked(usePlan).mockReturnValue({
+        plan: 'pro',
+        isFree: false,
+        isPro: true,
+        isPremium: false,
+        loading: false,
+      } as any);
+
+      vi.mocked(useMe).mockReturnValue({
+        data: {
+          $id: 'user_pro_cancelling',
+          subscription: {
+            plan: 'pro',
+            effective_plan: 'pro',
+            status: 'active',
             can_subscribe: false,
             can_cancel_subscription: false,
             renewal_cancellation_pending: true,
-            provider_source: 'paypal',
+            provider_source: 'whop',
             provider_status: 'active',
             will_renew: false,
           },
@@ -1184,43 +1218,9 @@ describe('SubscriptionPage PayPal Lifecycle & Cancellation', () => {
 
       renderWithProviders(<SubscriptionPage />);
 
-      expect(screen.getByText(/Your paid access has ended\. Your subscription cancellation is still being confirmed\./i)).toBeInTheDocument();
-      expect(screen.queryByText(/You have an active Free subscription/i)).not.toBeInTheDocument();
+      expect(screen.getByText(/Subscription Management/i)).toBeInTheDocument();
+      expect(screen.getByText(/Canceled/i)).toBeInTheDocument();
       expect(screen.queryByRole('button', { name: /cancel subscription/i })).not.toBeInTheDocument();
-    });
-
-    it('renders pending cancellation copy and suppresses active Free subscription when effectivePlan is free and can_cancel_subscription is true', () => {
-      vi.mocked(usePlan).mockReturnValue({
-        plan: 'free',
-        isFree: true,
-        isPro: false,
-        isPremium: false,
-        loading: false,
-      } as any);
-
-      vi.mocked(useMe).mockReturnValue({
-        data: {
-          $id: 'user_free_cancelling',
-          subscription: {
-            plan: 'free',
-            effective_plan: 'free',
-            status: null,
-            can_subscribe: false,
-            can_cancel_subscription: true,
-            renewal_cancellation_pending: false,
-            provider_source: 'paypal',
-            provider_status: 'active',
-            will_renew: true,
-          },
-        },
-        refetch: mockRefetchMe,
-      } as any);
-
-      renderWithProviders(<SubscriptionPage />);
-
-      expect(screen.getByText(/Your paid access has ended\. Your subscription cancellation is still being confirmed\./i)).toBeInTheDocument();
-      expect(screen.queryByText(/You have an active Free subscription/i)).not.toBeInTheDocument();
-      expect(screen.getByRole('button', { name: /cancel subscription/i })).toBeInTheDocument();
     });
 
     it('shows loading indicator on CTA and suppresses enrollment closed notice while subscription is resolving', () => {

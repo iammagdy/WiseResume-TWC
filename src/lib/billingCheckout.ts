@@ -182,18 +182,31 @@ export function isValidCheckoutUrl(urlString: string, environment?: string, prov
 }
 
 export const BILLING_ATTEMPT_STORAGE_PREFIX = 'wr_billing_attempt_';
+export const MAX_ATTEMPT_KEY_AGE_MS = 14 * 60 * 1000;
 
 export function getPlanAttemptStorageKey(plan: BillingCheckoutPlan): string {
   return `${BILLING_ATTEMPT_STORAGE_PREFIX}${plan}`;
 }
 
-export function getOrCreatePlanAttemptKey(plan: BillingCheckoutPlan): string {
+export function getPlanAttemptTimestampStorageKey(plan: BillingCheckoutPlan): string {
+  return `${BILLING_ATTEMPT_STORAGE_PREFIX}${plan}_ts`;
+}
+
+export function getOrCreatePlanAttemptKey(plan: BillingCheckoutPlan, now: number = Date.now()): string {
   const storageKey = getPlanAttemptStorageKey(plan);
+  const timestampKey = getPlanAttemptTimestampStorageKey(plan);
   try {
     const existing = sessionStorage.getItem(storageKey);
-    if (existing && /^[A-Za-z0-9._:-]{1,128}$/.test(existing)) return existing;
+    const existingTsRaw = sessionStorage.getItem(timestampKey);
+    const existingTs = existingTsRaw ? Number(existingTsRaw) : 0;
+    const isFresh = Number.isFinite(existingTs) && existingTs > 0 && (now - existingTs < MAX_ATTEMPT_KEY_AGE_MS);
+
+    if (existing && /^[A-Za-z0-9._:-]{1,128}$/.test(existing) && isFresh) {
+      return existing;
+    }
     const newKey = makeIdempotencyKey();
     sessionStorage.setItem(storageKey, newKey);
+    sessionStorage.setItem(timestampKey, String(now));
     return newKey;
   } catch {
     return makeIdempotencyKey();
@@ -204,9 +217,12 @@ export function clearPlanAttemptKey(plan?: BillingCheckoutPlan): void {
   try {
     if (plan) {
       sessionStorage.removeItem(getPlanAttemptStorageKey(plan));
+      sessionStorage.removeItem(getPlanAttemptTimestampStorageKey(plan));
     } else {
       sessionStorage.removeItem(getPlanAttemptStorageKey('pro'));
+      sessionStorage.removeItem(getPlanAttemptTimestampStorageKey('pro'));
       sessionStorage.removeItem(getPlanAttemptStorageKey('premium'));
+      sessionStorage.removeItem(getPlanAttemptTimestampStorageKey('premium'));
     }
   } catch {}
 }

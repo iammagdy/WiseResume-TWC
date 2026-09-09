@@ -33,17 +33,43 @@ export function PaymentConfirmationModal({ open, onOpenChange, plan, environment
     serverVerified: 'Server-verified checkout', connecting: 'Connecting to', continueWith: 'Continue with', cancel: 'Cancel',
     unavailable: 'Checkout is temporarily unavailable.',
   };
-  useEffect(() => { if (open) { setProvider(getDefaultCheckoutProvider()); setCheckoutError(null); setIsSubmitting(false); } }, [open]);
+  useEffect(() => {
+    if (open) {
+      setProvider(getDefaultCheckoutProvider());
+      setCheckoutError(null);
+      setIsSubmitting(false);
+      clearPlanAttemptKey(plan);
+    } else {
+      clearPlanAttemptKey(plan);
+    }
+  }, [open, plan]);
 
   const handleCheckout = async () => {
-    setIsSubmitting(true); setCheckoutError(null);
+    setIsSubmitting(true);
+    setCheckoutError(null);
     try {
       try { sessionStorage.setItem('billing_pending_plan', plan); } catch {}
       const result = await createBillingCheckoutSession(plan, { provider, idempotencyKey: getOrCreatePlanAttemptKey(plan), environment });
-      if (!result.ok) { if (!result.retryable) clearPlanAttemptKey(plan); setCheckoutError(result.message); setIsSubmitting(false); return; }
-      if (!openServerCheckout(result.session, environment)) { setCheckoutError('Checkout URL verification failed.'); setIsSubmitting(false); return; }
+      if (!result.ok) {
+        if (!result.retryable || result.code === 'idempotency_conflict') {
+          clearPlanAttemptKey(plan);
+        }
+        setCheckoutError(result.message);
+        setIsSubmitting(false);
+        return;
+      }
+      if (!openServerCheckout(result.session, environment)) {
+        clearPlanAttemptKey(plan);
+        setCheckoutError('Checkout URL verification failed.');
+        setIsSubmitting(false);
+        return;
+      }
       onSuccess?.();
-    } catch (error) { setCheckoutError(error instanceof Error ? error.message : copy.unavailable); setIsSubmitting(false); }
+    } catch (error) {
+      clearPlanAttemptKey(plan);
+      setCheckoutError(error instanceof Error ? error.message : copy.unavailable);
+      setIsSubmitting(false);
+    }
   };
 
   return <Dialog open={open} onOpenChange={onOpenChange}>
