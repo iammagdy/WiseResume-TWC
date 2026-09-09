@@ -110,16 +110,16 @@ async function main() {
   }
 
   // Resolve initial effective subscription plan
-  const initialResolution = resolver.resolveSubscription({
-    whopState: null,
-    paypalState: null,
-    revenueCatState: null,
-    manualOverrideState: null,
+  const initialResolution = resolver.resolveEffectivePlan({
+    userId: newUserId,
+    whopProviderState: null,
+    whopProviderEnvironment: 'sandbox',
+    whopQaUserId: newUserId,
   });
 
-  console.log(`[bind-qa] Initial effective plan: ${initialResolution.effective_plan} (status: ${initialResolution.status})`);
-  if (initialResolution.effective_plan !== 'free') {
-    throw new Error(`[bind-qa] Initial plan must be 'free', got: ${initialResolution.effective_plan}`);
+  console.log(`[bind-qa] Initial effective plan: ${initialResolution.plan} (source: ${initialResolution.source})`);
+  if (initialResolution.plan !== 'free') {
+    throw new Error(`[bind-qa] Initial plan must be 'free', got: ${initialResolution.plan}`);
   }
 
   console.log('\n======================================================');

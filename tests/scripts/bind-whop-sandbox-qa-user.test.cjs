@@ -28,3 +28,15 @@ test('rejects old canonical QA fixtures', () => {
   assert.equal(isOldCanonical('6aa123456789abcdef'), false);
   assert.equal(isOldCanonical('user_manual_debeg'), false);
 });
+
+test('resolveEffectivePlan resolves clean user to free', () => {
+  const resolver = require('../../appwrite-hubs/shared-subscription-resolver');
+  const res = resolver.resolveEffectivePlan({
+    userId: 'some_user_id',
+    whopProviderState: null,
+    whopProviderEnvironment: 'sandbox',
+    whopQaUserId: 'some_user_id',
+  });
+  assert.equal(res.plan, 'free');
+  assert.equal(res.source, 'free');
+});
