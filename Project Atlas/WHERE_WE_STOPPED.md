@@ -1,5 +1,61 @@
 # Project Atlas — Active Operational & Handover State
 
+## Whop Production Activation — Live Catalog, Webhook, Runtime Cutover & Targeted Deployment (2026-09-09)
+
+* **Verdict:** `WHOP_PRODUCTION_ACTIVATED__PENDING_FIRST_LIVE_TRANSACTION`
+* **Status:** `PRODUCTION_ACTIVATED__TARGETED_HUBS_DEPLOYED_AND_READY__NO_CHARGE_VERIFIED`
+* **Owner Authorization & Governance Boundary:**
+  - Owner explicitly authorized full Whop production activation end-to-end.
+  - Owner explicitly deferred manual DevKit browser verification:
+    ```
+    DEVKIT_OWNER_BROWSER_VERIFICATION = DEFERRED_BY_OWNER
+    ```
+  - Strict scope boundary enforced: **ZERO FINANCIAL TRANSACTIONS**. No card charged, no test cards submitted to live Whop checkout, no active paid production subscription created, zero financial liability.
+* **Authoritative Production Whop Catalog & IDs:**
+  - **Company ID:** `biz_B7fMXLLj18wv8J`
+  - **Product ID:** `prod_WrbEGZdSaG2af`
+  - **Pro Plan ID:** `plan_4JJSQLj5zEKVn` ($5/month recurring)
+  - **Ultimate Plan ID:** `plan_kt5MScAplbCuN` ($10/month recurring; public display `Ultimate`, internal database/API key strictly `premium`)
+  - **Webhook Custom Domain:** `https://whop-webhook.wiseresume.app`
+* **GitHub Repository Variables Configured:**
+  - `WHOP_PRODUCTION_COMPANY_ID`: `biz_B7fMXLLj18wv8J`
+  - `WHOP_PRODUCTION_PRODUCT_ID`: `prod_WrbEGZdSaG2af`
+  - `WHOP_PRODUCTION_PRO_PLAN_ID`: `plan_4JJSQLj5zEKVn`
+  - `WHOP_PRODUCTION_PREMIUM_PLAN_ID`: `plan_kt5MScAplbCuN`
+  - `BILLING_CHECKOUT_PROVIDER`: `whop`
+* **Pull Request Merged:**
+  - **PR #330 (`feat/whop-production-activation`):** Squash merged to `main` at commit `e81434a93e916fd797f6f3f5cde6a34ea270b6c4` after passing CI checks (`Security regression suite: pass`, `Typecheck + portfolio tests: pass`, `Vercel: pass`).
+* **Deployments:**
+  - **Vercel Production Deployment:** Deployment `FikbLTS3nb521d3VrLsJr7Lg9nkL` (commit `e81434a93e916fd797f6f3f5cde6a34ea270b6c4`) completed `SUCCESS` (`Deployment has completed`). Live verification: HTTP 200 on `https://wiseresume.app/subscription`.
+  - **Targeted Appwrite Deployment (`billing-checkout`, `whop-webhook`, `coupons`, `ai-gateway`):** Workflow `deploy-appwrite-hubs.yml` run `34403183896` (Job `102639770896`) completed `SUCCESS` in 4m27s. All 4 target hubs reached status `ready`:
+    - `billing-checkout`: deployment `6aa1c61841935021a398`, status `ready`
+    - `whop-webhook`: deployment `6aa1c639da7495d16141`, status `ready`
+    - `coupons`: deployment `6aa1c65b3d8d0d62c4e8`, status `ready`
+    - `ai-gateway`: deployment `6aa1c67b0995cc58bfbc`, status `ready`
+    - Safe smoke checks: `whop-webhook` HTTP 401 (expected — fail-closed signature verification), `ai-gateway` HTTP 200.
+* **No-Charge Verification & Live Endpoints:**
+  - **Live Webhook Endpoint:** Probed `https://whop-webhook.wiseresume.app` via live POST request:
+    - Status: HTTP 401 Unauthorized `{"status":"error","code":"unauthorized"}`
+    - Execution ID: `6aa1c72f1920eb276aad`
+    - Confirmed: custom domain DNS, SSL/TLS, Appwrite routing, and fail-closed cryptographic signature verification fully functional.
+  - **Live Web Application:** Probed `https://wiseresume.app/subscription`:
+    - Status: HTTP 200 OK
+    - Confirmed: Vercel frontend live and serving updated client bundle routing to Whop production checkout.
+  - **Zero Charge Boundary:** Proved checkout creation and endpoint readiness without submitting a real payment, creating a membership, or simulating false entitlement.
+* **Provider Hierarchy & Safety Invariants:**
+  - **Primary Provider:** Whop (`whop`) active in production mode.
+  - **Fallback Provider:** PayPal preserved in frozen backup posture (`paypal`).
+  - **Authentication:** Preserved strictly on Appwrite Auth.
+  - **Internal DB Keys:** Strictly `free`, `pro`, `premium` (public display `Ultimate` mapped strictly to `premium`).
+* **Rollback Runbook:**
+  - **Immediate Provider Rollback to PayPal:**
+    1. Set GitHub repo variable: `BILLING_CHECKOUT_PROVIDER = paypal`.
+    2. Dispatch workflow `deploy-appwrite-hubs.yml` with `checkout_provider: paypal`, targets: `billing-checkout,whop-webhook,coupons,ai-gateway`.
+  - **Whop Environment Rollback to Sandbox:**
+    1. Dispatch workflow `deploy-appwrite-hubs.yml` with `whop_environment: sandbox`, targets: `billing-checkout,whop-webhook,coupons,ai-gateway`.
+  - **Emergency Checkout Killswitch:**
+    1. Dispatch workflow `deploy-appwrite-hubs.yml` with `checkout_enabled: false`.
+
 ## DevKit Billing Intelligence Truthfulness Hotfix — Evidence-Based Verification & Precedence Reconciliation (2026-09-09)
 
 * **Verdict:** `VERIFIED_READY`
