@@ -11,6 +11,8 @@ on:
         options:
           - full_e2e
           - verify_existing_payment
+          - audit_qa_vars
+          - repair_qa_vars
       cancel_duplicate_membership:
         description: 'Cancel old duplicate Sandbox membership mem_***1HNy'
         required: false
@@ -45,10 +47,12 @@ jobs:
         run: npm ci --ignore-scripts
 
       - name: Install Playwright Chromium
+        if: github.event.inputs.mode == 'full_e2e'
         run: npx playwright install --with-deps chromium
 
       - name: Provision isolated Appwrite QA account
         id: provision
+        if: github.event.inputs.mode == 'full_e2e' || github.event.inputs.mode == 'verify_existing_payment'
         env:
           APPWRITE_ENDPOINT: https://fra.cloud.appwrite.io/v1
           APPWRITE_PROJECT_ID: 69fd362b001eb325a192
@@ -97,7 +101,7 @@ jobs:
 
       - name: Sync temporary Whop QA user variable
         id: sync_qa_vars
-        if: github.event.inputs.mode != 'verify_existing_payment'
+        if: github.event.inputs.mode == 'full_e2e'
         env:
           APPWRITE_ENDPOINT: https://fra.cloud.appwrite.io/v1
           APPWRITE_PROJECT_ID: 69fd362b001eb325a192
@@ -106,10 +110,11 @@ jobs:
         run: node scripts/sync_whop_qa_user_variable.cjs capture-and-apply
 
       - name: Run Whop isolation and checkout tests
+        if: github.event.inputs.mode == 'full_e2e' || github.event.inputs.mode == 'verify_existing_payment'
         run: node --test tests/hubs/whop-resolver.test.cjs tests/hubs/billing-checkout.test.cjs tests/hubs/coupons-subscription.test.cjs tests/hubs/whop-checkout.test.cjs
 
       - name: Build feature branch frontend
-        if: github.event.inputs.mode != 'verify_existing_payment'
+        if: github.event.inputs.mode == 'full_e2e'
         env:
           VITE_BILLING_PUBLIC_MODE: sandbox
           VITE_CHECKOUT_ENVIRONMENT: sandbox
@@ -118,7 +123,7 @@ jobs:
         run: npm run build
 
       - name: Start feature-branch preview
-        if: github.event.inputs.mode != 'verify_existing_payment'
+        if: github.event.inputs.mode == 'full_e2e'
         run: |
           (npm run preview -- --host 127.0.0.1 --port 4173 > /tmp/wiseresume-preview.log 2>&1 & echo $! > /tmp/wiseresume-preview.pid)
           for attempt in $(seq 1 30); do
@@ -129,7 +134,7 @@ jobs:
           exit 1
 
       - name: Run authenticated Whop Sandbox browser E2E
-        if: github.event.inputs.mode != 'verify_existing_payment'
+        if: github.event.inputs.mode == 'full_e2e'
         env:
           E2E_BASE_URL: http://127.0.0.1:4173
           APPWRITE_ENDPOINT: https://fra.cloud.appwrite.io/v1
@@ -164,8 +169,24 @@ jobs:
           CANCEL_DUPLICATE_MEMBERSHIP: ${{ github.event.inputs.cancel_duplicate_membership }}
         run: node scripts/verify-whop-sandbox-post-payment.cjs
 
+      - name: Audit Whop QA user variables
+        if: github.event.inputs.mode == 'audit_qa_vars'
+        env:
+          APPWRITE_ENDPOINT: https://fra.cloud.appwrite.io/v1
+          APPWRITE_PROJECT_ID: 69fd362b001eb325a192
+          APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
+        run: node scripts/sync_whop_qa_user_variable.cjs audit
+
+      - name: Repair Whop QA user variables
+        if: github.event.inputs.mode == 'repair_qa_vars'
+        env:
+          APPWRITE_ENDPOINT: https://fra.cloud.appwrite.io/v1
+          APPWRITE_PROJECT_ID: 69fd362b001eb325a192
+          APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
+        run: node scripts/sync_whop_qa_user_variable.cjs repair
+
       - name: Dump billing-checkout execution logs on failure
-        if: always() && github.event.inputs.mode != 'verify_existing_payment'
+        if: always() && github.event.inputs.mode == 'full_e2e'
         env:
           APPWRITE_ENDPOINT: https://fra.cloud.appwrite.io/v1
           APPWRITE_PROJECT_ID: 69fd362b001eb325a192
@@ -173,7 +194,7 @@ jobs:
         run: node scripts/dump_billing_checkout_executions.cjs
 
       - name: Restore previous Whop QA user variable
-        if: always() && steps.sync_qa_vars.outcome != 'skipped'
+        if: always() && steps.sync_qa_vars.outcome != 'skipped' && steps.sync_qa_vars.outcome != null
         env:
           APPWRITE_ENDPOINT: https://fra.cloud.appwrite.io/v1
           APPWRITE_PROJECT_ID: 69fd362b001eb325a192
