@@ -155,8 +155,27 @@ async function run() {
   console.log('Billing checkout schemas are ready (server-only collections).');
 }
 
+async function runWithRetry(attempts = 3) {
+  let lastError;
+  for (let i = 1; i <= attempts; i++) {
+    try {
+      await run();
+      return;
+    } catch (err) {
+      lastError = err;
+      if (i < attempts && /fetch failed|ECONNRESET|ETIMEDOUT|socket hang up/i.test(err.message)) {
+        console.warn(`[setup-schema] Attempt ${i} failed (${err.message}), retrying in 3s...`);
+        await new Promise(r => setTimeout(r, 3000));
+      } else {
+        throw err;
+      }
+    }
+  }
+  throw lastError;
+}
+
 if (require.main === module) {
-  run().catch(error => { console.error(`Billing checkout schema setup failed: ${error.message}`); process.exit(1); });
+  runWithRetry().catch(error => { console.error(`Billing checkout schema setup failed: ${error.message}`); process.exit(1); });
 }
 
 module.exports = {
