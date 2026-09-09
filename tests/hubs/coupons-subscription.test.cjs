@@ -640,3 +640,175 @@ test('coupons getMySubscription - renewal_cancellation_pending is false when fal
   assert.equal(res2.result.status, 200);
   assert.equal(res2.result.payload.data.renewal_cancellation_pending, false);
 });
+
+// ==============================================================================
+// Section 11: Whop Sandbox QA Enrollment Gate Test Suite
+// ==============================================================================
+
+test('Section 11 Test A1: configured WHOP_SANDBOX_QA_USER_ID + Whop Sandbox ready + Free user (default call) -> can_subscribe = true', async () => {
+  const res = createMockRes();
+  // Simulates live production environment where BILLING_CHECKOUT_PROVIDER is 'paypal',
+  // but the user matches WHOP_SANDBOX_QA_USER_ID and Whop Sandbox catalog is configured.
+  const originalBcp = process.env.BILLING_CHECKOUT_PROVIDER;
+  process.env.BILLING_CHECKOUT_PROVIDER = 'paypal';
+  try {
+    await getMySubscription({}, res, {
+      user: { $id: 'qa_user_1' },
+      subscription: null,
+      providerStates: { providerState: null, paypalProviderState: null, whopProviderState: null },
+      whopProviderEnvironment: 'sandbox',
+      checkoutEnabled: true,
+      checkoutProviderReady: true,
+    });
+    assert.equal(res.result.status, 200);
+    const data = res.result.payload.data;
+    assert.equal(data.plan, 'free');
+    assert.equal(data.effective_plan, 'free');
+    assert.equal(data.can_subscribe, true);
+  } finally {
+    if (originalBcp !== undefined) process.env.BILLING_CHECKOUT_PROVIDER = originalBcp;
+    else delete process.env.BILLING_CHECKOUT_PROVIDER;
+  }
+});
+
+test('Section 11 Test A2: configured WHOP_SANDBOX_QA_USER_ID + explicit checkoutProvider=whop -> can_subscribe = true', async () => {
+  const res = createMockRes();
+  await getMySubscription({}, res, {
+    user: { $id: 'qa_user_1' },
+    subscription: null,
+    providerStates: { providerState: null, paypalProviderState: null, whopProviderState: null },
+    whopProviderEnvironment: 'sandbox',
+    checkoutEnabled: true,
+    checkoutProvider: 'whop',
+    checkoutProviderReady: true,
+  });
+  assert.equal(res.result.status, 200);
+  assert.equal(res.result.payload.data.can_subscribe, true);
+});
+
+test('Section 11 Test B: different production user with Whop Production disabled -> can_subscribe = false', async () => {
+  const res = createMockRes();
+  await getMySubscription({}, res, {
+    user: { $id: 'prod_regular_user_999' },
+    subscription: null,
+    providerStates: { providerState: null, paypalProviderState: null, whopProviderState: null },
+    whopProviderEnvironment: 'sandbox',
+    checkoutEnabled: true,
+    checkoutProviderReady: true,
+  });
+  assert.equal(res.result.status, 200);
+  const data = res.result.payload.data;
+  assert.equal(data.plan, 'free');
+  assert.equal(data.effective_plan, 'free');
+  assert.equal(data.can_subscribe, false);
+});
+
+test('Section 11 Test C1: configured QA user but provider not ready -> can_subscribe = false', async () => {
+  const res = createMockRes();
+  await getMySubscription({}, res, {
+    user: { $id: 'qa_user_1' },
+    subscription: null,
+    providerStates: { providerState: null, paypalProviderState: null, whopProviderState: null },
+    whopProviderEnvironment: 'sandbox',
+    checkoutEnabled: true,
+    checkoutProviderReady: false,
+  });
+  assert.equal(res.result.status, 200);
+  assert.equal(res.result.payload.data.can_subscribe, false);
+});
+
+test('Section 11 Test C2: configured QA user but checkout disabled -> can_subscribe = false', async () => {
+  const res = createMockRes();
+  await getMySubscription({}, res, {
+    user: { $id: 'qa_user_1' },
+    subscription: null,
+    providerStates: { providerState: null, paypalProviderState: null, whopProviderState: null },
+    whopProviderEnvironment: 'sandbox',
+    checkoutEnabled: false,
+    checkoutProviderReady: true,
+  });
+  assert.equal(res.result.status, 200);
+  assert.equal(res.result.payload.data.can_subscribe, false);
+});
+
+test('Section 11 Test C3: configured QA user but catalog missing product ID -> can_subscribe = false', async () => {
+  const savedProdId = process.env.WHOP_SANDBOX_PRODUCT_ID;
+  delete process.env.WHOP_SANDBOX_PRODUCT_ID;
+  try {
+    const res = createMockRes();
+    await getMySubscription({}, res, {
+      user: { $id: 'qa_user_1' },
+      subscription: null,
+      providerStates: { providerState: null, paypalProviderState: null, whopProviderState: null },
+      whopProviderEnvironment: 'sandbox',
+      checkoutEnabled: true,
+      checkoutProviderReady: true,
+    });
+    assert.equal(res.result.status, 200);
+    assert.equal(res.result.payload.data.can_subscribe, false);
+  } finally {
+    process.env.WHOP_SANDBOX_PRODUCT_ID = savedProdId;
+  }
+});
+
+test('Section 11 Test D: configured QA user already on premium cannot subscribe further -> can_subscribe = false', async () => {
+  const res = createMockRes();
+  await getMySubscription({}, res, {
+    user: { $id: 'qa_user_1' },
+    subscription: { plan: 'premium' },
+    providerStates: { providerState: null, paypalProviderState: null, whopProviderState: null },
+    whopProviderEnvironment: 'sandbox',
+    checkoutEnabled: true,
+    checkoutProviderReady: true,
+  });
+  assert.equal(res.result.status, 200);
+  assert.equal(res.result.payload.data.effective_plan, 'premium');
+  assert.equal(res.result.payload.data.can_subscribe, false);
+});
+
+test('Section 11 Test E: PayPal alternative availability is preserved', async () => {
+  // E1: Sandbox PayPal QA user matches -> can_subscribe = true
+  const res1 = createMockRes();
+  await getMySubscription({}, res1, {
+    user: { $id: 'paypal_qa_user' },
+    subscription: null,
+    providerStates: { providerState: null, paypalProviderState: null },
+    paypalEnvironment: 'sandbox',
+    qaUserId: 'paypal_qa_user',
+    checkoutEnabled: true,
+    checkoutProvider: 'paypal',
+    checkoutProviderReady: true,
+  });
+  assert.equal(res1.result.status, 200);
+  assert.equal(res1.result.payload.data.can_subscribe, true);
+
+  // E2: Sandbox PayPal other user -> can_subscribe = false
+  const res2 = createMockRes();
+  await getMySubscription({}, res2, {
+    user: { $id: 'other_user' },
+    subscription: null,
+    providerStates: { providerState: null, paypalProviderState: null },
+    paypalEnvironment: 'sandbox',
+    qaUserId: 'paypal_qa_user',
+    checkoutEnabled: true,
+    checkoutProvider: 'paypal',
+    checkoutProviderReady: true,
+  });
+  assert.equal(res2.result.status, 200);
+  assert.equal(res2.result.payload.data.can_subscribe, false);
+
+  // E3: Production PayPal user -> can_subscribe = true
+  const res3 = createMockRes();
+  await getMySubscription({}, res3, {
+    user: { $id: 'prod_user_any' },
+    subscription: null,
+    providerStates: { providerState: null, paypalProviderState: null },
+    paypalEnvironment: 'production',
+    qaUserId: '',
+    checkoutEnabled: true,
+    checkoutProvider: 'paypal',
+    checkoutProviderReady: true,
+  });
+  assert.equal(res3.result.status, 200);
+  assert.equal(res3.result.payload.data.can_subscribe, true);
+});

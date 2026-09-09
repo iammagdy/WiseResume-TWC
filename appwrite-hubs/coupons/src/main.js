@@ -350,7 +350,7 @@ async function getMySubscription(body, res, dependencies = {}) {
     : configuredPaypalProviderEnvironment();
   const checkoutProvider = dependencies.checkoutProvider !== undefined
     ? String(dependencies.checkoutProvider || '').trim().toLowerCase()
-    : String(process.env.BILLING_CHECKOUT_PROVIDER || '').trim().toLowerCase();
+    : String(body?.provider || process.env.BILLING_CHECKOUT_PROVIDER || '').trim().toLowerCase();
   const configuredQaUser = dependencies.qaUserId !== undefined
     ? dependencies.qaUserId
     : checkoutProvider === 'whop'
@@ -370,7 +370,8 @@ async function getMySubscription(body, res, dependencies = {}) {
     providerEnvironment: dependencies.providerEnvironment !== undefined ? dependencies.providerEnvironment : configuredProviderEnvironment(),
     whopProviderEnvironment: configuredWhopEnv,
     paypalProviderEnvironment: configuredPaypalEnv,
-    qaUserId: configuredQaUser,
+    whopQaUserId: dependencies.qaUserId !== undefined ? dependencies.qaUserId : configuredWhopQaUserId(),
+    qaUserId: dependencies.qaUserId !== undefined ? dependencies.qaUserId : configuredQaUserId(),
     userId: user.$id,
   });
   const effectivePlan = effectiveCandidate.plan;
@@ -419,7 +420,7 @@ async function getMySubscription(body, res, dependencies = {}) {
   const expiresAt = effectiveCandidate.expiresAt ? String(effectiveCandidate.expiresAt) : null;
 
   let providerSource = null;
-  if (checkoutProvider === 'whop' && isWhopEnvironmentMatch) {
+  if (isWhopEnvironmentMatch) {
     providerSource = 'whop';
   } else if (hasValidPaypalRecord && isEnvironmentMatch) {
     providerSource = 'paypal';
@@ -433,7 +434,7 @@ async function getMySubscription(body, res, dependencies = {}) {
     providerSource = effectiveCandidate.source;
   }
 
-  const providerStatus = (checkoutProvider === 'whop' && isWhopEnvironmentMatch)
+  const providerStatus = isWhopEnvironmentMatch
     ? whopStatus
     : (hasValidPaypalRecord && isEnvironmentMatch)
       ? paypalStatus
@@ -446,20 +447,77 @@ async function getMySubscription(body, res, dependencies = {}) {
   const isProviderReady = dependencies.checkoutProviderReady !== undefined
     ? Boolean(dependencies.checkoutProviderReady)
     : String(process.env.BILLING_CHECKOUT_PROVIDER_READY || '').toLowerCase() === 'true';
-  const runtimeEnv = checkoutProvider === 'whop' ? configuredWhopEnv : String(configuredPaypalEnv || '').trim().toLowerCase();
-  const isSandbox = runtimeEnv === 'sandbox';
-  const isProduction = runtimeEnv === 'production';
-  const hasValidQaUser = Boolean(configuredQaUser && String(configuredQaUser).trim().length > 0);
-  const isMatchingQaUser = hasValidQaUser && user.$id === String(configuredQaUser).trim();
   const isEligibleForUpgrade = effectivePlan !== 'premium';
-  const isUserPermitted = isProduction || (isSandbox && isMatchingQaUser);
+
+  // Determine provider-specific availability
+  const isWhopSandbox = configuredWhopEnv === 'sandbox';
+  const isWhopProduction = configuredWhopEnv === 'production';
+  const isWhopCatalogValid = Boolean(
+    whopCatalog.productId &&
+    whopCatalog.planIds?.pro &&
+    whopCatalog.planIds?.premium
+  );
+  const effectiveWhopQaUser = dependencies.qaUserId !== undefined
+    ? dependencies.qaUserId
+    : (configuredWhopQaUserId() || configuredQaUserId());
+  const isWhopMatchingQaUser = Boolean(effectiveWhopQaUser && String(effectiveWhopQaUser).trim().length > 0) &&
+    user.$id === String(effectiveWhopQaUser).trim();
+  const isWhopUserPermitted = isWhopProduction || (isWhopSandbox && isWhopMatchingQaUser);
+  const isWhopAvailable = Boolean(
+    (isWhopSandbox || isWhopProduction) &&
+    isWhopCatalogValid &&
+    isWhopUserPermitted
+  );
+
+  const isPaypalSandbox = String(configuredPaypalEnv || '').trim().toLowerCase() === 'sandbox';
+  const isPaypalProduction = String(configuredPaypalEnv || '').trim().toLowerCase() === 'production';
+  const effectivePaypalQaUser = dependencies.qaUserId !== undefined
+    ? dependencies.qaUserId
+    : configuredQaUserId();
+  const isPaypalMatchingQaUser = Boolean(effectivePaypalQaUser && String(effectivePaypalQaUser).trim().length > 0) &&
+    user.$id === String(effectivePaypalQaUser).trim();
+  const isPaypalUserPermitted = isPaypalProduction || (isPaypalSandbox && isPaypalMatchingQaUser);
+  const isPaypalAvailable = Boolean(
+    (isPaypalSandbox || isPaypalProduction) &&
+    isPaypalUserPermitted
+  );
+
+  let providerAvailable = false;
+  if (dependencies.checkoutProvider !== undefined) {
+    const depProvider = String(dependencies.checkoutProvider || '').trim().toLowerCase();
+    if (depProvider === 'whop') {
+      providerAvailable = isWhopAvailable;
+    } else if (depProvider === 'paypal') {
+      providerAvailable = isPaypalAvailable;
+    } else {
+      providerAvailable = false;
+    }
+  } else if (body?.provider) {
+    const reqProvider = String(body.provider).trim().toLowerCase();
+    if (reqProvider === 'whop') {
+      providerAvailable = isWhopAvailable;
+    } else if (reqProvider === 'paypal') {
+      providerAvailable = isPaypalAvailable;
+    } else {
+      providerAvailable = false;
+    }
+  } else {
+    const configuredProvider = String(process.env.BILLING_CHECKOUT_PROVIDER || '').trim().toLowerCase();
+    if (configuredProvider === 'whop') {
+      providerAvailable = isWhopAvailable;
+    } else if (configuredProvider === 'paypal') {
+      providerAvailable = isPaypalAvailable || isWhopAvailable;
+    } else if (!configuredProvider) {
+      providerAvailable = isWhopAvailable || isPaypalAvailable;
+    } else {
+      providerAvailable = false;
+    }
+  }
 
   const canSubscribe = Boolean(
     isCheckoutEnabled &&
-    ['paypal', 'whop'].includes(checkoutProvider) &&
     isProviderReady &&
-    (isSandbox || isProduction) &&
-    isUserPermitted &&
+    providerAvailable &&
     isEligibleForUpgrade
   );
 
