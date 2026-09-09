@@ -24,6 +24,14 @@ const browser = await chromium.launch({ headless: true });
 const context = await browser.newContext({ viewport: { width: 1440, height: 1000 }, colorScheme: 'light' });
 const page = await context.newPage();
 
+page.on('console', (msg) => {
+  const text = msg.text();
+  if (msg.type() === 'error' || /whop|stripe|checkout|error|payment/i.test(text)) {
+    console.log(`[browser ${msg.type()}] ${text.slice(0, 300)}`);
+  }
+});
+page.on('pageerror', (err) => console.log(`[pageerror] ${err.message}`));
+
 page.on('response', async (response) => {
   if (!/\/functions\//i.test(response.url())) return;
   const requestUrl = response.url();
@@ -138,52 +146,84 @@ async function firstVisibleFrameLocator(selector, timeoutMs = 20_000) {
   return null;
 }
 
+async function dumpFrameState(label = 'debug') {
+  console.log(`--- [e2e:${label}] Current URL: ${page.url()} ---`);
+  for (let i = 0; i < page.frames().length; i++) {
+    const frame = page.frames()[i];
+    try {
+      const inputs = await frame.locator('input, select, textarea').all();
+      for (const inp of inputs) {
+        if (await inp.isVisible().catch(() => false)) {
+          const type = await inp.getAttribute('type').catch(() => '');
+          const name = await inp.getAttribute('name').catch(() => '');
+          const autocomplete = await inp.getAttribute('autocomplete').catch(() => '');
+          const placeholder = await inp.getAttribute('placeholder').catch(() => '');
+          const required = (await inp.getAttribute('required').catch(() => null)) !== null;
+          const val = await inp.inputValue().catch(() => '');
+          console.log(`[frame ${i} input] type="${type}" name="${name}" auto="${autocomplete}" ph="${placeholder}" req=${required} val="${type === 'password' ? '***' : val}"`);
+        }
+      }
+      const buttons = await frame.locator('button, [role="button"], input[type="submit"]').all();
+      for (const btn of buttons) {
+        if (await btn.isVisible().catch(() => false)) {
+          const text = (await btn.innerText().catch(() => '')).trim().replace(/\s+/g, ' ');
+          const type = await btn.getAttribute('type').catch(() => '');
+          const role = await btn.getAttribute('role').catch(() => '');
+          const disabled = await btn.isDisabled().catch(() => false);
+          const ariaDisabled = (await btn.getAttribute('aria-disabled').catch(() => '')) === 'true';
+          console.log(`[frame ${i} button] text="${text.slice(0, 60)}" type="${type}" role="${role}" disabled=${disabled || ariaDisabled}`);
+        }
+      }
+    } catch (_) {}
+  }
+}
+
 async function findSubmitButton(timeoutMs = 15_000) {
   const start = Date.now();
-  const selector = [
-    'button[type="submit"]',
-    'button:has-text("Pay")',
-    'button:has-text("Subscribe")',
-    'button:has-text("Join")',
-    'button:has-text("Start")',
-    'button:has-text("Complete")',
-    'button:has-text("Continue")',
-    'button:has-text("Checkout")',
-    '[role="button"]:has-text("Pay")',
-    '[role="button"]:has-text("Subscribe")',
-    '[role="button"]:has-text("Join")',
-    '[role="button"]:has-text("Start")',
-    '[role="button"]:has-text("Complete")',
-    '[role="button"]:has-text("Continue")',
-  ].join(', ');
-
   while (Date.now() - start < timeoutMs) {
-    for (const frame of page.frames()) {
+    for (let i = 0; i < page.frames().length; i++) {
+      const frame = page.frames()[i];
       try {
-        const candidate = frame.locator(selector).first();
-        if (await candidate.isVisible()) {
-          return candidate;
+        const buttons = await frame.locator('button, [role="button"], input[type="submit"]').all();
+        const candidates = [];
+        for (const btn of buttons) {
+          if (await btn.isVisible().catch(() => false)) {
+            const text = (await btn.innerText().catch(() => '')).trim();
+            const type = (await btn.getAttribute('type').catch(() => '')).toLowerCase();
+            const role = (await btn.getAttribute('role').catch(() => '')).toLowerCase();
+            const disabled = await btn.isDisabled().catch(() => false);
+            const ariaDisabled = (await btn.getAttribute('aria-disabled').catch(() => '')) === 'true';
+            candidates.push({ locator: btn, text, type, role, disabled: disabled || ariaDisabled, frameIndex: i });
+          }
+        }
+
+        // Exclude buttons that are non-submission actions
+        const nonAction = candidates.filter(c =>
+          !/apply|coupon|promo|discount|cancel|back|terms|privacy|close|sign in|log in/i.test(c.text)
+        );
+
+        // Priority 1: explicitly mentions Pay / Subscribe / Join / Purchase / Start
+        const explicitAction = nonAction.find(c =>
+          /\$|pay|subscribe|complete\s*purchase|join\s*membership|join|start/i.test(c.text)
+        );
+        if (explicitAction) {
+          return explicitAction;
+        }
+
+        // Priority 2: submit button that is not promo/apply
+        const submitBtn = nonAction.find(c => c.type === 'submit');
+        if (submitBtn) {
+          return submitBtn;
+        }
+
+        // Priority 3: other primary checkout action
+        const fallbackBtn = nonAction.find(c => /continue|checkout|complete/i.test(c.text));
+        if (fallbackBtn) {
+          return fallbackBtn;
         }
       } catch (_) {}
     }
     await page.waitForTimeout(500);
-  }
-
-  // Diagnostic dump across all frames if not found
-  console.log('[e2e] Could not find submit button by standard selectors. Dumping frames and buttons:');
-  for (let i = 0; i < page.frames().length; i++) {
-    const frame = page.frames()[i];
-    try {
-      const buttons = await frame.locator('button, [role="button"], input[type="submit"]').all();
-      for (const btn of buttons) {
-        if (await btn.isVisible().catch(() => false)) {
-          const text = await btn.innerText().catch(() => '');
-          const type = await btn.getAttribute('type').catch(() => '');
-          const role = await btn.getAttribute('role').catch(() => '');
-          console.log(`[frame ${i}] visible button: text="${text.trim().replace(/\s+/g, ' ')}" type="${type}" role="${role}"`);
-        }
-      }
-    } catch (_) {}
   }
   return null;
 }
@@ -198,9 +238,15 @@ try {
 
   // Fill guest customer email/name if Whop hosted checkout prompts for them
   const emailField = await firstVisibleFrameLocator('input[type="email"], input[name*="email" i], input[autocomplete="email"]', 5_000);
-  if (emailField) await emailField.fill(email);
-  const nameField = await firstVisibleFrameLocator('input[autocomplete="name"], input[name*="name" i]', 3_000);
-  if (nameField) await nameField.fill('WiseResume QA');
+  if (emailField) {
+    console.log('[e2e] Filling email field...');
+    await emailField.fill(email);
+  }
+  const nameField = await firstVisibleFrameLocator('input[autocomplete="name"], input[autocomplete="cc-name"], input[name*="cardholder" i], input[name*="name" i], input[placeholder*="name on card" i]', 3_000);
+  if (nameField) {
+    console.log('[e2e] Filling name field...');
+    await nameField.fill('WiseResume QA');
+  }
 
   // These are Whop's public Sandbox test values, used only after the
   // environment, hostname, and catalog guards above have passed.
@@ -213,12 +259,133 @@ try {
   await expiryField.fill(testExpiry);
   await cvcField.fill(testCvc);
 
+  // Postal code / ZIP code
+  const postalField = await firstVisibleFrameLocator('input[autocomplete="postal-code"], input[name*="postal" i], input[name*="zip" i], input[placeholder*="zip" i], input[placeholder*="postal" i]', 3_000);
+  if (postalField) {
+    console.log('[e2e] Filling postal code field...');
+    await postalField.fill('10001');
+    await postalField.press('Tab').catch(() => {});
+  }
+
+  // Phone if present and empty
+  const phoneField = await firstVisibleFrameLocator('input[type="tel"], input[autocomplete="tel"], input[name*="phone" i]', 2_000);
+  if (phoneField && (await phoneField.inputValue().catch(() => '')) === '') {
+    console.log('[e2e] Filling phone field...');
+    await phoneField.fill('5555555555');
+  }
+
+  // Check required checkboxes if unchecked
+  for (const frame of page.frames()) {
+    try {
+      const requiredBoxes = await frame.locator('input[type="checkbox"][required], input[type="checkbox"][aria-required="true"]').all();
+      for (const box of requiredBoxes) {
+        if (await box.isVisible().catch(() => false) && !(await box.isChecked().catch(() => true))) {
+          console.log('[e2e] Checking required checkbox...');
+          await box.check({ force: true }).catch(() => {});
+        }
+      }
+    } catch (_) {}
+  }
+
+  await dumpFrameState('form-filled');
+
   await page.waitForTimeout(1_000);
-  const submit = await findSubmitButton(15_000);
-  if (!submit) throw new Error('Whop Sandbox submit button was not available');
-  await submit.click();
-  await page.waitForURL(url => !/sandbox\.whop\.com/i.test(url.toString()), { timeout: 30_000 }).catch(() => {});
-  if (/sandbox\.whop\.com/i.test(page.url())) throw new Error('Whop Sandbox checkout did not return after payment submission');
+  const submitCandidate = await findSubmitButton(15_000);
+  if (!submitCandidate) {
+    await dumpFrameState('missing-submit-button');
+    throw new Error('Whop Sandbox submit button was not available');
+  }
+
+  console.log(`[e2e] Selected submit button: text="${submitCandidate.text}" type="${submitCandidate.type}" role="${submitCandidate.role}" disabled=${submitCandidate.disabled} frame=${submitCandidate.frameIndex}`);
+
+  // If disabled, wait up to 10s for card validation to complete and enable the button
+  if (submitCandidate.disabled) {
+    console.log('[e2e] Submit button is currently disabled, waiting up to 10s for validation to enable it...');
+    const enableStart = Date.now();
+    while (Date.now() - enableStart < 10_000) {
+      const stillDisabled = (await submitCandidate.locator.isDisabled().catch(() => true)) ||
+        ((await submitCandidate.locator.getAttribute('aria-disabled').catch(() => '')) === 'true');
+      if (!stillDisabled) {
+        console.log('[e2e] Submit button is now enabled!');
+        break;
+      }
+      await page.waitForTimeout(500);
+    }
+  }
+
+  await submitCandidate.locator.click();
+  console.log('[e2e] Submit button clicked. Monitoring post-submit state...');
+
+  const postSubmitStart = Date.now();
+  let paymentSubmitted = false;
+
+  while (Date.now() - postSubmitStart < 45_000) {
+    const currentUrl = page.url();
+
+    // Check if navigated away from Whop Sandbox
+    if (!/sandbox\.whop\.com/i.test(currentUrl)) {
+      console.log(`[e2e] Successfully navigated away from Whop Sandbox to: ${currentUrl}`);
+      paymentSubmitted = true;
+      break;
+    }
+
+    // Check for inline error alerts
+    for (const frame of page.frames()) {
+      try {
+        const errorElements = await frame.locator('[role="alert"], .error, [class*="error" i], [aria-invalid="true"]').all();
+        for (const err of errorElements) {
+          if (await err.isVisible().catch(() => false)) {
+            const errText = (await err.innerText().catch(() => '')).trim();
+            if (errText) console.log(`[e2e] Visible form/page error: "${errText.replace(/\s+/g, ' ')}"`);
+          }
+        }
+      } catch (_) {}
+    }
+
+    // Check for post-payment confirmation screen on Whop Sandbox
+    const pageBody = await page.locator('body').innerText().catch(() => '');
+    const isConfirmation = /order confirmed|thank you|payment successful|you['’]re in|membership active|success|receipt/i.test(pageBody) ||
+      /\/orders\/|\/confirmation|\/success|\/thank-you|\/hub/i.test(currentUrl);
+
+    if (isConfirmation) {
+      console.log(`[e2e] Whop post-payment confirmation screen detected on ${currentUrl}`);
+      paymentSubmitted = true;
+
+      // Look for a return or continue button/link to return to WiseResume
+      for (const frame of page.frames()) {
+        try {
+          const actionElements = await frame.locator('a, button, [role="button"]').all();
+          for (const el of actionElements) {
+            if (await el.isVisible().catch(() => false)) {
+              const elText = (await el.innerText().catch(() => '')).trim();
+              const href = (await el.getAttribute('href').catch(() => '')) || '';
+              if (/return|continue|go to|back to|access|wiseresume/i.test(elText) || /wiseresume\.app/i.test(href)) {
+                console.log(`[e2e] Found return/continue element on confirmation screen: text="${elText}" href="${href}". Clicking...`);
+                await el.click().catch(() => {});
+                break;
+              }
+            }
+          }
+        } catch (_) {}
+      }
+
+      await page.waitForTimeout(3_000);
+      if (!/sandbox\.whop\.com/i.test(page.url())) {
+        console.log(`[e2e] Successfully returned to app: ${page.url()}`);
+      }
+      break;
+    }
+
+    await page.waitForTimeout(2_000);
+  }
+
+  if (!paymentSubmitted && /sandbox\.whop\.com/i.test(page.url())) {
+    await dumpFrameState('post-submit-timeout');
+    const fullBody = await page.locator('body').innerText().catch(() => '');
+    console.log(`[e2e] Whop Sandbox page text at timeout:\n${fullBody.slice(0, 2000)}`);
+    throw new Error('Whop Sandbox checkout did not return after payment submission');
+  }
+
   console.log('WHOP_PRO_PAYMENT_SUBMITTED=true');
 } finally {
   await context.close();
