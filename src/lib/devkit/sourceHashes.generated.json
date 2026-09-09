@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-08T09:47:31.475Z",
+  "generatedAt": "2026-09-09T08:15:33.112Z",
   "hashes": {
     "ai-gateway": "8c4c5c2e3e9ad07953bbe3e4c7f4863a5bcc0a129f28d8810f9c0e52a738aa0f",
     "admin-devkit-data": "7b31b3ef9aebe02d32aff1b1eef767cf9785c2765230adcbf6949188f84e8f35",
@@ -15,10 +15,10 @@
     "admin-testmail": "f97e15e3dba5b3cefc0879e8feea724b78ee2d5c89a1991cad441cc80caf1e67",
     "admin-visitor-analytics": "300efba1ccb8a086af6f639134652e15570614c960ecf02d998912ac188cc813",
     "ai-health": "93e4eb094e5363031fa8864bdc6c154b76f9e8b80d07f11ae73f0dbc8473e01f",
-    "coupons": "5ec7bc4e582c756f2d84389bed0f21fd1cabdcbb5d119190620ae891b76e758a",
+    "coupons": "d35f11d000988e39aa5c134e88a389f63ef4a3e6b15bee4e0ad642009185a439",
     "revenuecat-webhook": "704b896e0460187b21d84e1f42f208088baf4c3d128971f0c114137435e27cdd",
     "paypal-webhook": "4bf46aa5cd2e1ed31f2ad4f074f337042265979026df2bdb119ec78eb5679b03",
-    "whop-webhook": "e2cf6b59e4ba863a26b4c47733a01eb72bd4789929bcf459677e9a2cf8d1444b",
+    "whop-webhook": "780bb1a33539f210467c8afd36a32a57f52233efa41e4994bc8dde91650423c9",
     "email-service": "0a3bdc2e05d7edd51ab26e5077dbf72a19a243eded08bd2165092c9c086e5baf",
     "email-templates": null,
     "job-import": "c802ae4ebd347ac9a4334f25f5f89f82f05e53f6139d8a99b7500cb086ca5f20",

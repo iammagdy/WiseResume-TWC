@@ -6,6 +6,7 @@ const sdk = require('node-appwrite');
 const DB_ID = 'main';
 const STATE_COLLECTION_ID = 'whop_subscription_state';
 const LEDGER_COLLECTION_ID = 'whop_event_ledger';
+const SESSION_COLLECTION_ID = 'billing_checkout_sessions';
 const DEFAULT_COMPANY_ID = 'biz_B7fMXLLj18wv8J';
 const DEFAULT_PRODUCT_ID = 'prod_WrbEGZdSaG2af';
 const DEFAULT_PLAN_TO_ENTITLEMENT = Object.freeze({
@@ -104,11 +105,12 @@ function eventData(body, requestId) {
     timestampMs: Date.parse(body.timestamp || '') || 0,
     companyId: String(body.account_id || body.company_id || data.account?.id || data.company?.id || '').trim(),
     userId: String(data.metadata?.wiseresume_user_id || '').trim(),
-    planId: String(data.plan?.id || '').trim(),
-    productId: String(data.product?.id || '').trim(),
+    planId: String(data.plan?.id || data.plan_id || '').trim(),
+    productId: String(data.product?.id || data.product_id || '').trim(),
     membershipId: String(data.membership?.id || data.id || '').trim(),
+    checkoutConfigurationId: String(data.checkout_configuration_id || data.checkout_configuration?.id || '').trim(),
     metadata: data.metadata && typeof data.metadata === 'object' ? data.metadata : {},
-    periodEnd: data.renewal_period_end || null,
+    periodEnd: data.renewal_period_end || data.current_period_end || null,
     cancelAtPeriodEnd: data.cancel_at_period_end === true,
     raw: data,
   };
@@ -117,7 +119,6 @@ function validateEvent(event, catalog = configuredCatalog()) {
   if (!event.id || !SUPPORTED_EVENTS.has(event.type)) return 'invalid_event';
   if (!event.timestampMs || !Number.isSafeInteger(event.timestampMs)) return 'invalid_timestamp';
   if (!catalog.companyId || event.companyId !== catalog.companyId) return 'company_mismatch';
-  if (event.type.startsWith('membership.') && (!event.userId || event.userId.length > 64)) return 'missing_metadata_user';
   if (STATE_EVENTS.has(event.type) && (event.productId !== catalog.productId || !catalog.planToEntitlement[event.planId])) return 'unknown_product_or_plan';
   return null;
 }
@@ -146,7 +147,7 @@ function statePatch(event, nowMs, previous) {
     latest_event_id: event.id,
     latest_event_type: event.type,
     latest_event_timestamp_ms: event.timestampMs,
-    checkout_reference: String(event.metadata.checkout_reference || previous?.checkout_reference || '').slice(0, 160),
+    checkout_reference: String(event.checkoutConfigurationId || event.metadata.checkout_reference || previous?.checkout_reference || '').slice(0, 160),
     updated_at: new Date(nowMs).toISOString(),
   };
 }
@@ -168,26 +169,172 @@ async function recordLedger(databases, event, nowMs, status, outcomeCode) {
     expires_at: new Date(nowMs + LEDGER_RETENTION_DAYS * 86400000).toISOString(),
   }, []);
 }
+async function updateLedger(databases, eventId, status, outcomeCode) {
+  return databases.updateDocument(DB_ID, LEDGER_COLLECTION_ID, ledgerDocumentId(eventId), {
+    processing_status: status,
+    outcome_code: outcomeCode,
+  }, []);
+}
+
+async function resolveUserFromSession(databases, event, catalog, accessEnvironment) {
+  const checkoutRef = event.checkoutConfigurationId;
+  if (!checkoutRef) return null;
+  let session = null;
+  try {
+    const res = await databases.listDocuments(DB_ID, SESSION_COLLECTION_ID, [
+      sdk.Query.equal('checkout_reference', checkoutRef),
+      sdk.Query.limit(1),
+    ]);
+    if (res.documents?.length > 0) session = res.documents[0];
+  } catch (_) {}
+  if (!session) {
+    try {
+      const res = await databases.listDocuments(DB_ID, SESSION_COLLECTION_ID, [
+        sdk.Query.equal('provider_transaction_id', checkoutRef),
+        sdk.Query.limit(1),
+      ]);
+      if (res.documents?.length > 0) session = res.documents[0];
+    } catch (_) {}
+  }
+  if (!session) return null;
+
+  const sessionUser = String(session.user_id || '').trim();
+  if (!sessionUser || sessionUser.length > 64) return null;
+
+  // Validate provider where stored
+  if (session.provider && String(session.provider).trim().toLowerCase() !== 'whop') {
+    return null;
+  }
+
+  // Validate environment matches validated webhook environment
+  if (String(session.environment || '').trim().toLowerCase() !== accessEnvironment) {
+    return null;
+  }
+
+  // Validate plan matches real Whop plan mapping
+  const expectedPlan = catalog.planToEntitlement[event.planId];
+  if (!expectedPlan || session.plan !== expectedPlan) {
+    return null;
+  }
+
+  // Validate product/price identifiers where available in session
+  if (session.price_id && event.planId && session.price_id !== event.planId) {
+    return null;
+  }
+  if (session.product_id && catalog.productId && session.product_id !== catalog.productId) {
+    return null;
+  }
+
+  return sessionUser;
+}
+
+async function resolveUserFromExistingState(databases, event, accessEnvironment) {
+  const membershipId = event.membershipId;
+  if (!membershipId) return null;
+  try {
+    const res = await databases.listDocuments(DB_ID, STATE_COLLECTION_ID, [
+      sdk.Query.equal('membership_id', membershipId),
+      sdk.Query.limit(1),
+    ]);
+    const doc = res.documents?.[0] || null;
+    if (!doc) return null;
+    if (String(doc.environment || '').trim().toLowerCase() !== accessEnvironment) return null;
+    const userId = String(doc.user_id || '').trim();
+    return userId && userId.length <= 64 ? userId : null;
+  } catch (_) {
+    return null;
+  }
+}
+
 async function processEvent(databases, users, event, nowMs = Date.now()) {
-  const invalid = validateEvent(event);
+  const catalog = configuredCatalog();
+  const invalid = validateEvent(event, catalog);
   if (invalid) return { outcome: 'rejected', code: invalid, mutated: false };
-  if (await findLedger(databases, event.id)) return { outcome: 'duplicate', code: 'already_recorded', mutated: false };
+
+  const accessEnvironment = env('WHOP_ACCESS_ENVIRONMENT').toLowerCase();
+  if (!['sandbox', 'production'].includes(accessEnvironment)) {
+    throw new Error('WHOP_ACCESS_ENVIRONMENT must be sandbox or production');
+  }
+
+  // Check ledger for duplicates / reclaim
+  const existingLedger = await findLedger(databases, event.id);
+  if (existingLedger) {
+    const isReclaimable = existingLedger.processing_status === 'rejected' &&
+      event.type.startsWith('membership.') &&
+      (existingLedger.outcome_code === 'missing_metadata_user' || existingLedger.outcome_code === 'unresolved_checkout_correlation');
+    if (!isReclaimable) {
+      return { outcome: 'duplicate', code: 'already_recorded', mutated: false };
+    }
+  }
+
+  // Resolve user identity for membership events
+  if (event.type.startsWith('membership.')) {
+    if (!event.userId) {
+      const sessionUser = await resolveUserFromSession(databases, event, catalog, accessEnvironment);
+      if (sessionUser) {
+        event.userId = sessionUser;
+      } else if (event.type !== 'membership.activated') {
+        const stateUser = await resolveUserFromExistingState(databases, event, accessEnvironment);
+        if (stateUser) {
+          event.userId = stateUser;
+        }
+      }
+    }
+    if (!event.userId || event.userId.length > 64) {
+      return { outcome: 'rejected', code: 'unresolved_checkout_correlation', mutated: false };
+    }
+  }
+
+  // Non-state events (payment.succeeded, etc.)
   if (!STATE_EVENTS.has(event.type)) {
-    await recordLedger(databases, event, nowMs, 'processed', 'observed_without_entitlement_mutation');
+    if (existingLedger) {
+      await updateLedger(databases, event.id, 'processed', 'observed_without_entitlement_mutation');
+    } else {
+      await recordLedger(databases, event, nowMs, 'processed', 'observed_without_entitlement_mutation');
+    }
     return { outcome: 'processed', code: 'observed_without_entitlement_mutation', mutated: false };
   }
+
+  // Verify Appwrite user exists
   if (users) {
     try { await users.get(event.userId); } catch { return { outcome: 'rejected', code: 'unknown_identity', mutated: false }; }
   }
+
+  // Multi-membership safety guard & ordering check
   const previous = await findState(databases, event.userId);
-  if (previous && event.timestampMs < Number(previous.latest_event_timestamp_ms || -1)) {
-    await recordLedger(databases, event, nowMs, 'ignored', 'stale_event');
-    return { outcome: 'ignored', code: 'stale_event', mutated: true };
+  if (previous) {
+    const isDifferentMembership = Boolean(previous.membership_id && event.membershipId && previous.membership_id !== event.membershipId);
+    if (isDifferentMembership && event.type !== 'membership.activated') {
+      // Deactivation or cancellation for a non-current membership must NOT remove current active entitlement
+      if (existingLedger) {
+        await updateLedger(databases, event.id, 'ignored', 'non_current_membership');
+      } else {
+        await recordLedger(databases, event, nowMs, 'ignored', 'non_current_membership');
+      }
+      return { outcome: 'ignored', code: 'non_current_membership', mutated: false };
+    }
+
+    if (event.timestampMs < Number(previous.latest_event_timestamp_ms || -1)) {
+      if (existingLedger) {
+        await updateLedger(databases, event.id, 'ignored', 'stale_event');
+      } else {
+        await recordLedger(databases, event, nowMs, 'ignored', 'stale_event');
+      }
+      return { outcome: 'ignored', code: 'stale_event', mutated: false };
+    }
   }
+
+  // State patch and write
   const patch = statePatch(event, nowMs, previous);
   if (previous) await databases.updateDocument(DB_ID, STATE_COLLECTION_ID, previous.$id, patch, []);
   else await databases.createDocument(DB_ID, STATE_COLLECTION_ID, stateDocumentId(event.userId), patch, []);
-  await recordLedger(databases, event, nowMs, 'processed', 'state_updated');
+
+  if (existingLedger) {
+    await updateLedger(databases, event.id, 'processed', 'state_updated');
+  } else {
+    await recordLedger(databases, event, nowMs, 'processed', 'state_updated');
+  }
+
   return { outcome: 'processed', code: 'state_updated', mutated: true, plan: patch.plan };
 }
 function respond(res, body, status = 200) { return res.json(body, status); }
@@ -211,10 +358,11 @@ module.exports = async ({ req, res, log, error }) => {
 };
 
 module.exports.__test = {
-  DB_ID, STATE_COLLECTION_ID, LEDGER_COLLECTION_ID,
+  DB_ID, STATE_COLLECTION_ID, LEDGER_COLLECTION_ID, SESSION_COLLECTION_ID,
   COMPANY_ID: DEFAULT_COMPANY_ID, PRODUCT_ID: DEFAULT_PRODUCT_ID,
   PLAN_TO_ENTITLEMENT: DEFAULT_PLAN_TO_ENTITLEMENT, configuredCatalog,
   SUPPORTED_EVENTS, STATE_EVENTS, verifySignature,
   rawBody, parseBody, eventData, validateEvent, statePatch, processEvent,
+  resolveUserFromSession, resolveUserFromExistingState,
   stateDocumentId, ledgerDocumentId,
 };
