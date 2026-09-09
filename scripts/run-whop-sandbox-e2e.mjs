@@ -188,11 +188,14 @@ async function findSubmitButton(timeoutMs = 15_000) {
         const candidates = [];
         for (const btn of buttons) {
           if (await btn.isVisible().catch(() => false)) {
-            const text = (await btn.innerText().catch(() => '')).trim();
-            const type = (await btn.getAttribute('type').catch(() => '')).toLowerCase();
-            const role = (await btn.getAttribute('role').catch(() => '')).toLowerCase();
+            const rawText = await btn.innerText().catch(() => '');
+            const text = (rawText || '').trim();
+            const rawType = await btn.getAttribute('type').catch(() => '');
+            const type = (rawType || '').toLowerCase();
+            const rawRole = await btn.getAttribute('role').catch(() => '');
+            const role = (rawRole || '').toLowerCase();
             const disabled = await btn.isDisabled().catch(() => false);
-            const ariaDisabled = (await btn.getAttribute('aria-disabled').catch(() => '')) === 'true';
+            const ariaDisabled = ((await btn.getAttribute('aria-disabled').catch(() => '')) || '').toLowerCase() === 'true';
             candidates.push({ locator: btn, text, type, role, disabled: disabled || ariaDisabled, frameIndex: i });
           }
         }
@@ -221,7 +224,9 @@ async function findSubmitButton(timeoutMs = 15_000) {
         if (fallbackBtn) {
           return fallbackBtn;
         }
-      } catch (_) {}
+      } catch (err) {
+        console.log(`[e2e] Error in findSubmitButton frame ${i}: ${err.message}`);
+      }
     }
     await page.waitForTimeout(500);
   }
@@ -236,16 +241,11 @@ try {
   const proUrl = await openProviderCheckout('Whop', /\$5|5\.00/);
   console.log(`WHOP_PRO_CHECKOUT_OPEN=true origin=${new URL(proUrl).origin}`);
 
-  // Fill guest customer email/name if Whop hosted checkout prompts for them
+  // Fill guest customer email if Whop hosted checkout prompts for it
   const emailField = await firstVisibleFrameLocator('input[type="email"], input[name*="email" i], input[autocomplete="email"]', 5_000);
   if (emailField) {
     console.log('[e2e] Filling email field...');
     await emailField.fill(email);
-  }
-  const nameField = await firstVisibleFrameLocator('input[autocomplete="name"], input[autocomplete="cc-name"], input[name*="cardholder" i], input[name*="name" i], input[placeholder*="name on card" i]', 3_000);
-  if (nameField) {
-    console.log('[e2e] Filling name field...');
-    await nameField.fill('WiseResume QA');
   }
 
   // These are Whop's public Sandbox test values, used only after the
@@ -259,7 +259,7 @@ try {
   await expiryField.fill(testExpiry);
   await cvcField.fill(testCvc);
 
-  // Postal code / ZIP code
+  // Fill postal code / ZIP code if present
   const postalField = await firstVisibleFrameLocator('input[autocomplete="postal-code"], input[name*="postal" i], input[name*="zip" i], input[placeholder*="zip" i], input[placeholder*="postal" i]', 3_000);
   if (postalField) {
     console.log('[e2e] Filling postal code field...');
@@ -272,6 +272,39 @@ try {
   if (phoneField && (await phoneField.inputValue().catch(() => '')) === '') {
     console.log('[e2e] Filling phone field...');
     await phoneField.fill('5555555555');
+  }
+
+  // Fill all required / empty contact and billing address fields across all frames
+  for (const frame of page.frames()) {
+    try {
+      const inputs = await frame.locator('input').all();
+      for (const inp of inputs) {
+        if (await inp.isVisible().catch(() => false)) {
+          const val = (await inp.inputValue().catch(() => '')).trim();
+          if (val) continue;
+          const name = ((await inp.getAttribute('name').catch(() => '')) || '').toLowerCase();
+          const auto = ((await inp.getAttribute('autocomplete').catch(() => '')) || '').toLowerCase();
+          const ph = ((await inp.getAttribute('placeholder').catch(() => '')) || '').toLowerCase();
+
+          if (/address|line1/i.test(name) || /address-line1/i.test(auto) || /address/i.test(ph)) {
+            console.log(`[e2e] Filling address line 1: name="${name}" auto="${auto}"`);
+            await inp.fill('123 Main St');
+          } else if (/city|address-level2/i.test(name) || /address-level2/i.test(auto) || /city/i.test(ph)) {
+            console.log(`[e2e] Filling city: name="${name}" auto="${auto}"`);
+            await inp.fill('New York');
+          } else if (/state|address-level1/i.test(name) || /address-level1/i.test(auto) || /state/i.test(ph)) {
+            console.log(`[e2e] Filling state: name="${name}" auto="${auto}"`);
+            await inp.fill('NY');
+          } else if (/postal|zip/i.test(name) || /postal-code/i.test(auto) || /zip/i.test(ph)) {
+            console.log(`[e2e] Filling zip: name="${name}" auto="${auto}"`);
+            await inp.fill('10001');
+          } else if (/name/i.test(name) || /name/i.test(auto) || /name/i.test(ph)) {
+            console.log(`[e2e] Filling name: name="${name}" auto="${auto}"`);
+            await inp.fill('WiseResume QA');
+          }
+        }
+      }
+    } catch (_) {}
   }
 
   // Check required checkboxes if unchecked
