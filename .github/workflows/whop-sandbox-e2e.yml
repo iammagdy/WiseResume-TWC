@@ -95,31 +95,15 @@ jobs:
           })().catch(error => { console.error(`[qa-provision] ${error.message}`); process.exit(1); });
           NODE
 
-      - name: Deploy only Whop QA-ID consumers
+      - name: Sync temporary Whop QA user variable
+        id: sync_qa_vars
         if: github.event.inputs.mode != 'verify_existing_payment'
         env:
           APPWRITE_ENDPOINT: https://fra.cloud.appwrite.io/v1
           APPWRITE_PROJECT_ID: 69fd362b001eb325a192
           APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
-          BILLING_CHECKOUT_PROVIDER: whop
-          BILLING_CHECKOUT_ENABLED: 'true'
-          BILLING_CHECKOUT_PROVIDER_READY: 'true'
-          WHOP_ACCESS_ENVIRONMENT: sandbox
-          WHOP_CHECKOUT_ENVIRONMENT: sandbox
-          WHOP_SANDBOX_QA_USER_ID: ${{ steps.provision.outputs.qa_user_id }}
-          WHOP_SANDBOX_API_KEY: ${{ secrets.WHOP_SANDBOX_API_KEY }}
-          WHOP_WEBHOOK_SECRET: ${{ secrets.WHOP_WEBHOOK_SECRET }}
-          WHOP_SANDBOX_COMPANY_ID: biz_4To0HUTEuAbKkl
-          WHOP_SANDBOX_PRODUCT_ID: prod_b7Vm6yYS2ROI6
-          WHOP_SANDBOX_PRO_PLAN_ID: plan_ECWULjIBMFBE5
-          WHOP_SANDBOX_PREMIUM_PLAN_ID: plan_YCBJ6FvCkKuRv
-          WHOP_PRODUCTION_COMPANY_ID: ${{ vars.WHOP_PRODUCTION_COMPANY_ID }}
-          WHOP_PRODUCTION_PRODUCT_ID: ${{ vars.WHOP_PRODUCTION_PRODUCT_ID }}
-          WHOP_PRODUCTION_PRO_PLAN_ID: ${{ vars.WHOP_PRODUCTION_PRO_PLAN_ID }}
-          WHOP_PRODUCTION_PREMIUM_PLAN_ID: ${{ vars.WHOP_PRODUCTION_PREMIUM_PLAN_ID }}
-          FRONTEND_URL: https://wiseresume.app
-          HUB_TARGET: billing-checkout,ai-gateway,coupons
-        run: node scripts/deploy_hubs.cjs --only="billing-checkout,ai-gateway,coupons"
+          TARGET_QA_USER_ID: ${{ steps.provision.outputs.qa_user_id }}
+        run: node scripts/sync_whop_qa_user_variable.cjs capture-and-apply
 
       - name: Run Whop isolation and checkout tests
         run: node --test tests/hubs/whop-resolver.test.cjs tests/hubs/billing-checkout.test.cjs tests/hubs/coupons-subscription.test.cjs tests/hubs/whop-checkout.test.cjs
@@ -187,3 +171,12 @@ jobs:
           APPWRITE_PROJECT_ID: 69fd362b001eb325a192
           APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
         run: node scripts/dump_billing_checkout_executions.cjs
+
+      - name: Restore previous Whop QA user variable
+        if: always() && steps.sync_qa_vars.outcome != 'skipped'
+        env:
+          APPWRITE_ENDPOINT: https://fra.cloud.appwrite.io/v1
+          APPWRITE_PROJECT_ID: 69fd362b001eb325a192
+          APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
+          TARGET_QA_USER_ID: ${{ steps.provision.outputs.qa_user_id }}
+        run: node scripts/sync_whop_qa_user_variable.cjs restore

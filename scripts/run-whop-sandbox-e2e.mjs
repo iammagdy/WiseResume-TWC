@@ -143,20 +143,45 @@ async function assertInitialPlanFree() {
   if (appwriteApiKey && qaUserId) {
     const client = new sdk.Client().setEndpoint(appwriteEndpoint).setProject(appwriteProjectId).setKey(appwriteApiKey);
     const databases = new sdk.Databases(client);
-    const stateDocs = await databases.listDocuments('main', 'whop_subscription_state', [
-      sdk.Query.equal('user_id', [qaUserId]),
-      sdk.Query.limit(5),
-    ]).catch(() => ({ documents: [] }));
 
-    if (stateDocs.documents.length > 0) {
+    // Read real current provider/subscription state for the fresh user
+    const [whopDocs, subDocs, paypalDocs] = await Promise.all([
+      databases.listDocuments('main', 'whop_subscription_state', [
+        sdk.Query.equal('user_id', [qaUserId]),
+        sdk.Query.limit(5),
+      ]).catch(() => ({ documents: [] })),
+      databases.listDocuments('main', 'subscriptions', [
+        sdk.Query.equal('user_id', [qaUserId]),
+        sdk.Query.limit(5),
+      ]).catch(() => ({ documents: [] })),
+      databases.listDocuments('main', 'paypal_subscription_state', [
+        sdk.Query.equal('user_id', [qaUserId]),
+        sdk.Query.limit(5),
+      ]).catch(() => ({ documents: [] })),
+    ]);
+
+    if (whopDocs.documents.length > 0) {
       throw new Error(`QA user ${maskId(qaUserId)} already has existing whop_subscription_state documents. Must be fresh!`);
     }
 
-    const resolved = await resolver.resolveSubscription(qaUserId, { endpoint: appwriteEndpoint, projectId: appwriteProjectId, apiKey: appwriteApiKey });
-    if (resolved?.effectivePlan !== 'free') {
-      throw new Error(`Initial effective plan for ${maskId(qaUserId)} is not free: ${resolved?.effectivePlan}`);
+    const manualSub = subDocs.documents?.[0] || null;
+    const paypalState = paypalDocs.documents?.[0] || null;
+    const whopState = whopDocs.documents?.[0] || null;
+
+    const resolved = resolver.resolveEffectivePlan({
+      providerEnvironment: 'sandbox',
+      whopProviderEnvironment: 'sandbox',
+      userId: qaUserId,
+      whopQaUserId: qaUserId,
+      whopProviderState: whopState,
+      subscription: manualSub,
+      paypalProviderState: paypalState,
+    });
+
+    if (resolved?.plan !== 'free') {
+      throw new Error(`Initial effective plan for ${maskId(qaUserId)} is not free: plan=${resolved?.plan}, source=${resolved?.source}`);
     }
-    console.log(`[e2e] Pre-checkout Appwrite verification: effectivePlan=free, whop_docs=0 for ${maskId(qaUserId)}`);
+    console.log(`[e2e] Pre-checkout Appwrite verification: plan=free, source=${resolved?.source}, whop_docs=0 for ${maskId(qaUserId)}`);
   }
 
   console.log('QA_INITIAL_PLAN_FREE=true');
@@ -427,8 +452,11 @@ async function verifyBackendEntitlement() {
     ]).catch(() => ({ documents: [] }));
 
     if (listRes.documents?.length > 0) {
+      if (listRes.documents.length !== 1) {
+        throw new Error(`Expected exactly 1 whop_subscription_state document for fresh QA user, but found ${listRes.documents.length}`);
+      }
       stateDoc = listRes.documents[0];
-      console.log(`[backend-verify] Found whop_subscription_state doc: ${maskId(stateDoc.$id)} plan=${stateDoc.plan} status=${stateDoc.status} membership_id=${maskId(stateDoc.membership_id)}`);
+      console.log(`[backend-verify] Found single authoritative whop_subscription_state doc: ${maskId(stateDoc.$id)} plan=${stateDoc.plan} status=${stateDoc.status} membership_id=${maskId(stateDoc.membership_id)}`);
       break;
     }
     await new Promise(r => setTimeout(r, 2000));
@@ -458,11 +486,21 @@ async function verifyBackendEntitlement() {
     console.log('CRITERION_N_WEBHOOK_HTTP_200=PASS');
   }
 
-  // Check shared subscription resolver
-  const resolved = await resolver.resolveSubscription(qaUserId, { endpoint: appwriteEndpoint, projectId: appwriteProjectId, apiKey: appwriteApiKey });
-  console.log(`[backend-verify] Shared resolver output: effectivePlan=${resolved?.effectivePlan} source=${resolved?.source} status=${resolved?.status}`);
-  if (resolved?.effectivePlan !== 'pro' || resolved?.source !== 'whop') {
-    throw new Error(`Shared resolver did not resolve to active Pro: effectivePlan=${resolved?.effectivePlan}, source=${resolved?.source}`);
+  // Check shared subscription resolver with real created state
+  const resolved = resolver.resolveEffectivePlan({
+    providerEnvironment: 'sandbox',
+    whopProviderEnvironment: 'sandbox',
+    userId: qaUserId,
+    whopQaUserId: qaUserId,
+    whopProviderState: stateDoc,
+    subscription: null,
+  });
+  console.log(`[backend-verify] Shared resolver output: plan=${resolved?.plan} source=${resolved?.source} status=${resolved?.status} environment=${resolved?.providerEnvironment}`);
+  if (resolved?.plan !== 'pro' || resolved?.source !== 'whop' || resolved?.status !== 'active') {
+    throw new Error(`Shared resolver did not resolve to active Pro: plan=${resolved?.plan}, source=${resolved?.source}, status=${resolved?.status}`);
+  }
+  if (resolved?.providerEnvironment && resolved.providerEnvironment !== 'sandbox') {
+    throw new Error(`Shared resolver providerEnvironment mismatch: expected sandbox, got ${resolved?.providerEnvironment}`);
   }
   console.log('CRITERION_P_SHARED_RESOLVER_PRO=PASS');
 
