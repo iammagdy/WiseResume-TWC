@@ -46,15 +46,17 @@ async function captureAndApply(functions, targetQaUserId) {
 
     if (existing) {
       mask(existing.value);
+      const isSecret = Boolean(existing.secret);
       previousState[fnId] = {
         exists: true,
         varId: existing.$id,
         previousValue: existing.value,
+        secret: isSecret,
       };
 
       if (existing.value !== targetQaUserId) {
-        await functions.updateVariable(fnId, existing.$id, VARIABLE_KEY, targetQaUserId, false);
-        console.log(`[qa-vars] Updated ${VARIABLE_KEY} on ${fnId} (secret=false)`);
+        await functions.updateVariable(fnId, existing.$id, VARIABLE_KEY, targetQaUserId, isSecret);
+        console.log(`[qa-vars] Updated ${VARIABLE_KEY} on ${fnId} (secret=${isSecret})`);
       } else {
         console.log(`[qa-vars] ${VARIABLE_KEY} on ${fnId} already set to target QA user`);
       }
@@ -63,6 +65,7 @@ async function captureAndApply(functions, targetQaUserId) {
         exists: false,
         varId: null,
         previousValue: null,
+        secret: false,
       };
       const created = await functions.createVariable(fnId, sdk.ID.unique(), VARIABLE_KEY, targetQaUserId, false);
       previousState[fnId].varId = created.$id;
@@ -102,12 +105,13 @@ async function restore(functions, tempQaUserId) {
     const current = (listRes.variables || []).find(v => v.key === VARIABLE_KEY);
 
     if (entry.exists && entry.previousValue) {
+      const isSecret = Boolean(entry.secret);
       if (current) {
-        await functions.updateVariable(fnId, current.$id, VARIABLE_KEY, entry.previousValue, false);
+        await functions.updateVariable(fnId, current.$id, VARIABLE_KEY, entry.previousValue, isSecret);
       } else {
-        await functions.createVariable(fnId, sdk.ID.unique(), VARIABLE_KEY, entry.previousValue, false);
+        await functions.createVariable(fnId, sdk.ID.unique(), VARIABLE_KEY, entry.previousValue, isSecret);
       }
-      console.log(`[qa-vars] Restored ${VARIABLE_KEY} on ${fnId}`);
+      console.log(`[qa-vars] Restored ${VARIABLE_KEY} on ${fnId} (secret=${isSecret})`);
     } else {
       if (current) {
         await functions.deleteVariable(fnId, current.$id);

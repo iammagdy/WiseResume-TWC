@@ -50,6 +50,8 @@ const context = await browser.newContext({ viewport: { width: 1440, height: 1000
 const page = await context.newPage();
 
 let createdCheckoutRef = '';
+let paymentSubmissionObserved = false;
+let paymentSubmissionEvidence = '';
 
 page.on('console', (msg) => {
   const text = msg.text();
@@ -59,16 +61,33 @@ page.on('console', (msg) => {
 });
 page.on('pageerror', (err) => console.log(`[pageerror] ${sanitizeText(err.message)}`));
 
+page.on('request', (req) => {
+  const reqUrl = req.url();
+  const method = req.method();
+  if (/basistheory|stripe|whop\.com/i.test(reqUrl)) {
+    if ((method === 'POST' || method === 'PATCH') &&
+        /checkout|confirm|pay|intent|order|membership|tokenize|tokens|submit/i.test(reqUrl)) {
+      paymentSubmissionObserved = true;
+      paymentSubmissionEvidence = `request: ${method} ${reqUrl.split('?')[0]}`;
+      console.log(`[e2e] Observed payment submission request: ${method} ${reqUrl.split('?')[0]}`);
+    }
+  }
+});
+
 page.on('response', async (response) => {
   const resUrl = response.url();
   if (/whop\.com|stripe|basis|payment/i.test(resUrl)) {
-    if (response.status() >= 400 || /checkout|confirm|pay|intent|order|membership/i.test(resUrl)) {
+    if (response.status() >= 400 || /checkout|confirm|pay|intent|order|membership|tokens/i.test(resUrl)) {
       let bodySnippet = '';
       try {
         const text = await response.text();
         bodySnippet = sanitizeText(text.slice(0, 200).replace(/\s+/g, ' '));
       } catch (_) {}
       console.log(`[network] ${response.status()} ${response.request().method()} ${resUrl.split('?')[0]} ${bodySnippet ? `body=${bodySnippet}` : ''}`);
+      if (response.status() < 400 && response.request().method() !== 'GET' && /checkout|confirm|pay|intent|order|tokens/i.test(resUrl)) {
+        paymentSubmissionObserved = true;
+        paymentSubmissionEvidence = `response: ${response.status()} ${resUrl.split('?')[0]}`;
+      }
     }
   }
 
@@ -351,30 +370,94 @@ async function fillWhopHostedCheckout() {
   console.log('CRITERION_I_BILLING_FORM_VALID=PASS');
 
   // 9. Find actionable submit button
-  const submitCandidate = page.locator('form button[type="submit"], button[type="submit"]').first();
+  const submitCandidate = page.locator('button[data-checkout-submit-button], form button[type="submit"], button[type="submit"]').first();
   await submitCandidate.waitFor({ state: 'visible', timeout: 15_000 });
 
-  // Wait for asynchronous card validation to enable button
-  console.log('[e2e] Waiting for payment submit button to be enabled...');
+  // Wait for submit button to be fully actionable
+  console.log('[e2e] Waiting for payment submit button to be fully actionable...');
   const startEnableWait = Date.now();
   let isActionable = false;
-  while (Date.now() - startEnableWait < 15_000) {
-    const isDisabled = (await submitCandidate.isDisabled().catch(() => true)) ||
-      ((await submitCandidate.getAttribute('aria-disabled').catch(() => '')) === 'true');
-    if (!isDisabled) {
+
+  while (Date.now() - startEnableWait < 20_000) {
+    const check = await submitCandidate.evaluate(el => {
+      const rect = el.getBoundingClientRect();
+      const style = window.getComputedStyle(el);
+      const hit = document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2);
+      const disabledAttr = el.disabled || el.getAttribute('disabled') !== null;
+      const dataDisabled = el.getAttribute('data-disabled') === 'true';
+      const ariaDisabled = el.getAttribute('aria-disabled') === 'true';
+      const pointerOk = style.pointerEvents !== 'none';
+      const hitOk = hit === el || el.contains(hit);
+      return {
+        ready: !disabledAttr && !dataDisabled && !ariaDisabled && pointerOk && hitOk,
+        disabledAttr,
+        dataDisabled,
+        ariaDisabled,
+        pointerOk,
+        hitOk,
+      };
+    }).catch(() => ({ ready: false }));
+
+    if (check.ready) {
       isActionable = true;
-      console.log(`[e2e] Submit button enabled after ${Date.now() - startEnableWait}ms`);
+      console.log(`[e2e] Submit button fully actionable after ${Date.now() - startEnableWait}ms`);
       break;
     }
     await page.waitForTimeout(300);
   }
 
   if (!isActionable) {
-    throw new Error('Whop hosted checkout submit button remained disabled after filling all required fields');
+    throw new Error('Whop hosted checkout submit button remained non-actionable after filling all required fields');
   }
 
-  await submitCandidate.scrollIntoViewIfNeeded();
-  await submitCandidate.click();
+  // Click submit button with controlled retry until payment submission is dispatched
+  let clickAttempts = 0;
+  const maxAttempts = 3;
+
+  while (clickAttempts < maxAttempts && !paymentSubmissionObserved) {
+    clickAttempts++;
+    console.log(`[e2e] Clicking payment submit button (attempt #${clickAttempts})...`);
+    await submitCandidate.scrollIntoViewIfNeeded();
+    await submitCandidate.click({ timeout: 5_000 }).catch(err => {
+      console.log(`[e2e] Click attempt #${clickAttempts} error: ${err.message}`);
+    });
+
+    // Wait up to 5s for payment submission evidence to appear
+    const waitDispatchStart = Date.now();
+    while (Date.now() - waitDispatchStart < 5_000) {
+      if (paymentSubmissionObserved) break;
+      const currentUrl = page.url();
+      if (!/sandbox\.whop\.com\/checkout\//i.test(currentUrl)) {
+        paymentSubmissionObserved = true;
+        paymentSubmissionEvidence = `url_change: ${currentUrl}`;
+        break;
+      }
+      await page.waitForTimeout(300);
+    }
+
+    if (paymentSubmissionObserved) {
+      console.log(`[e2e] Payment submission dispatched successfully (${paymentSubmissionEvidence})`);
+      break;
+    }
+
+    if (clickAttempts < maxAttempts) {
+      console.log(`[e2e] No payment dispatch observed after 5s; checking button readiness before retry...`);
+      await page.keyboard.press('Escape').catch(() => {});
+      await page.waitForTimeout(500);
+    }
+  }
+
+  if (!paymentSubmissionObserved) {
+    const finalCheck = await submitCandidate.evaluate(el => ({
+      disabled: el.disabled,
+      dataDisabled: el.getAttribute('data-disabled'),
+      className: el.className,
+      text: el.innerText?.trim(),
+    })).catch(() => null);
+    console.log(`[e2e] Submit button state at dispatch timeout:`, JSON.stringify(finalCheck));
+    throw new Error('PAYMENT_SUBMIT_NOT_DISPATCHED: Whop payment submission request was not observed after click attempts');
+  }
+
   console.log('CRITERION_J_PAYMENT_SUBMIT=PASS');
 }
 
