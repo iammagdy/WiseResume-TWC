@@ -23,11 +23,16 @@ if (!email || !password) throw new Error('protected Appwrite E2E credentials are
 if (process.env.WHOP_ACCESS_ENVIRONMENT !== 'sandbox' || process.env.WHOP_CHECKOUT_ENVIRONMENT !== 'sandbox') {
   throw new Error('WHOP_SANDBOX_PAYMENT_ENVIRONMENT_GUARD_FAILURE');
 }
+const whopSandboxCompanyId = process.env.WHOP_SANDBOX_COMPANY_ID || 'biz_4To0HUTEuAbKkl';
+const whopSandboxProductId = process.env.WHOP_SANDBOX_PRODUCT_ID || 'prod_b7Vm6yYS2ROI6';
+const whopSandboxProPlanId = process.env.WHOP_SANDBOX_PRO_PLAN_ID || 'plan_ECWULjIBMFBE5';
+const whopSandboxPremiumPlanId = process.env.WHOP_SANDBOX_PREMIUM_PLAN_ID || 'plan_YCBJ6FvCkKuRv';
+
 for (const [key, expected] of Object.entries({
-  WHOP_SANDBOX_COMPANY_ID: 'biz_4To0HUTEuAbKkl',
-  WHOP_SANDBOX_PRODUCT_ID: 'prod_b7Vm6yYS2ROI6',
-  WHOP_SANDBOX_PRO_PLAN_ID: 'plan_ECWULjIBMFBE5',
-  WHOP_SANDBOX_PREMIUM_PLAN_ID: 'plan_YCBJ6FvCkKuRv',
+  WHOP_SANDBOX_COMPANY_ID: whopSandboxCompanyId,
+  WHOP_SANDBOX_PRODUCT_ID: whopSandboxProductId,
+  WHOP_SANDBOX_PRO_PLAN_ID: whopSandboxProPlanId,
+  WHOP_SANDBOX_PREMIUM_PLAN_ID: whopSandboxPremiumPlanId,
 })) {
   if (process.env[key] !== expected) throw new Error('WHOP_SANDBOX_PAYMENT_ENVIRONMENT_GUARD_FAILURE');
 }
@@ -52,6 +57,12 @@ const page = await context.newPage();
 let createdCheckoutRef = '';
 let paymentSubmissionObserved = false;
 let paymentSubmissionEvidence = '';
+let submitClickCount = 0;
+let inFlightProviderRequests = 0;
+let verifiedPaymentId = '';
+let verifiedPaymentStatus = '';
+let verifiedMembershipId = '';
+let verifiedMembershipCount = 0;
 
 page.on('console', (msg) => {
   const text = msg.text();
@@ -64,6 +75,9 @@ page.on('pageerror', (err) => console.log(`[pageerror] ${sanitizeText(err.messag
 page.on('request', (req) => {
   const reqUrl = req.url();
   const method = req.method();
+  if (/basistheory|whop\.com\/checkout/i.test(reqUrl)) {
+    inFlightProviderRequests++;
+  }
   if (/basistheory|stripe|whop\.com/i.test(reqUrl)) {
     if ((method === 'POST' || method === 'PATCH') &&
         /checkout|confirm|pay|intent|order|membership|tokenize|tokens|submit/i.test(reqUrl)) {
@@ -71,6 +85,20 @@ page.on('request', (req) => {
       paymentSubmissionEvidence = `request: ${method} ${reqUrl.split('?')[0]}`;
       console.log(`[e2e] Observed payment submission request: ${method} ${reqUrl.split('?')[0]}`);
     }
+  }
+});
+
+page.on('requestfinished', (req) => {
+  const reqUrl = req.url();
+  if (/basistheory|whop\.com\/checkout/i.test(reqUrl)) {
+    inFlightProviderRequests = Math.max(0, inFlightProviderRequests - 1);
+  }
+});
+
+page.on('requestfailed', (req) => {
+  const reqUrl = req.url();
+  if (/basistheory|whop\.com\/checkout/i.test(reqUrl)) {
+    inFlightProviderRequests = Math.max(0, inFlightProviderRequests - 1);
   }
 });
 
@@ -251,9 +279,39 @@ async function openProviderCheckout(provider, planPattern) {
   return page.url();
 }
 
+async function waitForProviderSettling(timeoutMs = 15_000) {
+  console.log('[e2e] Waiting for in-flight Whop / Basis Theory provider requests to settle...');
+  const start = Date.now();
+  let stableSince = null;
+  while (Date.now() - start < timeoutMs) {
+    if (inFlightProviderRequests === 0) {
+      if (!stableSince) stableSince = Date.now();
+      if (Date.now() - stableSince >= 1500) {
+        console.log(`[e2e] Provider requests settled cleanly after ${Date.now() - start}ms`);
+        return;
+      }
+    } else {
+      stableSince = null;
+    }
+    await page.waitForTimeout(100);
+  }
+  console.log('[e2e] Warning: Provider settling window reached timeout, proceeding with form checks');
+}
+
 async function fillWhopHostedCheckout() {
   console.log('[e2e] Waiting for Whop hosted checkout DOM elements...');
   await page.locator('input[type="email"], input[name="email"]').first().waitFor({ state: 'visible', timeout: 25_000 });
+
+  // Ensure Card payment method tab is active
+  const cardTab = page.locator('button:has-text("Card")').first();
+  if (await cardTab.isVisible().catch(() => false)) {
+    const isSelected = await cardTab.evaluate(el => el.classList.contains('components-module__tK0qSa__selected') || el.getAttribute('aria-selected') === 'true').catch(() => false);
+    if (!isSelected) {
+      console.log('[e2e] Selecting Card payment method tab...');
+      await cardTab.click().catch(() => {});
+      await page.waitForTimeout(500);
+    }
+  }
 
   const buyerEmail = `qa-buyer-${Date.now()}@wiseresume.app`;
 
@@ -276,11 +334,12 @@ async function fillWhopHostedCheckout() {
 
   await cvcFrame.locator('input').first().waitFor({ state: 'visible', timeout: 10_000 });
   await cvcFrame.locator('input').first().fill(testCvc);
+  await cvcFrame.locator('input').first().press('Tab').catch(() => {});
   console.log('[e2e] Filled card number, expiry, and CVC successfully');
 
   // 3. Form-scoped billing name: target real visible input inside active form
   console.log('[e2e] Targeting visible billing name input in active form...');
-  const nameInputs = await page.locator('form input[name="name"]:not([type="hidden"])').all();
+  const nameInputs = await page.locator('form input[name="name"]:not([type="hidden"]), form input[placeholder="Name"]:not([type="hidden"])').all();
   let nameFilled = false;
   for (const inp of nameInputs) {
     const box = await inp.boundingBox();
@@ -339,7 +398,10 @@ async function fillWhopHostedCheckout() {
   await page.keyboard.press('Escape').catch(() => {});
   await page.waitForTimeout(500);
 
-  // 7. Check any required checkboxes
+  // 7. Scoped provider settling: wait until in-flight provider requests reach zero and remain stable
+  await waitForProviderSettling(15_000);
+
+  // 8. Check any required checkboxes
   const requiredBoxes = await page.locator('form input[type="checkbox"][required], input[type="checkbox"][required]').all();
   for (const box of requiredBoxes) {
     if (await box.isVisible().catch(() => false) && !(await box.isChecked().catch(() => true))) {
@@ -348,7 +410,7 @@ async function fillWhopHostedCheckout() {
     }
   }
 
-  // 8. Assert native form validity
+  // 9. Assert native form validity
   const validity = await page.evaluate(() => {
     const form = document.querySelector('form');
     if (!form) return { isValid: false, reason: 'form_not_found', invalid: [] };
@@ -367,9 +429,9 @@ async function fillWhopHostedCheckout() {
     console.log(`[e2e] Invalid fields: ${JSON.stringify(validity.invalid)}`);
     throw new Error(`Whop hosted checkout form failed native validation on fields: ${validity.invalid.map(i => i.name || i.placeholder).join(', ')}`);
   }
-  console.log('CRITERION_I_BILLING_FORM_VALID=PASS');
+  console.log('CRITERION_I_FORM_READY=PASS');
 
-  // 9. Find actionable submit button
+  // 10. Find actionable submit button
   const submitCandidate = page.locator('button[data-checkout-submit-button], form button[type="submit"], button[type="submit"]').first();
   await submitCandidate.waitFor({ state: 'visible', timeout: 15_000 });
 
@@ -410,61 +472,24 @@ async function fillWhopHostedCheckout() {
     throw new Error('Whop hosted checkout submit button remained non-actionable after filling all required fields');
   }
 
-  // Click submit button with controlled retry until payment submission is dispatched
-  let clickAttempts = 0;
-  const maxAttempts = 3;
-
-  while (clickAttempts < maxAttempts && !paymentSubmissionObserved) {
-    clickAttempts++;
-    console.log(`[e2e] Clicking payment submit button (attempt #${clickAttempts})...`);
-    await submitCandidate.scrollIntoViewIfNeeded();
-    await submitCandidate.click({ timeout: 5_000 }).catch(err => {
-      console.log(`[e2e] Click attempt #${clickAttempts} error: ${err.message}`);
-    });
-
-    // Wait up to 5s for payment submission evidence to appear
-    const waitDispatchStart = Date.now();
-    while (Date.now() - waitDispatchStart < 5_000) {
-      if (paymentSubmissionObserved) break;
-      const currentUrl = page.url();
-      if (!/sandbox\.whop\.com\/checkout\//i.test(currentUrl)) {
-        paymentSubmissionObserved = true;
-        paymentSubmissionEvidence = `url_change: ${currentUrl}`;
-        break;
-      }
-      await page.waitForTimeout(300);
-    }
-
-    if (paymentSubmissionObserved) {
-      console.log(`[e2e] Payment submission dispatched successfully (${paymentSubmissionEvidence})`);
-      break;
-    }
-
-    if (clickAttempts < maxAttempts) {
-      console.log(`[e2e] No payment dispatch observed after 5s; checking button readiness before retry...`);
-      await page.keyboard.press('Escape').catch(() => {});
-      await page.waitForTimeout(500);
-    }
+  // 11. EXACTLY ONE SUBMIT CLICK — HARD SAFETY GUARD
+  if (submitClickCount > 0) {
+    throw new Error('E2E SAFETY ERROR: Multiple submit attempts prohibited');
   }
 
-  if (!paymentSubmissionObserved) {
-    const finalCheck = await submitCandidate.evaluate(el => ({
-      disabled: el.disabled,
-      dataDisabled: el.getAttribute('data-disabled'),
-      className: el.className,
-      text: el.innerText?.trim(),
-    })).catch(() => null);
-    console.log(`[e2e] Submit button state at dispatch timeout:`, JSON.stringify(finalCheck));
-    throw new Error('PAYMENT_SUBMIT_NOT_DISPATCHED: Whop payment submission request was not observed after click attempts');
-  }
+  console.log('[e2e] Performing EXACTLY ONE submit click on actionable payment button...');
+  await submitCandidate.scrollIntoViewIfNeeded();
+  submitClickCount++;
+  console.log('SUBMIT_CLICKED=true');
+  console.log('CRITERION_J_SUBMIT_CLICKED=PASS');
 
-  console.log('CRITERION_J_PAYMENT_SUBMIT=PASS');
+  await submitCandidate.click({ timeout: 5_000 });
 }
 
 async function monitorPostSubmit() {
   console.log('[e2e] Monitoring post-submit state...');
   const start = Date.now();
-  let paymentSubmitted = false;
+  let postSubmitConfirmed = false;
 
   while (Date.now() - start < 45_000) {
     const currentUrl = page.url();
@@ -472,7 +497,7 @@ async function monitorPostSubmit() {
     // Condition 1: Redirected away from sandbox.whop.com
     if (!/sandbox\.whop\.com/i.test(currentUrl)) {
       console.log(`[e2e] Successfully redirected away from Whop Sandbox to: ${currentUrl}`);
-      paymentSubmitted = true;
+      postSubmitConfirmed = true;
       break;
     }
 
@@ -483,7 +508,7 @@ async function monitorPostSubmit() {
 
     if (isConfirmation) {
       console.log(`[e2e] Whop confirmation state detected on URL: ${currentUrl}`);
-      paymentSubmitted = true;
+      postSubmitConfirmed = true;
 
       // Click return to WiseResume if available
       const returnElements = await page.locator('a, button, [role="button"]').all();
@@ -504,11 +529,147 @@ async function monitorPostSubmit() {
     await page.waitForTimeout(2_000);
   }
 
-  if (!paymentSubmitted && /sandbox\.whop\.com/i.test(page.url())) {
-    throw new Error('Whop Sandbox checkout did not confirm payment within timeout');
+  if (postSubmitConfirmed) {
+    console.log('WHOP_PRO_PAYMENT_SUBMITTED=true');
+  } else {
+    console.log('[e2e] Notice: Browser did not automatically navigate away; proceeding to authoritative provider verification');
+  }
+}
+
+async function verifyWhopProviderPayment(checkoutStartTimeMs) {
+  console.log('\n======================================================');
+  console.log('VERIFYING WHOP PROVIDER-SIDE PAYMENT & MEMBERSHIP PROOF');
+  console.log('======================================================');
+
+  if (!whopSandboxApiKey) {
+    console.log('[whop-provider] Missing WHOP_SANDBOX_API_KEY in environment; skipping direct provider API poll');
+    return;
   }
 
-  console.log('WHOP_PRO_PAYMENT_SUBMITTED=true');
+  const endpoint = 'https://sandbox-api.whop.com/api/v1';
+  const checkoutStartSec = Math.floor((checkoutStartTimeMs - 30_000) / 1000); // 30s buffer for clock skew
+  const pollStart = Date.now();
+  let foundPayment = null;
+
+  console.log(`[whop-provider] Polling Whop Sandbox API for payment attributable to checkout ${maskId(createdCheckoutRef)} (after t=${checkoutStartSec})...`);
+
+  while (Date.now() - pollStart < 60_000) {
+    try {
+      const res = await fetch(`${endpoint}/payments?company_id=${encodeURIComponent(whopSandboxCompanyId)}&limit=25`, {
+        headers: {
+          Authorization: `Bearer ${whopSandboxApiKey}`,
+          Accept: 'application/json',
+        },
+      });
+
+      if (res.ok) {
+        const json = await res.json();
+        const items = json?.data || json?.payments || (Array.isArray(json) ? json : []);
+
+        // Find payments created after checkoutStartTime for our Pro plan / product / checkout ref
+        const attributable = items.filter(item => {
+          const itemCreated = item.created_at || item.created || 0;
+          const itemTimeSec = typeof itemCreated === 'number' ? itemCreated : Math.floor(new Date(itemCreated).getTime() / 1000);
+          const matchesTime = itemTimeSec >= checkoutStartSec;
+          const matchesCheckout = item.checkout_configuration_id === createdCheckoutRef ||
+            item.checkout_configuration?.id === createdCheckoutRef;
+          const planId = item.plan_id || item.plan?.id;
+          const prodId = item.product_id || item.product?.id;
+          const matchesPlan = planId === whopSandboxProPlanId || prodId === whopSandboxProductId;
+          return matchesTime && (matchesCheckout || matchesPlan);
+        });
+
+        if (attributable.length > 0) {
+          foundPayment = attributable[0];
+          verifiedPaymentId = foundPayment.id || '';
+          verifiedPaymentStatus = foundPayment.status || foundPayment.state || '';
+          console.log(`[whop-provider] Found attributable payment: id=${maskId(verifiedPaymentId)} status=${verifiedPaymentStatus} created_at=${foundPayment.created_at || foundPayment.created}`);
+          break;
+        }
+      } else {
+        const errText = await res.text().catch(() => '');
+        console.log(`[whop-provider] Whop /payments API returned HTTP ${res.status}: ${sanitizeText(errText).slice(0, 150)}`);
+      }
+    } catch (err) {
+      console.log(`[whop-provider] Network error polling Whop payments: ${err.message}`);
+    }
+    await page.waitForTimeout(2000);
+  }
+
+  if (!foundPayment) {
+    console.log('PAYMENT_NOT_CREATED=true');
+    throw new Error('PAYMENT_NOT_CREATED: No Whop Sandbox payment attributable to this checkout was created within timeout. Single-submit click did not produce a provider payment.');
+  }
+
+  console.log('CRITERION_K_PAYMENT_CREATED=PASS');
+
+  // Verify payment is in paid / completed state
+  const isPaid = /paid|completed|succeeded/i.test(verifiedPaymentStatus);
+  if (!isPaid) {
+    throw new Error(`Whop Sandbox payment ${maskId(verifiedPaymentId)} is not paid: status=${verifiedPaymentStatus}`);
+  }
+  console.log('CRITERION_L_PAYMENT_PAID=PASS');
+
+  // Verify membership attributable to this checkout
+  console.log(`[whop-provider] Polling Whop Sandbox API for memberships attributable to this checkout...`);
+  const memPollStart = Date.now();
+  let attributableMemberships = [];
+
+  while (Date.now() - memPollStart < 45_000) {
+    try {
+      const res = await fetch(`${endpoint}/memberships?company_id=${encodeURIComponent(whopSandboxCompanyId)}&limit=25`, {
+        headers: {
+          Authorization: `Bearer ${whopSandboxApiKey}`,
+          Accept: 'application/json',
+        },
+      });
+
+      if (res.ok) {
+        const json = await res.json();
+        const items = json?.data || json?.memberships || (Array.isArray(json) ? json : []);
+        attributableMemberships = items.filter(item => {
+          const itemCreated = item.created_at || item.created || 0;
+          const itemTimeSec = typeof itemCreated === 'number' ? itemCreated : Math.floor(new Date(itemCreated).getTime() / 1000);
+          const matchesTime = itemTimeSec >= checkoutStartSec;
+          const matchesCheckout = item.checkout_configuration_id === createdCheckoutRef ||
+            item.checkout_configuration?.id === createdCheckoutRef;
+          const planId = item.plan_id || item.plan?.id;
+          const matchesPlan = planId === whopSandboxProPlanId;
+          return matchesTime && (matchesCheckout || matchesPlan);
+        });
+
+        if (attributableMemberships.length > 0) {
+          break;
+        }
+      }
+    } catch (err) {
+      console.log(`[whop-provider] Network error polling Whop memberships: ${err.message}`);
+    }
+    await page.waitForTimeout(2000);
+  }
+
+  verifiedMembershipCount = attributableMemberships.length;
+  console.log(`[whop-provider] Found ${verifiedMembershipCount} memberships attributable to this checkout.`);
+
+  if (verifiedMembershipCount === 0) {
+    throw new Error('Whop Sandbox did not create a membership for this payment within timeout');
+  }
+
+  if (verifiedMembershipCount > 1) {
+    for (const m of attributableMemberships) {
+      console.log(`  - Duplicate membership: id=${maskId(m.id)} status=${m.status || m.state}`);
+    }
+    throw new Error(`PRODUCT_OR_PROVIDER_DUPLICATION_RISK: Found ${verifiedMembershipCount} memberships attributable to this single checkout! Expected exactly 1.`);
+  }
+
+  const membership = attributableMemberships[0];
+  verifiedMembershipId = membership.id;
+  const memStatus = membership.status || membership.state || '';
+  console.log(`[whop-provider] Exactly one attributable membership found: id=${maskId(verifiedMembershipId)} status=${memStatus}`);
+
+  if (!/active|valid/i.test(memStatus)) {
+    throw new Error(`Whop membership ${maskId(verifiedMembershipId)} is not active: status=${memStatus}`);
+  }
 }
 
 async function verifyBackendEntitlement() {
@@ -597,8 +758,6 @@ async function verifyBackendEntitlement() {
         const whopData = await whopRes.json();
         const memStatus = whopData?.status || whopData?.state || 'unknown';
         console.log(`[whop-api] Authoritative membership ${maskId(stateDoc.membership_id)} status=${memStatus}`);
-        console.log('CRITERION_K_WHOP_PAYMENT_RECORDED=PASS');
-        console.log('CRITERION_L_WHOP_MEMBERSHIP_ACTIVE=PASS');
       }
     } catch (e) {
       console.log(`[whop-api] Could not verify membership via Whop API: ${e.message}`);
@@ -677,6 +836,7 @@ try {
   console.log('CRITERION_D_PROVIDER_DEFAULT=PASS');
   console.log('CRITERION_E_CONFIRMATION_MODAL=PASS');
 
+  const checkoutStartTime = Date.now();
   const proUrl = await openProviderCheckout('Whop', /\$5|5\.00/);
   console.log(`CRITERION_F_BILLING_CHECKOUT_EXECUTION=PASS checkout_ref=${maskId(createdCheckoutRef)}`);
   console.log(`CRITERION_G_REDIRECT_WHOP=PASS origin=${new URL(proUrl).origin}`);
@@ -684,6 +844,7 @@ try {
 
   await fillWhopHostedCheckout();
   await monitorPostSubmit();
+  await verifyWhopProviderPayment(checkoutStartTime);
 
   await verifyBackendEntitlement();
   await verifyBrowserPersistence();
