@@ -118,9 +118,80 @@ async function verifyWhopApi() {
     }
   }
 
+  // 3. Query webhook endpoints & delivery history if accessible
+  let replayAttempted = false;
+  for (const base of ['https://sandbox-api.whop.com/api/v1', 'https://api.whop.com/api/v1']) {
+    try {
+      const whRes = await fetch(`${base}/webhooks?company_id=${TARGET_COMPANY_ID}&limit=10`, {
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          Accept: 'application/json',
+        },
+      });
+      console.log(`[whop-api] GET ${base}/webhooks -> HTTP ${whRes.status}`);
+      if (whRes.ok) {
+        const whData = await whRes.json();
+        const hooks = whData?.data || whData?.webhooks || (Array.isArray(whData) ? whData : []);
+        console.log(`[whop-api] Found ${hooks.length} webhooks configured at ${base}`);
+        for (const hook of hooks) {
+          const hookId = hook?.id;
+          console.log(`  - Webhook id=${maskId(hookId)} url=${sanitizeText(hook?.url)} enabled=${hook?.enabled}`);
+          if (!hookId) continue;
+          const delivRes = await fetch(`${base}/webhooks/${hookId}/deliveries?limit=25`, {
+            headers: {
+              Authorization: `Bearer ${apiKey}`,
+              Accept: 'application/json',
+            },
+          });
+          console.log(`  - [deliveries] GET /webhooks/${maskId(hookId)}/deliveries -> HTTP ${delivRes.status}`);
+          if (delivRes.ok) {
+            const delivData = await delivRes.json();
+            const deliveries = delivData?.data || delivData?.deliveries || (Array.isArray(delivData) ? delivData : []);
+            console.log(`  - [deliveries] Retrieved ${deliveries.length} delivery records`);
+            for (const deliv of deliveries) {
+              const eventType = deliv?.event || deliv?.type || deliv?.event_type || deliv?.payload?.type;
+              const respCode = deliv?.response_code || deliv?.status_code || deliv?.response_status || deliv?.last_attempt?.response_code;
+              const payload = deliv?.payload || deliv?.request_body || deliv?.data || {};
+              const innerData = payload?.data || payload;
+              const memId = innerData?.id || innerData?.membership?.id || innerData?.membership_id;
+              const chRef = innerData?.checkout_configuration_id || innerData?.checkout_configuration?.id;
+              console.log(`    * Delivery ${maskId(deliv?.id)}: event=${eventType} HTTP=${respCode} memId=${maskId(memId)} chRef=${maskId(chRef)}`);
+
+              const isCanonicalTarget = eventType === 'membership.activated' &&
+                (chRef === TARGET_CHECKOUT_REF || (typeof memId === 'string' && memId.endsWith('5U9m')));
+
+              if (isCanonicalTarget && respCode !== 200 && !replayAttempted) {
+                console.log(`[whop-api] Triggering authentic replay for delivery ${maskId(deliv?.id)} (canonical membership mem_***5U9m)...`);
+                let replayRes = await fetch(`${base}/webhooks/${hookId}/deliveries/${deliv.id}/replay`, {
+                  method: 'POST',
+                  headers: { Authorization: `Bearer ${apiKey}`, Accept: 'application/json' },
+                });
+                if (!replayRes.ok) {
+                  replayRes = await fetch(`${base}/webhooks/${hookId}/replay`, {
+                    method: 'POST',
+                    headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json', Accept: 'application/json' },
+                    body: JSON.stringify({ delivery_id: deliv.id }),
+                  });
+                }
+                console.log(`[whop-api] Replay response: HTTP ${replayRes.status}`);
+                replayAttempted = true;
+                console.log('[whop-api] Pausing 6s for webhook processing in Appwrite...');
+                await new Promise(r => setTimeout(r, 6000));
+                break;
+              }
+            }
+          }
+        }
+      }
+    } catch (err) {
+      console.log(`[whop-api] Error querying webhooks on ${base}: ${err.message}`);
+    }
+  }
+
   return {
     status: paymentFound ? 'PASS' : 'BLOCKED_EXTERNAL_ACCESS',
-    evidence: paymentFound ? 'Payment/membership record observed via Whop API' : 'Direct API listings not accessible with current token scopes; merchant confirmation email remains authoritative payment evidence.'
+    evidence: paymentFound ? 'Payment/membership record observed via Whop API' : 'Direct API listings not accessible with current token scopes; merchant confirmation email remains authoritative payment evidence.',
+    replayAttempted
   };
 }
 
@@ -155,6 +226,7 @@ async function verifyAppwrite() {
   // 1. whop-webhook function executions
   let webhookExecutionsFound = 0;
   let successfulWebhookExec = null;
+  let membershipActivationExec = null;
 
   try {
     const res = await functions.listExecutions('whop-webhook', [
@@ -174,6 +246,11 @@ async function verifyAppwrite() {
       }
       if (isOk) {
         successfulWebhookExec = ex;
+      }
+      if (ex.logs && ex.logs.includes('membership.activated')) {
+        if (!membershipActivationExec || isOk) {
+          membershipActivationExec = ex;
+        }
       }
       webhookExecutionsFound++;
     }
@@ -291,11 +368,14 @@ async function verifyAppwrite() {
   console.log('======================================================');
   console.log('[browser] Status: BLOCKED_EXTERNAL_ACCESS (Authenticated browser session preserved without destructive credential resets)');
 
+  const membershipIsOk = membershipActivationExec && membershipActivationExec.status === 'completed' && membershipActivationExec.responseStatusCode >= 200 && membershipActivationExec.responseStatusCode < 300;
   return {
     webhookStatus: successfulWebhookExec ? 'PASS' : (webhookExecutionsFound > 0 ? 'FAIL' : 'UNKNOWN'),
     webhookEvidence: successfulWebhookExec ? `HTTP ${successfulWebhookExec.responseStatusCode} at ${successfulWebhookExec.$createdAt}` : `${webhookExecutionsFound} executions found, none succeeded with 2xx`,
+    membershipStatus: membershipIsOk ? 'PASS' : (membershipActivationExec ? `REJECTED_OR_FAILED (HTTP ${membershipActivationExec.responseStatusCode})` : 'PENDING_DELIVERY'),
+    membershipEvidence: membershipActivationExec ? `HTTP ${membershipActivationExec.responseStatusCode} at ${membershipActivationExec.$createdAt}` : 'No membership.activated execution observed',
     stateStatus: matchingStateDoc ? 'PASS' : 'FAIL',
-    stateEvidence: matchingStateDoc ? `Document exists with plan=${matchingStateDoc.plan}, status=${matchingStateDoc.status}, environment=${matchingStateDoc.environment}` : 'No matching state document in whop_subscription_state',
+    stateEvidence: matchingStateDoc ? `Document exists with plan=${matchingStateDoc.plan}, status=${matchingStateDoc.status}, environment=${matchingStateDoc.environment}, memId=${maskId(matchingStateDoc.membership_id)}` : 'No matching state document in whop_subscription_state',
     effectiveStatus: effectivePlan === 'pro' ? 'PASS' : 'FAIL',
     effectivePlan,
     effectiveSource,
@@ -322,7 +402,8 @@ async function verifyAppwrite() {
   console.log(`WHOP_PAYMENT:                 PASS (Merchant notification authoritative)`);
   console.log(`WHOP_EVENT_DELIVERY:          ${whopResult.status}`);
   console.log(`APPWRITE_WEBHOOK_EXECUTION:   ${appwriteResult.webhookStatus}`);
-  console.log(`WHOP_PROVIDER_STATE:          ${appwriteResult.stateStatus}`);
+  console.log(`MEMBERSHIP_ACTIVATED_EXEC:    ${appwriteResult.membershipStatus}`);
+  console.log(`WHOP_PROVIDER_STATE:          ${appwriteResult.stateStatus} (${appwriteResult.stateEvidence})`);
   console.log(`EFFECTIVE_SUBSCRIPTION:       ${appwriteResult.effectiveStatus} (plan=${appwriteResult.effectivePlan}, source=${appwriteResult.effectiveSource})`);
   console.log(`CREDITS_FEATURE_ACCESS:       ${appwriteResult.creditsStatus}`);
   console.log(`REFRESH_REOPEN_PERSISTENCE:   BLOCKED_EXTERNAL_ACCESS`);
