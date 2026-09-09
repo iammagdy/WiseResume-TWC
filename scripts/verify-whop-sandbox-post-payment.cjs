@@ -53,6 +53,7 @@ async function verifyWhopApi() {
   }
 
   const endpoint = 'https://sandbox-api.whop.com/api/v1';
+  let cancellationResult = null;
 
   // 1. Check checkout configuration
   try {
@@ -108,6 +109,62 @@ async function verifyWhopApi() {
           console.log(`  - [${path}] id=${maskId(id)} status=${status} plan=${planId} product=${productId} created=${created}`);
           if (status === 'paid' || status === 'completed' || status === 'active' || status === 'succeeded') {
             paymentFound = true;
+          }
+        }
+        if (path === '/memberships' && String(process.env.CANCEL_DUPLICATE_MEMBERSHIP || '').toLowerCase() === 'true') {
+          for (const item of items) {
+            const id = String(item?.id || '');
+            const status = String(item?.status || item?.state || '');
+            const isOldDuplicate = id.endsWith('1HNy') && !id.endsWith('5U9m');
+            if (isOldDuplicate && status === 'active') {
+              console.log(`\n======================================================`);
+              console.log(`PHASE 2: CANCEL OLD DUPLICATE MEMBERSHIP (${maskId(id)})`);
+              console.log(`======================================================`);
+              let cancelRes = await fetch(`${endpoint}/memberships/${encodeURIComponent(id)}/cancel`, {
+                method: 'POST',
+                headers: {
+                  Authorization: `Bearer ${apiKey}`,
+                  'Content-Type': 'application/json',
+                  Accept: 'application/json',
+                },
+                body: JSON.stringify({ cancel_at_period_end: false }),
+              });
+              if (!cancelRes.ok) {
+                cancelRes = await fetch(`${endpoint}/memberships/${encodeURIComponent(id)}/cancel`, {
+                  method: 'POST',
+                  headers: {
+                    Authorization: `Bearer ${apiKey}`,
+                    'Content-Type': 'application/json',
+                    Accept: 'application/json',
+                  },
+                  body: JSON.stringify({ cancellation_mode: 'immediate' }),
+                });
+              }
+              if (!cancelRes.ok) {
+                cancelRes = await fetch(`${endpoint}/memberships/${encodeURIComponent(id)}/cancel`, {
+                  method: 'POST',
+                  headers: {
+                    Authorization: `Bearer ${apiKey}`,
+                    'Content-Type': 'application/json',
+                    Accept: 'application/json',
+                  },
+                  body: JSON.stringify({}),
+                });
+              }
+              console.log(`[cleanup] POST /memberships/${maskId(id)}/cancel -> HTTP ${cancelRes.status}`);
+              let cancelData = null;
+              try { cancelData = await cancelRes.json(); } catch (_) {}
+              const resultingStatus = cancelData?.status || cancelData?.state || (cancelRes.ok ? 'cancelled' : 'unknown');
+              console.log(`[cleanup] Status returned: ${resultingStatus}`);
+              cancellationResult = {
+                id: maskId(id),
+                previousStatus: status,
+                httpStatus: cancelRes.status,
+                resultingStatus,
+              };
+              console.log('[cleanup] Pausing 12s for Whop lifecycle webhook delivery and Appwrite processing...');
+              await new Promise(r => setTimeout(r, 12000));
+            }
           }
         }
       } else {
@@ -194,7 +251,8 @@ async function verifyWhopApi() {
   return {
     status: paymentFound ? 'PASS' : 'BLOCKED_EXTERNAL_ACCESS',
     evidence: paymentFound ? 'Payment/membership record observed via Whop API' : 'Direct API listings not accessible with current token scopes; merchant confirmation email remains authoritative payment evidence.',
-    replayAttempted
+    replayAttempted,
+    cancellation: cancellationResult,
   };
 }
 
@@ -300,6 +358,7 @@ async function verifyAppwrite() {
   }
 
   // 3. whop_event_ledger documents
+  let nonCurrentGuardEvent = null;
   try {
     const res = await databases.listDocuments(DB_ID, LEDGER_COLLECTION_ID, [
       sdk.Query.orderDesc('event_timestamp_ms'),
@@ -309,6 +368,9 @@ async function verifyAppwrite() {
     console.log(`\n[appwrite] Found ${docs.length} events in "${LEDGER_COLLECTION_ID}":`);
     for (const doc of docs) {
       console.log(`  - Event ${maskId(doc.event_id)}: type=${doc.event_type} user=${maskId(doc.user_id)} status=${doc.processing_status} outcome=${doc.outcome_code} received=${doc.received_at}`);
+      if (doc.outcome_code === 'non_current_membership' || (doc.processing_status === 'ignored' && doc.event_type?.startsWith('membership.'))) {
+        nonCurrentGuardEvent = doc;
+      }
     }
   } catch (err) {
     console.warn(`[appwrite] Could not query ${LEDGER_COLLECTION_ID}: ${err.message}`);
@@ -377,6 +439,8 @@ async function verifyAppwrite() {
     webhookEvidence: successfulWebhookExec ? `HTTP ${successfulWebhookExec.responseStatusCode} at ${successfulWebhookExec.$createdAt}` : `${webhookExecutionsFound} executions found, none succeeded with 2xx`,
     membershipStatus: membershipIsOk ? 'PASS' : (membershipActivationExec ? `REJECTED_OR_FAILED (HTTP ${membershipActivationExec.responseStatusCode})` : 'PENDING_DELIVERY'),
     membershipEvidence: membershipActivationExec ? `HTTP ${membershipActivationExec.responseStatusCode} at ${membershipActivationExec.$createdAt}` : 'No membership.activated execution observed',
+    guardStatus: nonCurrentGuardEvent ? 'PASS' : 'UNTESTED',
+    guardEvidence: nonCurrentGuardEvent ? `Event ${maskId(nonCurrentGuardEvent.event_id)} outcome=${nonCurrentGuardEvent.outcome_code} status=${nonCurrentGuardEvent.processing_status}` : 'No non_current_membership events observed',
     stateStatus: matchingStateDoc ? 'PASS' : 'FAIL',
     stateEvidence: matchingStateDoc ? `Document exists with plan=${matchingStateDoc.plan}, status=${matchingStateDoc.status}, environment=${matchingStateDoc.environment}, memId=${maskId(matchingStateDoc.membership_id)}` : 'No matching state document in whop_subscription_state',
     effectiveStatus: effectivePlan === 'pro' ? 'PASS' : 'FAIL',
@@ -406,6 +470,10 @@ async function verifyAppwrite() {
   console.log(`WHOP_EVENT_DELIVERY:          ${whopResult.status}`);
   console.log(`APPWRITE_WEBHOOK_EXECUTION:   ${appwriteResult.webhookStatus}`);
   console.log(`MEMBERSHIP_ACTIVATED_EXEC:    ${appwriteResult.membershipStatus}`);
+  if (whopResult.cancellation) {
+    console.log(`OLD_DUPLICATE_CLEANUP:        HTTP ${whopResult.cancellation.httpStatus} (prev=${whopResult.cancellation.previousStatus}, now=${whopResult.cancellation.resultingStatus})`);
+  }
+  console.log(`MULTI_MEMBERSHIP_GUARD:       ${appwriteResult.guardStatus} (${appwriteResult.guardEvidence})`);
   console.log(`WHOP_PROVIDER_STATE:          ${appwriteResult.stateStatus} (${appwriteResult.stateEvidence})`);
   console.log(`EFFECTIVE_SUBSCRIPTION:       ${appwriteResult.effectiveStatus} (plan=${appwriteResult.effectivePlan}, source=${appwriteResult.effectiveSource})`);
   console.log(`CREDITS_FEATURE_ACCESS:       ${appwriteResult.creditsStatus}`);

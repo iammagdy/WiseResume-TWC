@@ -11,6 +11,11 @@ on:
         options:
           - full_e2e
           - verify_existing_payment
+      cancel_duplicate_membership:
+        description: 'Cancel old duplicate Sandbox membership mem_***1HNy'
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -152,6 +157,7 @@ jobs:
           WHOP_SANDBOX_PRODUCT_ID: prod_b7Vm6yYS2ROI6
           WHOP_SANDBOX_PRO_PLAN_ID: plan_ECWULjIBMFBE5
           WHOP_SANDBOX_PREMIUM_PLAN_ID: plan_YCBJ6FvCkKuRv
+          CANCEL_DUPLICATE_MEMBERSHIP: ${{ github.event.inputs.cancel_duplicate_membership }}
         run: node scripts/verify-whop-sandbox-post-payment.cjs
 
       - name: Dump billing-checkout execution logs on failure
