@@ -40,13 +40,15 @@ function env(name) { return String(process.env[name] || '').trim(); }
 function configuredCatalog(environment = env('WHOP_ACCESS_ENVIRONMENT').toLowerCase()) {
   const prefix = environment === 'sandbox' ? 'WHOP_SANDBOX' : environment === 'production' ? 'WHOP_PRODUCTION' : '';
   if (!prefix) return { companyId: '', productId: '', planToEntitlement: {} };
+  const proPlan = env(`${prefix}_PRO_PLAN_ID`) || (environment === 'production' ? 'plan_4JJSQLj5zEKVn' : '');
+  const premiumPlan = env(`${prefix}_PREMIUM_PLAN_ID`) || (environment === 'production' ? 'plan_kt5MScAplbCuN' : '');
   const planToEntitlement = {
-    [env(`${prefix}_PRO_PLAN_ID`)]: 'pro',
-    [env(`${prefix}_PREMIUM_PLAN_ID`)]: 'premium',
+    [proPlan]: 'pro',
+    [premiumPlan]: 'premium',
   };
   return {
-    companyId: env(`${prefix}_COMPANY_ID`),
-    productId: env(`${prefix}_PRODUCT_ID`),
+    companyId: env(`${prefix}_COMPANY_ID`) || (environment === 'production' ? DEFAULT_COMPANY_ID : ''),
+    productId: env(`${prefix}_PRODUCT_ID`) || (environment === 'production' ? DEFAULT_PRODUCT_ID : ''),
     planToEntitlement: Object.fromEntries(Object.entries(planToEntitlement).filter(([id]) => id)),
   };
 }

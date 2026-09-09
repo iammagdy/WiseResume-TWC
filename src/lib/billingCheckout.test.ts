@@ -368,8 +368,8 @@ describe('server-owned billing checkout client', () => {
     });
   });
 
-  it('validates Whop Sandbox checkout URLs on wiseresume.app without explicit environment', async () => {
-    const { isValidCheckoutUrl, getApprovedPayPalOrigins, billingCheckoutTestHelpers } = await import('./billingCheckout');
+  it('validates Whop Production checkout URLs on wiseresume.app without explicit environment', async () => {
+    const { isValidCheckoutUrl, getApprovedPayPalOrigins } = await import('./billingCheckout');
     const originalLocation = window.location;
     try {
       Object.defineProperty(window, 'location', {
@@ -377,10 +377,10 @@ describe('server-owned billing checkout client', () => {
         value: new URL('https://wiseresume.app/subscription'),
       });
 
-      // Whop defaults to Sandbox since Whop Production is not activated
-      expect(isValidCheckoutUrl('https://sandbox.whop.com/checkout/plan_ECWULjIBMFBE5', undefined, 'whop')).toBe(true);
-      expect(isValidCheckoutUrl('https://whop.com/checkout/plan_ECWULjIBMFBE5', undefined, 'whop')).toBe(false);
-      expect(isValidCheckoutUrl('https://sandbox.whop.com.attacker.com/checkout', undefined, 'whop')).toBe(false);
+      // Whop defaults to Production on wiseresume.app following production activation
+      expect(isValidCheckoutUrl('https://whop.com/checkout/plan_4JJSQLj5zEKVn', undefined, 'whop')).toBe(true);
+      expect(isValidCheckoutUrl('https://sandbox.whop.com/checkout/plan_ECWULjIBMFBE5', undefined, 'whop')).toBe(false);
+      expect(isValidCheckoutUrl('https://whop.com.attacker.com/checkout', undefined, 'whop')).toBe(false);
 
       // PayPal remains strictly Production on wiseresume.app
       expect(getApprovedPayPalOrigins()).toEqual(['https://www.paypal.com']);
@@ -394,7 +394,7 @@ describe('server-owned billing checkout client', () => {
     }
   });
 
-  it('creates Whop Sandbox checkout session successfully on wiseresume.app', async () => {
+  it('creates Whop Production checkout session successfully on wiseresume.app', async () => {
     invokeMock.mockResolvedValue({
       data: {
         status: 'success',
@@ -405,7 +405,7 @@ describe('server-owned billing checkout client', () => {
           state: 'created_or_reused',
           expires_at: '2026-09-09T12:00:00.000Z',
           checkout_reference: 'ch_whop_123',
-          checkout_url: 'https://sandbox.whop.com/checkout/plan_ECWULjIBMFBE5?idempotency_key=web-123',
+          checkout_url: 'https://whop.com/checkout/plan_4JJSQLj5zEKVn?idempotency_key=web-123',
         },
       },
       error: null,
@@ -431,10 +431,10 @@ describe('server-owned billing checkout client', () => {
 
       expect(result.ok).toBe(true);
       if (result.ok) {
-        expect(result.session.checkout_url).toBe('https://sandbox.whop.com/checkout/plan_ECWULjIBMFBE5?idempotency_key=web-123');
+        expect(result.session.checkout_url).toBe('https://whop.com/checkout/plan_4JJSQLj5zEKVn?idempotency_key=web-123');
         expect(result.session.provider).toBe('whop');
         expect(openServerCheckout(result.session)).toBe(true);
-        expect(assignMock).toHaveBeenCalledWith('https://sandbox.whop.com/checkout/plan_ECWULjIBMFBE5?idempotency_key=web-123');
+        expect(assignMock).toHaveBeenCalledWith('https://whop.com/checkout/plan_4JJSQLj5zEKVn?idempotency_key=web-123');
       }
     } finally {
       Object.defineProperty(window, 'location', {

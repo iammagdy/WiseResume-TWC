@@ -304,8 +304,16 @@ function buildCatalog(env = process.env, environment = normalizeEnvironment(env.
   const whopPrefix = environment === 'sandbox' ? 'WHOP_SANDBOX' : environment === 'production' ? 'WHOP_PRODUCTION' : '';
   if (whop) {
     return {
-      pro: { priceId: asString(env[`${whopPrefix}_PRO_PLAN_ID`]).trim(), productId: asString(env[`${whopPrefix}_PRODUCT_ID`]).trim(), entitlementId: 'pro' },
-      premium: { priceId: asString(env[`${whopPrefix}_PREMIUM_PLAN_ID`]).trim(), productId: asString(env[`${whopPrefix}_PRODUCT_ID`]).trim(), entitlementId: 'premium' },
+      pro: {
+        priceId: asString(env[`${whopPrefix}_PRO_PLAN_ID`] || (environment === 'production' ? WHOP_PLAN_IDS.pro : '')).trim(),
+        productId: asString(env[`${whopPrefix}_PRODUCT_ID`] || (environment === 'production' ? WHOP_PRODUCT_ID : '')).trim(),
+        entitlementId: 'pro',
+      },
+      premium: {
+        priceId: asString(env[`${whopPrefix}_PREMIUM_PLAN_ID`] || (environment === 'production' ? WHOP_PLAN_IDS.premium : '')).trim(),
+        productId: asString(env[`${whopPrefix}_PRODUCT_ID`] || (environment === 'production' ? WHOP_PRODUCT_ID : '')).trim(),
+        entitlementId: 'premium',
+      },
     };
   }
   const prefix = catalogVariablePrefix(environment);

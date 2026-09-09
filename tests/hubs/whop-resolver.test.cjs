@@ -71,3 +71,66 @@ test('Whop Sandbox requires canonical QA ownership and complete catalog identity
   assert.equal(resolver.resolveEffectivePlan({ ...base, whopProviderState: { ...validWhopState, plan_id: 'plan_wrong' } }).plan, 'free');
   assert.equal(resolver.resolveEffectivePlan({ ...base, whopProviderState: { ...validWhopState, user_id: '' } }).plan, 'free');
 });
+
+test('Whop Production resolves active Pro and Premium for normal users without QA gate', () => {
+  const prodBase = {
+    providerEnvironment: 'production',
+    whopProviderEnvironment: 'production',
+    userId: 'normal_customer_999',
+    nowMs: Date.parse('2026-09-09T00:00:00.000Z'),
+    subscription: { plan: 'free' },
+  };
+
+  const proState = {
+    user_id: 'normal_customer_999',
+    membership_id: 'mem_prod_1',
+    product_id: 'prod_WrbEGZdSaG2af',
+    plan_id: 'plan_4JJSQLj5zEKVn',
+    plan: 'pro',
+    status: 'active',
+    environment: 'production',
+    expires_at: '2026-10-09T00:00:00.000Z',
+  };
+
+  const proResult = resolver.resolveEffectivePlan({ ...prodBase, whopProviderState: proState });
+  assert.equal(proResult.plan, 'pro');
+  assert.equal(proResult.source, 'whop');
+
+  const premiumState = {
+    user_id: 'normal_customer_999',
+    membership_id: 'mem_prod_2',
+    product_id: 'prod_WrbEGZdSaG2af',
+    plan_id: 'plan_kt5MScAplbCuN',
+    plan: 'premium',
+    status: 'active',
+    environment: 'production',
+    expires_at: '2026-10-09T00:00:00.000Z',
+  };
+
+  const premResult = resolver.resolveEffectivePlan({ ...prodBase, whopProviderState: premiumState });
+  assert.equal(premResult.plan, 'premium');
+  assert.equal(premResult.source, 'whop');
+});
+
+test('Whop Production rejects sandbox state for normal users', () => {
+  const prodBase = {
+    providerEnvironment: 'production',
+    whopProviderEnvironment: 'production',
+    userId: 'normal_customer_999',
+    nowMs: Date.parse('2026-09-09T00:00:00.000Z'),
+    subscription: { plan: 'free' },
+    whopProviderState: {
+      user_id: 'normal_customer_999',
+      membership_id: 'mem_sb_1',
+      product_id: 'prod_b7Vm6yYS2ROI6',
+      plan_id: 'plan_ECWULjIBMFBE5',
+      plan: 'pro',
+      status: 'active',
+      environment: 'sandbox',
+      expires_at: '2026-10-09T00:00:00.000Z',
+    },
+  };
+
+  const result = resolver.resolveEffectivePlan(prodBase);
+  assert.equal(result.plan, 'free');
+});

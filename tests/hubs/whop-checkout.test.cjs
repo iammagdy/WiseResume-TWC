@@ -87,5 +87,52 @@ const provider = new t.WhopCheckoutProvider({
     err => err.code === 'provider_unavailable'
   );
 
+  // Test Production checkout configuration call to https://api.whop.com/api/v1/checkout_configurations
+  const prodRequests = [];
+  const prodProvider = new t.WhopCheckoutProvider({
+    env: {
+      WHOP_PRODUCTION_API_KEY: 'prod-key',
+      WHOP_PRODUCTION_COMPANY_ID: 'biz_B7fMXLLj18wv8J',
+    },
+    fetchImpl: async (url, options) => {
+      prodRequests.push({ url, options });
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          id: 'ch_prod_live',
+          purchase_url: 'https://whop.com/checkout/plan_kt5MScAplbCuN?session=opaque',
+          plan: {
+            id: 'plan_kt5MScAplbCuN',
+            product: { id: 'prod_WrbEGZdSaG2af' },
+            plan_type: 'renewal',
+            billing_period: 30,
+            initial_price: 10,
+            renewal_price: 10,
+          },
+        }),
+      };
+    },
+  });
+
+  const prodResult = await prodProvider.createCheckout({
+    environment: 'production',
+    plan: 'premium',
+    priceId: 'plan_kt5MScAplbCuN',
+    productId: 'prod_WrbEGZdSaG2af',
+    appOrigin: 'https://wiseresume.app',
+    customData: { app_user_id: 'prod_user_456', checkout_session_reference: 'sess_prod_1' },
+  });
+
+  assert.equal(prodResult.providerEnvironment, 'production');
+  assert.equal(prodResult.checkoutReference, 'ch_prod_live');
+  assert.equal(prodResult.checkoutUrl, 'https://whop.com/checkout/plan_kt5MScAplbCuN?session=opaque');
+  assert.match(prodRequests[0].url, /^https:\/\/api\.whop\.com\/api\/v1\/checkout_configurations$/);
+  assert.equal(prodRequests[0].options.headers.Authorization, 'Bearer prod-key');
+  const prodBody = JSON.parse(prodRequests[0].options.body);
+  assert.equal(prodBody.plan_id, 'plan_kt5MScAplbCuN');
+  assert.equal(prodBody.metadata.wiseresume_user_id, 'prod_user_456');
+  assert.equal(prodBody.metadata.wiseresume_plan, 'premium');
+
   console.log('Whop checkout contract tests passed.');
 })().catch(error => { console.error(error); process.exitCode = 1; });

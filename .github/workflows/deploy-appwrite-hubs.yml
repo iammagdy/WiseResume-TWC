@@ -233,11 +233,11 @@ jobs:
           WHOP_SANDBOX_PRODUCT_ID: ${{ vars.WHOP_SANDBOX_PRODUCT_ID }}
           WHOP_SANDBOX_PRO_PLAN_ID: ${{ vars.WHOP_SANDBOX_PRO_PLAN_ID }}
           WHOP_SANDBOX_PREMIUM_PLAN_ID: ${{ vars.WHOP_SANDBOX_PREMIUM_PLAN_ID }}
-          WHOP_PRODUCTION_COMPANY_ID: ${{ vars.WHOP_PRODUCTION_COMPANY_ID }}
-          WHOP_PRODUCTION_PRODUCT_ID: ${{ vars.WHOP_PRODUCTION_PRODUCT_ID }}
-          WHOP_PRODUCTION_PRO_PLAN_ID: ${{ vars.WHOP_PRODUCTION_PRO_PLAN_ID }}
-          WHOP_PRODUCTION_PREMIUM_PLAN_ID: ${{ vars.WHOP_PRODUCTION_PREMIUM_PLAN_ID }}
-          WHOP_SANDBOX_API_KEY: ${{ (inputs.checkout_provider == 'whop' && (inputs.whop_environment || 'sandbox') == 'sandbox') && secrets.WHOP_SANDBOX_API_KEY || '' }}
+          WHOP_PRODUCTION_COMPANY_ID: ${{ vars.WHOP_PRODUCTION_COMPANY_ID || 'biz_B7fMXLLj18wv8J' }}
+          WHOP_PRODUCTION_PRODUCT_ID: ${{ vars.WHOP_PRODUCTION_PRODUCT_ID || 'prod_WrbEGZdSaG2af' }}
+          WHOP_PRODUCTION_PRO_PLAN_ID: ${{ vars.WHOP_PRODUCTION_PRO_PLAN_ID || 'plan_4JJSQLj5zEKVn' }}
+          WHOP_PRODUCTION_PREMIUM_PLAN_ID: ${{ vars.WHOP_PRODUCTION_PREMIUM_PLAN_ID || 'plan_kt5MScAplbCuN' }}
+          WHOP_SANDBOX_API_KEY: ${{ (inputs.checkout_provider == 'whop') && secrets.WHOP_SANDBOX_API_KEY || '' }}
           WHOP_PRODUCTION_API_KEY: ${{ (inputs.checkout_provider == 'whop' && inputs.whop_environment == 'production') && secrets.WHOP_PRODUCTION_API_KEY || '' }}
           WHOP_WEBHOOK_SECRET: ${{ secrets.WHOP_WEBHOOK_SECRET }}
           HUB_TARGET: ${{ steps.targets.outputs.targets_csv }}
