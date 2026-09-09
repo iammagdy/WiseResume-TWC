@@ -1,5 +1,19 @@
 # Project Atlas — Active Operational & Handover State
 
+## TestSprite Permanent Removal & Retirement (2026-09-09)
+
+* **Verdict:** `TESTSPRITE_REMOVED__NO_LONGER_PART_OF_WISERESUME_CI`
+* **Owner Decision:** The project owner explicitly authorized and directed the permanent removal of TestSprite from WiseResume.
+* **Removal Scope:**
+  - TestSprite integration retired from repository and documentation.
+  - Legacy TestSprite testing brief (`testsprite.md`) removed.
+  - TestSprite regression PRD marked permanently retired (`RETIRED_PERMANENTLY`).
+  - No repository GitHub Actions workflows invoke or reference TestSprite.
+  - No dependencies in `package.json` or `package-lock.json`.
+  - External integration identified as the GitHub App `TestSprite` (`app_id: 2756476`), which posted `TestSprite Pre-Check` commit statuses via GitHub webhook. Owner uninstall instructions documented.
+  - Branch protection / rulesets on `main` verified: no required TestSprite checks exist.
+  - First-party Playwright E2E and Vitest suites remain the sole authoritative testing infrastructure.
+
 ## Whop Live Manual QA Subscription Enrollment Gate Verified Open (2026-09-09)
 
 * **Verdict:** `READY_FOR_OWNER_MANUAL_SANDBOX_CHECKOUT`

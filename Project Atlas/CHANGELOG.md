@@ -1,5 +1,20 @@
 # WiseResume Atlas Master Changelog
 
+### 2026-09-09 - TestSprite permanently removed from WiseResume CI & repository
+
+- **Verdict:** `TESTSPRITE_REMOVED__NO_LONGER_PART_OF_WISERESUME_CI`
+- **Owner Directive:** Project owner explicitly authorized and directed the complete permanent removal of TestSprite.
+- **Repository Cleanup:**
+  - Removed legacy TestSprite testing brief (`Project Atlas/archive/legacy-docs/testsprite.md`).
+  - Marked TestSprite regression PRD as permanently retired (`Project Atlas/qa/production-stabilization/TestSprite_PRD_Production_Regression.md`).
+  - Confirmed 0 TestSprite workflows in `.github/workflows/`.
+  - Confirmed 0 TestSprite dependencies or scripts in `package.json` / `package-lock.json`.
+- **Branch Protection & GitHub Checks:**
+  - Verified no required TestSprite checks on `main` branch protection or rulesets.
+  - Identified source of PR status (`TestSprite Pre-Check` -> `No tests detected`) as an external GitHub App (`app_id: 2756476`, `slug: testsprite`).
+  - Documented owner uninstall instructions for GitHub App removal.
+  - First-party Playwright E2E and Vitest suites are canonical and authoritative.
+
 ### 2026-09-09 - Whop live manual QA subscription enrollment gate resolved and verified live
 
 - **Verdict:** `LIVE_MANUAL_QA_READY__SUBSCRIPTION_ENROLLMENT_OPEN` (Status: `READY_FOR_OWNER_MANUAL_SANDBOX_CHECKOUT`).
