@@ -43,6 +43,8 @@ export interface AdminUser {
   provider_source?: string | null;
   provider_status?: string | null;
   provider_environment?: string | null;
+  valid_entitlement_provider?: boolean;
+  provider_record_present?: boolean;
   access_classification?: string | null;
   plan_updated_at: string | null;
   is_suspended: boolean;
@@ -64,6 +66,11 @@ interface GlobalStats {
   suspended: number | null;
   activeToday: number | null;
   availability?: Record<string, 'available' | 'partial' | 'error'>;
+  provider_state_counts?: {
+    whop?: { active_pro: number; active_ultimate: number; active_total: number; total_records: number };
+    paypal?: { active_pro: number; active_ultimate: number; active_total: number; total_records: number };
+    revenuecat?: { active_pro: number; active_ultimate: number; active_total: number; total_records: number };
+  };
   sources?: {
     premium?: { field: string; count: number | null; legacyPlanCount: number | null; status: string };
     pro?: { field: string; count: number | null; legacyPlanCount: number | null; status: string };
@@ -171,6 +178,7 @@ export const AdminUsersPanel = () => {
         activeToday: result.activeToday ?? null,
         availability: result.availability,
         sources: result.sources,
+        provider_state_counts: result.provider_state_counts,
       });
       setGlobalStatsState('ready');
     } catch {
@@ -577,12 +585,7 @@ export const AdminUsersPanel = () => {
               {(() => {
                 const targetUser = users.find(u => u.user_id === planConfirm.userId);
                 const hasActiveProvider = Boolean(
-                  targetUser?.provider_source && (
-                    targetUser.provider_status === 'active' ||
-                    targetUser.provider_status === 'trialing' ||
-                    targetUser.provider_status === 'approved' ||
-                    targetUser.provider_status === 'completed'
-                  )
+                  targetUser?.valid_entitlement_provider && targetUser?.provider_source
                 );
                 return (
                   <>
@@ -1035,11 +1038,12 @@ function UserRow({
         <div className="w-28 hidden md:block">
           {user.provider_source ? (
             <div className="flex flex-col gap-0.5">
-              <span className="text-[10px] font-semibold text-white/70 uppercase">
+              <span className={cn('text-[10px] font-semibold uppercase flex items-center gap-1', user.valid_entitlement_provider ? 'text-white/80' : 'text-amber-400/80')}>
+                <span className={cn('w-1.5 h-1.5 rounded-full', user.valid_entitlement_provider ? 'bg-emerald-500' : 'bg-amber-500/70')} />
                 {user.provider_source}
               </span>
               <span className="text-[9px] text-white/40">
-                {user.provider_status || 'unknown'} {user.provider_environment ? `(${user.provider_environment})` : ''}
+                {user.valid_entitlement_provider ? (user.provider_status || 'active') : 'inactive / gated'} {user.provider_environment ? `(${user.provider_environment})` : ''}
               </span>
             </div>
           ) : (

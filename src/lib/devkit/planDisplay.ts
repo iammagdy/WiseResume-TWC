@@ -155,3 +155,53 @@ export function formatAccessClassification(classification: string | null | undef
       return { label: classification, badgeClass: 'bg-muted text-muted-foreground border-border' };
   }
 }
+
+/**
+ * Formats payment evidence status with appropriate label and styles.
+ */
+export function formatPaymentEvidenceStatus(status: string | null | undefined): { label: string; badgeClass: string; dotClass: string } {
+  const clean = String(status || '').trim().toLowerCase();
+  switch (clean) {
+    case 'confirmed':
+      return {
+        label: 'Payment Confirmed',
+        badgeClass: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
+        dotClass: 'bg-emerald-500',
+      };
+    case 'unavailable':
+      return {
+        label: 'Evidence Unavailable (Legacy)',
+        badgeClass: 'bg-violet-500/10 text-violet-300 border-violet-500/20',
+        dotClass: 'bg-violet-400',
+      };
+    case 'not_confirmed':
+    default:
+      return {
+        label: 'Payment Unconfirmed',
+        badgeClass: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
+        dotClass: 'bg-amber-500',
+      };
+  }
+}
+
+/**
+ * Formats provider validation state distinguishing valid entitlement from present-but-inactive/gated.
+ */
+export function formatProviderValidation(isValid: boolean | undefined, isPresent: boolean | undefined): { label: string; badgeClass: string } {
+  if (isValid) {
+    return {
+      label: 'Active Entitlement Provider',
+      badgeClass: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
+    };
+  }
+  if (isPresent) {
+    return {
+      label: 'Record Present (Inactive / Gated)',
+      badgeClass: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
+    };
+  }
+  return {
+    label: 'No Provider',
+    badgeClass: 'bg-muted text-muted-foreground border-border',
+  };
+}

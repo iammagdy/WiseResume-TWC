@@ -1,4 +1,4 @@
-﻿import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import {
   getPlanDisplayLabel,
   normalizePlanKey,
@@ -7,6 +7,8 @@ import {
   getSourceBadgeStyle,
   formatProviderStatus,
   formatAccessClassification,
+  formatPaymentEvidenceStatus,
+  formatProviderValidation,
 } from './planDisplay';
 
 describe('planDisplay presentation helpers', () => {
@@ -104,6 +106,48 @@ describe('planDisplay presentation helpers', () => {
       expect(formatAccessClassification('MULTIPLE_PROVIDER_SOURCES').label).toBe('Multiple Provider Sources');
       expect(formatAccessClassification('LEGACY_PROVIDER').label).toBe('Legacy Provider Entitlement');
       expect(formatAccessClassification(null).label).toBe('Standard Free');
+    });
+  });
+
+  describe('formatPaymentEvidenceStatus', () => {
+    it('returns confirmed badge styling for confirmed payment', () => {
+      const res = formatPaymentEvidenceStatus('confirmed');
+      expect(res.label).toBe('Payment Confirmed');
+      expect(res.badgeClass).toContain('emerald');
+      expect(res.dotClass).toContain('emerald');
+    });
+
+    it('returns unavailable badge styling for legacy unavailable', () => {
+      const res = formatPaymentEvidenceStatus('unavailable');
+      expect(res.label).toContain('Unavailable');
+      expect(res.badgeClass).toContain('violet');
+      expect(res.dotClass).toContain('violet');
+    });
+
+    it('returns unconfirmed badge styling for not_confirmed', () => {
+      const res = formatPaymentEvidenceStatus('not_confirmed');
+      expect(res.label).toBe('Payment Unconfirmed');
+      expect(res.badgeClass).toContain('amber');
+      expect(res.dotClass).toContain('amber');
+    });
+  });
+
+  describe('formatProviderValidation', () => {
+    it('formats valid provider truthfully', () => {
+      const res = formatProviderValidation(true, true);
+      expect(res.label).toBe('Active Entitlement Provider');
+      expect(res.badgeClass).toContain('emerald');
+    });
+
+    it('formats record present but inactive/gated truthfully', () => {
+      const res = formatProviderValidation(false, true);
+      expect(res.label).toContain('Inactive / Gated');
+      expect(res.badgeClass).toContain('amber');
+    });
+
+    it('formats no provider', () => {
+      const res = formatProviderValidation(false, false);
+      expect(res.label).toBe('No Provider');
     });
   });
 });
