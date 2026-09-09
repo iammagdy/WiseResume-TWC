@@ -185,6 +185,7 @@ jobs:
         run: |
           node scripts/sync_whop_qa_user_variable.cjs audit
           node scripts/audit-manual-qa-enrollment-gate.cjs
+          node scripts/audit_legacy_premium_accounts.cjs
 
       - name: Repair Whop QA user variables
         if: github.event.inputs.mode == 'repair_qa_vars'

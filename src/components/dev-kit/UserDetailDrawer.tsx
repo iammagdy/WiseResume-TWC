@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { X, Crown, Shield, ShieldOff, Zap, StickyNote, Copy, Check, Clock, UserPen, AlertTriangle, Trash2, LogOut, UserX, FileText, ChevronRight, Fingerprint, Merge, RotateCcw, Activity, Filter, CalendarDays } from 'lucide-react';
 import { AccountTypeBadge } from './DevKitBadges';
@@ -19,7 +19,57 @@ import { devKitAuthHeaders } from '@/lib/devkit/devKitAuth';
 import { DevKitErrorCard } from './DevKitErrorCard';
 import { getPortfolioDisplayUrl, CANONICAL_PORTFOLIO_HOST } from '@/lib/portfolioUrl';
 import { useLocale } from '@/i18n/LocaleProvider';
+import { cn } from '@/lib/utils';
+import {
+  getPlanDisplayLabel,
+  getPlanBadgeStyle,
+  formatAccessSource,
+  getSourceBadgeStyle,
+  formatProviderStatus,
+  formatAccessClassification,
+} from '@/lib/devkit/planDisplay';
 
+export interface UserBillingProvider {
+  provider: 'whop' | 'paypal' | 'revenuecat';
+  name: string;
+  plan: string;
+  plan_label: string;
+  status: string;
+  environment?: string;
+  membership_id?: string | null;
+  subscription_id?: string | null;
+  plan_id?: string | null;
+  product_id?: string | null;
+  expires_at?: string | null;
+  will_renew?: boolean;
+  latest_event_type?: string | null;
+  last_payment_id?: string | null;
+  payment_confirmed: boolean;
+  payment_evidence: string;
+  updated_at?: string;
+}
+
+export interface UserBillingTimelineItem {
+  id: string;
+  timestamp: string;
+  type: string;
+  provider: string;
+  summary: string;
+  reference_id?: string | null;
+}
+
+export interface UserBillingDetails {
+  target_user_id: string;
+  effective_plan: 'free' | 'pro' | 'premium';
+  effective_plan_label: string;
+  effective_source: string;
+  base_plan: 'free' | 'pro' | 'premium';
+  base_plan_label: string;
+  access_classification: string;
+  why_effective: string;
+  providers: UserBillingProvider[];
+  timeline: UserBillingTimelineItem[];
+}
 
 interface UserDetailDrawerProps {
   user: AdminUser;
@@ -153,6 +203,29 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
   const [bonusCredits, setBonusCredits] = useState('');
   const [savingCredits, setSavingCredits] = useState(false);
 
+  // Billing Intelligence state
+  const [billingDetails, setBillingDetails] = useState<UserBillingDetails | null>(null);
+  const [loadingBilling, setLoadingBilling] = useState(false);
+  const [planWarningTarget, setPlanWarningTarget] = useState<'free' | 'pro' | 'premium' | null>(null);
+
+  const fetchBilling = useCallback(async (uid: string) => {
+    setLoadingBilling(true);
+    try {
+      const tuple = await appwriteFunctions.invoke('admin-devkit-data', {
+        headers: devKitAuthHeaders(),
+        body: { action: 'get-user-billing', target_user_id: uid },
+      });
+      const result = unwrapAdminResponse<{ billing?: UserBillingDetails }>(tuple, 'admin-devkit-data');
+      if (result.billing) {
+        setBillingDetails(result.billing);
+      }
+    } catch (e) {
+      console.warn('[UserDetailDrawer] get-user-billing failed:', e);
+    } finally {
+      setLoadingBilling(false);
+    }
+  }, []);
+
   useEffect(() => {
     setSelectedPlan(userProp.plan_name);
     setSuspendReason(userProp.suspension_reason || '');
@@ -236,6 +309,7 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
     if (!open) return;
     let cancelled = false;
     setHistoryLoading(true);
+    fetchBilling(user.user_id);
     appwriteFunctions.invoke('admin-devkit-data', {
       headers: devKitAuthHeaders(),
       body: { action: 'user-audit-logs', limit: 500, target_user_id: user.user_id },
@@ -274,7 +348,7 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
     });
 
     return () => { cancelled = true; };
-  }, [open, user.user_id]);
+  }, [open, user.user_id, fetchBilling]);
 
   // Load activity events + content stats when activity tab is opened
   useEffect(() => {
@@ -547,8 +621,20 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
     return "The user's app will reflect this within ~60 seconds, or instantly if they switch back to their browser window.";
   };
 
-  const handleSetPlan = async () => {
-    if (selectedPlan === user.plan_name) { toast.info('Plan unchanged'); return; }
+  const handleSetPlan = async (forceOverride = false) => {
+    if (selectedPlan === user.plan_name && !forceOverride) { toast.info('Plan unchanged'); return; }
+
+    const hasActiveProvider = Boolean(
+      billingDetails?.providers?.some(p => ['active', 'trialing', 'approved', 'completed'].includes(p.status.toLowerCase())) ||
+      (user.provider_source && ['active', 'trialing', 'approved', 'completed'].includes((user.provider_status || '').toLowerCase()))
+    );
+
+    if (hasActiveProvider && !forceOverride) {
+      setPlanWarningTarget(selectedPlan);
+      return;
+    }
+
+    setPlanWarningTarget(null);
     setSavingPlan(true);
     try {
       const tuple = await appwriteFunctions.invoke('admin-devkit-data', {
@@ -557,11 +643,12 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
       });
       const result = unwrapAdminResponse<{ emailStatus?: string }>(tuple, 'admin-devkit-data');
       if (!isMounted()) return;
-      toast.success(`Plan set to ${selectedPlan}`, {
+      toast.success(`Plan set to ${getPlanDisplayLabel(selectedPlan).toUpperCase()}`, {
         description: describeEmailStatus(result.emailStatus),
         duration: 6000,
       });
       setUser(prev => ({ ...prev, plan_name: selectedPlan, plan_updated_at: new Date().toISOString() }));
+      await fetchBilling(user.user_id);
       queryClient.invalidateQueries({ queryKey: ['me'] });
       onUserUpdated();
     } catch (e) {
@@ -581,8 +668,9 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
       const result = unwrapAdminResponse<{ emailStatus?: string }>(tuple, 'admin-devkit-data');
       if (!isMounted()) return;
       const expiresAt = new Date(Date.now() + trialDays * 86400000).toISOString();
-      toast.success(`${trialPlan} trial granted for ${trialDays} days`, { description: describeEmailStatus(result.emailStatus) });
+      toast.success(`${getPlanDisplayLabel(trialPlan)} trial granted for ${trialDays} days`, { description: describeEmailStatus(result.emailStatus) });
       setUser(prev => ({ ...prev, trial_plan: trialPlan, trial_expires_at: expiresAt }));
+      await fetchBilling(user.user_id);
       onUserUpdated();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Failed to grant trial');
@@ -602,6 +690,7 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
       if (!isMounted()) return;
       toast.success('Trial revoked', { description: describeEmailStatus(result.emailStatus) });
       setUser(prev => ({ ...prev, trial_plan: null, trial_expires_at: null }));
+      await fetchBilling(user.user_id);
       onUserUpdated();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Failed to revoke trial');
@@ -855,6 +944,42 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
   return (
     <>
       <div className="fixed inset-0 bg-black/40 z-40" onClick={onClose} />
+
+      {/* Active Provider Warning Confirmation Modal */}
+      {planWarningTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+          <div className="w-full max-w-sm rounded-3xl border border-border bg-card p-6 shadow-2xl space-y-4">
+            <h3 className="font-bold text-foreground text-base flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-amber-500" />
+              Active Provider Detected
+            </h3>
+            <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 text-xs space-y-1.5 leading-relaxed">
+              <p className="font-semibold">
+                User has an active external payment subscription ({formatAccessSource(billingDetails?.providers?.[0]?.name || user.provider_source)}).
+              </p>
+              <p className="text-amber-600/90 dark:text-amber-400/90">
+                Setting a manual plan will update their platform entitlement, but recurring provider charges will continue unless canceled in the provider dashboard.
+              </p>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Are you sure you want to manually set their plan to <strong className="text-foreground">{getPlanDisplayLabel(planWarningTarget)}</strong>?
+            </p>
+            <div className="flex gap-2 pt-1">
+              <Button variant="outline" size="sm" onClick={() => setPlanWarningTarget(null)} className="flex-1">
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => handleSetPlan(true)}
+                className="flex-1 bg-amber-500 hover:bg-amber-600 text-black font-semibold"
+              >
+                Confirm Override
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="fixed right-0 top-0 bottom-0 w-full max-w-lg bg-card border-l border-border shadow-2xl z-50 flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-border shrink-0">
@@ -865,8 +990,16 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
             <div className="min-w-0">
               <p className="font-semibold text-sm truncate">{user.full_name || 'No name'}</p>
               <p className="text-xs text-muted-foreground truncate font-mono">{user.email}</p>
-              <div className="mt-1">
+              <div className="mt-1 flex items-center gap-1.5 flex-wrap">
                 <AccountTypeBadge accountType={user.account_type} />
+                <span className={cn('px-2 py-0.5 rounded-md text-[10px] font-bold border', getPlanBadgeStyle(billingDetails?.effective_plan || user.effective_plan || user.plan_name))}>
+                  {getPlanDisplayLabel(billingDetails?.effective_plan || user.effective_plan || user.plan_name)}
+                </span>
+                {(billingDetails?.effective_source || user.effective_source) && (
+                  <span className={cn('px-1.5 py-0.5 rounded-md text-[9px] font-semibold border', getSourceBadgeStyle(billingDetails?.effective_source || user.effective_source))}>
+                    {formatAccessSource(billingDetails?.effective_source || user.effective_source)}
+                  </span>
+                )}
               </div>
             </div>
           </div>
@@ -1526,11 +1659,138 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
                 </div>
               </div>
 
+              {/* Access & Entitlements Intelligence */}
+              <div className="space-y-3 rounded-2xl border border-border bg-muted/20 p-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="flex items-center gap-2 text-sm font-bold text-foreground">
+                    <Crown className="w-4 h-4 text-amber-500" />
+                    Access & Entitlements
+                  </h3>
+                  {loadingBilling && <MiniSpinner size={13} className="text-muted-foreground" />}
+                </div>
+
+                {/* Effective vs Base Plan Overview */}
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="p-3 rounded-xl border border-border bg-card/60 space-y-1">
+                    <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Effective Plan</p>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className={cn('px-2 py-0.5 rounded-md text-xs font-bold border', getPlanBadgeStyle(billingDetails?.effective_plan || user.effective_plan || user.plan_name))}>
+                        {getPlanDisplayLabel(billingDetails?.effective_plan || user.effective_plan || user.plan_name)}
+                      </span>
+                      {(billingDetails?.effective_source || user.effective_source) && (
+                        <span className={cn('px-1.5 py-0.5 rounded text-[9px] font-semibold border', getSourceBadgeStyle(billingDetails?.effective_source || user.effective_source))}>
+                          {formatAccessSource(billingDetails?.effective_source || user.effective_source)}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="p-3 rounded-xl border border-border bg-card/60 space-y-1">
+                    <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Base Stored Plan</p>
+                    <span className="text-xs font-semibold text-muted-foreground">
+                      {getPlanDisplayLabel(billingDetails?.base_plan || user.base_plan || 'free')}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Access Classification */}
+                {(billingDetails?.access_classification || user.access_classification) && (
+                  <div className="flex items-center gap-2 text-xs">
+                    <span className="text-muted-foreground text-[11px]">Classification:</span>
+                    {(() => {
+                      const cls = formatAccessClassification(billingDetails?.access_classification || user.access_classification);
+                      return (
+                        <span className={cn('px-2 py-0.5 rounded-md text-[10px] font-bold border', cls.badgeClass)}>
+                          {cls.label}
+                        </span>
+                      );
+                    })()}
+                  </div>
+                )}
+
+                {/* Explanation Card */}
+                {billingDetails?.why_effective && (
+                  <div className="p-3 rounded-xl border border-border/80 bg-background/50 text-xs text-muted-foreground space-y-1">
+                    <p className="font-semibold text-foreground text-[11px] flex items-center gap-1">
+                      💡 Why this plan:
+                    </p>
+                    <p className="text-[11px] leading-relaxed">
+                      {billingDetails.why_effective}
+                    </p>
+                  </div>
+                )}
+
+                {/* External Payment Provider Subscriptions */}
+                <div className="space-y-2 pt-1">
+                  <p className="text-[11px] uppercase font-bold text-muted-foreground tracking-wider">
+                    Payment Provider Subscriptions
+                  </p>
+                  {billingDetails?.providers && billingDetails.providers.length > 0 ? (
+                    <div className="space-y-2">
+                      {billingDetails.providers.map((p, idx) => {
+                        const statusObj = formatProviderStatus(p.status);
+                        return (
+                          <div key={`${p.provider}-${idx}`} className="p-3 rounded-xl border border-border bg-card/70 space-y-2 text-xs">
+                            <div className="flex items-center justify-between">
+                              <span className="font-bold text-foreground flex items-center gap-1.5">
+                                <span className={cn('w-2 h-2 rounded-full', p.payment_confirmed ? 'bg-emerald-500' : 'bg-amber-500')} />
+                                {p.name} ({p.environment || 'production'})
+                              </span>
+                              <span className={cn('text-[10px] uppercase font-bold', statusObj.className)}>
+                                {statusObj.label}
+                              </span>
+                            </div>
+                            <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-[11px] text-muted-foreground">
+                              <div>Plan: <span className="font-semibold text-foreground">{p.plan_label}</span></div>
+                              {p.membership_id && <div>Membership: <span className="font-mono text-foreground">{p.membership_id}</span></div>}
+                              {p.subscription_id && <div>Subscription: <span className="font-mono text-foreground">{p.subscription_id}</span></div>}
+                              {p.expires_at && <div>Expires: <span className="text-foreground">{formatDate(p.expires_at)}</span></div>}
+                            </div>
+                            {p.payment_evidence && (
+                              <div className="pt-1 border-t border-border/50 text-[10px] text-muted-foreground flex items-center justify-between">
+                                <span>Evidence: {p.payment_evidence}</span>
+                                {p.will_renew === false && <span className="text-amber-500 font-medium">Does not renew</span>}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground/60 italic p-2 rounded-lg border border-border/40 bg-card/30">
+                      No external payment provider subscriptions on file.
+                    </p>
+                  )}
+                </div>
+
+                {/* Billing Timeline */}
+                {billingDetails?.timeline && billingDetails.timeline.length > 0 && (
+                  <div className="space-y-1.5 pt-1">
+                    <p className="text-[11px] uppercase font-bold text-muted-foreground tracking-wider">
+                      Billing Event Timeline
+                    </p>
+                    <div className="rounded-xl border border-border overflow-hidden bg-card/40 max-h-48 overflow-y-auto">
+                      {billingDetails.timeline.map(item => (
+                        <div key={item.id} className="p-2 border-b border-border last:border-0 text-[11px] flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="font-semibold text-foreground truncate">{item.summary}</p>
+                            <p className="text-[10px] text-muted-foreground">
+                              {item.provider.toUpperCase()} {item.reference_id ? `· ${item.reference_id}` : ''}
+                            </p>
+                          </div>
+                          <span className="text-[10px] text-muted-foreground shrink-0">{formatDate(item.timestamp)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
               {/* Plan Controls */}
               <div className="space-y-3">
                 <h3 className="flex items-center gap-2 text-sm font-semibold">
                   <Crown className="w-4 h-4 text-amber-500" />
-                  Account · Plan
+                  Account · Plan Override
                 </h3>
                 <div className="flex gap-1 p-1 bg-muted/40 rounded-lg border border-border w-fit">
                   {(['permanent', 'trial'] as PlanTab[]).map((tab) => (
@@ -1555,11 +1815,11 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
                         <span className={`w-4 h-4 rounded-full border-2 shrink-0 flex items-center justify-center ${selectedPlan === plan ? 'border-primary' : 'border-muted-foreground/40'}`}>
                           {selectedPlan === plan && <span className="w-2 h-2 rounded-full bg-primary block" />}
                         </span>
-                        <span className="text-sm capitalize font-medium">{plan}</span>
-                        {user.plan_name === plan && <span className="ml-auto text-[10px] text-muted-foreground">current</span>}
+                        <span className="text-sm capitalize font-medium">{getPlanDisplayLabel(plan)}</span>
+                        {(billingDetails?.effective_plan || user.plan_name) === plan && <span className="ml-auto text-[10px] text-muted-foreground">current</span>}
                       </button>
                     ))}
-                    <Button onClick={handleSetPlan} disabled={savingPlan || impersonating} size="sm" className="w-full mt-1" title={impersonating ? 'Unavailable during impersonation' : undefined}>
+                    <Button onClick={() => handleSetPlan()} disabled={savingPlan || impersonating} size="sm" className="w-full mt-1" title={impersonating ? 'Unavailable during impersonation' : undefined}>
                       {savingPlan ? 'Saving…' : 'Set permanent plan'}
                     </Button>
                   </div>
@@ -1569,7 +1829,7 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
                   <div className="space-y-3">
                     {isTrialActive && (
                       <div className="p-2.5 rounded-lg bg-purple-500/10 border border-purple-500/20 text-xs text-purple-600 dark:text-purple-400">
-                        <p className="font-medium">Active {user.trial_plan} trial</p>
+                        <p className="font-medium">Active {getPlanDisplayLabel(user.trial_plan)} trial</p>
                         <p className="opacity-80 mt-0.5">Expires {formatDate(user.trial_expires_at)} · {trialDaysLeft} days left</p>
                         <Button variant="outline" size="sm" onClick={handleRevokeTrial} disabled={revokingTrial || impersonating} className="mt-2 h-6 text-[10px] text-destructive border-destructive/30" title={impersonating ? 'Unavailable during impersonation' : undefined}>
                           {revokingTrial ? 'Revoking…' : 'Revoke trial'}
@@ -1585,7 +1845,7 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
                           className="w-full text-xs bg-background border border-border rounded-md px-2 py-2 focus:outline-none focus:ring-1 focus:ring-primary"
                         >
                           <option value="pro">Pro</option>
-                          <option value="premium">Premium</option>
+                          <option value="premium">Ultimate</option>
                         </select>
                       </div>
                       <div>
@@ -1600,7 +1860,7 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
                       </div>
                     </div>
                     <Button onClick={handleGrantTrial} disabled={savingTrial || impersonating} size="sm" className="w-full" title={impersonating ? 'Unavailable during impersonation' : undefined}>
-                      {savingTrial ? 'Granting…' : `Grant ${trialPlan} trial for ${trialDays} days`}
+                      {savingTrial ? 'Granting…' : `Grant ${getPlanDisplayLabel(trialPlan)} trial for ${trialDays} days`}
                     </Button>
                   </div>
                 )}

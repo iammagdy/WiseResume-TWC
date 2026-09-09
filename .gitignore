@@ -129,6 +129,7 @@ scratch/
 tmp/
 reports/e2e-results-*.json
 .temp_qa_user_restore.json
+.agents/
 
 # Appwrite function lockfiles and mappings
 appwrite-hubs/*/package-lock.json
