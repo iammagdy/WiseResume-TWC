@@ -68,15 +68,22 @@ async function main() {
   console.log('\n======================================================');
   console.log('2. VERIFY STORED ENTITLEMENT COLLECTIONS');
   console.log('======================================================');
-  const [whopDocs, paypalDocs, subDocs] = await Promise.all([
+  const [whopDocs, paypalDocs, subDocs, sessionDocs, ledgerDocs] = await Promise.all([
     databases.listDocuments(DB_ID, 'whop_subscription_state', [sdk.Query.equal('user_id', [userId]), sdk.Query.limit(5)]),
     databases.listDocuments(DB_ID, 'paypal_subscription_state', [sdk.Query.equal('user_id', [userId]), sdk.Query.limit(5)]),
     databases.listDocuments(DB_ID, 'subscriptions', [sdk.Query.equal('user_id', [userId]), sdk.Query.limit(5)]),
+    databases.listDocuments(DB_ID, 'billing_checkout_sessions', [sdk.Query.equal('user_id', [userId]), sdk.Query.orderDesc('$createdAt'), sdk.Query.limit(5)]).catch(() => ({ total: 0, documents: [] })),
+    databases.listDocuments(DB_ID, 'whop_event_ledger', [sdk.Query.orderDesc('$createdAt'), sdk.Query.limit(5)]).catch(() => ({ total: 0, documents: [] })),
   ]);
 
   console.log(`whop_subscription_state docs:   ${whopDocs.total}`);
   console.log(`paypal_subscription_state docs: ${paypalDocs.total}`);
   console.log(`subscriptions docs:             ${subDocs.total}`);
+  console.log(`billing_checkout_sessions docs: ${sessionDocs.total}`);
+  for (const doc of sessionDocs.documents || []) {
+    console.log(`  [session] ref=${maskId(doc.public_reference)} plan=${doc.plan} state=${doc.state} provider=${doc.provider} url=${doc.checkout_url ? 'PRESENT' : 'NONE'} created=${doc.$createdAt}`);
+  }
+  console.log(`whop_event_ledger docs:         ${ledgerDocs.total}`);
 
   console.log('\n======================================================');
   console.log('3. AUDIT FUNCTION VARIABLES ACROSS TARGET HUBS');
@@ -214,6 +221,30 @@ async function main() {
     }
   } catch (err) {
     console.log(`Execution invocation failed: ${err.message}`);
+  }
+
+  console.log('\n======================================================');
+  console.log('7. RECENT billing-checkout EXECUTIONS');
+  console.log('======================================================');
+  try {
+    const res = await functions.listExecutions('billing-checkout', [
+      sdk.Query.orderDesc('$createdAt'),
+      sdk.Query.limit(5),
+    ]);
+    for (const exec of res.executions || []) {
+      console.log(`Execution: ${exec.$id} | Status: ${exec.status} | HTTP: ${exec.responseStatusCode} | Duration: ${exec.duration}s | Created: ${exec.$createdAt}`);
+      if (exec.errors) {
+        console.log(`  Errors: ${exec.errors.trim()}`);
+      }
+      if (exec.logs) {
+        console.log(`  Logs: ${exec.logs.trim()}`);
+      }
+      if (exec.responseBody) {
+        console.log(`  Response: ${exec.responseBody.slice(0, 300)}`);
+      }
+    }
+  } catch (err) {
+    console.log(`Failed to list executions: ${err.message}`);
   }
 
   console.log('\n======================================================');
