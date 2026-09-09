@@ -1,15 +1,25 @@
 # Project Atlas — Active Operational & Handover State
 
-## Whop integration merged to main for controlled live-domain manual QA (2026-09-09)
+## Whop Live Manual QA Subscription Enrollment Gate Verified Open (2026-09-09)
 
-* **Verdict:** `WAITING_FOR_OWNER_NEW_ACCOUNT`
-* **Status:** `BACKEND_VERIFIED_MERGED_TO_MAIN_PENDING_LIVE_DOMAIN_MANUAL_QA`
-* **Backend lifecycle verified:** Whop Sandbox payment, `membership.activated` webhook handling, `whop_subscription_state` persistence, Pro entitlement resolution, multi-membership deactivation guard, and transaction-safe QA variable synchronization are fully verified live on Appwrite.
-* **Hosted checkout automation:** Playwright automated checkout for fresh guest buyers reached provider boundary `HOSTED_CHECKOUT_AUTOMATION_PROVIDER_BOUNDARY_UNRESOLVED` (undocumented `status = action_required, action = login, login_available = false`), producing no payment.
-* **Owner authorization:** Owner explicitly authorized merging to `main` so the frontend is deployed to `https://wiseresume.app` for a controlled manual Sandbox test using a newly-created WiseResume QA account and Whop's Sandbox test card.
-* **Production safety:** Whop Production is NOT enabled. Real payments are NOT authorized. Sandbox checkout remains strictly gated to `WHOP_SANDBOX_QA_USER_ID`. All non-QA users fail closed with 403 `payments_disabled`.
-* **Appwrite hubs:** `billing-checkout`, `whop-webhook`, `ai-gateway`, `coupons` verified as `CURRENT_AND_READY`.
-* **Next action:** Owner creates a brand-new test account on `https://wiseresume.app` and stops before starting checkout; engineering safely binds `WHOP_SANDBOX_QA_USER_ID` to the new account for the manual Sandbox test.
+* **Verdict:** `READY_FOR_OWNER_MANUAL_SANDBOX_CHECKOUT`
+* **Status:** `LIVE_MANUAL_QA_READY__SUBSCRIPTION_ENROLLMENT_OPEN`
+* **Target Account:** `debeg50114@fidhost.com` (Appwrite User ID: `6aa1***ec13`, Name: `Magdy`).
+* **Live Verification Result:**
+  - `plan = free`
+  - `effective_plan = free`
+  - `can_subscribe = true` (Subscribe buttons active on `https://wiseresume.app/subscription`)
+  - `whop_subscription_state` docs = 0 (clean state before test)
+* **Backend Deployment:**
+  - `coupons` hub deployed via GitHub Actions workflow `deploy-appwrite-hubs.yml` (Run `34345158662`, deployment ID `6aa14f24...`, source hash `669bd361...`).
+  - `WHOP_SANDBOX_QA_USER_ID` consistently bound to `6aa1***ec13` across `billing-checkout`, `ai-gateway`, and `coupons`.
+* **Root Cause Resolved:** `getMySubscription` previously computed `can_subscribe` solely through PayPal configuration, keeping `can_subscribe = false` when PayPal was inactive. Now provider-aware (`paypalAvailable || whopAvailable`), admitting the QA user in Sandbox mode.
+* **Production Safety:**
+  - Whop Production remains DISABLED / NOT ACTIVATED.
+  - Whop Sandbox checkout strictly gated to `WHOP_SANDBOX_QA_USER_ID`.
+  - Non-QA users fail closed with 403 `payments_disabled`.
+  - Zero checkouts or payments created by engineering.
+* **Next Action:** Owner proceeds to `https://wiseresume.app/subscription` logged in as `debeg50114@fidhost.com`, clicks `Subscribe` to Pro or Ultimate, enters Whop test card, completes payment, and returns for post-payment verification.
 
 ## Whop Sandbox workflow execution (2026-09-08)
 

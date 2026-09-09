@@ -1,5 +1,16 @@
 # WiseResume Atlas Master Changelog
 
+### 2026-09-09 - Whop live manual QA subscription enrollment gate resolved and verified live
+
+- **Verdict:** `LIVE_MANUAL_QA_READY__SUBSCRIPTION_ENROLLMENT_OPEN` (Status: `READY_FOR_OWNER_MANUAL_SANDBOX_CHECKOUT`).
+- **Root Cause & Fix:** PR #323 merged to `main` (`fe27e061`). `getMySubscription` in `coupons` hub previously checked only PayPal availability for `can_subscribe`, causing disabled subscribe buttons ("Subscription enrollments are currently closed") for Whop Sandbox QA users. Updated `can_subscribe` to be provider-aware (`paypalAvailable || whopAvailable`), admitting users matching `WHOP_SANDBOX_QA_USER_ID` in Sandbox mode with valid catalog mapping.
+- **Deployment Hardening:**
+  - Hardened `scripts/deploy_hubs.cjs` to detect and preserve existing remote `WHOP_SANDBOX_QA_USER_ID` values during targeted CI deployments instead of overwriting with repository defaults.
+  - Hardened `scripts/bind-whop-sandbox-qa-user.cjs` with pre-mutation reconciliation support when hubs are already partially bound to the target QA user.
+- **Targeted Deployment:** Deployed `coupons` hub via GitHub Actions workflow `deploy-appwrite-hubs.yml` (Run `34345158662`, deployment ID `6aa14f24...`, source hash `669bd361...`). Verified `WHOP_SANDBOX_QA_USER_ID` preserved as `6aa1***ec13`.
+- **Live Read-Only Verification:** Verified live via direct execution of `get-subscription` on `coupons` hub (Run `34345287460`) for target QA user `debeg50114@fidhost.com` (`6aa1***ec13`): `plan = free`, `effective_plan = free`, `can_subscribe = true`.
+- **Safety Boundary Preserved:** Whop Production remains DISABLED / NOT ACTIVATED. Public checkout remains strictly gated to `WHOP_SANDBOX_QA_USER_ID`. Zero automated checkouts or payments created. Ready for owner-executed manual browser test.
+
 ### 2026-09-09 - Whop integration merged to main for controlled live-domain manual QA
 
 - Merged `feat/whop-payments-integration` into `main` following owner authorization for live manual Sandbox QA on `https://wiseresume.app`.
