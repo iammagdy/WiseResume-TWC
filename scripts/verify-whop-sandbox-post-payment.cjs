@@ -149,20 +149,24 @@ async function verifyWhopApi() {
             const deliveries = delivData?.data || delivData?.deliveries || (Array.isArray(delivData) ? delivData : []);
             console.log(`  - [deliveries] Retrieved ${deliveries.length} delivery records`);
             for (const deliv of deliveries) {
-              const eventType = deliv?.event || deliv?.type || deliv?.event_type || deliv?.payload?.type;
+              let body = deliv?.payload || deliv?.request_body || deliv?.data || deliv;
+              if (typeof body === 'string') {
+                try { body = JSON.parse(body); } catch (_) {}
+              }
+              const eventType = deliv?.event || deliv?.type || deliv?.event_type || body?.type || body?.action;
               const respCode = deliv?.response_code || deliv?.status_code || deliv?.response_status || deliv?.last_attempt?.response_code;
-              const payload = deliv?.payload || deliv?.request_body || deliv?.data || {};
-              const innerData = payload?.data || payload;
+              const innerData = body?.data || body;
               const memId = innerData?.id || innerData?.membership?.id || innerData?.membership_id;
               const chRef = innerData?.checkout_configuration_id || innerData?.checkout_configuration?.id;
-              console.log(`    * Delivery ${maskId(deliv?.id)}: event=${eventType} HTTP=${respCode} memId=${maskId(memId)} chRef=${maskId(chRef)}`);
+              const delivId = deliv?.id || deliv?.delivery_id || deliv?.msg_id || deliv?.attempt_id;
+              console.log(`    * Delivery ${maskId(delivId)}: event=${eventType} HTTP=${respCode} memId=${maskId(memId)} chRef=${maskId(chRef)}`);
 
-              const isCanonicalTarget = eventType === 'membership.activated' &&
-                (chRef === TARGET_CHECKOUT_REF || (typeof memId === 'string' && memId.endsWith('5U9m')));
+              const isCanonicalTarget = (eventType === 'membership.activated' || !eventType) &&
+                ((typeof memId === 'string' && memId.endsWith('5U9m')) || chRef === TARGET_CHECKOUT_REF);
 
-              if (isCanonicalTarget && respCode !== 200 && !replayAttempted) {
-                console.log(`[whop-api] Triggering authentic replay for delivery ${maskId(deliv?.id)} (canonical membership mem_***5U9m)...`);
-                let replayRes = await fetch(`${base}/webhooks/${hookId}/deliveries/${deliv.id}/replay`, {
+              if (isCanonicalTarget && respCode !== 200 && delivId && !replayAttempted) {
+                console.log(`[whop-api] Triggering authentic replay for delivery ${maskId(delivId)} (canonical membership mem_***5U9m)...`);
+                let replayRes = await fetch(`${base}/webhooks/${hookId}/deliveries/${delivId}/replay`, {
                   method: 'POST',
                   headers: { Authorization: `Bearer ${apiKey}`, Accept: 'application/json' },
                 });
@@ -170,14 +174,13 @@ async function verifyWhopApi() {
                   replayRes = await fetch(`${base}/webhooks/${hookId}/replay`, {
                     method: 'POST',
                     headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json', Accept: 'application/json' },
-                    body: JSON.stringify({ delivery_id: deliv.id }),
+                    body: JSON.stringify({ delivery_id: delivId, id: delivId }),
                   });
                 }
                 console.log(`[whop-api] Replay response: HTTP ${replayRes.status}`);
                 replayAttempted = true;
-                console.log('[whop-api] Pausing 6s for webhook processing in Appwrite...');
-                await new Promise(r => setTimeout(r, 6000));
-                break;
+                console.log('[whop-api] Pausing 8s for webhook processing in Appwrite...');
+                await new Promise(r => setTimeout(r, 8000));
               }
             }
           }
