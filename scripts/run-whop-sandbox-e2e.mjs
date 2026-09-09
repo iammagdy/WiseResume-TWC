@@ -245,6 +245,23 @@ async function findSubmitButton(timeoutMs = 15_000) {
   return null;
 }
 
+async function fillAllVisible(selector, value) {
+  for (const frame of page.frames()) {
+    try {
+      const locators = await frame.locator(selector).all();
+      for (const loc of locators) {
+        if (await loc.isVisible().catch(() => false)) {
+          const val = (await loc.inputValue().catch(() => '')).trim();
+          if (!val) {
+            console.log(`[e2e] Filling matching input (${selector}) with "${value}"...`);
+            await loc.fill(value);
+          }
+        }
+      }
+    } catch (_) {}
+  }
+}
+
 try {
   await login();
   await assertSubscriptionSurface();
@@ -254,54 +271,19 @@ try {
   console.log(`WHOP_PRO_CHECKOUT_OPEN=true origin=${new URL(proUrl).origin}`);
 
   // 1. Email (if guest customer email prompt is shown)
-  const emailField = await firstVisibleFrameLocator('input[type="email"], input[name="email"]', 3_000);
-  if (emailField) {
-    const val = (await emailField.inputValue().catch(() => '')).trim();
-    if (!val) {
-      console.log('[e2e] Filling email field...');
-      await emailField.fill(email);
-    }
-  }
+  await fillAllVisible('input[type="email"], input[name="email"]', email);
 
-  // 2. Name
-  const nameField = await firstVisibleFrameLocator('input[name="name"][type="text"], input[placeholder="Name"]', 3_000);
-  if (nameField) {
-    const val = (await nameField.inputValue().catch(() => '')).trim();
-    if (!val) {
-      console.log('[e2e] Filling name field...');
-      await nameField.fill('WiseResume QA');
-    }
-  }
+  // 2. Name (fills both contact name and billing name if present)
+  await fillAllVisible('input[name="name"][type="text"], input[placeholder="Name"]', 'WiseResume QA');
 
-  // 3. Address Line 1
-  const line1Field = await firstVisibleFrameLocator('input[name="line1"][type="text"], input[placeholder*="Address line 1" i]', 3_000);
-  if (line1Field) {
-    const val = (await line1Field.inputValue().catch(() => '')).trim();
-    if (!val) {
-      console.log('[e2e] Filling address line 1...');
-      await line1Field.fill('123 Main St');
-    }
-  }
+  // 3. Address Line 1 (fills both contact and billing address line 1)
+  await fillAllVisible('input[name="line1"][type="text"], input[placeholder*="Address line 1" i]', '123 Main St');
 
   // 4. City
-  const cityField = await firstVisibleFrameLocator('input[name="city"][type="text"], input[placeholder*="City" i]', 3_000);
-  if (cityField) {
-    const val = (await cityField.inputValue().catch(() => '')).trim();
-    if (!val) {
-      console.log('[e2e] Filling city...');
-      await cityField.fill('New York');
-    }
-  }
+  await fillAllVisible('input[name="city"][type="text"], input[placeholder*="City" i]', 'New York');
 
   // 5. Postal / ZIP code
-  const postalField = await firstVisibleFrameLocator('input[name="zip"][type="text"], input[placeholder*="ZIP" i], input[autocomplete="postal-code"]', 3_000);
-  if (postalField) {
-    const val = (await postalField.inputValue().catch(() => '')).trim();
-    if (!val) {
-      console.log('[e2e] Filling postal code...');
-      await postalField.fill('10001');
-    }
-  }
+  await fillAllVisible('input[name="zip"][type="text"], input[placeholder*="ZIP" i], input[autocomplete="postal-code"]', '10001');
 
   // 6. Card Details (inside provider frames)
   const cardField = await firstVisibleFrameLocator('input[autocomplete="cc-number"], input[name*="card" i]');
@@ -314,7 +296,7 @@ try {
   await cvcField.fill(testCvc);
   await cvcField.press('Tab').catch(() => {});
 
-  // Check required checkboxes if unchecked
+  // 7. Check required checkboxes if unchecked
   for (const frame of page.frames()) {
     try {
       const requiredBoxes = await frame.locator('input[type="checkbox"][required], input[type="checkbox"][aria-required="true"]').all();
@@ -322,6 +304,29 @@ try {
         if (await box.isVisible().catch(() => false) && !(await box.isChecked().catch(() => true))) {
           console.log('[e2e] Checking required checkbox...');
           await box.check({ force: true }).catch(() => {});
+        }
+      }
+    } catch (_) {}
+  }
+
+  // 8. General fallback for ANY remaining empty required input across all frames
+  for (const frame of page.frames()) {
+    try {
+      const requiredInputs = await frame.locator('input[required]').all();
+      for (const inp of requiredInputs) {
+        if (await inp.isVisible().catch(() => false)) {
+          const val = (await inp.inputValue().catch(() => '')).trim();
+          if (!val) {
+            const ph = (await inp.getAttribute('placeholder').catch(() => '') || '').toLowerCase();
+            const name = (await inp.getAttribute('name').catch(() => '') || '').toLowerCase();
+            console.log(`[e2e] Catch-all: filling required empty input: name="${name}" ph="${ph}"`);
+            if (/name/i.test(name) || /name/i.test(ph)) await inp.fill('WiseResume QA');
+            else if (/line|address/i.test(name) || /address/i.test(ph)) await inp.fill('123 Main St');
+            else if (/city/i.test(name) || /city/i.test(ph)) await inp.fill('New York');
+            else if (/zip|postal/i.test(name) || /zip|postal/i.test(ph)) await inp.fill('10001');
+            else if (/state/i.test(name) || /state/i.test(ph)) await inp.fill('NY');
+            else await inp.fill('Test');
+          }
         }
       }
     } catch (_) {}
