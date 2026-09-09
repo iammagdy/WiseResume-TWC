@@ -55,6 +55,7 @@ jobs:
           APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
           WISE_RESUME_E2E_EMAIL: ${{ secrets.WISE_RESUME_E2E_EMAIL }}
           WISE_RESUME_E2E_PASSWORD: ${{ secrets.WISE_RESUME_E2E_PASSWORD }}
+          RUN_MODE: ${{ github.event.inputs.mode || 'full_e2e' }}
         run: |
           node --input-type=commonjs <<'NODE'
           const fs = require('fs');
@@ -64,19 +65,33 @@ jobs:
           const email = String(process.env.WISE_RESUME_E2E_EMAIL || '').trim().toLowerCase();
           const password = String(process.env.WISE_RESUME_E2E_PASSWORD || '');
           const apiKey = process.env.APPWRITE_API_KEY;
+          const runMode = String(process.env.RUN_MODE || 'full_e2e');
           if (!email || !password || !apiKey) throw new Error('required Appwrite QA configuration is missing');
           (async () => {
             const client = new sdk.Client().setEndpoint(endpoint).setProject(projectId).setKey(apiKey);
             const users = new sdk.Users(client);
-            const listed = await users.list([sdk.Query.equal('email', [email]), sdk.Query.limit(1)]);
-            let user = listed.users?.[0];
-            if (!user) user = await users.create(sdk.ID.unique(), email, undefined, password, 'WiseResume Whop Sandbox QA');
-            if (!user.emailVerification) await users.updateEmailVerification(user.$id, true);
+            let targetEmail = email;
+            let user = null;
+            if (runMode === 'full_e2e') {
+              const stamp = Date.now().toString(36);
+              const [localPart, domain] = email.split('@');
+              targetEmail = `${localPart}+qa_${stamp}@${domain}`;
+              user = await users.create(sdk.ID.unique(), targetEmail, undefined, password, 'WiseResume Whop Sandbox QA Fresh');
+              await users.updateEmailVerification(user.$id, true);
+              console.log('QA_USER_PROVISIONED=true mode=fresh');
+            } else {
+              const listed = await users.list([sdk.Query.equal('email', [email]), sdk.Query.limit(1)]);
+              user = listed.users?.[0];
+              if (!user) user = await users.create(sdk.ID.unique(), email, undefined, password, 'WiseResume Whop Sandbox QA');
+              if (!user.emailVerification) await users.updateEmailVerification(user.$id, true);
+              console.log('QA_USER_PROVISIONED=true mode=canonical');
+            }
             const id = String(user.$id || '');
             if (!id) throw new Error('Appwrite did not return a QA user ID');
             process.stdout.write(`::add-mask::${id}\n`);
+            process.stdout.write(`::add-mask::${targetEmail}\n`);
             fs.appendFileSync(process.env.GITHUB_OUTPUT, `qa_user_id=${id}\n`);
-            console.log('QA_USER_PROVISIONED=true');
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, `qa_user_email=${targetEmail}\n`);
           })().catch(error => { console.error(`[qa-provision] ${error.message}`); process.exit(1); });
           NODE
 
@@ -133,8 +148,13 @@ jobs:
         if: github.event.inputs.mode != 'verify_existing_payment'
         env:
           E2E_BASE_URL: http://127.0.0.1:4173
-          WISE_RESUME_E2E_EMAIL: ${{ secrets.WISE_RESUME_E2E_EMAIL }}
+          APPWRITE_ENDPOINT: https://fra.cloud.appwrite.io/v1
+          APPWRITE_PROJECT_ID: 69fd362b001eb325a192
+          APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
+          WHOP_SANDBOX_API_KEY: ${{ secrets.WHOP_SANDBOX_API_KEY }}
+          WISE_RESUME_E2E_EMAIL: ${{ steps.provision.outputs.qa_user_email || secrets.WISE_RESUME_E2E_EMAIL }}
           WISE_RESUME_E2E_PASSWORD: ${{ secrets.WISE_RESUME_E2E_PASSWORD }}
+          QA_USER_ID: ${{ steps.provision.outputs.qa_user_id }}
           WHOP_ACCESS_ENVIRONMENT: sandbox
           WHOP_CHECKOUT_ENVIRONMENT: sandbox
           WHOP_SANDBOX_COMPANY_ID: biz_4To0HUTEuAbKkl
