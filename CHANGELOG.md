@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-09-09 — Whop integration merged to main for controlled manual Sandbox QA
+
+- **Whop Sandbox lifecycle**: fully verified live on Appwrite backend (authentic payment, `membership.activated` webhook handling, `whop_subscription_state` persistence, Pro entitlement resolution, and duplicate membership protection).
+- **Merge to main**: authorized by owner for controlled manual live-domain Sandbox QA on `https://wiseresume.app`.
+- **Sandbox isolation**: Sandbox checkout creation strictly gated to `WHOP_SANDBOX_QA_USER_ID`; all other users fail closed with 403 `payments_disabled`. Whop Production remains disabled / not activated.
+- **QA variable safety**: hardened `scripts/sync_whop_qa_user_variable.cjs` with 3-phase atomic snapshot/apply/rollback; unit tested across scenarios A-J.
+- **Payment safety**: enforced single-submit click maximum with zero retry clicks.
+- **Appwrite functions**: verified `billing-checkout`, `whop-webhook`, `ai-gateway`, `coupons` are `CURRENT_AND_READY`.
+
 ## 2026-09-08 — Whop Sandbox UI error diagnostics
 
 - **Sandbox browser E2E** (`scripts/run-whop-sandbox-e2e.mjs`): reports only the bounded, rendered checkout error when hosted navigation fails, preserving secret and payload redaction.

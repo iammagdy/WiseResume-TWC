@@ -1,8 +1,8 @@
 # WiseResume × Whop Subscription Integration
 
-**Date:** 2026-09-08
-**Status:** `IMPLEMENTED_UNVERIFIED` (local recurring-only/provider-choice finalization; Sandbox lifecycle still pending)
-**Branch:** `feat/whop-payments-integration`
+**Date:** 2026-09-09
+**Status:** `BACKEND_VERIFIED__MERGED_FOR_MANUAL_SANDBOX_QA` (Sandbox backend lifecycle verified; merged to main for controlled manual live-domain QA; production payments not authorized)
+**Branch:** `feat/whop-payments-integration` (merged to `main`)
 
 ## Scope
 

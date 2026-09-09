@@ -1,5 +1,16 @@
 # Project Atlas — Active Operational & Handover State
 
+## Whop integration merged to main for controlled live-domain manual QA (2026-09-09)
+
+* **Verdict:** `WAITING_FOR_OWNER_NEW_ACCOUNT`
+* **Status:** `BACKEND_VERIFIED_MERGED_TO_MAIN_PENDING_LIVE_DOMAIN_MANUAL_QA`
+* **Backend lifecycle verified:** Whop Sandbox payment, `membership.activated` webhook handling, `whop_subscription_state` persistence, Pro entitlement resolution, multi-membership deactivation guard, and transaction-safe QA variable synchronization are fully verified live on Appwrite.
+* **Hosted checkout automation:** Playwright automated checkout for fresh guest buyers reached provider boundary `HOSTED_CHECKOUT_AUTOMATION_PROVIDER_BOUNDARY_UNRESOLVED` (undocumented `status = action_required, action = login, login_available = false`), producing no payment.
+* **Owner authorization:** Owner explicitly authorized merging to `main` so the frontend is deployed to `https://wiseresume.app` for a controlled manual Sandbox test using a newly-created WiseResume QA account and Whop's Sandbox test card.
+* **Production safety:** Whop Production is NOT enabled. Real payments are NOT authorized. Sandbox checkout remains strictly gated to `WHOP_SANDBOX_QA_USER_ID`. All non-QA users fail closed with 403 `payments_disabled`.
+* **Appwrite hubs:** `billing-checkout`, `whop-webhook`, `ai-gateway`, `coupons` verified as `CURRENT_AND_READY`.
+* **Next action:** Owner creates a brand-new test account on `https://wiseresume.app` and stops before starting checkout; engineering safely binds `WHOP_SANDBOX_QA_USER_ID` to the new account for the manual Sandbox test.
+
 ## Whop Sandbox workflow execution (2026-09-08)
 
 * **Verdict:** `OWNER_ACTION_REQUIRED_SANDBOX_PAYMENT_INPUTS`

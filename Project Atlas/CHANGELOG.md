@@ -1,5 +1,15 @@
 # WiseResume Atlas Master Changelog
 
+### 2026-09-09 - Whop integration merged to main for controlled live-domain manual QA
+
+- Merged `feat/whop-payments-integration` into `main` following owner authorization for live manual Sandbox QA on `https://wiseresume.app`.
+- Core backend Whop Sandbox lifecycle verified live: authentic payments, `membership.activated` webhook handling, `whop_subscription_state` persistence, Pro entitlement resolution, and multi-membership deactivation guard.
+- Hardened QA variable synchronization (`scripts/sync_whop_qa_user_variable.cjs`) with 3-phase atomic snapshot/apply/rollback and bounded retries; unit test suite covers scenarios A through J.
+- Hardened Whop checkout submit safety: single-submit click guard with zero payment click retries (`submitClickCount = 1`).
+- Classified automated hosted checkout boundary on fresh guest buyers as `HOSTED_CHECKOUT_AUTOMATION_PROVIDER_BOUNDARY_UNRESOLVED` (`action_required / login, login_available = false`).
+- Verified all Appwrite hubs (`billing-checkout`, `whop-webhook`, `ai-gateway`, `coupons`) are `CURRENT_AND_READY`.
+- Production safety: Whop Production remains DISABLED / fail-closed. Real payments NOT authorized. Sandbox checkout strictly gated to `WHOP_SANDBOX_QA_USER_ID`.
+
 ### 2026-09-08 - Whop primary checkout finalization (`IMPLEMENTED_UNVERIFIED`)
 
 - Made Whop the default checkout preference while keeping PayPal as an explicit alternative; preserved historical PayPal one-time handlers/data without exposing one-time purchases in the new customer flow.
