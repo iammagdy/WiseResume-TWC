@@ -1,9 +1,11 @@
-# TestSprite — Production Regression Test PRD
+# TestSprite — Production Regression Test PRD (RETIRED)
 
-**Date:** 2026-07-05
-**Status:** PRD ONLY — execution requires `TESTSPRITE_API_KEY` environment variable
-**TestSprite MCP:** Configured at `.mcp.json` (server: `@testsprite/testsprite-mcp@latest`)
-**Execution:** `NOT RUN — TOOL UNAVAILABLE` (API key not available in current environment)
+> [!CAUTION]
+> **PERMANENTLY RETIRED (2026-09-09):** TestSprite has been completely and permanently retired from WiseResume by explicit project owner decision. It is no longer part of WiseResume CI, is not required for PR merge, and is not configured. First-party Playwright E2E and Vitest test suites are canonical and authoritative.
+
+**Date:** 2026-07-05 (Retired: 2026-09-09)
+**Status:** `RETIRED_PERMANENTLY`
+**Execution:** `RETIRED — DO NOT RUN`
 
 ---
 
