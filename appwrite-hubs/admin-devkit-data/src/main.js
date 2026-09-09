@@ -7,7 +7,12 @@ const { normalizeUserQuery, filterAndSortUsers } = require('./user-query.cjs');
 const { deriveExactUserCounts, buildUsageStats, summarizeCompletionHealth } = require('./phase1-semantics.cjs');
 const {
   resolveEffectivePlan,
+  buildPlanCandidates,
   configuredProviderEnvironment,
+  configuredPaypalProviderEnvironment,
+  configuredWhopProviderEnvironment,
+  configuredQaUserId,
+  configuredWhopQaUserId,
 } = require('@wiseresume/subscription-resolver');
 
 const DB_ID = 'main';
@@ -19,6 +24,10 @@ const IMPERSONATION_SESSIONS_COLLECTION = 'admin_impersonation_sessions';
 const BROADCASTS_COLLECTION = 'broadcasts';
 const PROVIDER_STATE_COLLECTION = 'revenuecat_subscription_state';
 const PAYPAL_STATE_COLLECTION = 'paypal_subscription_state';
+const WHOP_STATE_COLLECTION = 'whop_subscription_state';
+const WHOP_LEDGER_COLLECTION = 'whop_event_ledger';
+const PAYPAL_LEDGER_COLLECTION = 'paypal_event_ledger';
+const CHECKOUT_SESSIONS_COLLECTION = 'billing_checkout_sessions';
 const BROADCAST_SEVERITIES = new Set(['info', 'warning', 'critical']);
 // Authoritative admin identity — must be set via ADMIN_EMAIL env variable.
 // No hard-coded fallback: when absent, admin-only paths fail closed.
@@ -871,7 +880,18 @@ async function countUniqueTodayVisitors(since) {
 
 async function handleGlobalStats(log) {
   const todaySince = new Date(new Date().setHours(0, 0, 0, 0)).toISOString();
-  const [profiles, premiumEffective, premiumBase, proEffective, proBase, suspended, auth, activeToday] = await Promise.all([
+  const [
+    profiles,
+    premiumEffective,
+    premiumBase,
+    proEffective,
+    proBase,
+    suspended,
+    auth,
+    activeToday,
+    whopStates,
+    paypalStates,
+  ] = await Promise.all([
     safeList(null, 'profiles', [sdk.Query.limit(1)]),
     safeList(null, 'subscriptions', [sdk.Query.equal('effective_plan', 'premium'), sdk.Query.limit(1)]),
     safeList(null, 'subscriptions', [sdk.Query.equal('plan', 'premium'), sdk.Query.limit(1)]),
@@ -880,8 +900,32 @@ async function handleGlobalStats(log) {
     safeList(null, 'profiles', [sdk.Query.equal('is_suspended', true), sdk.Query.limit(1)]),
     listUsers([sdk.Query.limit(1)]).catch(e => ({ total: null, error: e.message })),
     countUniqueTodayVisitors(todaySince),
+    safeList(null, WHOP_STATE_COLLECTION, [sdk.Query.equal('status', 'active'), sdk.Query.limit(100)]),
+    safeList(null, PAYPAL_STATE_COLLECTION, [sdk.Query.equal('status', 'active'), sdk.Query.limit(100)]),
   ]);
+
   const metric = source => effectivePlanCount(source);
+
+  const whopDocs = whopStates.documents || [];
+  const paypalDocs = paypalStates.documents || [];
+
+  let activeWhopPro = 0;
+  let activeWhopPremium = 0;
+  for (const w of whopDocs) {
+    if (w.plan === 'pro') activeWhopPro++;
+    if (w.plan === 'premium' || w.plan === 'ultimate') activeWhopPremium++;
+  }
+
+  let activePaypalPro = 0;
+  let activePaypalPremium = 0;
+  for (const p of paypalDocs) {
+    if (p.plan === 'pro') activePaypalPro++;
+    if (p.plan === 'premium' || p.plan === 'ultimate') activePaypalPremium++;
+  }
+
+  const resolvedProTotal = (metric(proEffective) || 0) + activeWhopPro + activePaypalPro;
+  const resolvedPremiumTotal = (metric(premiumEffective) || 0) + activeWhopPremium + activePaypalPremium;
+
   const availability = {
     total: auth.error ? 'error' : 'available',
     profiles: profiles.error ? 'error' : 'available',
@@ -890,20 +934,210 @@ async function handleGlobalStats(log) {
     suspended: suspended.error ? 'error' : 'available',
     activeToday: activeToday.error ? 'error' : (activeToday.truncated ? 'partial' : 'available'),
   };
-  log(`handleGlobalStats: effective_plan premium=${metric(premiumEffective)} pro=${metric(proEffective)}; activeToday=${activeToday.count ?? 'unavailable'}`);
+  log(`handleGlobalStats: effective_plan premium=${resolvedPremiumTotal} pro=${resolvedProTotal}; activeToday=${activeToday.count ?? 'unavailable'}`);
   return {
     total: auth.error ? null : (auth.total ?? 0),
     profilesTotal: metric(profiles),
-    premium: metric(premiumEffective),
-    pro: metric(proEffective),
+    premium: resolvedPremiumTotal,
+    ultimate: resolvedPremiumTotal,
+    pro: resolvedProTotal,
     suspended: metric(suspended),
     activeToday: activeToday.count,
     sources: {
-      premium: { field: 'effective_plan', count: metric(premiumEffective), legacyPlanCount: metric(premiumBase), status: availability.premium },
-      pro: { field: 'effective_plan', count: metric(proEffective), legacyPlanCount: metric(proBase), status: availability.pro },
+      ultimate: { field: 'effective_plan', count: resolvedPremiumTotal, legacyPlanCount: metric(premiumBase), status: availability.premium },
+      premium: { field: 'effective_plan', count: resolvedPremiumTotal, legacyPlanCount: metric(premiumBase), status: availability.premium },
+      pro: { field: 'effective_plan', count: resolvedProTotal, legacyPlanCount: metric(proBase), status: availability.pro },
     },
     availability,
   };
+}
+
+// ─── Canonical DevKit Billing View Model & Resolver Helpers ───────────────────
+
+const PLAN_LABELS = Object.freeze({ free: 'Free', pro: 'Pro', premium: 'Ultimate' });
+const PLAN_RANK = Object.freeze({ free: 0, pro: 1, premium: 2 });
+
+async function getProfileDoc(databases, userId) {
+  const res = await safeList(databases, 'profiles', [sdk.Query.equal('user_id', userId), sdk.Query.limit(1)]);
+  return res.documents[0] || null;
+}
+
+async function getProviderState(databases, userId) {
+  const res = await safeList(databases, PROVIDER_STATE_COLLECTION, [sdk.Query.equal('user_id', userId), sdk.Query.limit(1)]);
+  return res.documents[0] || null;
+}
+
+async function getPaypalProviderState(databases, userId) {
+  const res = await safeList(databases, PAYPAL_STATE_COLLECTION, [sdk.Query.equal('user_id', userId), sdk.Query.limit(1)]);
+  return res.documents[0] || null;
+}
+
+async function getWhopProviderState(databases, userId) {
+  const res = await safeList(databases, WHOP_STATE_COLLECTION, [sdk.Query.equal('user_id', userId), sdk.Query.limit(1)]);
+  return res.documents[0] || null;
+}
+
+function resolveUserPlanDetails({
+  subscription,
+  providerState,
+  whopProviderState,
+  paypalProviderState,
+  userId,
+  providerEnvironment = configuredProviderEnvironment(),
+  paypalProviderEnvironment = configuredPaypalProviderEnvironment(),
+  whopProviderEnvironment = configuredWhopProviderEnvironment(),
+  qaUserId = configuredQaUserId(),
+  whopQaUserId = configuredWhopQaUserId(),
+  nowMs = Date.now(),
+}) {
+  const resolution = resolveEffectivePlan({
+    subscription,
+    providerState,
+    whopProviderState,
+    paypalProviderState,
+    providerEnvironment,
+    paypalProviderEnvironment,
+    whopProviderEnvironment,
+    qaUserId,
+    whopQaUserId,
+    userId,
+    nowMs,
+  });
+  const candidates = buildPlanCandidates({
+    subscription,
+    providerState,
+    whopProviderState,
+    paypalProviderState,
+    providerEnvironment,
+    paypalProviderEnvironment,
+    whopProviderEnvironment,
+    qaUserId,
+    whopQaUserId,
+    userId,
+    nowMs,
+  });
+  return {
+    resolution: {
+      ...resolution,
+      rank: PLAN_RANK[resolution.plan] ?? 0,
+    },
+    candidates: candidates.map(c => ({
+      ...c,
+      rank: PLAN_RANK[c.plan] ?? 0,
+    })),
+  };
+}
+
+function classifyUserAccess({ subscription, whopState, paypalState, rcState, effective }) {
+  const isPaidEffective = effective && (effective.plan === 'pro' || effective.plan === 'premium');
+  const hasWhop = whopState && (whopState.status === 'active' || whopState.status === 'completed' || whopState.status === 'trialing');
+  const hasPaypal = paypalState && (paypalState.status === 'active' || paypalState.status === 'approved' || paypalState.status === 'trialing');
+  const hasRc = rcState && (rcState.status === 'active' || rcState.status === 'trialing');
+  const activeProviders = [hasWhop && 'whop', hasPaypal && 'paypal', hasRc && 'revenuecat'].filter(Boolean);
+
+  const basePlan = subscription?.plan;
+  const hasManualPaid = basePlan === 'pro' || basePlan === 'premium';
+  const hasTrial = effective?.source === 'active trial' || effective?.source === 'trial';
+  const hasCoupon = effective?.source === 'coupon';
+
+  if (!isPaidEffective) return 'FREE';
+  if (activeProviders.length > 1) return 'MULTIPLE_PROVIDER_SOURCES';
+  if (hasManualPaid && activeProviders.length > 0) return 'MANUAL_PLUS_PAID_PROVIDER';
+  if (activeProviders.length === 1) {
+    if (activeProviders[0] === 'revenuecat') return 'LEGACY_PROVIDER';
+    return 'PAID_PROVIDER';
+  }
+  if (hasTrial) return 'TRIAL';
+  if (hasCoupon) return 'COUPON';
+  if (hasManualPaid || effective?.source === 'manual/admin' || effective?.source === 'admin_grant') return 'MANUAL_ADMIN';
+  return 'UNKNOWN';
+}
+
+function buildBillingExplanation({ effective, candidates, subscription, whopState, paypalState, rcState }) {
+  const planLabel = PLAN_LABELS[effective?.plan] || effective?.plan || 'Free';
+  if (!effective || effective.plan === 'free') {
+    return 'User is on the default Free plan (no active paid subscriptions, trials, coupons, or manual grants).';
+  }
+  const parts = [];
+  if (effective.source === 'manual/admin') {
+    parts.push(`User has ${planLabel} access granted manually by an administrator.`);
+    const activeProviders = [
+      whopState && whopState.status === 'active' && `Whop ${PLAN_LABELS[whopState.plan] || whopState.plan} (${whopState.environment || 'sandbox'})`,
+      paypalState && paypalState.status === 'active' && `PayPal ${PLAN_LABELS[paypalState.plan] || paypalState.plan} (${paypalState.environment || 'sandbox'})`,
+    ].filter(Boolean);
+    if (activeProviders.length > 0) {
+      parts.push(`An active provider subscription (${activeProviders.join(', ')}) is also on file, but manual ${planLabel} takes precedence.`);
+    }
+  } else if (effective.source === 'whop') {
+    parts.push(`User has ${planLabel} access via active Whop subscription in ${whopState?.environment || 'sandbox'} environment.`);
+    if (whopState?.expires_at) {
+      parts.push(`Access is paid through ${new Date(whopState.expires_at).toLocaleDateString()}.`);
+    }
+  } else if (effective.source === 'paypal') {
+    parts.push(`User has ${planLabel} access via active PayPal subscription in ${paypalState?.environment || 'sandbox'} environment.`);
+    if (paypalState?.expires_at) {
+      parts.push(`Access is paid through ${new Date(paypalState.expires_at).toLocaleDateString()}.`);
+    }
+  } else if (effective.source === 'active trial') {
+    parts.push(`User has temporary ${planLabel} access via an active trial expiring ${subscription?.trial_expires_at ? new Date(subscription.trial_expires_at).toLocaleDateString() : 'soon'}.`);
+  } else if (effective.source === 'coupon') {
+    parts.push(`User has ${planLabel} access via promotional coupon code (${subscription?.coupon_code || 'active'}).`);
+  } else if (effective.source === 'revenuecat') {
+    parts.push(`User has grandfathered ${planLabel} access via legacy RevenueCat subscription.`);
+  } else {
+    parts.push(`User has ${planLabel} access via ${effective.source}.`);
+  }
+  return parts.join(' ');
+}
+
+function buildBillingTimeline({ checkouts, whopLedger, paypalLedger, subscription }) {
+  const events = [];
+  for (const c of (checkouts || [])) {
+    events.push({
+      id: c.$id,
+      timestamp: c.$createdAt,
+      type: 'checkout_session',
+      source: 'billing_checkout_sessions',
+      title: `Checkout created: ${c.provider || 'whop'} (${c.plan || 'pro'})`,
+      description: `Status: ${c.status || 'created'} · Session ID: ${c.$id ? c.$id.slice(0, 12) + '…' : '—'}`,
+      status: c.status || 'created',
+    });
+  }
+  for (const w of (whopLedger || [])) {
+    events.push({
+      id: w.$id || w.event_id,
+      timestamp: w.received_at || w.$createdAt,
+      type: 'whop_event',
+      source: 'whop_event_ledger',
+      title: `Whop Event: ${w.event_type || 'unknown'}`,
+      description: `Outcome: ${w.outcome_code || w.processing_status || 'processed'}`,
+      status: w.processing_status || 'completed',
+    });
+  }
+  for (const p of (paypalLedger || [])) {
+    events.push({
+      id: p.$id || p.event_id,
+      timestamp: p.received_at || p.$createdAt,
+      type: 'paypal_event',
+      source: 'paypal_event_ledger',
+      title: `PayPal Event: ${p.event_type || 'unknown'}`,
+      description: `Outcome: ${p.outcome_code || p.processing_status || 'processed'}`,
+      status: p.processing_status || 'completed',
+    });
+  }
+  if (subscription && subscription.$updatedAt) {
+    events.push({
+      id: `sub_${subscription.$id}`,
+      timestamp: subscription.$updatedAt,
+      type: 'subscription_update',
+      source: 'subscriptions',
+      title: `Subscription updated: plan=${subscription.plan || 'free'}`,
+      description: subscription.trial_plan ? `Trial active: ${subscription.trial_plan}` : 'Manual entitlement record updated',
+      status: 'active',
+    });
+  }
+  events.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+  return events.slice(0, 20);
 }
 
 async function handleListUsersPage(body, log) {
@@ -943,18 +1177,34 @@ async function handleListUsersPage(body, log) {
         String(u.name || '').toLowerCase().includes(search)
       );
     }
-    const [filterProfilesPage, filterSubsPage] = await Promise.all([
+    const [filterProfilesPage, filterSubsPage, filterWhopPage, filterPaypalPage, filterRcPage] = await Promise.all([
       safeList(null, 'profiles', [sdk.Query.limit(500)]),
       safeList(null, 'subscriptions', [sdk.Query.limit(500)]),
+      safeList(null, WHOP_STATE_COLLECTION, [sdk.Query.limit(500)]),
+      safeList(null, PAYPAL_STATE_COLLECTION, [sdk.Query.limit(500)]),
+      safeList(null, PROVIDER_STATE_COLLECTION, [sdk.Query.limit(500)]),
     ]);
     const filterProfiles = new Map((filterProfilesPage.documents || []).map(profile => [profile.user_id, profile]));
     const filterSubs = new Map((filterSubsPage.documents || []).map(subscription => [subscription.user_id, subscription]));
+    const filterWhop = new Map((filterWhopPage.documents || []).map(w => [w.user_id, w]));
+    const filterPaypal = new Map((filterPaypalPage.documents || []).map(p => [p.user_id, p]));
+    const filterRc = new Map((filterRcPage.documents || []).map(r => [r.user_id, r]));
     const enrich = new Map(users.map(user => {
       const profile = filterProfiles.get(user.$id) || null;
       const subscription = filterSubs.get(user.$id) || null;
+      const whop = filterWhop.get(user.$id) || null;
+      const paypal = filterPaypal.get(user.$id) || null;
+      const rc = filterRc.get(user.$id) || null;
+      const { resolution } = resolveUserPlanDetails({
+        subscription,
+        providerState: rc,
+        whopProviderState: whop,
+        paypalProviderState: paypal,
+        userId: user.$id,
+      });
       return [user.$id, {
         profile,
-        plan: subscription?.effective_plan || subscription?.plan || profile?.plan || 'free',
+        plan: resolution.plan,
         isSuspended: profile?.is_suspended === true,
         accountType: profile?.account_type || 'job_seeker',
         lastActive: user.$updatedAt || user.$createdAt,
@@ -980,22 +1230,34 @@ async function handleListUsersPage(body, log) {
   let profiles = [];
   let subs = [];
   let creds = [];
+  let whops = [];
+  let paypals = [];
+  let rcs = [];
   let resumeCounts = new Map();
   if (userIds.length > 0) {
-    const [pRes, sRes, cRes, ...resumePages] = await Promise.all([
+    const [pRes, sRes, cRes, wRes, pyRes, rcRes, ...resumePages] = await Promise.all([
       safeList(null, 'profiles', [sdk.Query.equal('user_id', userIds), sdk.Query.limit(pageSize)]),
       safeList(null, 'subscriptions', [sdk.Query.equal('user_id', userIds), sdk.Query.limit(pageSize)]),
       safeList(null, 'ai_credits', [sdk.Query.equal('user_id', userIds), sdk.Query.limit(pageSize)]),
+      safeList(null, WHOP_STATE_COLLECTION, [sdk.Query.equal('user_id', userIds), sdk.Query.limit(pageSize)]),
+      safeList(null, PAYPAL_STATE_COLLECTION, [sdk.Query.equal('user_id', userIds), sdk.Query.limit(pageSize)]),
+      safeList(null, PROVIDER_STATE_COLLECTION, [sdk.Query.equal('user_id', userIds), sdk.Query.limit(pageSize)]),
       ...userIds.map(userId => safeList(null, 'resumes', [sdk.Query.equal('user_id', userId), sdk.Query.limit(1)])),
     ]);
     profiles = pRes.documents || [];
     subs = sRes.documents || [];
     creds = cRes.documents || [];
+    whops = wRes.documents || [];
+    paypals = pyRes.documents || [];
+    rcs = rcRes.documents || [];
     resumeCounts = new Map(userIds.map((userId, index) => [userId, resumePages[index]?.total || 0]));
   }
   const profileMap = new Map(profiles.map(p => [p.user_id, p]));
   const subMap = new Map(subs.map(s => [s.user_id, s]));
   const credMap = new Map(creds.map(c => [c.user_id, c]));
+  const whopMap = new Map(whops.map(w => [w.user_id, w]));
+  const paypalMap = new Map(paypals.map(p => [p.user_id, p]));
+  const rcMap = new Map(rcs.map(r => [r.user_id, r]));
 
   // Mirrors PLAN_DAILY_LIMITS in ai-gateway so the admin panel shows the real cap
   // even before a user's first AI request creates an ai_credits document.
@@ -1006,8 +1268,46 @@ async function handleListUsersPage(body, log) {
       const doc = profileMap.get(authUser.$id) || {};
       const s = subMap.get(authUser.$id) || {};
       const c = credMap.get(authUser.$id) || {};
+      const whopDoc = whopMap.get(authUser.$id) || null;
+      const paypalDoc = paypalMap.get(authUser.$id) || null;
+      const rcDoc = rcMap.get(authUser.$id) || null;
+
+      const { resolution } = resolveUserPlanDetails({
+        subscription: s.$id ? s : null,
+        providerState: rcDoc,
+        whopProviderState: whopDoc,
+        paypalProviderState: paypalDoc,
+        userId: authUser.$id,
+      });
+
+      const effective_plan = resolution.plan;
+      const effective_plan_label = PLAN_LABELS[effective_plan] || effective_plan;
+      const effective_source = resolution.source;
       const base_plan = s.plan ?? doc.plan ?? 'free';
-      const effective_plan = s.effective_plan || s.trial_plan || base_plan;
+      const base_plan_label = PLAN_LABELS[base_plan] || base_plan;
+
+      const activeProvider = (whopDoc?.status === 'active' || whopDoc?.status === 'trialing')
+        ? { source: 'whop', doc: whopDoc }
+        : (paypalDoc?.status === 'active' || paypalDoc?.status === 'trialing')
+          ? { source: 'paypal', doc: paypalDoc }
+          : (rcDoc?.status === 'active' || rcDoc?.status === 'trialing')
+            ? { source: 'revenuecat', doc: rcDoc }
+            : whopDoc
+              ? { source: 'whop', doc: whopDoc }
+              : paypalDoc
+                ? { source: 'paypal', doc: paypalDoc }
+                : rcDoc
+                  ? { source: 'revenuecat', doc: rcDoc }
+                  : null;
+
+      const access_classification = classifyUserAccess({
+        subscription: s.$id ? s : null,
+        whopState: whopDoc,
+        paypalState: paypalDoc,
+        rcState: rcDoc,
+        effective: resolution,
+      });
+
       return {
         $id: doc.$id || authUser.$id,
         $createdAt: authUser.$createdAt || doc.$createdAt,
@@ -1018,12 +1318,17 @@ async function handleListUsersPage(body, log) {
         account_type: doc.account_type || 'job_seeker',
         plan_name: effective_plan,
         base_plan,
+        base_plan_label,
         effective_plan,
+        effective_plan_label,
+        effective_source,
+        provider_source: activeProvider?.source || null,
+        provider_status: activeProvider?.doc?.status || null,
+        provider_environment: activeProvider?.doc?.environment || null,
+        access_classification,
         plan_updated_at: s.$updatedAt ?? null,
         is_suspended: doc.is_suspended ?? false,
         suspension_reason: doc.suspension_reason ?? null,
-        // Use the ai_credits document limit when present; fall back to plan default
-        // so free/pro users without a credits doc show their actual cap (not âˆž).
         daily_limit: c.daily_limit != null ? c.daily_limit : (PLAN_CREDIT_DEFAULTS[effective_plan] ?? 5),
         credits_used_today: c.daily_usage ?? 0,
         trial_plan: s.trial_plan ?? null,
@@ -1588,39 +1893,15 @@ async function handleListErrors(body) {
   return { errors: res.documents, total: res.total, missing: !!res.error, error: res.error || null };
 }
 
-// â”€â”€â”€ Helper: find profile doc by user_id â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
-async function getProfileDoc(databases, userId) {
-  const res = await safeList(databases, 'profiles', [sdk.Query.equal('user_id', userId), sdk.Query.limit(1)]);
-  return res.documents[0] || null;
-}
-
-async function getProviderState(databases, userId) {
-  const res = await safeList(databases, PROVIDER_STATE_COLLECTION, [sdk.Query.equal('user_id', userId), sdk.Query.limit(1)]);
-  return res.documents[0] || null;
-}
-
-async function getPaypalProviderState(databases, userId) {
-  const res = await safeList(databases, PAYPAL_STATE_COLLECTION, [sdk.Query.equal('user_id', userId), sdk.Query.limit(1)]);
-  return res.documents[0] || null;
-}
-
 function resolvedPlan(subscription, providerState, paypalProviderState, userId) {
-  return resolveEffectivePlan({
+  return resolveUserPlanDetails({
     subscription,
     providerState,
+    whopProviderState: null,
     paypalProviderState,
-    providerEnvironment: configuredProviderEnvironment(),
     userId,
-  }).plan;
+  }).resolution.plan;
 }
-
-// â”€â”€â”€ Admin mutation handlers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
-// â”€â”€â”€ Plan change helpers: notification + email â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
-const PLAN_LABELS = { free: 'Free', pro: 'Pro', premium: 'Premium' };
-const PLAN_RANK = { free: 0, pro: 1, premium: 2 };
 
 async function resendRequest(method, path, body) {
   const apiKey = process.env.RESEND_API_KEY;
@@ -1879,11 +2160,19 @@ async function handleSetPlan(body, log) {
   const subRes = await safeList(databases, 'subscriptions', [sdk.Query.equal('user_id', target_user_id), sdk.Query.limit(1)]);
   const subDoc = subRes.documents[0] || null;
   const previousPlan = subDoc?.effective_plan || subDoc?.trial_plan || subDoc?.plan || profile?.plan || 'free';
-  const [providerState, paypalProviderState] = await Promise.all([
+  const [providerState, whopProviderState, paypalProviderState] = await Promise.all([
     getProviderState(databases, target_user_id),
+    getWhopProviderState(databases, target_user_id),
     getPaypalProviderState(databases, target_user_id),
   ]);
-  const effectivePlan = resolvedPlan({ ...subDoc, plan, trial_plan: null, trial_expires_at: null }, providerState, paypalProviderState, target_user_id);
+  const { resolution } = resolveUserPlanDetails({
+    subscription: { ...subDoc, plan, trial_plan: null, trial_expires_at: null },
+    providerState,
+    whopProviderState,
+    paypalProviderState,
+    userId: target_user_id,
+  });
+  const effectivePlan = resolution.plan;
   const changeType = classifyPlanChange(previousPlan, effectivePlan);
   const patch = { plan, effective_plan: effectivePlan, status: 'active', trial_plan: null, trial_expires_at: null };
   const subPerms = [
@@ -1907,15 +2196,28 @@ async function handleSetPlan(body, log) {
     }
   }
 
-  await auditLog(databases, 'set-plan', { target_user_id, plan, actor_email });
-  log(`set-plan: ${target_user_id} -> ${plan}`);
+  await auditLog(databases, 'set-plan', {
+    target_user_id,
+    plan,
+    effective_plan: effectivePlan,
+    effective_source: resolution.source,
+    actor_email,
+  });
+  log(`set-plan: ${target_user_id} -> ${plan} (effective: ${effectivePlan} via ${resolution.source})`);
 
   const [notificationCreated, emailResult] = await Promise.all([
-    createPlanNotificationForChange(databases, target_user_id, { previousPlan, newPlan: plan, changeType, durationLabel: null }, log),
-    sendPlanChangeEmail({ userId: target_user_id, previousPlan, newPlan: plan, changeType, durationLabel: null, log }),
+    createPlanNotificationForChange(databases, target_user_id, { previousPlan, newPlan: effectivePlan, changeType, durationLabel: null }, log),
+    sendPlanChangeEmail({ userId: target_user_id, previousPlan, newPlan: effectivePlan, changeType, durationLabel: null, log }),
   ]);
 
-  return { plan, notificationCreated, ...emailResult };
+  return {
+    plan,
+    effective_plan: effectivePlan,
+    effective_plan_label: PLAN_LABELS[effectivePlan] || effectivePlan,
+    effective_source: resolution.source,
+    notificationCreated,
+    ...emailResult,
+  };
 }
 
 async function handleGrantTrial(body, log) {
@@ -1929,11 +2231,19 @@ async function handleGrantTrial(body, log) {
   const subRes = await safeList(databases, 'subscriptions', [sdk.Query.equal('user_id', target_user_id), sdk.Query.limit(1)]);
   const subDoc = subRes.documents[0] || null;
   const previousPlan = subDoc?.effective_plan || subDoc?.trial_plan || subDoc?.plan || 'free';
-  const [providerState, paypalProviderState] = await Promise.all([
+  const [providerState, whopProviderState, paypalProviderState] = await Promise.all([
     getProviderState(databases, target_user_id),
+    getWhopProviderState(databases, target_user_id),
     getPaypalProviderState(databases, target_user_id),
   ]);
-  const effectivePlan = resolvedPlan({ ...subDoc, plan: subDoc?.plan || 'free', trial_plan: plan, trial_expires_at: expiresAt }, providerState, paypalProviderState, target_user_id);
+  const { resolution } = resolveUserPlanDetails({
+    subscription: { ...subDoc, plan: subDoc?.plan || 'free', trial_plan: plan, trial_expires_at: expiresAt },
+    providerState,
+    whopProviderState,
+    paypalProviderState,
+    userId: target_user_id,
+  });
+  const effectivePlan = resolution.plan;
   const trialPerms = [
     sdk.Permission.read(sdk.Role.user(target_user_id)),
     // UPDATE intentionally omitted: written exclusively by server-side admin client.
@@ -1949,8 +2259,14 @@ async function handleGrantTrial(body, log) {
     await databases.createDocument(DB_ID, 'subscriptions', sdk.ID.unique(), { user_id: target_user_id, plan: 'free', effective_plan: effectivePlan, trial_plan: plan, trial_expires_at: expiresAt, status: 'active' }, trialPerms);
   }
 
-  await auditLog(databases, 'grant-trial', { target_user_id, plan, days });
-  log(`grant-trial: ${target_user_id} -> ${plan} for ${days}d`);
+  await auditLog(databases, 'grant-trial', {
+    target_user_id,
+    plan,
+    days,
+    effective_plan: effectivePlan,
+    effective_source: resolution.source,
+  });
+  log(`grant-trial: ${target_user_id} -> ${plan} for ${days}d (effective: ${effectivePlan} via ${resolution.source})`);
 
   const durationLabel = `${days} day${Number(days) === 1 ? '' : 's'}`;
   const [notificationCreated, emailResult] = await Promise.all([
@@ -1958,7 +2274,15 @@ async function handleGrantTrial(body, log) {
     sendPlanChangeEmail({ userId: target_user_id, previousPlan, newPlan: plan, changeType: 'trial_start', durationLabel, log }),
   ]);
 
-  return { trial_plan: plan, trial_expires_at: expiresAt, notificationCreated, ...emailResult };
+  return {
+    trial_plan: plan,
+    trial_expires_at: expiresAt,
+    effective_plan: effectivePlan,
+    effective_plan_label: PLAN_LABELS[effectivePlan] || effectivePlan,
+    effective_source: resolution.source,
+    notificationCreated,
+    ...emailResult,
+  };
 }
 
 async function handleRevokeTrial(body, log) {
@@ -1970,11 +2294,19 @@ async function handleRevokeTrial(body, log) {
   const subDoc = subRes.documents[0] || null;
   const previousPlan = subDoc?.effective_plan || subDoc?.trial_plan || subDoc?.plan || 'free';
   const basePlan = subDoc?.plan || 'free';
-  const [providerState, paypalProviderState] = await Promise.all([
+  const [providerState, whopProviderState, paypalProviderState] = await Promise.all([
     getProviderState(databases, target_user_id),
+    getWhopProviderState(databases, target_user_id),
     getPaypalProviderState(databases, target_user_id),
   ]);
-  const effectivePlan = resolvedPlan({ ...subDoc, plan: basePlan, trial_plan: null, trial_expires_at: null }, providerState, paypalProviderState, target_user_id);
+  const { resolution } = resolveUserPlanDetails({
+    subscription: { ...subDoc, plan: basePlan, trial_plan: null, trial_expires_at: null },
+    providerState,
+    whopProviderState,
+    paypalProviderState,
+    userId: target_user_id,
+  });
+  const effectivePlan = resolution.plan;
   if (subDoc) {
     const revokePerms = [
       sdk.Permission.read(sdk.Role.user(target_user_id)),
@@ -1990,13 +2322,171 @@ async function handleRevokeTrial(body, log) {
     }
   }
 
-  await auditLog(databases, 'revoke-trial', { target_user_id });
-  log(`revoke-trial: ${target_user_id}`);
+  await auditLog(databases, 'revoke-trial', {
+    target_user_id,
+    effective_plan: effectivePlan,
+    effective_source: resolution.source,
+  });
+  log(`revoke-trial: ${target_user_id} (effective: ${effectivePlan} via ${resolution.source})`);
   const [notificationCreated, emailResult] = await Promise.all([
     createPlanNotificationForChange(databases, target_user_id, { previousPlan, newPlan: effectivePlan, changeType: 'trial_end', durationLabel: null }, log),
     sendPlanChangeEmail({ userId: target_user_id, previousPlan, newPlan: effectivePlan, changeType: 'trial_end', durationLabel: null, log }),
   ]);
-  return { ok: true, plan: effectivePlan, notificationCreated, ...emailResult };
+  return {
+    ok: true,
+    plan: effectivePlan,
+    effective_plan: effectivePlan,
+    effective_plan_label: PLAN_LABELS[effectivePlan] || effectivePlan,
+    effective_source: resolution.source,
+    notificationCreated,
+    ...emailResult,
+  };
+}
+
+async function handleGetUserBilling(body, log) {
+  const { databases } = getClients();
+  const target_user_id = body.target_user_id || body.user_id;
+  if (!target_user_id) throw new Error('Missing target_user_id');
+
+  const [
+    subRes,
+    profileDoc,
+    whopRes,
+    paypalRes,
+    rcRes,
+    checkoutsRes,
+    whopLedgerRes,
+    paypalLedgerRes,
+  ] = await Promise.all([
+    safeList(databases, 'subscriptions', [sdk.Query.equal('user_id', target_user_id), sdk.Query.limit(1)]),
+    getProfileDoc(databases, target_user_id),
+    safeList(databases, WHOP_STATE_COLLECTION, [sdk.Query.equal('user_id', target_user_id), sdk.Query.limit(1)]),
+    safeList(databases, PAYPAL_STATE_COLLECTION, [sdk.Query.equal('user_id', target_user_id), sdk.Query.limit(1)]),
+    safeList(databases, PROVIDER_STATE_COLLECTION, [sdk.Query.equal('user_id', target_user_id), sdk.Query.limit(1)]),
+    safeList(databases, CHECKOUT_SESSIONS_COLLECTION, [sdk.Query.equal('user_id', target_user_id), sdk.Query.orderDesc('$createdAt'), sdk.Query.limit(10)]),
+    safeList(databases, WHOP_LEDGER_COLLECTION, [sdk.Query.equal('user_id', target_user_id), sdk.Query.orderDesc('$createdAt'), sdk.Query.limit(10)]),
+    safeList(databases, PAYPAL_LEDGER_COLLECTION, [sdk.Query.equal('user_id', target_user_id), sdk.Query.orderDesc('$createdAt'), sdk.Query.limit(10)]),
+  ]);
+
+  const subscription = subRes.documents[0] || null;
+  const whopState = whopRes.documents[0] || null;
+  const paypalState = paypalRes.documents[0] || null;
+  const rcState = rcRes.documents[0] || null;
+  const checkouts = checkoutsRes.documents || [];
+  const whopLedger = whopLedgerRes.documents || [];
+  const paypalLedger = paypalLedgerRes.documents || [];
+
+  const { resolution, candidates } = resolveUserPlanDetails({
+    subscription,
+    providerState: rcState,
+    whopProviderState: whopState,
+    paypalProviderState: paypalState,
+    userId: target_user_id,
+  });
+
+  const effective_plan = resolution.plan;
+  const effective_plan_label = PLAN_LABELS[effective_plan] || effective_plan;
+  const effective_source = resolution.source;
+  const base_plan = subscription?.plan ?? profileDoc?.plan ?? 'free';
+  const base_plan_label = PLAN_LABELS[base_plan] || base_plan;
+
+  const access_classification = classifyUserAccess({
+    subscription,
+    whopState,
+    paypalState,
+    rcState,
+    effective: resolution,
+  });
+
+  const why_effective = buildBillingExplanation({
+    effective: resolution,
+    candidates,
+    subscription,
+    whopState,
+    paypalState,
+    rcState,
+  });
+
+  const providers = [];
+  if (whopState) {
+    const isPaymentConfirmed = ['active', 'completed', 'paid'].includes(whopState.status);
+    providers.push({
+      provider: 'whop',
+      name: 'Whop',
+      plan: whopState.plan,
+      plan_label: PLAN_LABELS[whopState.plan] || whopState.plan,
+      status: whopState.status,
+      environment: whopState.environment,
+      membership_id: whopState.membership_id ? `mem_***${whopState.membership_id.slice(-4)}` : null,
+      plan_id: whopState.plan_id || null,
+      product_id: whopState.product_id || null,
+      expires_at: whopState.expires_at || null,
+      will_renew: whopState.will_renew !== false,
+      latest_event_type: whopState.latest_event_type || null,
+      payment_confirmed: isPaymentConfirmed,
+      payment_evidence: isPaymentConfirmed ? 'Confirmed payment via Whop webhook' : 'Checkout session created (payment not confirmed)',
+      updated_at: whopState.updated_at || whopState.$updatedAt,
+    });
+  }
+
+  if (paypalState) {
+    const isPaymentConfirmed = ['active', 'approved'].includes(paypalState.status);
+    providers.push({
+      provider: 'paypal',
+      name: 'PayPal',
+      plan: paypalState.plan,
+      plan_label: PLAN_LABELS[paypalState.plan] || paypalState.plan,
+      status: paypalState.status,
+      environment: paypalState.environment,
+      subscription_id: paypalState.subscription_id ? `I-***${paypalState.subscription_id.slice(-4)}` : null,
+      plan_id: paypalState.plan_id || null,
+      expires_at: paypalState.expires_at || null,
+      will_renew: paypalState.will_renew !== false,
+      latest_event_type: paypalState.latest_event_type || null,
+      last_payment_id: paypalState.last_entitlement_payment_id || null,
+      payment_confirmed: isPaymentConfirmed,
+      payment_evidence: isPaymentConfirmed ? 'Confirmed payment via PayPal webhook' : 'Subscription pending',
+      updated_at: paypalState.updated_at || paypalState.$updatedAt,
+    });
+  }
+
+  if (rcState) {
+    providers.push({
+      provider: 'revenuecat',
+      name: 'RevenueCat',
+      plan: rcState.plan,
+      plan_label: PLAN_LABELS[rcState.plan] || rcState.plan,
+      status: rcState.status,
+      environment: rcState.environment,
+      expires_at: rcState.expires_at || null,
+      payment_confirmed: rcState.status === 'active',
+      payment_evidence: rcState.status === 'active' ? 'Legacy RevenueCat active entitlement' : 'Inactive',
+      updated_at: rcState.$updatedAt,
+    });
+  }
+
+  const timeline = buildBillingTimeline({
+    checkouts,
+    whopLedger,
+    paypalLedger,
+    subscription,
+  });
+
+  return {
+    billing: {
+      target_user_id,
+      effective_plan,
+      effective_plan_label,
+      effective_source,
+      base_plan,
+      base_plan_label,
+      access_classification,
+      candidates,
+      why_effective,
+      providers,
+      timeline,
+    },
+  };
 }
 
 async function handleSuspendUser(body, log) {
@@ -3438,6 +3928,7 @@ module.exports = async ({ req, res, log, error }) => {
     else if (action === 'set-plan') data = await handleSetPlan(body, log);
     else if (action === 'grant-trial') data = await handleGrantTrial(body, log);
     else if (action === 'revoke-trial') data = await handleRevokeTrial(body, log);
+    else if (action === 'get-user-billing') data = await handleGetUserBilling(body, log);
     else if (action === 'suspend-user') data = await handleSuspendUser(body, log);
     else if (action === 'set-credits') data = await handleSetCredits(body, log);
     else if (action === 'save-note') data = await handleSaveNote(body, log);
@@ -3503,4 +3994,10 @@ module.exports._test = {
   normalizeBroadcastInput,
   toAdminBroadcast,
   normalizeDiscountCodeInput,
+  PLAN_LABELS,
+  buildPlanCandidates,
+  resolveUserPlanDetails,
+  classifyUserAccess,
+  buildBillingExplanation,
+  buildBillingTimeline,
 };

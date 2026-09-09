@@ -17,6 +17,14 @@ import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
 import { useLocale } from '@/i18n/LocaleProvider';
 import { AdminSignupsPanel } from './AdminSignupsPanel';
+import {
+  getPlanDisplayLabel,
+  getPlanBadgeStyle,
+  formatAccessSource,
+  getSourceBadgeStyle,
+  formatProviderStatus,
+  formatAccessClassification,
+} from '@/lib/devkit/planDisplay';
 
 export interface AdminUser {
   $id: string;
@@ -27,6 +35,15 @@ export interface AdminUser {
   contact_email: string | null;
   account_type: 'job_seeker' | 'hr' | null;
   plan_name: 'free' | 'pro' | 'premium';
+  base_plan?: 'free' | 'pro' | 'premium';
+  base_plan_label?: string;
+  effective_plan?: 'free' | 'pro' | 'premium';
+  effective_plan_label?: string;
+  effective_source?: string;
+  provider_source?: string | null;
+  provider_status?: string | null;
+  provider_environment?: string | null;
+  access_classification?: string | null;
   plan_updated_at: string | null;
   is_suspended: boolean;
   suspension_reason: string | null;
@@ -238,9 +255,9 @@ export const AdminUsersPanel = () => {
         body: { action: 'set-plan', target_user_id: userId, plan, actor_email: authUser?.email ?? 'admin (dev-kit)' },
       });
       const result = unwrapAdminResponse<{ emailStatus?: string }>(tuple, 'admin-devkit-data');
-      updateUser(userId, { plan_name: plan, plan_updated_at: new Date().toISOString() });
+      await fetchPage(page);
       queryClient.invalidateQueries({ queryKey: ['me'] });
-      toast.success(`Plan set to ${plan.toUpperCase()}`, {
+      toast.success(`Plan set to ${getPlanDisplayLabel(plan).toUpperCase()}`, {
         description: userId === authUser?.id
           ? 'Your plan is now active — app features will reflect this immediately.'
           : describeEmailStatus(result.emailStatus),
@@ -264,10 +281,10 @@ export const AdminUsersPanel = () => {
         body: { action: 'grant-trial', target_user_id: userId, plan, days },
       });
       const result = unwrapAdminResponse<{ emailStatus?: string }>(tuple, 'admin-devkit-data');
-      const expiresAt = new Date(Date.now() + days * 86_400_000).toISOString();
-      updateUser(userId, { trial_plan: plan, trial_expires_at: expiresAt });
+      await fetchPage(page);
       queryClient.invalidateQueries({ queryKey: ['me'] });
-      toast.success(`${plan} trial granted for ${days} days`, { description: describeEmailStatus(result.emailStatus) });
+      toast.success(`${getPlanDisplayLabel(plan)} trial granted for ${days} days`, { description: describeEmailStatus(result.emailStatus) });
+      fetchGlobalStats();
     } catch (e) {
       toast.error(formatEdgeError(e, 'Failed to grant trial'));
     } finally {
@@ -283,8 +300,10 @@ export const AdminUsersPanel = () => {
         body: { action: 'revoke-trial', target_user_id: userId },
       });
       const result = unwrapAdminResponse<{ emailStatus?: string }>(tuple, 'admin-devkit-data');
-      updateUser(userId, { trial_plan: null, trial_expires_at: null });
+      await fetchPage(page);
+      queryClient.invalidateQueries({ queryKey: ['me'] });
       toast.success('Trial revoked', { description: describeEmailStatus(result.emailStatus) });
+      fetchGlobalStats();
     } catch (e) {
       toast.error(formatEdgeError(e, 'Failed to revoke trial'));
     } finally {
@@ -555,14 +574,42 @@ export const AdminUsersPanel = () => {
           <div className="w-full max-w-sm rounded-3xl border border-white/10 bg-[#0e0e0e] p-7 shadow-2xl space-y-5">
             <div>
               <h3 className="font-black text-white text-lg tracking-tight">Change Plan?</h3>
-              <p className="text-sm text-white/40 mt-1">
-                Set <span className="text-white font-semibold">{planConfirm.name}</span> to{' '}
-                <span className={cn('font-black uppercase',
-                  planConfirm.plan === 'premium' ? 'text-amber-400' :
-                  planConfirm.plan === 'pro' ? 'text-blue-400' : 'text-white/60',
-                )}>{planConfirm.plan}</span>?
-                This will take effect within ~60 seconds in the user's active session.
-              </p>
+              {(() => {
+                const targetUser = users.find(u => u.user_id === planConfirm.userId);
+                const hasActiveProvider = Boolean(
+                  targetUser?.provider_source && (
+                    targetUser.provider_status === 'active' ||
+                    targetUser.provider_status === 'trialing' ||
+                    targetUser.provider_status === 'approved' ||
+                    targetUser.provider_status === 'completed'
+                  )
+                );
+                return (
+                  <>
+                    <p className="text-sm text-white/40 mt-1">
+                      Set <span className="text-white font-semibold">{planConfirm.name}</span> to{' '}
+                      <span className={cn('font-black uppercase',
+                        planConfirm.plan === 'premium' ? 'text-amber-400' :
+                        planConfirm.plan === 'pro' ? 'text-blue-400' : 'text-white/60',
+                      )}>{getPlanDisplayLabel(planConfirm.plan)}</span>?
+                      This will take effect within ~60 seconds in the user's active session.
+                    </p>
+                    {hasActiveProvider && targetUser && (
+                      <div className="mt-3 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs leading-relaxed space-y-1">
+                        <p className="font-bold flex items-center gap-1.5 text-amber-400">
+                          ⚠️ Active Provider Subscription Detected
+                        </p>
+                        <p>
+                          User has an active <strong>{formatAccessSource(targetUser.provider_source)}</strong> subscription ({targetUser.provider_status}).
+                        </p>
+                        <p className="text-amber-300/80">
+                          Setting a manual plan updates their database entitlement, but recurring billing on {formatAccessSource(targetUser.provider_source)} will remain active unless canceled in provider dashboard.
+                        </p>
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
             </div>
             <div className="flex gap-3">
               <Button variant="outline" onClick={() => setPlanConfirm(null)} className="flex-1 rounded-2xl border-white/10 bg-white/5 text-white/60 hover:text-white">Cancel</Button>
@@ -576,7 +623,7 @@ export const AdminUsersPanel = () => {
                 )}
               >
                 {savingPlanId === planConfirm.userId ? <MiniSpinner size={14} className="mr-2" /> : null}
-                Set {planConfirm.plan.toUpperCase()}
+                Set {getPlanDisplayLabel(planConfirm.plan).toUpperCase()}
               </Button>
             </div>
           </div>
@@ -679,7 +726,7 @@ export const AdminUsersPanel = () => {
         />
         <DevKitMetricCard
           icon={Crown}
-          label="Premium"
+          label="Ultimate"
           value={displayStats.premium ?? 'Unavailable'}
           status={displayStats.premium == null ? 'error' : 'warning'}
           subtext="effective_plan = premium"
@@ -734,7 +781,7 @@ export const AdminUsersPanel = () => {
                   : 'bg-muted text-muted-foreground border-border hover:border-border hover:text-foreground',
               )}
             >
-              {f}
+              {f === 'premium' ? 'Ultimate' : f}
             </button>
           ))}
           <button
@@ -754,9 +801,11 @@ export const AdminUsersPanel = () => {
           {allSelected ? <CheckSquare size={13} className="text-white/50" /> : <Square size={13} />}
         </button>
         <div className="w-44">User</div>
-        <div className="w-24">Plan</div>
-        <div className="w-36">Credits</div>
-        <div className="w-20">Status</div>
+        <div className="w-28">Effective Plan</div>
+        <div className="w-24">Base Plan</div>
+        <div className="w-28">Provider</div>
+        <div className="w-32">Credits</div>
+        <div className="w-16">Status</div>
         <div className="flex-1">Quick actions</div>
       </div>
 
@@ -953,25 +1002,58 @@ function UserRow({
           </div>
         </div>
 
-        {/* Plan */}
+        {/* Effective Plan */}
+        <div className="w-28 hidden md:block">
+          <div className="flex flex-col gap-0.5">
+            <span className={cn(
+              'inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-bold border w-fit',
+              PLAN_COLORS[user.effective_plan || user.plan_name] || PLAN_COLORS.free,
+            )}>
+              {PLAN_ICONS[user.effective_plan || user.plan_name]}
+              {getPlanDisplayLabel(user.effective_plan || user.plan_name)}
+              {isTrialActive && <span className="text-violet-400 ml-0.5">trial</span>}
+            </span>
+            {user.effective_source && user.effective_source !== 'free' && (
+              <span className={cn(
+                'inline-flex items-center px-1.5 py-0.2 rounded text-[8px] font-semibold border w-fit',
+                getSourceBadgeStyle(user.effective_source)
+              )}>
+                {formatAccessSource(user.effective_source)}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Base Plan */}
         <div className="w-24 hidden md:block">
-          <span className={cn(
-            'inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-bold border',
-            PLAN_COLORS[user.plan_name],
-          )}>
-            {PLAN_ICONS[user.plan_name]}
-            {user.plan_name}
-            {isTrialActive && <span className="text-violet-400 ml-0.5">trial</span>}
+          <span className="text-xs text-white/50">
+            {getPlanDisplayLabel(user.base_plan || 'free')}
           </span>
         </div>
 
+        {/* Provider */}
+        <div className="w-28 hidden md:block">
+          {user.provider_source ? (
+            <div className="flex flex-col gap-0.5">
+              <span className="text-[10px] font-semibold text-white/70 uppercase">
+                {user.provider_source}
+              </span>
+              <span className="text-[9px] text-white/40">
+                {user.provider_status || 'unknown'} {user.provider_environment ? `(${user.provider_environment})` : ''}
+              </span>
+            </div>
+          ) : (
+            <span className="text-xs text-white/20">—</span>
+          )}
+        </div>
+
         {/* Credits */}
-        <div className="w-36 hidden md:block">
+        <div className="w-32 hidden md:block">
           {creditsBar(user.credits_used_today, user.daily_limit)}
         </div>
 
         {/* Status */}
-        <div className="w-20 hidden md:block">
+        <div className="w-16 hidden md:block">
           {user.is_suspended
             ? <span className="px-2 py-0.5 rounded-lg text-[10px] font-bold bg-red-500/15 text-red-400">suspended</span>
             : <span className="px-2 py-0.5 rounded-lg text-[10px] font-bold bg-emerald-500/15 text-emerald-400">active</span>}
@@ -985,12 +1067,13 @@ function UserRow({
                 key={p}
                 disabled={planSaving}
                 onClick={() => onSetPlan(user.user_id, p)}
+                title={`Set ${getPlanDisplayLabel(p)}`}
                 className={cn(
                   'px-2 py-1 text-[9px] uppercase font-black rounded-md transition-all',
-                  user.plan_name === p ? 'bg-white text-black' : 'text-white/30 hover:text-white/60',
+                  (user.effective_plan || user.plan_name) === p ? 'bg-white text-black' : 'text-white/30 hover:text-white/60',
                 )}
               >
-                {planSaving && user.plan_name !== p ? p[0] : planSaving && user.plan_name === p ? <MiniSpinner size={9} /> : p[0]}
+                {planSaving && (user.effective_plan || user.plan_name) !== p ? (p === 'premium' ? 'U' : p[0].toUpperCase()) : planSaving && (user.effective_plan || user.plan_name) === p ? <MiniSpinner size={9} /> : (p === 'premium' ? 'U' : p[0].toUpperCase())}
               </button>
             ))}
           </div>
@@ -1027,14 +1110,14 @@ function UserRow({
                     onClick={() => onSetPlan(user.user_id, p)}
                     className={cn(
                       'flex-1 py-1.5 text-[10px] uppercase font-black rounded-lg border transition-all',
-                      user.plan_name === p
+                      (user.effective_plan || user.plan_name) === p
                         ? p === 'premium' ? 'bg-amber-500 text-black border-amber-400'
                           : p === 'pro' ? 'bg-blue-500 text-white border-blue-400'
                           : 'bg-white text-black border-white'
                         : 'bg-white/5 text-white/40 border-white/10 hover:text-white/70',
                     )}
                   >
-                    {p}
+                    {getPlanDisplayLabel(p)}
                   </button>
                 ))}
               </div>
@@ -1051,7 +1134,7 @@ function UserRow({
                         trialPlanValue === p ? 'bg-violet-500/25 text-violet-300 border-violet-500/30' : 'bg-white/5 text-white/30 border-white/10',
                       )}
                     >
-                      {p}
+                      {getPlanDisplayLabel(p)}
                     </button>
                   ))}
                   <input
@@ -1085,7 +1168,7 @@ function UserRow({
                 </div>
                 {isTrialActive && (
                   <p className="text-[10px] text-violet-400/70">
-                    Trial: {user.trial_plan} · expires {new Date(user.trial_expires_at!).toLocaleDateString()}
+                    Trial: {getPlanDisplayLabel(user.trial_plan)} · expires {new Date(user.trial_expires_at!).toLocaleDateString()}
                   </p>
                 )}
               </div>
