@@ -6,7 +6,10 @@ const {
   resolveEffectivePlan,
   configuredProviderEnvironment,
   configuredPaypalProviderEnvironment,
+  configuredWhopProviderEnvironment,
   configuredQaUserId,
+  configuredWhopQaUserId,
+  configuredWhopCatalog,
 } = require('@wiseresume/subscription-resolver');
 
 const DB_ID = 'main';
@@ -14,6 +17,11 @@ const ENDPOINT = process.env.APPWRITE_FUNCTION_API_ENDPOINT || process.env.APPWR
 const PROJECT_ID = process.env.APPWRITE_FUNCTION_PROJECT_ID || process.env.APPWRITE_PROJECT_ID;
 const REDEEMABLE_PLANS = new Set(['pro', 'premium']);
 const MAX_COUPON_DAYS = 365;
+const WHOP_PRODUCT_ID = 'prod_WrbEGZdSaG2af';
+const WHOP_PLAN_IDS = Object.freeze({
+  pro: 'plan_4JJSQLj5zEKVn',
+  premium: 'plan_kt5MScAplbCuN',
+});
 
 function getClients(jwt) {
   const apiKey = process.env.APPWRITE_API_KEY || process.env.APPWRITE_FUNCTION_API_KEY;
@@ -112,6 +120,18 @@ async function findProviderState(databases, userId) {
 async function findPaypalProviderState(databases, userId) {
   try {
     const existing = await databases.listDocuments(DB_ID, 'paypal_subscription_state', [
+      sdk.Query.equal('user_id', userId),
+      sdk.Query.limit(1),
+    ]);
+    return existing.documents?.[0] || null;
+  } catch {
+    return null;
+  }
+}
+
+async function findWhopProviderState(databases, userId) {
+  try {
+    const existing = await databases.listDocuments(DB_ID, 'whop_subscription_state', [
       sdk.Query.equal('user_id', userId),
       sdk.Query.limit(1),
     ]);
@@ -316,26 +336,39 @@ async function getMySubscription(body, res, dependencies = {}) {
   const sub = dependencies.subscription !== undefined
     ? dependencies.subscription
     : await findSubscription(databases, user.$id);
-  const [providerState, paypalProviderState] = dependencies.providerStates
-    ? [dependencies.providerStates.providerState || null, dependencies.providerStates.paypalProviderState || null]
+  const [providerState, paypalProviderState, whopProviderState] = dependencies.providerStates
+    ? [dependencies.providerStates.providerState || null, dependencies.providerStates.paypalProviderState || null, dependencies.providerStates.whopProviderState || null]
     : await Promise.all([
         findProviderState(databases, user.$id),
         findPaypalProviderState(databases, user.$id),
+        findWhopProviderState(databases, user.$id),
       ]);
   const trialPlan = sub?.trial_plan ?? null;
   const trialExpiresAt = sub?.trial_expires_at ?? null;
   const configuredPaypalEnv = dependencies.paypalEnvironment !== undefined
     ? dependencies.paypalEnvironment
     : configuredPaypalProviderEnvironment();
+  const checkoutProvider = dependencies.checkoutProvider !== undefined
+    ? String(dependencies.checkoutProvider || '').trim().toLowerCase()
+    : String(process.env.BILLING_CHECKOUT_PROVIDER || '').trim().toLowerCase();
   const configuredQaUser = dependencies.qaUserId !== undefined
     ? dependencies.qaUserId
-    : configuredQaUserId();
+    : checkoutProvider === 'whop'
+      ? (configuredWhopQaUserId() || configuredQaUserId())
+      : configuredQaUserId();
+  const configuredWhopEnv = dependencies.whopProviderEnvironment !== undefined
+    ? dependencies.whopProviderEnvironment
+    : checkoutProvider === 'whop' && dependencies.providerEnvironment !== undefined
+      ? dependencies.providerEnvironment
+      : configuredWhopProviderEnvironment();
 
   const effectiveCandidate = resolveEffectivePlan({
     subscription: sub,
     providerState,
     paypalProviderState,
+    whopProviderState,
     providerEnvironment: dependencies.providerEnvironment !== undefined ? dependencies.providerEnvironment : configuredProviderEnvironment(),
+    whopProviderEnvironment: configuredWhopEnv,
     paypalProviderEnvironment: configuredPaypalEnv,
     qaUserId: configuredQaUser,
     userId: user.$id,
@@ -352,22 +385,43 @@ async function getMySubscription(body, res, dependencies = {}) {
   const isPaypalCancellableStatus = ['active', 'billing_issue'].includes(paypalStatus);
   const isEnvironmentMatch = String(paypalProviderState?.environment || '').trim().toLowerCase() === configuredPaypalEnv;
   const willRenew = typeof paypalProviderState?.will_renew === 'boolean' ? paypalProviderState.will_renew : null;
+  const configuredProviderEnv = dependencies.providerEnvironment !== undefined
+    ? String(dependencies.providerEnvironment || '').trim().toLowerCase()
+    : configuredProviderEnvironment();
+  const whopPlan = String(whopProviderState?.plan || '').trim().toLowerCase();
+  const whopStatus = String(whopProviderState?.status || '').trim().toLowerCase();
+  const whopCatalog = configuredWhopCatalog(configuredWhopEnv);
+  const expectedWhopProductId = whopCatalog.productId || WHOP_PRODUCT_ID;
+  const expectedWhopPlanId = whopCatalog.planIds?.[whopPlan] || WHOP_PLAN_IDS[whopPlan];
+  const hasValidWhopRecord = Boolean(
+    whopProviderState &&
+    String(whopProviderState.user_id || '').trim() === user.$id &&
+    String(whopProviderState.membership_id || '').trim().startsWith('mem_') &&
+    String(whopProviderState.product_id || '').trim() === expectedWhopProductId &&
+    expectedWhopPlanId === String(whopProviderState.plan_id || '').trim() &&
+    String(whopProviderState.environment || '').trim().toLowerCase() === configuredWhopEnv
+  );
+  const isWhopCancellableStatus = ['active', 'past_due'].includes(whopStatus);
+  const whopWillRenew = typeof whopProviderState?.will_renew === 'boolean' ? whopProviderState.will_renew : null;
+  const isWhopEnvironmentMatch = hasValidWhopRecord;
 
   // Crucial invariant: can_cancel_subscription requires active/billing_issue AND will_renew === true
   const canCancelSubscription = Boolean(
-    hasValidPaypalRecord &&
-    isEnvironmentMatch &&
-    isPaypalCancellableStatus &&
-    willRenew === true
+    (hasValidPaypalRecord && isEnvironmentMatch && isPaypalCancellableStatus && willRenew === true) ||
+    (isWhopEnvironmentMatch && isWhopCancellableStatus && whopWillRenew === true)
   );
 
-  const providerExpiresAt = (hasValidPaypalRecord && isEnvironmentMatch && paypalProviderState?.expires_at)
-    ? String(paypalProviderState.expires_at)
+  const providerExpiresAt = (isWhopEnvironmentMatch && whopProviderState?.expires_at)
+    ? String(whopProviderState.expires_at)
+    : (hasValidPaypalRecord && isEnvironmentMatch && paypalProviderState?.expires_at)
+      ? String(paypalProviderState.expires_at)
     : null;
   const expiresAt = effectiveCandidate.expiresAt ? String(effectiveCandidate.expiresAt) : null;
 
   let providerSource = null;
-  if (hasValidPaypalRecord && isEnvironmentMatch) {
+  if (checkoutProvider === 'whop' && isWhopEnvironmentMatch) {
+    providerSource = 'whop';
+  } else if (hasValidPaypalRecord && isEnvironmentMatch) {
     providerSource = 'paypal';
   } else if (providerState) {
     providerSource = 'revenuecat';
@@ -379,23 +433,22 @@ async function getMySubscription(body, res, dependencies = {}) {
     providerSource = effectiveCandidate.source;
   }
 
-  const providerStatus = (hasValidPaypalRecord && isEnvironmentMatch)
-    ? paypalStatus
+  const providerStatus = (checkoutProvider === 'whop' && isWhopEnvironmentMatch)
+    ? whopStatus
+    : (hasValidPaypalRecord && isEnvironmentMatch)
+      ? paypalStatus
     : (providerState?.status ? String(providerState.status) : null);
 
   // can_subscribe calculation: safe runtime availability contract
   const isCheckoutEnabled = dependencies.checkoutEnabled !== undefined
     ? Boolean(dependencies.checkoutEnabled)
     : String(process.env.BILLING_CHECKOUT_ENABLED || '').toLowerCase() === 'true';
-  const checkoutProvider = dependencies.checkoutProvider !== undefined
-    ? String(dependencies.checkoutProvider || '').trim().toLowerCase()
-    : String(process.env.BILLING_CHECKOUT_PROVIDER || '').trim().toLowerCase();
   const isProviderReady = dependencies.checkoutProviderReady !== undefined
     ? Boolean(dependencies.checkoutProviderReady)
     : String(process.env.BILLING_CHECKOUT_PROVIDER_READY || '').toLowerCase() === 'true';
-  const paypalEnv = String(configuredPaypalEnv || '').trim().toLowerCase();
-  const isSandbox = paypalEnv === 'sandbox';
-  const isProduction = paypalEnv === 'production';
+  const runtimeEnv = checkoutProvider === 'whop' ? configuredWhopEnv : String(configuredPaypalEnv || '').trim().toLowerCase();
+  const isSandbox = runtimeEnv === 'sandbox';
+  const isProduction = runtimeEnv === 'production';
   const hasValidQaUser = Boolean(configuredQaUser && String(configuredQaUser).trim().length > 0);
   const isMatchingQaUser = hasValidQaUser && user.$id === String(configuredQaUser).trim();
   const isEligibleForUpgrade = effectivePlan !== 'premium';
@@ -403,7 +456,7 @@ async function getMySubscription(body, res, dependencies = {}) {
 
   const canSubscribe = Boolean(
     isCheckoutEnabled &&
-    checkoutProvider === 'paypal' &&
+    ['paypal', 'whop'].includes(checkoutProvider) &&
     isProviderReady &&
     (isSandbox || isProduction) &&
     isUserPermitted &&
@@ -426,7 +479,10 @@ async function getMySubscription(body, res, dependencies = {}) {
       can_cancel_subscription: canCancelSubscription,
       will_renew: willRenew,
       can_subscribe: canSubscribe,
-      renewal_cancellation_pending: Boolean(hasValidPaypalRecord && isEnvironmentMatch && paypalProviderState?.renewal_cancellation_pending),
+      renewal_cancellation_pending: Boolean(
+        (hasValidPaypalRecord && isEnvironmentMatch && paypalProviderState?.renewal_cancellation_pending) ||
+        (isWhopEnvironmentMatch && whopProviderState?.will_renew === false && whopProviderState?.expires_at)
+      ),
     },
   });
 }

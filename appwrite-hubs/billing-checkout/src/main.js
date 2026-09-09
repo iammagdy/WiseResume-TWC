@@ -2,7 +2,14 @@
 
 const crypto = require('crypto');
 const sdk = require('node-appwrite');
-const { resolveEffectivePlan, isFutureTimestamp, fulfillCompletedOneTimePayment, isQaCouponCode } = require('@wiseresume/subscription-resolver');
+const {
+  resolveEffectivePlan,
+  isFutureTimestamp,
+  fulfillCompletedOneTimePayment,
+  isQaCouponCode,
+  configuredProviderEnvironment,
+  configuredWhopProviderEnvironment,
+} = require('@wiseresume/subscription-resolver');
 
 const DB_ID = 'main';
 const SESSION_COLLECTION = 'billing_checkout_sessions';
@@ -14,6 +21,7 @@ const MAX_CREATIONS_PER_USER = 3;
 const CHECKOUT_TRANSACTION_TTL_SECONDS = 60;
 const MAX_BODY_BYTES = 8 * 1024;
 const ALLOWED_PLANS = new Set(['pro', 'premium']);
+const ALLOWED_PROVIDERS = new Set(['whop', 'paypal']);
 const PLAN_RANK = Object.freeze({ free: 0, pro: 1, premium: 2 });
 const SAFE_RETURN_PATH = '/subscription?billing=pending';
 const SAFE_SOURCE = 'wiseresume-web';
@@ -197,33 +205,33 @@ function validateRequest(body) {
   const logicalBody = { ...(isRecord(body?.data) ? body.data : body) };
   delete logicalBody.__headers;
   if (logicalBody.action === 'cancel-subscription') {
-    const allowedKeys = new Set(['action', 'reason']);
+    const allowedKeys = new Set(['action', 'reason', 'provider']);
     if (Object.keys(logicalBody).some(key => !allowedKeys.has(key))) {
       fail('invalid_request', 400, 'Invalid checkout request.');
     }
+    const provider = logicalBody.provider ? asString(logicalBody.provider).trim().toLowerCase() : null;
+    if (provider && !ALLOWED_PROVIDERS.has(provider)) fail('invalid_request', 400, 'Invalid checkout provider.');
     return {
       action: 'cancel-subscription',
       reason: asString(logicalBody.reason).slice(0, 128),
+      provider,
     };
   }
   if (logicalBody.action === 'quote') {
-    const allowedKeys = new Set(['action', 'plan', 'payment_mode', 'coupon_code']);
+    const allowedKeys = new Set(['action', 'plan', 'provider']);
     if (Object.keys(logicalBody).some(key => !allowedKeys.has(key))) {
       fail('invalid_request', 400, 'Invalid checkout request.');
     }
     if (typeof logicalBody.plan !== 'string' || !ALLOWED_PLANS.has(logicalBody.plan)) {
       fail('invalid_plan', 400, 'This checkout plan is not available.');
     }
-    const paymentMode = logicalBody.payment_mode ? asString(logicalBody.payment_mode).trim().toLowerCase() : 'subscription';
-    if (!['subscription', 'one_time'].includes(paymentMode)) {
-      fail('invalid_request', 400, 'Invalid payment mode.');
-    }
     const couponCode = logicalBody.coupon_code ? asString(logicalBody.coupon_code).trim().toUpperCase().slice(0, 64) : null;
     return {
       action: 'quote',
       plan: logicalBody.plan,
-      paymentMode,
-      couponCode: couponCode || null,
+      paymentMode: 'subscription',
+      couponCode: null,
+      provider: logicalBody.provider ? asString(logicalBody.provider).trim().toLowerCase() : null,
     };
   }
   if (logicalBody.action === 'capture-order') {
@@ -240,7 +248,7 @@ function validateRequest(body) {
       orderId,
     };
   }
-  const allowedKeys = new Set(['action', 'plan', 'payment_mode', 'coupon_code', 'idempotency_key']);
+  const allowedKeys = new Set(['action', 'plan', 'provider', 'payment_mode', 'coupon_code', 'idempotency_key']);
   if (Object.keys(logicalBody).some(key => !allowedKeys.has(key))) {
     fail('invalid_request', 400, 'Invalid checkout request.');
   }
@@ -249,9 +257,11 @@ function validateRequest(body) {
     fail('invalid_plan', 400, 'This checkout plan is not available.');
   }
   const paymentMode = logicalBody.payment_mode ? asString(logicalBody.payment_mode).trim().toLowerCase() : 'subscription';
-  if (!['subscription', 'one_time'].includes(paymentMode)) {
+  if (paymentMode !== 'subscription') {
     fail('invalid_request', 400, 'Invalid payment mode.');
   }
+  const provider = logicalBody.provider ? asString(logicalBody.provider).trim().toLowerCase() : null;
+  if (provider && !ALLOWED_PROVIDERS.has(provider)) fail('invalid_request', 400, 'Invalid checkout provider.');
   const couponCode = logicalBody.coupon_code ? asString(logicalBody.coupon_code).trim().toUpperCase().slice(0, 64) : null;
   if (logicalBody.idempotency_key !== undefined) {
     if (typeof logicalBody.idempotency_key !== 'string' || !/^[A-Za-z0-9._:-]{1,128}$/.test(logicalBody.idempotency_key)) {
@@ -264,6 +274,7 @@ function validateRequest(body) {
     paymentMode,
     couponCode: couponCode || null,
     idempotencyKey: logicalBody.idempotency_key || null,
+    provider,
   };
 }
 
@@ -288,7 +299,15 @@ function catalogVariablePrefix(environment) {
   return environment === 'sandbox' ? 'BILLING_SANDBOX' : environment === 'production' ? 'BILLING_PRODUCTION' : '';
 }
 
-function buildCatalog(env = process.env, environment = normalizeEnvironment(env.BILLING_CHECKOUT_ENVIRONMENT)) {
+function buildCatalog(env = process.env, environment = normalizeEnvironment(env.BILLING_CHECKOUT_ENVIRONMENT), provider = '') {
+  const whop = provider === 'whop';
+  const whopPrefix = environment === 'sandbox' ? 'WHOP_SANDBOX' : environment === 'production' ? 'WHOP_PRODUCTION' : '';
+  if (whop) {
+    return {
+      pro: { priceId: asString(env[`${whopPrefix}_PRO_PLAN_ID`]).trim(), productId: asString(env[`${whopPrefix}_PRODUCT_ID`]).trim(), entitlementId: 'pro' },
+      premium: { priceId: asString(env[`${whopPrefix}_PREMIUM_PLAN_ID`]).trim(), productId: asString(env[`${whopPrefix}_PRODUCT_ID`]).trim(), entitlementId: 'premium' },
+    };
+  }
   const prefix = catalogVariablePrefix(environment);
   return {
     pro: {
@@ -305,10 +324,15 @@ function buildCatalog(env = process.env, environment = normalizeEnvironment(env.
 }
 
 function readConfig(env = process.env, overrides = {}) {
-  const environment = normalizeEnvironment(asString(env.BILLING_CHECKOUT_ENVIRONMENT).trim().toLowerCase());
-  const provider = asString(env.BILLING_CHECKOUT_PROVIDER).trim().toLowerCase();
+  const provider = asString(overrides.provider || env.BILLING_CHECKOUT_PROVIDER).trim().toLowerCase();
+  const requestedEnvironment = provider === 'whop'
+    ? asString(env.WHOP_CHECKOUT_ENVIRONMENT || env.BILLING_CHECKOUT_ENVIRONMENT)
+    : asString(env.BILLING_CHECKOUT_ENVIRONMENT);
+  const environment = normalizeEnvironment(requestedEnvironment.trim().toLowerCase());
   const defaultApprovedOrigin = provider === 'paypal'
     ? (PAYPAL_APPROVED_ORIGINS[environment] || '')
+    : provider === 'whop'
+      ? (WHOP_CHECKOUT_ORIGINS[environment] || '')
     : asString(env.BILLING_CHECKOUT_APPROVED_ORIGIN).trim().replace(/\/$/, '');
 
   const config = {
@@ -318,10 +342,11 @@ function readConfig(env = process.env, overrides = {}) {
     providerReady: asString(env.BILLING_CHECKOUT_PROVIDER_READY).toLowerCase() === 'true',
     approvedCheckoutOrigin: defaultApprovedOrigin,
     approvedAppUrl: asString(env.BILLING_CHECKOUT_APPROVED_APP_URL || 'https://wiseresume.app').trim().replace(/\/$/, ''),
-    qaUserId: asString(env.BILLING_CHECKOUT_QA_USER_ID).trim(),
+    qaUserId: asString(provider === 'whop' ? env.WHOP_SANDBOX_QA_USER_ID : env.BILLING_CHECKOUT_QA_USER_ID).trim(),
     catalogEnvironment: environment,
-    catalog: buildCatalog(env, environment),
+    catalog: buildCatalog(env, environment, provider),
     ...overrides,
+    provider,
   };
   return config;
 }
@@ -412,13 +437,14 @@ function safeProviderResult(result, config) {
   return { checkoutReference: reference, providerTransactionId: transactionId, checkoutUrl, collectionMode };
 }
 
-function publicSessionResponse(session, providerResult) {
+function publicSessionResponse(session, providerResult, provider = '') {
   const data = {
     session_reference: asString(session.publicReference || session.public_reference),
     plan: session.plan,
     state: 'created_or_reused',
     expires_at: asString(session.expiresAt || session.expires_at),
   };
+  if (ALLOWED_PROVIDERS.has(provider)) data.provider = provider;
   const mode = asString(session.paymentMode || session.payment_mode);
   if (mode && mode === 'one_time') {
     data.payment_mode = 'one_time';
@@ -513,6 +539,7 @@ class AppwriteCheckoutStore {
     this.databases = databases;
     this.providerEnvironment = providerEnvironment;
     this.paypalProviderEnvironment = options.paypalProviderEnvironment || providerEnvironment;
+    this.whopProviderEnvironment = options.whopProviderEnvironment || '';
     this.qaUserId = options.qaUserId || '';
   }
 
@@ -692,29 +719,33 @@ class AppwriteCheckoutStore {
   }
 
   async getEffectivePlan(userId) {
-    const [subscription, providerState, paypalProviderState] = await Promise.all([
+    const [subscription, providerState, paypalProviderState, whopProviderState] = await Promise.all([
       this.findOptional('subscriptions', userId),
       this.findOptional('revenuecat_subscription_state', userId),
       this.findOptional('paypal_subscription_state', userId),
+      this.findOptional('whop_subscription_state', userId, { optionalCollection: true }),
     ]);
     return resolveEffectivePlan({
       subscription,
       providerState,
       paypalProviderState,
+      whopProviderState,
       providerEnvironment: this.providerEnvironment,
       paypalProviderEnvironment: this.paypalProviderEnvironment,
+      whopProviderEnvironment: this.whopProviderEnvironment,
       qaUserId: this.qaUserId,
       userId,
     }).plan;
   }
 
-  async findOptional(collection, userId) {
+  async findOptional(collection, userId, options = {}) {
     try {
       const result = await this.databases.listDocuments(DB_ID, collection, [
         sdk.Query.equal('user_id', userId), sdk.Query.limit(1),
       ]);
       return result.documents?.[0] || null;
     } catch (_) {
+      if (options.optionalCollection) return null;
       fail('state_unavailable', 503, 'Subscription state is temporarily unavailable.');
     }
   }
@@ -903,6 +934,156 @@ const PADDLE_API_ORIGINS = Object.freeze({
   sandbox: 'https://sandbox-api.paddle.com',
   production: 'https://api.paddle.com',
 });
+
+// Whop's current documented REST API is versioned under /api/v1. The
+// checkout-configurations endpoint creates a per-user hosted checkout session
+// and carries metadata into the resulting payment and membership objects.
+const WHOP_API_VERSION = 'v1';
+const WHOP_API_ORIGINS = Object.freeze({
+  sandbox: 'https://sandbox-api.whop.com/api/v1',
+  production: 'https://api.whop.com/api/v1',
+});
+const WHOP_CHECKOUT_ORIGINS = Object.freeze({
+  sandbox: 'https://sandbox.whop.com',
+  production: 'https://whop.com',
+});
+const WHOP_COMPANY_ID = 'biz_B7fMXLLj18wv8J';
+const WHOP_PRODUCT_ID = 'prod_WrbEGZdSaG2af';
+const WHOP_PLAN_IDS = Object.freeze({
+  pro: 'plan_4JJSQLj5zEKVn',
+  premium: 'plan_kt5MScAplbCuN',
+});
+
+function whopApiKeyVariable(environment) {
+  return environment === 'sandbox' ? 'WHOP_SANDBOX_API_KEY' : 'WHOP_PRODUCTION_API_KEY';
+}
+
+function whopCatalogValue(env, environment, key, fallback = '') {
+  const prefix = environment === 'sandbox' ? 'WHOP_SANDBOX' : environment === 'production' ? 'WHOP_PRODUCTION' : '';
+  return asString(env[`${prefix}_${key}`] || fallback).trim();
+}
+
+function parseWhopCheckout(payload, input) {
+  const config = isRecord(payload) ? payload : null;
+  const plan = isRecord(config?.plan) ? config.plan : null;
+  const checkoutReference = safeProviderString(config?.id);
+  const returnedPlanId = safeProviderString(plan?.id);
+  const purchaseUrl = safeProviderString(config?.purchase_url, 2048);
+  const expectedAmount = Number(BASE_PLAN_PRICES[input.plan]?.amount || 0);
+  const returnedProductId = safeProviderString(plan?.product?.id || plan?.product_id);
+  const recurring = asString(plan?.plan_type).toLowerCase() === 'renewal';
+  const billingPeriod = Number(plan?.billing_period || 0);
+  const initialPrice = plan?.initial_price !== undefined && plan?.initial_price !== null ? Number(plan.initial_price) : null;
+  const renewalPrice = Number(plan?.renewal_price);
+
+  if (!checkoutReference || !checkoutReference.startsWith('ch_')) {
+    failProviderDiagnostic('provider.transaction_validation', 'invalid_checkout_configuration');
+  }
+  if (returnedPlanId !== input.priceId) {
+    failProviderDiagnostic('provider.transaction_validation', 'plan_mismatch');
+  }
+  if (returnedProductId && returnedProductId !== input.productId) {
+    failProviderDiagnostic('provider.transaction_validation', 'product_mismatch');
+  }
+  const hasBillingPeriod = plan?.billing_period !== undefined && plan?.billing_period !== null;
+  const invalidBillingPeriod = hasBillingPeriod && billingPeriod !== 30;
+  const invalidInitialPrice = initialPrice !== null && initialPrice !== expectedAmount && initialPrice !== 0;
+  if (!recurring || invalidBillingPeriod || invalidInitialPrice || renewalPrice !== expectedAmount) {
+    failProviderDiagnostic('provider.transaction_validation', 'recurring_catalog_mismatch');
+  }
+  if (!purchaseUrl) failProviderDiagnostic('provider.transaction_validation', 'invalid_checkout_url');
+
+  return {
+    providerTransactionId: checkoutReference,
+    providerEnvironment: input.environment,
+    collectionMode: 'automatic',
+    checkoutReference,
+    checkoutUrl: purchaseUrl,
+  };
+}
+
+class WhopCheckoutProvider {
+  constructor({ env = process.env, fetchImpl = globalThis.fetch } = {}) {
+    this.env = env;
+    this.fetchImpl = fetchImpl;
+  }
+
+  async createCheckout(input) {
+    const endpoint = WHOP_API_ORIGINS[input.environment];
+    const key = asString(this.env[whopApiKeyVariable(input.environment)]).trim();
+    // Never fall back from a Sandbox catalog to Production identifiers. A
+    // missing environment-specific catalog must fail closed.
+    const companyId = whopCatalogValue(
+      this.env,
+      input.environment,
+      'COMPANY_ID',
+      input.environment === 'production' ? WHOP_COMPANY_ID : '',
+    );
+    if (!endpoint || !key || !companyId) failProviderDiagnostic('provider.runtime_configuration', 'missing_runtime_credential');
+    if (typeof this.fetchImpl !== 'function') failProviderDiagnostic('provider.runtime_configuration', 'fetch_unavailable');
+
+    const appOrigin = asString(input.appOrigin || this.env.BILLING_CHECKOUT_APPROVED_APP_URL || 'https://wiseresume.app').trim().replace(/\/$/, '');
+
+    const metadata = {
+      wiseresume_user_id: input.customData.app_user_id,
+      wiseresume_plan: input.plan,
+      checkout_reference: input.customData.checkout_session_reference,
+      environment: input.environment,
+    };
+    let response;
+    try {
+      response = await this.fetchImpl(`${endpoint}/checkout_configurations`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${key}`,
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify({
+          plan_id: input.priceId,
+          metadata,
+          redirect_url: `${appOrigin}/subscription?billing=pending`,
+          allow_promo_codes: true,
+        }),
+      });
+    } catch (_) {
+      failProviderDiagnostic('provider.transport', 'transport_failure');
+    }
+    if (!response?.ok) {
+      const status = Number(response?.status);
+      let errorBody = '';
+      try { errorBody = (await response.text()).slice(0, 300); } catch (_) {}
+      console.log(`[whop-checkout] API error: status=${status} body=${errorBody}`);
+      const category = status === 401 || status === 403 ? 'provider_auth_rejected'
+        : status === 400 || status === 422 ? 'provider_request_rejected'
+          : status === 429 ? 'provider_rate_limited'
+            : Number.isInteger(status) && status >= 500 ? 'provider_upstream_error' : 'provider_http_other';
+      failProviderDiagnostic('provider.http_response', category, { diagnosticStatus: status });
+    }
+    let payload;
+    try { payload = await response.json(); } catch (_) { failProviderDiagnostic('provider.response_json', 'invalid_json'); }
+    console.log(`[whop-checkout] API response: id=${payload?.id} plan_id=${payload?.plan?.id} plan_type=${payload?.plan?.plan_type} period=${payload?.plan?.billing_period} initial=${payload?.plan?.initial_price} renewal=${payload?.plan?.renewal_price}`);
+    return parseWhopCheckout(payload, input);
+  }
+
+  async cancelSubscription({ subscriptionId, reason, environment }) {
+    const endpoint = WHOP_API_ORIGINS[environment];
+    const key = asString(this.env[whopApiKeyVariable(environment)]).trim();
+    if (!endpoint || !key || !/^mem_[A-Za-z0-9_-]{1,128}$/.test(String(subscriptionId || ''))) {
+      failProviderDiagnostic('provider.runtime_configuration', 'missing_runtime_credential');
+    }
+    let response;
+    try {
+      response = await this.fetchImpl(`${endpoint}/memberships/${encodeURIComponent(subscriptionId)}/cancel`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({ cancellation_mode: 'at_period_end', cancellation_reason: String(reason || '').slice(0, 128) }),
+      });
+    } catch (_) { failProviderDiagnostic('provider.transport', 'transport_failure'); }
+    if (!response?.ok) failProviderDiagnostic('provider.http_response', 'provider_upstream_error', { diagnosticStatus: Number(response?.status) });
+    return response.json();
+  }
+}
 
 function providerKeyVariable(environment) {
   return environment === 'sandbox' ? 'BILLING_SANDBOX_PADDLE_API_KEY' : 'BILLING_PRODUCTION_PADDLE_API_KEY';
@@ -1557,6 +1738,9 @@ function selectProvider(config, dependencies) {
   if (providerType === 'paddle') {
     fail('payments_disabled', 403, 'Requested checkout provider is retired.');
   }
+  if (providerType === 'whop') {
+    return new WhopCheckoutProvider({ env: dependencies.env || process.env, fetchImpl: dependencies.fetchImpl });
+  }
   if (!providerType) {
     fail('configuration_error', 500, 'Checkout provider is unconfigured.');
   }
@@ -1738,14 +1922,7 @@ class BillingCheckoutService {
         }
       }
     }
-    if (paymentMode === 'one_time') {
-      if (normalizeEffectivePlan(currentPlan) === 'premium' && plan === 'pro') {
-        fail('active_higher_plan_exists', 409, 'Your account already has an active higher plan.');
-      }
-      if (normalizeEffectivePlan(currentPlan) !== 'free') {
-        fail('active_paid_entitlement_exists', 409, 'Active paid entitlement already exists.');
-      }
-    }
+    if (paymentMode === 'one_time') fail('invalid_request', 400, 'One-time purchases are no longer available.');
     assertNotAlreadyEntitled(currentPlan, plan);
 
     let coupon = null;
@@ -1790,7 +1967,7 @@ class BillingCheckoutService {
     const requestKey = idempotencyKey || opaqueReference('attempt');
     const requestKeyFingerprint = hash(requestKey);
     const modeKey = paymentMode === 'one_time' ? `one_time:${finalAmount}:${coupon?.code || 'none'}` : catalog.priceId;
-    const sessionKey = hash(`${userId}:${plan}:${this.config.environment}:${modeKey}:${requestKeyFingerprint}:${replayBucket}`);
+    const sessionKey = hash(`${userId}:${plan}:${this.config.provider}:${this.config.environment}:${modeKey}:${requestKeyFingerprint}:${replayBucket}`);
     const sessionInput = {
       userId, plan, environment: this.config.environment, priceId: catalog.priceId,
       productId: catalog.productId, entitlementId: catalog.entitlementId, sessionKey,
@@ -1799,24 +1976,10 @@ class BillingCheckoutService {
       rateLimitExpiresAt: new Date(nowMs + RATE_LIMIT_WINDOW_MS).toISOString(),
     };
     const reservation = await this.store.reserve(sessionInput);
-    if (reservation.outcome === 'reused') return publicSessionResponse({ ...reservation.session, paymentMode }, null);
-    const providerRequestIdPrefix = paymentMode === 'one_time' ? 'wr_ord_' : 'wr_sub_';
+    if (reservation.outcome === 'reused') return publicSessionResponse({ ...reservation.session, paymentMode }, null, this.config.provider);
+    const providerRequestIdPrefix = 'wr_sub_';
     const providerRequestId = `${providerRequestIdPrefix}${hash(reservation.session.session_key).slice(0, 32)}`;
-    const providerInput = paymentMode === 'one_time'
-      ? {
-          environment: this.config.environment,
-          plan,
-          amount: finalAmount,
-          couponCode: coupon?.code || null,
-          appOrigin: this.config.approvedAppUrl,
-          customData: {
-            app_user_id: userId,
-            checkout_session_reference: reservation.session.public_reference,
-            source: SAFE_SOURCE,
-          },
-          providerRequestId,
-        }
-      : {
+    const providerInput = {
           environment: this.config.environment,
           plan,
           priceId: catalog.priceId,
@@ -1831,14 +1994,13 @@ class BillingCheckoutService {
           returnPath: SAFE_RETURN_PATH,
           correlationId: sessionInput.correlationId,
           providerRequestId,
+          appOrigin: this.config.approvedAppUrl,
         };
     try {
-      const providerResult = paymentMode === 'one_time'
-        ? await providerOperation('provider.create_order', 'provider_operation_failure', () => this.provider.createOrder(providerInput))
-        : await providerOperation('provider.create_checkout', 'provider_operation_failure', () => this.provider.createCheckout(providerInput));
+      const providerResult = await providerOperation('provider.create_checkout', 'provider_operation_failure', () => this.provider.createCheckout(providerInput));
       const result = await providerOperation('provider.safe_result_validation', 'safe_result_validation_failure', () => safeProviderResult(providerResult, this.config));
       await providerOperation('provider.persist_complete', 'persistence_failure', () => this.store.complete(reservation.session, result, this.now()));
-      return publicSessionResponse({ ...reservation.session, expiresAt: sessionInput.expiresAt, plan, paymentMode }, result);
+      return publicSessionResponse({ ...reservation.session, expiresAt: sessionInput.expiresAt, plan, paymentMode }, result, this.config.provider);
     } catch (error) {
       const safeCode = error instanceof BillingCheckoutError ? error.code : 'provider_unavailable';
       if (isAmbiguousProviderError(error) && typeof this.store.markUncertain === 'function') {
@@ -2044,6 +2206,19 @@ class BillingCheckoutService {
     if (typeof this.store.findOptional !== 'function') {
       fail('configuration_error', 500, 'Cancellation is not supported by current checkout store.');
     }
+    if (this.config.provider === 'whop') {
+      const whopState = await this.store.findOptional('whop_subscription_state', userId, { optionalCollection: true });
+      if (!whopState) fail('not_found', 404, 'No active subscription found to cancel.');
+      if (whopState.user_id !== userId) fail('forbidden', 403, 'Subscription does not belong to the authenticated user.');
+      if (!['active', 'billing_issue', 'canceled'].includes(asString(whopState.status).trim().toLowerCase()) || whopState.will_renew !== true) {
+        fail('bad_request', 400, 'Subscription is not renewable or already canceled.');
+      }
+      if (normalizeEnvironment(whopState.environment) !== normalizeEnvironment(this.config.environment)) {
+        fail('bad_request', 400, 'Subscription environment mismatch.');
+      }
+      await this.provider.cancelSubscription({ subscriptionId: whopState.membership_id, reason, environment: this.config.environment, userId });
+      return { status: 'success', canceled: true, message: 'Cancellation request accepted.' };
+    }
     const paypalState = await this.store.findOptional('paypal_subscription_state', userId);
     if (!paypalState) {
       fail('not_found', 404, 'No active subscription found to cancel.');
@@ -2206,9 +2381,15 @@ async function handleBillingCheckout({ req, res, error }, dependencies = {}) {
     const user = dependencies.user || await resolveCanonicalUser(clients.account);
     if (!user || typeof user.$id !== 'string') fail('unauthorized', 401, 'Authentication is required.');
     const request = validateRequest(body);
-    const config = dependencies.config || readConfig();
+    const configuredProvider = request.provider || asString(process.env.BILLING_CHECKOUT_PROVIDER).trim().toLowerCase() || 'whop';
+    const config = dependencies.config
+      ? (request.provider && request.provider !== dependencies.config.provider
+        ? readConfig(process.env, { provider: request.provider })
+        : dependencies.config)
+      : readConfig(process.env, { provider: configuredProvider });
     const store = dependencies.store || new AppwriteCheckoutStore(clients.databases, config.environment, {
-      paypalProviderEnvironment: config.environment,
+      paypalProviderEnvironment: configuredProviderEnvironment(),
+      whopProviderEnvironment: configuredWhopProviderEnvironment(),
       qaUserId: config.qaUserId,
     });
     const provider = selectProvider(config, dependencies);
@@ -2226,11 +2407,11 @@ async function handleBillingCheckout({ req, res, error }, dependencies = {}) {
       return res.json(response, 200);
     }
     if (request.action === 'quote') {
-      const response = await service.quote({
+    const response = await service.quote({
         userId: user.$id,
         plan: request.plan,
-        paymentMode: request.paymentMode,
-        couponCode: request.couponCode,
+        paymentMode: 'subscription',
+        couponCode: null,
       });
       return res.json(response, 200);
     }
@@ -2281,13 +2462,21 @@ module.exports.__test = {
   AppwriteCheckoutStore,
   UnconfiguredProvider,
   PaddleAutomaticProvider,
+  WhopCheckoutProvider,
   PADDLE_API_ORIGINS,
+  WHOP_API_VERSION,
+  WHOP_API_ORIGINS,
+  WHOP_CHECKOUT_ORIGINS,
+  WHOP_COMPANY_ID,
+  WHOP_PRODUCT_ID,
+  WHOP_PLAN_IDS,
   PAYPAL_API_ORIGINS,
   PAYPAL_APPROVED_ORIGINS,
   PayPalSubscriptionProvider,
   selectProvider,
   isAmbiguousProviderError,
   parsePaddleTransaction,
+  parseWhopCheckout,
   providerDiagnostic,
   providerKeyVariable,
   assertNotAlreadyEntitled,

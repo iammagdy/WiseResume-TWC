@@ -1,5 +1,59 @@
 # WiseResume Atlas Master Changelog
 
+### 2026-09-09 - Whop integration merged to main for controlled live-domain manual QA
+
+- Merged `feat/whop-payments-integration` into `main` following owner authorization for live manual Sandbox QA on `https://wiseresume.app`.
+- Core backend Whop Sandbox lifecycle verified live: authentic payments, `membership.activated` webhook handling, `whop_subscription_state` persistence, Pro entitlement resolution, and multi-membership deactivation guard.
+- Hardened QA variable synchronization (`scripts/sync_whop_qa_user_variable.cjs`) with 3-phase atomic snapshot/apply/rollback and bounded retries; unit test suite covers scenarios A through J.
+- Hardened Whop checkout submit safety: single-submit click guard with zero payment click retries (`submitClickCount = 1`).
+- Classified automated hosted checkout boundary on fresh guest buyers as `HOSTED_CHECKOUT_AUTOMATION_PROVIDER_BOUNDARY_UNRESOLVED` (`action_required / login, login_available = false`).
+- Verified all Appwrite hubs (`billing-checkout`, `whop-webhook`, `ai-gateway`, `coupons`) are `CURRENT_AND_READY`.
+- Production safety: Whop Production remains DISABLED / fail-closed. Real payments NOT authorized. Sandbox checkout strictly gated to `WHOP_SANDBOX_QA_USER_ID`.
+
+### 2026-09-08 - Whop primary checkout finalization (`IMPLEMENTED_UNVERIFIED`)
+
+- Made Whop the default checkout preference while keeping PayPal as an explicit alternative; preserved historical PayPal one-time handlers/data without exposing one-time purchases in the new customer flow.
+- Removed customer-facing custom coupon/30-day access controls; Whop hosted checkout remains authoritative for promo codes via `allow_promo_codes: true`.
+- Added provider-aware session/URL handling, provider-aware cancellation routing, explicit Whop environment workflow input, and environment-specific fail-closed catalog resolution.
+- Local validation: full Vitest `237` files / `1,378` passed / `1 todo`, focused backend/deployment `30/30`, focused billing UI `47/47`, TypeScript PASS, i18n PASS, build PASS, no sourcemaps.
+- Real Whop Sandbox Pro/Ultimate lifecycle is not claimed yet. Production Whop changes: NONE.
+
+### 2026-09-08 - Whop Sandbox targeted runtime deployment
+
+- Initial four-hub deployment reached `ready` for `billing-checkout`, `ai-gateway`, `coupons`, and `whop-webhook` but stopped on incomplete Appwrite variable metadata during synchronization.
+- Hardened `scripts/deploy_hubs.cjs` to page variable reads explicitly and verify non-secret writes safely when Appwrite omits the `secret` field. Follow-up run `34216713955` targeted `billing-checkout` only and completed with `ready` status.
+- Sandbox-gated runtime deployment is present; no buyer payment was initiated because the available browser session is not the protected QA identity. Production Whop changes: NONE.
+
+### 2026-09-08 - Whop Sandbox provider signature blocker (`WHOP_WEBHOOK_SIGNATURE_FAILURE`)
+
+- Public DNS/HTTPS and the deployed `ws_` secret verifier path passed a safe probe; Whop-generated Sandbox Test delivery still returned `401 unauthorized`. No payment was attempted.
+
+### 2026-09-08 - Whop public webhook transport recheck (`OWNER_ACTION_REQUIRED_PROVIDER_CONSOLE`)
+
+- Appwrite custom-domain verification is owner-reported, but the live hostname `whop-webhook.wiseresume.app` failed DNS resolution during an HTTPS POST probe. No Whop Sandbox webhook, signing secret, or payment was created.
+
+### 2026-09-08 - Whop final Sandbox deployment graph and environment gate (`WHOP_SANDBOX_DEPLOYMENT_READY_FINAL`)
+
+- Correct Sandbox key path authenticated successfully without exposing the secret; Sandbox catalog reads returned HTTP 200.
+- Added Whop-specific checkout/access environment isolation so `BILLING_CHECKOUT_ENVIRONMENT` is not globally switched for Whop Sandbox.
+- Confirmed minimum targeted consumers: `billing-checkout`, `ai-gateway`, `coupons`, and `whop-webhook`; schema preparation remains explicitly conditional and unexecuted.
+- Remaining owner actions: server-side `WHOP_SANDBOX_QA_USER_ID`, public HTTPS webhook endpoint/signing secret, targeted Sandbox deployment/schema authorization, then authentic Sandbox lifecycle tests.
+
+### 2026-09-08 - Whop targeted Sandbox deployment stopped at webhook endpoint
+
+- Whop schema and the four authorized runtime targets reached Appwrite `ready` status.
+- No Whop webhook or payment was created. The expected public webhook hostname did not resolve, and the direct Appwrite API route returned HTTP 401; status is `OWNER_ACTION_REQUIRED_SANDBOX_WEBHOOK_ENDPOINT`.
+
+### 2026-09-08 - Whop additive checkout integration (`IMPLEMENTED_UNVERIFIED`)
+
+- Added a server-owned Whop checkout provider using the current versioned Whop REST API `v1`.
+- Added strict production catalog mapping for the authorized WiseResume Payments product: Pro `$5/month` and Ultimate `$10/month`.
+- Added a separate signed, idempotent `whop-webhook` hub and provider-neutral Whop subscription state/ledger schema definitions.
+- Extended the existing resolver, coupon subscription state, AI plan lookup, and provider routing without removing or rewriting PayPal.
+- Added local contract tests for checkout metadata, strict plan validation, webhook signatures, lifecycle state, and fail-closed resolver behavior.
+- Sandbox E2E is not claimed: secure Sandbox credentials/catalog/webhook configuration are still `OWNER_ACTION_REQUIRED`.
+- No production secrets, schema mutation, deployment, website/DNS/Appwrite/Vercel change, or real payment was performed.
+
 ### 2026-09-08 - WiseResume PayPal Checkout Final Release Blocker Patch (`TESTED_LOCAL`)
 
 - **Workstream Verdict:** `RELEASE_READY_PENDING_OWNER_AUTHORIZATION` (Status: `TESTED_LOCAL — RELEASE_READY_PENDING_OWNER_AUTHORIZATION`, `PAYPAL_PRODUCTION_READY = NO`).
@@ -2986,3 +3040,19 @@
 - **DevKitUI** (`src/components/dev-kit/DevKitUI.tsx`): restored the shared DevKit helper module deleted in the visual refresh, preserving `DevKitLoading`, `DevKitMetricCard`, `DevKitSection`, and `DevKitTabBar` exports required by `AdminUsersPanel`, `OverviewPanel`, and `GrowthTrafficPanel`.
 - **DevKit shared styling** (`src/components/dev-kit/DevKitUI.tsx`): aligned restored helpers with the Phase 1 dark DevKit shell using subtle borders, black translucent surfaces, status color accents, and responsive tab controls.
 - **Verification**: confirmed TypeScript and targeted DevKit ESLint checks pass for `DevKitUI.tsx`, `DevToolsPage.tsx`, `HomePanel.tsx`, `DiagnosticsPanel.tsx`, `EmailHubPanel.tsx`, `FeatureFlagsPanel.tsx`, and `AICommandCenterPanel.tsx`.
+# 2026-09-08 — Whop Sandbox contract hardening and E2E boundary audit
+
+- **Webhook contract correction** (`appwrite-hubs/whop-webhook/src/main.js`): accepted the current Whop `account_id` envelope field, retained dot-notation event names, and resolved Whop company/product/plan IDs from environment-specific Sandbox or Production catalog variables.
+- **Validation**: Whop focused contracts passed; full Vitest passed with 1,382 tests across 237 files, TypeScript, i18n, and the production build passed.
+- **Boundary**: Sandbox E2E remains blocked by unavailable local credential path, absent isolated Sandbox Appwrite persistence, and absent public HTTPS webhook endpoint. No payment, deployment, Production mutation, commit, or push occurred.
+## 2026-09-08 - Whop Sandbox literal-secret webhook fix
+
+- **Verdict:** `WHOP_SANDBOX_PROVIDER_TEST_SIGNATURE_PASS`.
+- **Fix:** Current Whop `ws_...` webhook secrets are now passed as complete UTF-8 HMAC keys. No prefix stripping or hex/Base64 decoding is used; signatures cover `{webhook-id}.{webhook-timestamp}.{raw body}` and accept only `v1` entries.
+- **Evidence:** Provider-generated Sandbox Test delivery through `https://whop-webhook.wiseresume.app` returned sanitized `company_mismatch` with `mutated:false`, proving the signature boundary passed. The old self-signed malformed-body result was self-consistency evidence only.
+- **Deployment:** Workflow `34211965267` succeeded with target `whop-webhook`; no schema mutation or unrelated hub deployment occurred. No Production Whop change was performed.
+## 2026-09-08 - Whop Sandbox E2E runtime-provider gate
+
+- **Verdict:** `OWNER_ACTION_REQUIRED_WISERESUME_SANDBOX_RUNTIME`.
+- **Evidence:** Authenticated WiseResume subscription browser flow displayed `Continue to PayPal`; no Whop checkout or payment was initiated. The existing Whop webhook provider-signature test remains verified.
+- **Next action:** Provide an explicitly isolated QA runtime that selects Whop Sandbox without changing the global Production billing provider.

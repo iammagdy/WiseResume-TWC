@@ -12,7 +12,7 @@ const {
 const manifestIds = manifest.functions.map(fn => fn.functionId);
 
 test('every deployable Appwrite function has one explicit execution policy', () => {
-  assert.equal(manifestIds.length, 31);
+  assert.equal(manifestIds.length, 32);
   assert.doesNotThrow(() => assertFunctionPolicyCoverage(manifestIds));
 });
 
@@ -27,6 +27,7 @@ test('job-feed-sync is schedule/internal-only while required public functions re
     'email-service',
     'revenuecat-webhook',
     'paypal-webhook',
+    'whop-webhook',
   ]) {
     assert.deepEqual(FUNCTION_EXECUTION_POLICIES[id].execute, ['any'], id);
   }

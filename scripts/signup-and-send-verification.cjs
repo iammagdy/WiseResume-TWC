@@ -79,7 +79,7 @@ async function createVerificationTokenAsUser(email, password, fallbackUserId) {
 async function sendResend(to, verifyUrl) {
   if (!resendKey) {
     console.warn('RESEND_API_KEY not set — skipping Resend (Appwrite may still email).');
-    console.log('Verify URL:', verifyUrl);
+    console.log('Verification email delivery is not configured; no verification URL was printed.');
     return null;
   }
   const res = await fetch('https://api.resend.com/emails', {
@@ -108,27 +108,24 @@ async function main() {
   const existing = await users.list([sdk.Query.equal('email', [email]), sdk.Query.limit(1)]);
   if (existing.users[0]) {
     user = existing.users[0];
-    console.log(`User exists: ${user.$id} emailVerification=${user.emailVerification}`);
+    console.log(`Existing QA account found (email verification: ${user.emailVerification ? 'verified' : 'unverified'}).`);
     if (user.emailVerification) {
       await users.updateEmailVerification(user.$id, false);
-      console.log('Reset emailVerification to false for fresh test.');
+      console.log('Existing account verification state reset for the requested test flow.');
     }
   } else {
     user = await users.create(sdk.ID.unique(), email, undefined, password, name);
-    console.log(`Created user: ${user.$id}`);
+    console.log('Created QA account.');
   }
 
   const { verifyUrl, tokenUserId, secret } = await createVerificationTokenAsUser(email, password, user.$id);
   const resendResult = await sendResend(email, verifyUrl);
 
   console.log(JSON.stringify({
-    userId: tokenUserId,
-    email,
+    status: 'verification_requested',
     emailVerification: false,
-    verifyUrl,
-    secretPreview: `${secret.slice(0, 8)}…`,
-    resendId: resendResult?.id || null,
-  }, null, 2));
+    resendSent: Boolean(resendResult?.id),
+  }));
 }
 
 main().catch((e) => {

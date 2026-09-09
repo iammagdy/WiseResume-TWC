@@ -1,6 +1,78 @@
 # Stability improvements
 
-**Last verified:** 2026-08-29
+**Last verified:** 2026-09-08
+
+## Payment-window errors are shown safely during testing (2026-09-08)
+
+**What was the situation:** The testing check could see that the payment request reached the service but could not see the short error shown in the payment window.
+
+**What changed:** It now records only that safe, visible error message when the payment window cannot open; private request details remain excluded.
+
+**What you'll notice:** Nothing changes for customers. Sandbox testing can identify payment-window issues without exposing account or payment information.
+
+## Sandbox checkout handoff is now easier to diagnose (2026-09-08)
+
+**What was the situation:** The payment service responded successfully, but the internal check could not tell whether the hosted payment window address was accepted or simply failed to open.
+
+**What changed:** The check now records only safe technical details about the response shape and payment-window address, without recording private account or payment information.
+
+**What you'll notice:** Nothing changes for customers. If a future Sandbox handoff fails, the reason will be identified more clearly and safely.
+
+## Checkout failures now report a clearer safe result (2026-09-08)
+
+**What was the situation:** When the payment window could not open, the internal check waited too long and did not show whether the payment service had returned a safe error.
+
+**What changed:** The check now records only a safe status and error category from the billing request and reports a clear checkout-navigation failure.
+
+**What you'll notice:** Nothing changes for customers. Future Sandbox checks will identify the failing handoff more quickly without exposing private information.
+
+## Sandbox checkout now opens from the feature preview (2026-09-08)
+
+**What was the situation:** The feature preview could prepare a valid Sandbox checkout but then reject its safe Whop address before opening it.
+
+**What changed:** Sandbox and live payment addresses now use the same environment rules across both payment providers, including the correct preview behavior.
+
+**What you'll notice:** Sandbox testing can reach Whop checkout from the feature preview, while live users remain restricted to live payment addresses.
+
+## Payment-provider choices are checked in the right place (2026-09-08)
+
+**What was the situation:** The internal payment check expected the PayPal button to use wording from the next step, while the redesigned payment window uses a shorter provider label.
+
+**What changed:** The check now confirms the actual Whop and PayPal choices inside the payment window and verifies that Whop starts selected.
+
+**What you'll notice:** Nothing changes for customers. The payment check now matches the labels and layout shown by the redesigned WiseResume window.
+
+## Sandbox payment testing now follows the redesigned payment window (2026-09-08)
+
+**What was the situation:** The automated Sandbox check looked for payment providers before the payment window had been opened, so it stopped even though the subscription page itself loaded correctly.
+
+**What changed:** The check now opens the payment window first, confirms Whop is the default choice and PayPal is available as the alternative, and keeps the Sandbox safety checks before any test payment information is entered.
+
+**What you'll notice:** Nothing changes for customers. WiseResume's internal payment check now follows the same steps a customer sees.
+
+## Internal test-account setup is safer (2026-09-08)
+
+**What was the situation:** Internal account setup messages could reveal private account details and temporary verification information in automated logs.
+
+**What changed:** The setup tools now report only safe progress results while keeping private identifiers, email addresses, verification links, and temporary security values out of logs.
+
+**What you'll notice:** Nothing changes in the product. Future internal payment testing can run with less risk of exposing private setup information.
+
+## Subscription choices are now easier to understand (2026-09-08)
+
+**What was the situation:** The subscription area showed useful details, but the current plan, daily usage, and upgrade choices were spread across a long stack of similar cards.
+
+**What changed:** The page now presents the current plan first, puts resume and AI usage beside the plan benefits, and makes the next available monthly upgrades easier to compare. Cancellation and payment status messages remain available when relevant.
+
+**What you'll notice:** The subscription page feels more like a focused WiseResume workspace, with clearer hierarchy and a simpler path from understanding your plan to choosing an upgrade. No payment provider, price, or existing subscription data was changed.
+
+## Sandbox payment testing now stops safely when its test environment is incomplete (2026-09-08)
+
+**What was the situation:** The new payment integration had not yet been proven with Whop Sandbox, and running a real test could have mixed test payment records with the live application if the separate test data area was not confirmed first.
+
+**What changed:** The payment service now recognizes Whop’s current event format and keeps Sandbox and live product settings separate. Testing is paused until the private Sandbox key is available to the test environment, a separate test data area is confirmed, and a secure test webhook address is provided.
+
+**What you'll notice:** Nothing is switched on for customers, no payment was made, and the live WiseResume application remains unchanged. The local integration checks and build pass; only the external Sandbox proof remains.
 
 ## A payment-provider issue can now be pinpointed safely (2026-08-29)
 

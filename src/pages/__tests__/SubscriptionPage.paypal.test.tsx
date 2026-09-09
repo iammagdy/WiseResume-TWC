@@ -183,7 +183,7 @@ describe('SubscriptionPage PayPal Lifecycle & Cancellation', () => {
     const proSubscribeBtn = screen.getAllByRole('button', { name: /^subscribe$/i })[0];
     fireEvent.click(proSubscribeBtn);
 
-    const continueBtn = screen.getByRole('button', { name: /continue to paypal/i });
+    const continueBtn = screen.getByRole('button', { name: /continue with whop/i });
     fireEvent.click(continueBtn);
 
     expect(createBillingCheckoutSession).toHaveBeenCalledWith('pro', expect.objectContaining({
@@ -218,7 +218,7 @@ describe('SubscriptionPage PayPal Lifecycle & Cancellation', () => {
     const proSubscribeBtn = screen.getAllByRole('button', { name: /^subscribe$/i })[0];
     fireEvent.click(proSubscribeBtn);
 
-    const continueBtn = screen.getByRole('button', { name: /continue to paypal/i });
+    const continueBtn = screen.getByRole('button', { name: /continue with whop/i });
     fireEvent.click(continueBtn);
 
     await waitFor(() => {
@@ -228,7 +228,7 @@ describe('SubscriptionPage PayPal Lifecycle & Cancellation', () => {
     const firstCallKey = vi.mocked(createBillingCheckoutSession).mock.calls[0][1]?.idempotencyKey;
     expect(firstCallKey).toBeDefined();
 
-    // Click Continue to PayPal again to retry
+    // Retry the selected default provider.
     fireEvent.click(continueBtn);
 
     await waitFor(() => {
@@ -252,7 +252,7 @@ describe('SubscriptionPage PayPal Lifecycle & Cancellation', () => {
     const proSubscribeBtn = screen.getAllByRole('button', { name: /^subscribe$/i })[0];
     fireEvent.click(proSubscribeBtn);
 
-    const continueBtn = screen.getByRole('button', { name: /continue to paypal/i });
+    const continueBtn = screen.getByRole('button', { name: /continue with whop/i });
     fireEvent.click(continueBtn);
 
     await waitFor(() => {
@@ -285,7 +285,7 @@ describe('SubscriptionPage PayPal Lifecycle & Cancellation', () => {
     await act(async () => {
       fireEvent.click(proBtn);
     });
-    const proContinueBtn = screen.getByRole('button', { name: /continue to paypal/i });
+    const proContinueBtn = screen.getByRole('button', { name: /continue with whop/i });
     await act(async () => {
       fireEvent.click(proContinueBtn);
     });
@@ -301,7 +301,7 @@ describe('SubscriptionPage PayPal Lifecycle & Cancellation', () => {
     await act(async () => {
       fireEvent.click(premiumBtn);
     });
-    const premContinueBtn = screen.getByRole('button', { name: /continue to paypal/i });
+    const premContinueBtn = screen.getByRole('button', { name: /continue with whop/i });
     await act(async () => {
       fireEvent.click(premContinueBtn);
     });

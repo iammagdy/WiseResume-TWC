@@ -1,5 +1,76 @@
 # Changelog
 
+## 2026-09-09 — Whop integration merged to main for controlled manual Sandbox QA
+
+- **Whop Sandbox lifecycle**: fully verified live on Appwrite backend (authentic payment, `membership.activated` webhook handling, `whop_subscription_state` persistence, Pro entitlement resolution, and duplicate membership protection).
+- **Merge to main**: authorized by owner for controlled manual live-domain Sandbox QA on `https://wiseresume.app`.
+- **Sandbox isolation**: Sandbox checkout creation strictly gated to `WHOP_SANDBOX_QA_USER_ID`; all other users fail closed with 403 `payments_disabled`. Whop Production remains disabled / not activated.
+- **QA variable safety**: hardened `scripts/sync_whop_qa_user_variable.cjs` with 3-phase atomic snapshot/apply/rollback; unit tested across scenarios A-J.
+- **Payment safety**: enforced single-submit click maximum with zero retry clicks.
+- **Appwrite functions**: verified `billing-checkout`, `whop-webhook`, `ai-gateway`, `coupons` are `CURRENT_AND_READY`.
+
+## 2026-09-08 — Whop Sandbox UI error diagnostics
+
+- **Sandbox browser E2E** (`scripts/run-whop-sandbox-e2e.mjs`): reports only the bounded, rendered checkout error when hosted navigation fails, preserving secret and payload redaction.
+- **Validation**: GitHub Actions run `34227558666` passed targeted deployment, 29 isolation tests, build, and preview; the Appwrite execution envelope did not expose the function response body to the browser listener.
+
+## 2026-09-08 — Whop Sandbox checkout handoff diagnostics
+
+- **Sandbox browser E2E** (`scripts/run-whop-sandbox-e2e.mjs`): adds non-sensitive checkout response shape diagnostics (status, state, provider, plan, URL presence, and origin) to distinguish a server response-shape rejection from hosted navigation failure.
+- **Validation**: GitHub Actions run `34227067252` passed targeted deployment, 29 isolation tests, build, and preview; it stopped after the billing endpoint returned HTTP 201 but the browser did not receive a hosted checkout navigation.
+
+## 2026-09-08 — Whop Sandbox checkout diagnostics
+
+- **Sandbox browser E2E** (`scripts/run-whop-sandbox-e2e.mjs`): records only billing-function HTTP status and normalized error code, and fails checkout navigation with a bounded provider-specific diagnostic instead of an opaque one-minute timeout.
+- **Validation**: GitHub Actions run `34226523519` passed targeted deployments, isolation tests (29/29), build, and preview; it stopped at checkout navigation without exposing a provider error.
+
+## 2026-09-08 — Whop Sandbox checkout URL environment inference
+
+- **Checkout validation** (`src/lib/billingCheckout.ts`): shared environment inference now applies to Whop URLs as well as PayPal URLs, allowing local feature-preview Sandbox checkout while retaining Production-domain and explicit-environment isolation.
+- **Regression coverage** (`src/lib/billingCheckout.test.ts`): added Sandbox/Production Whop origin assertions.
+- **Validation**: focused billing and payment-modal Vitest suites passed (16 tests); the preceding Actions run `34225839543` had reached the hosted-checkout handoff before exposing this validator defect.
+
+## 2026-09-08 — Whop Sandbox provider-choice selector correction
+
+- **Sandbox browser E2E** (`scripts/run-whop-sandbox-e2e.mjs`): checks the payment modal's provider-choice buttons directly, matching the redesigned labels for Whop and PayPal before continuing to hosted checkout.
+- **Validation**: GitHub Actions run `34225267436` passed targeted deployment and 29 isolation/checkout tests; it stopped only at the prior provider-label assertion.
+
+## 2026-09-08 — Whop Sandbox browser harness modal flow
+
+- **Sandbox browser E2E** (`scripts/run-whop-sandbox-e2e.mjs`): aligned the subscription assertions with the redesigned flow by opening the payment confirmation modal before checking Whop/PayPal provider choices, while retaining the Sandbox environment/catalog guard before card entry.
+- **Validation**: `node --check scripts/run-whop-sandbox-e2e.mjs` and `git diff --check` passed; GitHub Actions run `34224160311` reached the browser step and exposed the former pre-modal assertion.
+
+## 2026-09-08 — Secure Whop Sandbox Actions runner
+
+- **QA automation** (`.github/workflows/whop-sandbox-e2e.yml`, `scripts/provision-whop-sandbox-qa.cjs`): added a manual, feature-branch-only Appwrite QA runner that consumes protected credentials inside GitHub Actions, masks the ephemeral user ID, deploys only `billing-checkout`, `ai-gateway`, and `coupons`, and never uploads browser state or credentials.
+
+## 2026-09-08 — Appwrite QA signup output hardened
+
+- **QA tooling** (`scripts/signup-and-send-verification.cjs`, `scripts/e2e-signup-test.mjs`): removed logging of account identifiers, email addresses, verification URLs, token previews, response bodies, and page URLs. The existing Appwrite-only signup and verification flow is unchanged; output is now status-only.
+
+## 2026-09-08 — Subscription workspace redesign
+
+- **Subscription workspace** (`src/pages/SubscriptionPage.tsx`): redesigned the subscription surface around current-plan context, usage, plan benefits, recurring monthly upgrade cards, and subscription management while preserving the existing checkout, cancellation, resolver, and lifecycle state flows.
+- **Customer-facing billing contract**: the page continues to expose only Free, Pro ($5/month), and Ultimate ($10/month) with Whop as the default provider and PayPal as the explicit alternative through the existing confirmation modal.
+- **Validation**: TypeScript and diff-whitespace checks passed; browser review confirmed the redesigned Free-state desktop layout renders with the existing WiseResume shell and real usage/plan data.
+
+## 2026-09-08 — Whop Sandbox provider signature blocker
+
+- Public transport and deployed secret injection passed a safe signed malformed-body probe, but Whop's official Sandbox Test delivery still returned `401 unauthorized`. No payment or lifecycle E2E was run; status is `WHOP_WEBHOOK_SIGNATURE_FAILURE`.
+
+## 2026-09-08 — Whop Sandbox public transport recheck
+
+- The owner-reported `whop-webhook.wiseresume.app` custom domain still failed live DNS resolution from the execution environment (`No such host is known`). No Sandbox webhook, secret, payment, or Production Whop change was performed; E2E remains blocked pending reachable HTTPS transport.
+
+## 2026-09-08 — Whop Sandbox contract hardening and E2E boundary audit
+
+- **Sandbox deployment result**: the authorized Whop schema and four targeted functions reached READY. E2E stopped safely because no public HTTPS webhook endpoint resolved; no webhook or payment was created.
+
+- **Webhook contract correction** (`appwrite-hubs/whop-webhook/src/main.js`): accepted the current Whop `account_id` envelope field, retained dot-notation event names, and resolved Whop company/product/plan IDs from environment-specific Sandbox or Production catalog variables.
+- **Local validation** (`tests/hubs/whop-webhook.test.cjs`, `tests/hubs/whop-checkout.test.cjs`, `tests/hubs/whop-resolver.test.cjs`): focused Whop contracts passed; full Vitest passed with 1,382 tests across 237 files, TypeScript, i18n, and production build passed.
+- **Sandbox boundary**: no Appwrite write, webhook registration, payment, deployment, commit, or push occurred; authenticated Sandbox catalog reads were limited to non-mutating verification.
+- **Final deployment graph**: corrected Sandbox key path authenticated successfully; Whop now has a provider-specific checkout/access environment contract, with targeted consumers identified as `billing-checkout`, `ai-gateway`, `coupons`, and `whop-webhook`. QA-user provisioning, schema execution, public webhook registration, and deployment remain pending owner authorization.
+
 ## 2026-09-08 — PayPal Orders v2 checkout, coupons redesign, safety net & modal UX hardening
 
 - **PayPal Orders v2 checkout & coupons redesign** (`src/components/subscription/PaymentConfirmationModal.tsx`, `src/pages/SubscriptionPage.tsx`, `appwrite-hubs/billing-checkout/src/main.js`, `appwrite-hubs/coupons/src/main.js`):
@@ -57,3 +128,14 @@
 - **Avatar privacy** (`src/lib/avatarStorage.ts`, `src/components/settings/EditProfileSheet.tsx`, `src/components/editor/ResumePhotoSheet.tsx`): new public avatar URLs use random IDs, replacement/rollback cleanup is explicit, and the public-direct-link behavior is disclosed before upload.
 - **Verification**: 212 Vitest files passed with 1 skipped (1,190 tests passed, 1 todo); all 44 hub test files passed; TypeScript, full ESLint, English/Arabic catalog and coverage checks, production/server builds, no-sourcemap verification, and `npm audit --audit-level=high` passed. The export browser fixture passed in isolation after its first full-run teardown timed out while hub tests were running concurrently.
 - **Release boundary**: no deployment, schema execution, production session change, secret change, commit, or push was performed. Coordinated release and isolated staging smoke tests remain required.
+## 2026-09-08 — Whop Sandbox provider signature contract fixed
+
+- **Verdict:** `WHOP_SANDBOX_PROVIDER_TEST_SIGNATURE_PASS`. Updated `whop-webhook` to use the complete current `ws_...` secret verbatim as UTF-8 HMAC key bytes, with strict `v1,` parsing and raw-body verification.
+- **Validation:** Independent Whop-compatible regression tests, TypeScript, i18n, syntax, diff check, and production build passed.
+- **Provider evidence:** Existing Whop Sandbox webhook `hook_KpMNHCmLzLqPn` test delivery reached the deployed function and returned sanitized `company_mismatch` / `mutated:false` instead of `401 unauthorized`; no payment or lifecycle event was claimed.
+- **Deployment:** Targeted Appwrite workflow `34211965267` succeeded for `whop-webhook` only. Production Whop, PayPal, RevenueCat, Vercel, DNS, and payments were unchanged.
+## 2026-09-08 — Whop Sandbox E2E paused at WiseResume provider selection
+
+- **Verdict:** `OWNER_ACTION_REQUIRED_WISERESUME_SANDBOX_RUNTIME`.
+- **Evidence:** Authenticated subscription UI loaded, but the upgrade modal selected PayPal (`Continue to PayPal`), so a real WiseResume-created Whop Sandbox checkout could not be started safely.
+- **Boundary:** No payment, global provider switch, PayPal/RevenueCat change, Production Whop change, or infrastructure change was performed. Whop provider signature verification remains passed.

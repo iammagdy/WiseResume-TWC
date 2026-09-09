@@ -65,23 +65,18 @@ try {
     );
     await page.getByRole('button', { name: /Resend verification email/i }).click();
     const res = await resendExec;
-    console.log('Resend status:', res?.status());
-    console.log('Body:', (await res?.text().catch(() => ''))?.slice(0, 400));
+    console.log('Verification resend requested.');
   } else {
     await page.waitForURL(/\/auth\/verify-email/, { timeout: 90_000 });
     const res = await execPromise;
-    console.log('Signup OK:', page.url());
-    console.log('Execution status:', res?.status());
-    console.log('Body:', (await res?.text().catch(() => ''))?.slice(0, 400));
+    console.log('QA signup completed and verification requested.');
   }
 
   await page.waitForTimeout(3_000);
   const toast = await page.locator('[data-sonner-toast]').allTextContents().catch(() => []);
   console.log('Toasts:', toast.join(' | ') || '(none)');
 
-  console.log('\n--- Test account ---');
-  console.log('Email:', EMAIL);
-  console.log('Check inbox for: Verify your WiseResume email address');
+  console.log('Verification email requested through the configured out-of-band provider.');
 } finally {
   await browser.close();
 }
