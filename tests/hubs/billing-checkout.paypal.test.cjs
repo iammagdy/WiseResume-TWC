@@ -2736,7 +2736,7 @@ test('Quote: one_time mode rejects coupon when max_uses reached', async () => {
   assert.equal(quote.reason, 'usage_limit_reached');
 });
 
-test('Checkout creation: one_time mode calls provider.createOrder with calculated price', async () => {
+test('Checkout creation: retired one_time mode is rejected with 400 invalid_request and does not call provider.createOrder', async () => {
   const env = validPayPalEnv();
   const config = readConfig(env);
   const store = new MockCheckoutStore({
@@ -2760,25 +2760,19 @@ test('Checkout creation: one_time mode calls provider.createOrder with calculate
   };
 
   const service = new BillingCheckoutService({ store, provider, config });
-  const result = await service.create({
-    userId: 'qa_user_456',
-    plan: 'pro',
-    paymentMode: 'one_time',
-    couponCode: 'QA90',
-  });
+  await assert.rejects(
+    () => service.create({
+      userId: 'qa_user_456',
+      plan: 'pro',
+      paymentMode: 'one_time',
+      couponCode: 'QA90',
+    }),
+    (err) => err.status === 400 && err.code === 'invalid_request' && err.message === 'One-time purchases are no longer available.'
+  );
 
-  assert.equal(result.status, 'success');
-  assert.equal(result.data.plan, 'pro');
-  assert.equal(result.data.payment_mode, 'one_time');
-  assert.equal(result.data.checkout_reference, 'ref_order_123');
-  assert.equal(result.data.checkout_url, 'https://www.sandbox.paypal.com/checkoutnow?token=ORDER-12345');
-
-  assert.equal(orderCalls.length, 1);
-  assert.equal(orderCalls[0].plan, 'pro');
-  assert.equal(orderCalls[0].amount, 0.50);
-  assert.equal(orderCalls[0].couponCode, 'QA90');
-  assert.equal(orderCalls[0].customData.app_user_id, 'qa_user_456');
+  assert.equal(orderCalls.length, 0);
 });
+
 
 test('Order capture: calls provider.captureOrder and records 30-day entitlement', async () => {
   const env = validPayPalEnv();
@@ -3042,7 +3036,7 @@ test('QA coupon: quote accepts authorized QA user', async () => {
   assert.equal(quote.final_amount, 0.50);
 });
 
-test('QA coupon: create rejects non-QA user with 403 forbidden', async () => {
+test('QA coupon: retired one_time mode is rejected with 400 invalid_request before coupon/QA authorization check', async () => {
   const env = validProductionPayPalEnv();
   const config = readConfig(env);
   const store = new MockCheckoutStore({
@@ -3061,7 +3055,7 @@ test('QA coupon: create rejects non-QA user with 403 forbidden', async () => {
       couponCode: 'QA_TEST90',
       idempotencyKey: 'qa-test-key-1',
     }),
-    (err) => err.status === 403 && err.code === 'forbidden'
+    (err) => err.status === 400 && err.code === 'invalid_request' && err.message === 'One-time purchases are no longer available.'
   );
 });
 
@@ -3429,8 +3423,8 @@ test('Existing paid user semantics: active recurring subscriber blocked from one
   );
 });
 
-// Test: Active Ultimate subscriber blocked from Pro one-time create with 409 active_higher_plan_exists
-test('Existing paid user semantics: active Ultimate subscriber blocked from Pro one-time create with 409 active_higher_plan_exists', async () => {
+// Test: Active Ultimate user attempting Pro one-time is rejected with 400 invalid_request (one-time retired)
+test('Existing paid user semantics: active Ultimate user attempting Pro one-time is rejected with 400 invalid_request (one-time retired)', async () => {
   const env = validPayPalEnv();
   const config = readConfig(env);
   const qaUser = config.qaUserId;
@@ -3446,7 +3440,7 @@ test('Existing paid user semantics: active Ultimate subscriber blocked from Pro 
       paymentMode: 'one_time',
       idempotencyKey: 'idemp_ult_1',
     }),
-    (err) => err.status === 409 && err.code === 'active_higher_plan_exists'
+    (err) => err.status === 400 && err.code === 'invalid_request' && err.message === 'One-time purchases are no longer available.'
   );
 });
 
@@ -3508,8 +3502,8 @@ test('Existing paid user semantics: active Pro one-time blocked from Ultimate on
   );
 });
 
-// Test: Expired one-time subscriber allowed to create one-time checkout
-test('Existing paid user semantics: expired one-time allowed to create one-time checkout', async () => {
+// Test: Expired one-time subscriber attempting one-time checkout is rejected with 400 invalid_request
+test('Existing paid user semantics: expired one-time user is rejected with 400 invalid_request when attempting one-time checkout', async () => {
   const env = validPayPalEnv();
   const config = readConfig(env);
   const qaUser = config.qaUserId;
@@ -3524,52 +3518,64 @@ test('Existing paid user semantics: expired one-time allowed to create one-time 
       expires_at: new Date(Date.now() - 86400000).toISOString(),
     },
   });
+  let createOrderCalled = false;
   const provider = {
-    createOrder: async () => ({
-      checkoutReference: 'ref_exp_1',
-      providerEnvironment: 'sandbox',
-      collectionMode: 'one_time',
-      providerTransactionId: 'ORD-NEW-AFTER-EXP',
-      checkoutUrl: 'https://www.sandbox.paypal.com/checkoutnow?token=TEST_EXP',
-    }),
+    createOrder: async () => {
+      createOrderCalled = true;
+      return {
+        checkoutReference: 'ref_exp_1',
+        providerEnvironment: 'sandbox',
+        collectionMode: 'one_time',
+        providerTransactionId: 'ORD-NEW-AFTER-EXP',
+        checkoutUrl: 'https://www.sandbox.paypal.com/checkoutnow?token=TEST_EXP',
+      };
+    },
   };
   const service = new BillingCheckoutService({ store, provider, config });
 
-  const res = await service.create({
-    userId: qaUser,
-    plan: 'pro',
-    paymentMode: 'one_time',
-    idempotencyKey: 'idemp_after_exp_1',
-  });
-  assert.equal(res.status, 'success');
-  assert.equal(res.data.plan, 'pro');
+  await assert.rejects(
+    () => service.create({
+      userId: qaUser,
+      plan: 'pro',
+      paymentMode: 'one_time',
+      idempotencyKey: 'idemp_after_exp_1',
+    }),
+    (err) => err.status === 400 && err.code === 'invalid_request' && err.message === 'One-time purchases are no longer available.'
+  );
+  assert.equal(createOrderCalled, false);
 });
 
-// Test: Free user allowed to create one-time checkout
-test('Existing paid user semantics: free user allowed to create one-time checkout', async () => {
+// Test: Free user attempting one-time checkout is rejected with 400 invalid_request
+test('Existing paid user semantics: free user is rejected with 400 invalid_request when attempting one-time checkout', async () => {
   const env = validPayPalEnv();
   const config = readConfig(env);
   const qaUser = config.qaUserId;
   const store = new MockCheckoutStore({
     plan: 'free',
   });
+  let createOrderCalled = false;
   const provider = {
-    createOrder: async () => ({
-      checkoutReference: 'ref_free_1',
-      providerEnvironment: 'sandbox',
-      collectionMode: 'one_time',
-      providerTransactionId: 'ORD-NEW-FREE-USER',
-      checkoutUrl: 'https://www.sandbox.paypal.com/checkoutnow?token=TEST_FREE',
-    }),
+    createOrder: async () => {
+      createOrderCalled = true;
+      return {
+        checkoutReference: 'ref_free_1',
+        providerEnvironment: 'sandbox',
+        collectionMode: 'one_time',
+        providerTransactionId: 'ORD-NEW-FREE-USER',
+        checkoutUrl: 'https://www.sandbox.paypal.com/checkoutnow?token=TEST_FREE',
+      };
+    },
   };
   const service = new BillingCheckoutService({ store, provider, config });
 
-  const res = await service.create({
-    userId: qaUser,
-    plan: 'pro',
-    paymentMode: 'one_time',
-    idempotencyKey: 'idemp_free_user_1',
-  });
-  assert.equal(res.status, 'success');
-  assert.equal(res.data.plan, 'pro');
+  await assert.rejects(
+    () => service.create({
+      userId: qaUser,
+      plan: 'pro',
+      paymentMode: 'one_time',
+      idempotencyKey: 'idemp_free_user_1',
+    }),
+    (err) => err.status === 400 && err.code === 'invalid_request' && err.message === 'One-time purchases are no longer available.'
+  );
+  assert.equal(createOrderCalled, false);
 });
