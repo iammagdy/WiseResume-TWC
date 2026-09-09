@@ -1023,11 +1023,12 @@ async function ensureBillingCheckoutVariables() {
         if (!sandboxKey) throw new Error('WHOP_SANDBOX_API_KEY is required to deploy billing-checkout');
         await ensureVariable('billing-checkout', 'WHOP_SANDBOX_API_KEY', sandboxKey, true);
         const companyId = process.env.WHOP_COMPANY_ID || await existingVariableValue('billing-checkout', 'WHOP_COMPANY_ID');
-        if (companyId) await ensureNonSecretCatalogVariable('billing-checkout', 'WHOP_COMPANY_ID', companyId);
+        const existingWhopQa = await existingVariableValue('billing-checkout', 'WHOP_SANDBOX_QA_USER_ID');
+        const targetWhopQa = existingWhopQa || process.env.WHOP_SANDBOX_QA_USER_ID;
         for (const [key, value] of [
             ['WHOP_CHECKOUT_ENVIRONMENT', process.env.WHOP_CHECKOUT_ENVIRONMENT],
             ['WHOP_ACCESS_ENVIRONMENT', process.env.WHOP_ACCESS_ENVIRONMENT],
-            ['WHOP_SANDBOX_QA_USER_ID', process.env.WHOP_SANDBOX_QA_USER_ID],
+            ['WHOP_SANDBOX_QA_USER_ID', targetWhopQa],
             ['WHOP_SANDBOX_COMPANY_ID', process.env.WHOP_SANDBOX_COMPANY_ID],
             ['WHOP_SANDBOX_PRODUCT_ID', process.env.WHOP_SANDBOX_PRODUCT_ID],
             ['WHOP_SANDBOX_PRO_PLAN_ID', process.env.WHOP_SANDBOX_PRO_PLAN_ID],
@@ -1089,11 +1090,12 @@ async function ensureCouponsWiseHireVariables(fnIds) {
 
             const qaUserId = process.env.BILLING_CHECKOUT_QA_USER_ID ||
                 await existingVariableValue('coupons', 'BILLING_CHECKOUT_QA_USER_ID');
-            if (qaUserId) await ensureVariable('coupons', 'BILLING_CHECKOUT_QA_USER_ID', qaUserId);
+            const existingWhopQa = await existingVariableValue('coupons', 'WHOP_SANDBOX_QA_USER_ID');
+            const targetWhopQa = existingWhopQa || process.env.WHOP_SANDBOX_QA_USER_ID;
             for (const [key, value] of [
                 ['WHOP_CHECKOUT_ENVIRONMENT', process.env.WHOP_CHECKOUT_ENVIRONMENT],
                 ['WHOP_ACCESS_ENVIRONMENT', process.env.WHOP_ACCESS_ENVIRONMENT],
-                ['WHOP_SANDBOX_QA_USER_ID', process.env.WHOP_SANDBOX_QA_USER_ID],
+                ['WHOP_SANDBOX_QA_USER_ID', targetWhopQa],
                 ['WHOP_SANDBOX_COMPANY_ID', process.env.WHOP_SANDBOX_COMPANY_ID],
                 ['WHOP_SANDBOX_PRODUCT_ID', process.env.WHOP_SANDBOX_PRODUCT_ID],
                 ['WHOP_SANDBOX_PRO_PLAN_ID', process.env.WHOP_SANDBOX_PRO_PLAN_ID],

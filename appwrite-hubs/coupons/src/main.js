@@ -521,6 +521,8 @@ async function getMySubscription(body, res, dependencies = {}) {
     isEligibleForUpgrade
   );
 
+  console.log(`[getMySubscription] user=${user.$id} plan=${effectivePlan} enabled=${isCheckoutEnabled} ready=${isProviderReady} provAvail=${providerAvailable} whopAvail=${isWhopAvailable} isSandbox=${isWhopSandbox} catalogValid=${isWhopCatalogValid} whopQa=${effectiveWhopQaUser} matchQa=${isWhopMatchingQaUser} canSub=${canSubscribe}`);
+
   return json(res, {
     status: 'success',
     data: {

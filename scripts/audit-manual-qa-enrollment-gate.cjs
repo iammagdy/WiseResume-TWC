@@ -206,8 +206,11 @@ async function main() {
     );
     console.log(`Execution status: ${execution.status} (code: ${execution.statusCode})`);
     console.log(`Execution response: ${execution.responseBody}`);
+    if (execution.logs) {
+      console.log(`Execution stdout:\n${execution.logs}`);
+    }
     if (execution.errors) {
-      console.log(`Execution errors: ${execution.errors}`);
+      console.log(`Execution errors:\n${execution.errors}`);
     }
   } catch (err) {
     console.log(`Execution invocation failed: ${err.message}`);
