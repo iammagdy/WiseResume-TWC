@@ -1,5 +1,30 @@
 # WiseResume Atlas Master Changelog
 
+### 2026-09-09 - Final Same-Day Closeout: CI Fix, TestSprite Removed, Subscription Regressions Merged, Production Deployed & Verified
+
+- **Verdict:** `VERIFIED_READY` (Status: `PRODUCTION_DEPLOYED__FULL_BROWSER_QA_PASSED__ZERO_ERRORS`).
+- **PR #327 Merged (`fix/billing-one-time-contract-tests`):** Aligned 5 obsolete billing contract tests in `tests/hubs/billing-checkout.paypal.test.cjs` to enforce HTTP 400 `invalid_request: One-time purchases are no longer available.` following one-time purchase retirement. All 377 billing tests pass. Merged to `main` at `1e0aa83b`.
+- **PR #326 Merged (`chore/remove-testsprite`):** Permanently eliminated TestSprite integration per owner directive. Deleted legacy docs and retired PRD. Owner uninstalled TestSprite GitHub App. Merged to `main` at `c271947b`.
+- **PR #325 Merged (`fix/subscription-manual-qa-regressions`):** Resolved 4 target manual QA regressions on branch `fix/subscription-manual-qa-regressions`:
+  - Replay key lifecycle: clearing stale attempt keys on cancel and retry so reopened modals start clean.
+  - Subscription page scrolling: removed double scrollbars, established single primary scroll container (`min-h-0`, `overflow-y-auto` on `<main>`), verified full scroll reachability down to FAQ and footer across viewports.
+  - Free account false cancellation guard: suppressed cancel card, end date notices, and cancellation buttons for users whose `effective_plan` is Free across frontend and `coupons` backend.
+  - Signup page query sanitization: robustly parses and validates `plan` query parameter, handling `plan=[object Object]` without error banners or broken text.
+  - Updated DevKit source hashes with `coupons` hash `6693f864f9038dafeca92686747d0ee427d5475173f9cc4af39eb20abca872c0`. Merged to `main` at `941168a7`.
+- **Production Deployments:**
+  - Vercel Production deployment `7FfbdDSU5yrWKq5CizZXN1FhFm9H` completed `SUCCESS`.
+  - Targeted Appwrite deployment for `coupons` hub via GitHub Actions run `34358047342` completed `SUCCESS`.
+- **Live State & Resolver Verification:** Verified live read-only entitlement audit via GitHub Actions run `34358280602` for target QA user `debeg50114@fidhost.com` (`6aa1***ec13`): `plan: free`, `effective_plan: pro`, `status: active`, `provider_source: whop`, `provider_status: active`, `expires_at: 2026-10-09T12:28:05.955Z`.
+- **Full Headless Browser QA:** 12 validation scenarios across 7 test suites executed via Edge CDP against local production build:
+  - Test A (Desktop 1280x800): PASS
+  - Test B (Small Laptop 1024x768): PASS
+  - Test C (Mobile 375x667): PASS
+  - Test D (Free Account UI Guard): PASS
+  - Test E (Payment Modal Replay Lifecycle): PASS
+  - Test F (Signup Page Sanitization): PASS
+  - Test G (RTL / Dark Mode / Focus): PASS
+- **Safety Boundary Preserved:** Zero new checkouts or payments created. Whop Production remains DISABLED / NOT ACTIVATED. Public checkout remains strictly isolated to `WHOP_SANDBOX_QA_USER_ID`.
+
 ### 2026-09-09 - TestSprite permanently removed from WiseResume CI & repository
 
 - **Verdict:** `TESTSPRITE_REMOVED__NO_LONGER_PART_OF_WISERESUME_CI`

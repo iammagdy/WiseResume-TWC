@@ -1,5 +1,57 @@
 # Project Atlas — Active Operational & Handover State
 
+## Final Same-Day Closeout: CI Fix, TestSprite Removed, Subscription Regressions Merged, Production Deployed & Verified (2026-09-09)
+
+* **Verdict:** `VERIFIED_READY`
+* **Status:** `PRODUCTION_DEPLOYED__FULL_BROWSER_QA_PASSED__ZERO_ERRORS`
+* **Owner Authorization & Context:**
+  - Owner authorized final same-day closeout with NO new payments or checkouts created.
+  - Owner had already successfully completed manual Whop Sandbox checkout on `wiseresume.app` with bound QA account `debeg50114@fidhost.com`, verifying Pro persistence across page refresh and logout/login.
+* **Pull Requests Completed & Merged to `main`:**
+  1. **PR #327 (`fix/billing-one-time-contract-tests`):** Fixed 5 pre-existing obsolete billing tests in `tests/hubs/billing-checkout.paypal.test.cjs` that expected retired one-time checkout to succeed. Updated tests to enforce HTTP 400 `invalid_request: One-time purchases are no longer available.`. Full billing suite: 377/377 passed (100%). Squash merged at commit `1e0aa83b`.
+  2. **PR #326 (`chore/remove-testsprite`):** Permanently removed TestSprite from WiseResume per explicit owner directive. Deleted legacy docs, marked PRDs retired, verified 0 repo workflows/dependencies. Owner uninstalled TestSprite GitHub App (`id: 2756476`). Squash merged at commit `c271947b`.
+  3. **PR #325 (`fix/subscription-manual-qa-regressions`):** Rebased with updated `main` containing PR #327 and PR #326. Resolved all 4 subscription manual QA regressions:
+     - Replay key lifecycle (`sessionStorage.removeItem` on close and retry so reopened modals start clean).
+     - Subscription page scrolling / single primary scroll container (`min-h-0`, `overflow-y-auto` on `<main>`, flex-1 layout, zero horizontal overflow, all sections reachable).
+     - Free account false cancellation UI guard (`effective_plan === 'free'` suppresses cancel card, end date notices, and cancellation buttons in both frontend UI and `coupons` hub backend).
+     - Signup page `[object Object]` sanitization (handles malformed `plan=[object Object]` query params cleanly, sanitizing intent to null and rendering standard signup with no banner).
+     - Source hash for `coupons` committed (`6693f864f9038dafeca92686747d0ee427d5475173f9cc4af39eb20abca872c0`).
+     - Squash merged at commit `941168a7`.
+* **Vercel Production Deployment:**
+  - Deployment `7FfbdDSU5yrWKq5CizZXN1FhFm9H` triggered from `main` commit `941168a7`.
+  - State: `SUCCESS` (`Deployment has completed`).
+  - Verified live on `https://wiseresume.app`.
+* **Targeted Appwrite Deployment (`coupons` only):**
+  - Workflow `deploy-appwrite-hubs.yml` dispatched with `target: coupons` (Run `34358047342`, ID `102487634080`).
+  - Completed `SUCCESS` in 1m26s.
+  - Active source hash: `6693f864f9038dafeca92686747d0ee427d5475173f9cc4af39eb20abca872c0`.
+  - Environment variables preserved: `BILLING_CHECKOUT_QA_USER_ID` and `WHOP_SANDBOX_QA_USER_ID` bound to `6aa1***ec13`.
+* **Live Appwrite Read-Only Entitlement & Resolver Audit:**
+  - Dispatched `whop-sandbox-e2e.yml` with `mode: audit_qa_vars` (Run `34358280602`, 31s, `SUCCESS`).
+  - Target QA User: `debeg50114@fidhost.com` (`6aa1***ec13`).
+  - Stored State: `whop_subscription_state docs: 1`, `paypal_subscription_state docs: 0`, `subscriptions docs: 0`.
+  - Live Resolver Output:
+    - `plan`: `free`
+    - `effective_plan`: `pro`
+    - `status`: `active`
+    - `provider_source`: `whop`
+    - `provider_status`: `active`
+    - `provider_expires_at`: `2026-10-09T12:28:05.955Z`
+    - `can_cancel_subscription`: `true`
+    - `renewal_cancellation_pending`: `false`
+* **Live Production Browser QA (Edge CDP Headless Matrix):**
+  - Test A (Desktop 1280x800): **PASS** (Single primary scroll container, outer nested scroll = false, inner scrollable = true, bottom share/FAQ reachable, 2 active subscribe buttons).
+  - Test B (Small Laptop 1024x768): **PASS** (Single scroll container, header visible, 0 horizontal scroll).
+  - Test C (Mobile 375x667): **PASS** (Single column layout, bottom nav clearance = 112px, 2 subscribe buttons reachable).
+  - Test D (Free Account UI Guard): **PASS** (0 subscription management cards, 0 cancel buttons, 0 enrollment closed banners).
+  - Test E (Payment Modal Replay Lifecycle): **PASS** (Modal opens with Pro details, $5.00/mo, Whop primary, PayPal alternative, 0 replay errors; cancel & reopen produces clean state with storedKey = null).
+  - Test F (Signup Page Query Sanitization): **PASS** (Normal signup has 0 banner; `plan=pro` shows Pro banner; `plan=ultimate` shows Ultimate banner; `plan=[object Object]` sanitized with 0 `[object Object]` text and stored intent null).
+  - Test G (RTL / Dark Mode / Keyboard Focus): **PASS** (RTL dir with 0 horizontal overflow; Dark mode computed background `rgb(12, 12, 14)`; Accessible keyboard focus works).
+* **Safety Boundaries Retained:**
+  - Zero checkouts or payments created.
+  - Whop Production remains DISABLED / NOT ACTIVATED.
+  - Sandbox checkout strictly gated to `WHOP_SANDBOX_QA_USER_ID`.
+
 ## TestSprite Permanent Removal & Retirement (2026-09-09)
 
 * **Verdict:** `TESTSPRITE_REMOVED__NO_LONGER_PART_OF_WISERESUME_CI`
