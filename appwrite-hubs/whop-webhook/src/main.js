@@ -20,6 +20,7 @@ const SUPPORTED_EVENTS = new Set([
   'payment.succeeded',
   'payment.failed',
   'payment.pending',
+  'invoice.created',
   'invoice.paid',
   'invoice.past_due',
   'refund.created',
