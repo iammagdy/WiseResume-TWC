@@ -23,11 +23,11 @@
      - In `src/pages/CareerPage.tsx`, handled `isError` from `useCareerAssessment()`, rendering a dedicated error card with `AlertCircle`, localized copy, a "Retry" button (`refetch()`), and a "Back to Dashboard" button.
      - Added localized `careerPage` error keys in `locales/en/app.json` and `locales/ar/app.json`.
      - Added comprehensive test suite in `src/pages/__tests__/CareerPage.test.tsx` (5/5 passing) covering LOADING (skeletons), ERROR (card, AlertCircle, copy), Retry click (`refetch()`), Dashboard navigation, and EMPTY state.
-  4. **P1 (Onboarding CREATE Starter Resume Direct Navigation & Idempotency):**
+  4. **P1 (Onboarding CREATE Starter Resume Direct Navigation & Partial-Write Idempotency):**
      - In `src/lib/onboardingProfile.ts`, added `createStarterResume?: boolean` to `SaveProfileArgs` and conditioned `hasResumeContent` to evaluate true when requested, persisting a valid base resume even when lists are empty.
-     - In `src/pages/OnboardingPage.tsx`, updated `handleManualCreate` to pass `createStarterResume: true`, navigate directly to `/editor?id=${result.resumeId}`, and route `CelebrationStep` to `/editor?id=${createdResumeId}`.
-     - Added synchronous ref lock (`isSavingManualRef`) in `handleManualCreate` preventing double-submit or rapid click races.
-     - Unit test suites: `src/lib/onboardingProfile.test.ts` (8/8 passing), `src/pages/__tests__/OnboardingPage.test.tsx` (9/9 passing).
+     - Fixed partial-write duplicate vulnerability: when step 2 (resume creation) succeeds but step 3 (profile onboarding flag update) fails, `saveOnboardingProfile` retains the real `resumeId` rather than throwing and discarding it, enabling subsequent reconciliation via `reconcileOnboardingCompletion(userId)`. Before creating a starter resume, checks existing resumes to guarantee idempotency on retry.
+     - In `src/pages/OnboardingPage.tsx`, updated `handleManualCreate` to pass `createStarterResume: true`, navigate directly to `/editor?id=${result.resumeId}`, and route `CelebrationStep` to `/editor?id=${createdResumeId}`. Added synchronous ref lock (`isSavingManualRef`) and `createdResumeIdRef` preventing duplicate creation under rapid double-clicks or retries.
+     - Unit test suites: `src/lib/onboardingProfile.test.ts` (13/13 passing, including Cases A-E), `src/pages/__tests__/OnboardingPage.test.tsx` (12/12 passing). Total focused suite: 42/42 passing. Real browser QA verified via Playwright.
   5. **P1 (In-Editor AI Credit Transparency):**
      - In `src/components/editor/ai/AIEnhanceDialog.tsx`, integrated `useAICredits` and `useLocale` to display an authoritative remaining daily quota badge ("X of Y daily AI actions remaining" / "Unlimited AI actions today") in the actions footer above the CTA buttons. Defaulted optional `changes = []`, `suggestions = []` to prevent runtime TypeError.
      - Added unit test suite in `src/components/editor/ai/__tests__/AIEnhanceDialog.test.tsx` (5/5 passing) asserting finite quota, zero remaining quota, unlimited quota, null/loading safety, and zero credit consumption on open.

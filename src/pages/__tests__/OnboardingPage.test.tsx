@@ -241,4 +241,51 @@ describe('OnboardingPage — Goal-First UX & Lifecycle Requirements', () => {
       expect(mockNavigate).toHaveBeenCalledWith('/editor?id=starter-id-789', { replace: true });
     });
   });
+
+  it('fails gracefully and does not navigate to editor when creation fails (Case A/B)', async () => {
+    mockSaveOnboardingProfile.mockRejectedValueOnce(new Error('Appwrite DB error'));
+    renderOnboarding();
+
+    fireEvent.click(screen.getByText(/build a new resume/i));
+    const createButton = await screen.findByRole('button', { name: /create & continue/i });
+    fireEvent.click(createButton);
+
+    await waitFor(() => {
+      expect(mockSaveOnboardingProfile).toHaveBeenCalledTimes(1);
+      expect(mockNavigate).not.toHaveBeenCalled();
+    });
+  });
+
+  it('preserves created resumeId and navigates to editor when partial write occurs (Case D)', async () => {
+    mockSaveOnboardingProfile.mockResolvedValueOnce({ resumeId: 'starter-part-123', hasResume: true });
+    renderOnboarding();
+
+    fireEvent.click(screen.getByText(/build a new resume/i));
+    const createButton = await screen.findByRole('button', { name: /create & continue/i });
+    fireEvent.click(createButton);
+
+    await waitFor(() => {
+      expect(mockSaveOnboardingProfile).toHaveBeenCalledTimes(1);
+      expect(mockNavigate).toHaveBeenCalledWith('/editor?id=starter-part-123', { replace: true });
+    });
+  });
+
+  it('prevents duplicate starter resume on subsequent retry click after success (Case E)', async () => {
+    mockSaveOnboardingProfile.mockResolvedValueOnce({ resumeId: 'starter-id-idempotent', hasResume: true });
+    renderOnboarding();
+
+    fireEvent.click(screen.getByText(/build a new resume/i));
+    const createButton = await screen.findByRole('button', { name: /create & continue/i });
+    fireEvent.click(createButton);
+
+    await waitFor(() => {
+      expect(mockNavigate).toHaveBeenCalledWith('/editor?id=starter-id-idempotent', { replace: true });
+    });
+
+    // Simulate another click / retry attempt
+    fireEvent.click(createButton);
+
+    // Save was NOT called a second time — reused retained resumeId
+    expect(mockSaveOnboardingProfile).toHaveBeenCalledTimes(1);
+  });
 });

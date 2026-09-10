@@ -134,11 +134,12 @@ export default function OnboardingPage() {
   const [createdResumeId, setCreatedResumeId] = useState<string | null>(null);
 
   const isNavigatingToEditorRef = useRef(false);
+  const createdResumeIdRef = useRef<string | null>(null);
 
   // Auto-redirect if already completed or user already has resumes
   useEffect(() => {
     const userId = user?.id;
-    if (!userId || isSavingManualRef.current || isNavigatingToEditorRef.current || isSaving || createdResumeId) return;
+    if (!userId || isSavingManualRef.current || isNavigatingToEditorRef.current || isSaving || createdResumeId || createdResumeIdRef.current) return;
 
     if (localStorage.getItem(onboardingKey(userId)) === 'true') {
       navigate('/dashboard', { replace: true });
@@ -373,6 +374,11 @@ export default function OnboardingPage() {
   // Direct Create / Manual Handler
   const handleManualCreate = useCallback(async () => {
     if (isSavingManualRef.current || !manualName.trim()) return;
+    if (createdResumeIdRef.current) {
+      isNavigatingToEditorRef.current = true;
+      navigate(`/editor?id=${createdResumeIdRef.current}`, { replace: true });
+      return;
+    }
     isSavingManualRef.current = true;
     setIsSavingManual(true);
     try {
@@ -402,6 +408,7 @@ export default function OnboardingPage() {
       toast.success('Your resume workspace is ready!');
 
       if (result.resumeId) {
+        createdResumeIdRef.current = result.resumeId;
         setCreatedResumeId(result.resumeId);
         isNavigatingToEditorRef.current = true;
         navigate(`/editor?id=${result.resumeId}`, { replace: true });

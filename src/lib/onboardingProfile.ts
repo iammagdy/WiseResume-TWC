@@ -460,6 +460,35 @@ export async function saveOnboardingProfile({
     description: v.description || '',
   }));
 
+  // If explicitly creating a starter resume, check whether one already exists for this user
+  // to guarantee idempotency across retries (e.g. if a prior attempt suffered a partial write).
+  if (createStarterResume) {
+    try {
+      const existingResumes = await databases.listDocuments(DATABASE_ID, COLLECTIONS.resumes, [
+        Query.equal('user_id', userId),
+        Query.limit(1),
+      ]);
+      if (existingResumes.documents.length > 0) {
+        const existingResumeId = existingResumes.documents[0].$id;
+        if (profileDocId) {
+          try {
+            await databases.updateDocument(
+              DATABASE_ID,
+              COLLECTIONS.profiles,
+              profileDocId,
+              { onboarding_completed: true, profile_completed: true },
+            );
+          } catch {
+            // Reconcile later via reconcileOnboardingCompletion(userId)
+          }
+        }
+        return { resumeId: existingResumeId, hasResume: true };
+      }
+    } catch {
+      // Non-fatal query error; fall through to normal insert
+    }
+  }
+
   // 2) Create resume row.
   let resumeId: string;
   try {
@@ -499,8 +528,12 @@ export async function saveOnboardingProfile({
       );
     }
   } catch (err) {
-    const msg = err instanceof Error ? err.message : 'Failed to finalize onboarding.';
-    throw new Error(msg);
+    // If updating profile flags fails, the resume has ALREADY been created in the database.
+    // We must NOT throw and discard the created resumeId, because that causes callers to report
+    // total failure and prompts the user to retry, creating duplicate starter resumes.
+    // The resume exists and is safe to navigate to; onboarding flags can be reconciled
+    // asynchronously or via reconcileOnboardingCompletion(userId).
+    console.warn('saveOnboardingProfile: failed to finalize onboarding flags after resume creation:', err);
   }
 
   return { resumeId, hasResume: true };
@@ -544,6 +577,7 @@ export async function reconcileOnboardingCompletion(userId: string): Promise<boo
 
     await databases.updateDocument(DATABASE_ID, COLLECTIONS.profiles, profileDocId, {
       onboarding_completed: true,
+      profile_completed: true,
     });
 
     try {

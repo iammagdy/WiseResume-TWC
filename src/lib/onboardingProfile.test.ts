@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { saveOnboardingProfile, type ExtractedProfile } from './onboardingProfile';
+import { saveOnboardingProfile, reconcileOnboardingCompletion, type ExtractedProfile } from './onboardingProfile';
 import { COLLECTIONS } from '@/lib/appwrite-collections';
 
 const appwriteMock = vi.hoisted(() => ({
@@ -199,5 +199,140 @@ describe('saveOnboardingProfile', () => {
 
     expect(result).toEqual({ resumeId: 'resume-uploaded', hasResume: true });
     expect(appwriteMock.createDocument).toHaveBeenCalledTimes(2);
+  });
+
+  describe('Partial-write failure recovery and idempotency (Cases A-E)', () => {
+    it('CASE A: throws and creates zero resumes when profile upsert fails', async () => {
+      appwriteMock.listDocuments.mockResolvedValueOnce({ documents: [], total: 0 });
+      appwriteMock.createDocument.mockRejectedValueOnce(new Error('Profile upsert DB error'));
+
+      await expect(
+        saveOnboardingProfile({
+          selectedProfile: profile({ fullName: 'User A' }),
+          fallbackUserId: 'user-a',
+          createStarterResume: true,
+        }),
+      ).rejects.toThrow('Profile upsert DB error');
+
+      // Only attempted profile creation, zero resumes created
+      expect(appwriteMock.createDocument).toHaveBeenCalledTimes(1);
+      expect(appwriteMock.createDocument).toHaveBeenCalledWith(
+        'test-db',
+        COLLECTIONS.profiles,
+        expect.any(String),
+        expect.any(Object),
+      );
+    });
+
+    it('CASE B: throws and does not report false success when resume creation fails', async () => {
+      appwriteMock.listDocuments.mockResolvedValueOnce({ documents: [], total: 0 });
+      appwriteMock.createDocument.mockResolvedValueOnce({ $id: 'profile-b' });
+      appwriteMock.listDocuments.mockResolvedValueOnce({ documents: [], total: 0 });
+      appwriteMock.createDocument.mockRejectedValueOnce(new Error('Resume creation DB error'));
+
+      await expect(
+        saveOnboardingProfile({
+          selectedProfile: profile({ fullName: 'User B' }),
+          fallbackUserId: 'user-b',
+          createStarterResume: true,
+        }),
+      ).rejects.toThrow('Resume creation DB error');
+
+      expect(appwriteMock.updateDocument).not.toHaveBeenCalled();
+    });
+
+    it('CASE C: creates exactly one starter resume and marks completion when all steps succeed', async () => {
+      appwriteMock.listDocuments.mockResolvedValueOnce({ documents: [], total: 0 });
+      appwriteMock.createDocument.mockResolvedValueOnce({ $id: 'profile-c' });
+      appwriteMock.listDocuments.mockResolvedValueOnce({ documents: [], total: 0 });
+      appwriteMock.createDocument.mockResolvedValueOnce({ $id: 'starter-resume-c' });
+      appwriteMock.updateDocument.mockResolvedValueOnce({});
+
+      const result = await saveOnboardingProfile({
+        selectedProfile: profile({ fullName: 'User C' }),
+        fallbackUserId: 'user-c',
+        createStarterResume: true,
+      });
+
+      expect(result).toEqual({ resumeId: 'starter-resume-c', hasResume: true });
+      expect(appwriteMock.createDocument).toHaveBeenCalledTimes(2);
+      expect(appwriteMock.updateDocument).toHaveBeenCalledWith(
+        'test-db',
+        COLLECTIONS.profiles,
+        'profile-c',
+        { onboarding_completed: true, profile_completed: true },
+      );
+    });
+
+    it('CASE D: preserves created resumeId when final profile update fails and supports reconciliation', async () => {
+      appwriteMock.listDocuments.mockResolvedValueOnce({ documents: [], total: 0 });
+      appwriteMock.createDocument.mockResolvedValueOnce({ $id: 'profile-d' });
+      appwriteMock.listDocuments.mockResolvedValueOnce({ documents: [], total: 0 });
+      appwriteMock.createDocument.mockResolvedValueOnce({ $id: 'starter-resume-d' });
+      // Final profile completion update throws
+      appwriteMock.updateDocument.mockRejectedValueOnce(new Error('Profile update 500'));
+
+      const result = await saveOnboardingProfile({
+        selectedProfile: profile({ fullName: 'User D' }),
+        fallbackUserId: 'user-d',
+        createStarterResume: true,
+      });
+
+      // Invariant: created resumeId is preserved and not discarded
+      expect(result).toEqual({ resumeId: 'starter-resume-d', hasResume: true });
+
+      // Invariant: reconciliation behavior flips the flag later
+      appwriteMock.listDocuments
+        .mockResolvedValueOnce({ documents: [{ $id: 'profile-d', onboarding_completed: false }] })
+        .mockResolvedValueOnce({ documents: [{ $id: 'starter-resume-d' }] });
+      appwriteMock.updateDocument.mockResolvedValueOnce({});
+
+      const reconciled = await reconcileOnboardingCompletion('user-d');
+      expect(reconciled).toBe(true);
+      expect(appwriteMock.updateDocument).toHaveBeenCalledWith(
+        'test-db',
+        COLLECTIONS.profiles,
+        'profile-d',
+        { onboarding_completed: true, profile_completed: true },
+      );
+    });
+
+    it('CASE E: retry after CASE D does NOT create a duplicate starter resume (exactly 1 total)', async () => {
+      // Step 1: Initial call (CASE D partial write)
+      appwriteMock.listDocuments.mockResolvedValueOnce({ documents: [], total: 0 });
+      appwriteMock.createDocument.mockResolvedValueOnce({ $id: 'profile-e' });
+      appwriteMock.listDocuments.mockResolvedValueOnce({ documents: [], total: 0 });
+      appwriteMock.createDocument.mockResolvedValueOnce({ $id: 'starter-resume-e' });
+      appwriteMock.updateDocument.mockRejectedValueOnce(new Error('Transient 500'));
+
+      const firstResult = await saveOnboardingProfile({
+        selectedProfile: profile({ fullName: 'User E' }),
+        fallbackUserId: 'user-e',
+        createStarterResume: true,
+      });
+      expect(firstResult).toEqual({ resumeId: 'starter-resume-e', hasResume: true });
+
+      // Step 2: Retry call (user or system retries createStarterResume)
+      appwriteMock.listDocuments.mockResolvedValueOnce({ documents: [{ $id: 'profile-e' }] });
+      appwriteMock.updateDocument.mockResolvedValueOnce({});
+      // Existing resume discovered
+      appwriteMock.listDocuments.mockResolvedValueOnce({ documents: [{ $id: 'starter-resume-e' }] });
+      appwriteMock.updateDocument.mockResolvedValueOnce({});
+
+      const retryResult = await saveOnboardingProfile({
+        selectedProfile: profile({ fullName: 'User E' }),
+        fallbackUserId: 'user-e',
+        createStarterResume: true,
+      });
+
+      // Returns the existing starter resume
+      expect(retryResult).toEqual({ resumeId: 'starter-resume-e', hasResume: true });
+
+      // Invariant: resumes collection createDocument was called EXACTLY ONCE across initial + retry
+      const resumeCreateCalls = appwriteMock.createDocument.mock.calls.filter(
+        (call) => call[1] === COLLECTIONS.resumes,
+      );
+      expect(resumeCreateCalls).toHaveLength(1);
+    });
   });
 });
