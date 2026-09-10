@@ -105,6 +105,7 @@ export default function OnboardingPage() {
   const [manualJobTitle, setManualJobTitle] = useState('');
   const [manualResumeTitle, setManualResumeTitle] = useState('');
   const [isSavingManual, setIsSavingManual] = useState(false);
+  const isSavingManualRef = useRef(false);
 
   useEffect(() => {
     if (manualName.trim() || !user?.name?.trim()) return;
@@ -130,11 +131,15 @@ export default function OnboardingPage() {
   const [showReview, setShowReview] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [finalName, setFinalName] = useState('');
+  const [createdResumeId, setCreatedResumeId] = useState<string | null>(null);
+
+  const isNavigatingToEditorRef = useRef(false);
+  const createdResumeIdRef = useRef<string | null>(null);
 
   // Auto-redirect if already completed or user already has resumes
   useEffect(() => {
     const userId = user?.id;
-    if (!userId) return;
+    if (!userId || isSavingManualRef.current || isNavigatingToEditorRef.current || isSaving || createdResumeId || createdResumeIdRef.current) return;
 
     if (localStorage.getItem(onboardingKey(userId)) === 'true') {
       navigate('/dashboard', { replace: true });
@@ -190,6 +195,9 @@ export default function OnboardingPage() {
         queryClient.invalidateQueries({ queryKey: ['profile'] });
         queryClient.invalidateQueries({ queryKey: ['me'] });
         queryClient.invalidateQueries({ queryKey: ['resumes'] });
+        if (result.resumeId) {
+          setCreatedResumeId(result.resumeId);
+        }
         setFinalName(filtered.fullName || '');
         setShowReview(false);
         setStep('celebration');
@@ -365,7 +373,13 @@ export default function OnboardingPage() {
 
   // Direct Create / Manual Handler
   const handleManualCreate = useCallback(async () => {
-    if (!manualName.trim()) return;
+    if (isSavingManualRef.current || !manualName.trim()) return;
+    if (createdResumeIdRef.current) {
+      isNavigatingToEditorRef.current = true;
+      navigate(`/editor?id=${createdResumeIdRef.current}`, { replace: true });
+      return;
+    }
+    isSavingManualRef.current = true;
     setIsSavingManual(true);
     try {
       const profile = emptyProfile();
@@ -377,6 +391,7 @@ export default function OnboardingPage() {
         fallbackUserId: user?.id ?? null,
         fallbackUserEmail: user?.email ?? null,
         resumeTitle: manualResumeTitle.trim() || (profile.jobTitle ? `${profile.jobTitle} Resume` : 'My Resume'),
+        createStarterResume: true,
       });
 
       if (user?.id) {
@@ -386,21 +401,29 @@ export default function OnboardingPage() {
       queryClient.invalidateQueries({ queryKey: ['me'] });
       queryClient.invalidateQueries({ queryKey: ['resumes'] });
 
-      setFinalName(profile.fullName);
-      setStep('celebration');
-
       logAudit('onboarding', 'completed', {
         method: 'create-direct',
         hasResume: result.hasResume,
       });
       toast.success('Your resume workspace is ready!');
+
+      if (result.resumeId) {
+        createdResumeIdRef.current = result.resumeId;
+        setCreatedResumeId(result.resumeId);
+        isNavigatingToEditorRef.current = true;
+        navigate(`/editor?id=${result.resumeId}`, { replace: true });
+        return;
+      }
+
+      setFinalName(profile.fullName);
+      setStep('celebration');
     } catch (err) {
       console.error('Failed to create starter resume:', err);
       toast.error('Failed to create resume. Please try again.');
-    } finally {
+      isSavingManualRef.current = false;
       setIsSavingManual(false);
     }
-  }, [manualName, manualJobTitle, manualResumeTitle, queryClient, user]);
+  }, [manualName, manualJobTitle, manualResumeTitle, navigate, queryClient, user]);
 
   // Skip flow — intentionally marks completed in DB and localStorage, lands on Dashboard
   const handleSkip = useCallback(async () => {
@@ -669,7 +692,7 @@ export default function OnboardingPage() {
               <CelebrationStep
                 name={finalName}
                 postAction={postAction}
-                onGoEditor={() => navigate('/editor', { replace: true })}
+                onGoEditor={() => navigate(createdResumeId ? `/editor?id=${createdResumeId}` : '/editor', { replace: true })}
                 onGoTailoring={() => navigate('/tailoring-hub', { replace: true })}
                 onGoDashboard={() => navigate('/dashboard', { replace: true })}
               />

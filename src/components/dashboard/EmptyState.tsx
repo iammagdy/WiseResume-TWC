@@ -54,9 +54,9 @@ export function EmptyState({ onCreateNew, onUploadResume, checklist }: EmptyStat
           <Button
             size="lg"
             onClick={onCreateNew}
-            className="w-full sm:w-auto flex-1 h-11 rounded-xl text-xs sm:text-sm font-semibold shadow-sm"
+            className="w-full sm:w-auto flex-1 h-11 rounded-xl text-xs sm:text-sm font-semibold shadow-sm gap-1.5"
           >
-            <Plus className="w-4 h-4 mr-1.5" />
+            <Plus className="w-4 h-4" />
             {t('app.emptyState.createResume', 'Create Resume')}
           </Button>
 
@@ -65,9 +65,9 @@ export function EmptyState({ onCreateNew, onUploadResume, checklist }: EmptyStat
               size="lg"
               variant="outline"
               onClick={onUploadResume}
-              className="w-full sm:w-auto flex-1 h-11 rounded-xl text-xs sm:text-sm font-medium border-border/80 hover:bg-muted/50"
+              className="w-full sm:w-auto flex-1 h-11 rounded-xl text-xs sm:text-sm font-medium border-border/80 hover:bg-muted/50 gap-1.5"
             >
-              <Upload className="w-4 h-4 mr-1.5" />
+              <Upload className="w-4 h-4" />
               {t('app.emptyState.uploadResume', 'Upload Existing Resume')}
             </Button>
           )}

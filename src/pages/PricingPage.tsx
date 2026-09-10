@@ -286,7 +286,7 @@ export default function PricingPage() {
                       <td className="py-3.5 px-6 font-medium">Daily AI Actions Allowance</td>
                       <td className="py-3.5 px-4 text-center text-muted-foreground">5 / day</td>
                       <td className="py-3.5 px-4 text-center font-semibold">50 / day</td>
-                      <td className="py-3.5 px-4 text-center font-bold text-primary">200 / day</td>
+                      <td className="py-3.5 px-4 text-center font-bold text-primary">Unlimited</td>
                     </tr>
                     <tr>
                       <td className="py-3.5 px-6 font-medium">Active Resumes Allowed</td>

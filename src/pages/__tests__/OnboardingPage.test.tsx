@@ -71,10 +71,11 @@ vi.mock('@/lib/profileSeed', () => ({
   upsertProfileIdentity: vi.fn().mockResolvedValue({}),
 }));
 
+const mockSaveOnboardingProfile = vi.fn().mockResolvedValue({ resumeId: 'starter-123', hasResume: true });
 vi.mock('@/lib/onboardingProfile', () => ({
   fromResumeData: vi.fn(),
   fromProfileData: vi.fn(),
-  saveOnboardingProfile: vi.fn().mockResolvedValue({ hasResume: true }),
+  saveOnboardingProfile: (...args: unknown[]) => mockSaveOnboardingProfile(...args),
   probeLinkedInUrl: vi.fn(),
   emptyProfile: () => ({ fullName: 'Alex Morgan', jobTitle: '', experience: [], education: [], skills: [] }),
   reconcileOnboardingCompletion: vi.fn().mockResolvedValue(false),
@@ -191,5 +192,100 @@ describe('OnboardingPage — Goal-First UX & Lifecycle Requirements', () => {
       expect(screen.getByText(/resume name/i)).toBeInTheDocument();
       expect(screen.getByPlaceholderText(/e\.g\. Tech Lead 2026/i)).toBeInTheDocument();
     });
+  });
+
+  it('creates starter resume and navigates directly to /editor?id=... on CREATE flow', async () => {
+    mockSaveOnboardingProfile.mockResolvedValueOnce({ resumeId: 'starter-resume-456', hasResume: true });
+    renderOnboarding();
+
+    // Click Goal 1: Build a new resume
+    fireEvent.click(screen.getByText(/build a new resume/i));
+
+    const createButton = await screen.findByRole('button', { name: /create & continue/i });
+    fireEvent.click(createButton);
+
+    await waitFor(() => {
+      expect(mockSaveOnboardingProfile).toHaveBeenCalledWith(
+        expect.objectContaining({
+          createStarterResume: true,
+        }),
+      );
+      expect(mockNavigate).toHaveBeenCalledWith('/editor?id=starter-resume-456', { replace: true });
+    });
+  });
+
+  it('drops duplicate clicks while submission is in-flight (synchronous lock)', async () => {
+    let resolveSave: (val: { resumeId: string; hasResume: boolean }) => void;
+    const savePromise = new Promise<{ resumeId: string; hasResume: boolean }>((resolve) => {
+      resolveSave = resolve;
+    });
+    mockSaveOnboardingProfile.mockReturnValueOnce(savePromise);
+
+    renderOnboarding();
+
+    // Click Goal 1: Build a new resume
+    fireEvent.click(screen.getByText(/build a new resume/i));
+
+    const createButton = await screen.findByRole('button', { name: /create & continue/i });
+
+    // Fire rapid double-click
+    fireEvent.click(createButton);
+    fireEvent.click(createButton);
+
+    // Synchronous ref lock ensures exactly one call is dispatched
+    expect(mockSaveOnboardingProfile).toHaveBeenCalledTimes(1);
+
+    resolveSave!({ resumeId: 'starter-id-789', hasResume: true });
+
+    await waitFor(() => {
+      expect(mockNavigate).toHaveBeenCalledWith('/editor?id=starter-id-789', { replace: true });
+    });
+  });
+
+  it('fails gracefully and does not navigate to editor when creation fails (Case A/B)', async () => {
+    mockSaveOnboardingProfile.mockRejectedValueOnce(new Error('Appwrite DB error'));
+    renderOnboarding();
+
+    fireEvent.click(screen.getByText(/build a new resume/i));
+    const createButton = await screen.findByRole('button', { name: /create & continue/i });
+    fireEvent.click(createButton);
+
+    await waitFor(() => {
+      expect(mockSaveOnboardingProfile).toHaveBeenCalledTimes(1);
+      expect(mockNavigate).not.toHaveBeenCalled();
+    });
+  });
+
+  it('preserves created resumeId and navigates to editor when partial write occurs (Case D)', async () => {
+    mockSaveOnboardingProfile.mockResolvedValueOnce({ resumeId: 'starter-part-123', hasResume: true });
+    renderOnboarding();
+
+    fireEvent.click(screen.getByText(/build a new resume/i));
+    const createButton = await screen.findByRole('button', { name: /create & continue/i });
+    fireEvent.click(createButton);
+
+    await waitFor(() => {
+      expect(mockSaveOnboardingProfile).toHaveBeenCalledTimes(1);
+      expect(mockNavigate).toHaveBeenCalledWith('/editor?id=starter-part-123', { replace: true });
+    });
+  });
+
+  it('prevents duplicate starter resume on subsequent retry click after success (Case E)', async () => {
+    mockSaveOnboardingProfile.mockResolvedValueOnce({ resumeId: 'starter-id-idempotent', hasResume: true });
+    renderOnboarding();
+
+    fireEvent.click(screen.getByText(/build a new resume/i));
+    const createButton = await screen.findByRole('button', { name: /create & continue/i });
+    fireEvent.click(createButton);
+
+    await waitFor(() => {
+      expect(mockNavigate).toHaveBeenCalledWith('/editor?id=starter-id-idempotent', { replace: true });
+    });
+
+    // Simulate another click / retry attempt
+    fireEvent.click(createButton);
+
+    // Save was NOT called a second time — reused retained resumeId
+    expect(mockSaveOnboardingProfile).toHaveBeenCalledTimes(1);
   });
 });

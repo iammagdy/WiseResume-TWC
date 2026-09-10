@@ -1,15 +1,58 @@
 # Project Atlas — Active Operational & Handover State
 
-## Frontend & Product UX Redesign Session (2026-09-10)
+## Verified UX Fixes & Pre-Commit Gap Closure Session (2026-09-10)
 
-* **Verdict:** `BROWSER_TESTED_LOCAL_WITH_CONTROLLED_FIXTURES`
-* **Status:** `BRANCH_LOCAL_BROWSER_TESTED__ZERO_COMMITS__ZERO_PUSHES__PAYMENTS_FROZEN`
-* **Branch:** `visual/frontend-product-experience-refresh`
-* **Session Boundary & Payment Invariant Compliance:**
-  - `PAYMENT_FILES_TOUCHED = NO` (`src/lib/planConfig.ts`, `src/lib/billingCheckout.ts`, `src/components/subscription/PaymentConfirmationModal.tsx` remain strictly identical to origin/main).
-  - `APPWRITE_BACKEND_MUTATED = NO` (No function deployment, no database migration, no secrets changed).
-  - `EXTERNAL_CONSOLES_CHANGED = NO` (Zero changes to Vercel, GitHub Actions, Whop, PayPal, RevenueCat).
+* **Verdict:** `TESTED_LOCAL_READY_FOR_COMMIT`
+* **Status:** `BRANCH_LOCAL_VALIDATED__ZERO_COMMITS__ZERO_PUSHES__PAYMENTS_FROZEN`
+* **Branch:** `fix/verified-ux-activation-feedback`
+* **Base Commit:** `b403181ca05acdd80eaed2798210e23e87a2350d` (`origin/main`)
+* **Session Boundary & Protected Files Compliance:**
+  - `PAYMENT_FILES_TOUCHED = NO` (`src/lib/planConfig.ts`, `src/lib/billingCheckout.ts`, `src/components/subscription/PaymentConfirmationModal.tsx` remain strictly untouched).
+  - `PROTECTED_DIRECTORIES_TOUCHED = NO` (`appwrite-hubs/`, `.github/workflows/`, `vercel.json` remain strictly untouched).
+  - `APPWRITE_BACKEND_MUTATED = NO` (Zero database schema/permission changes, zero function deployments).
+  - `EXTERNAL_CONSOLES_CHANGED = NO` (Zero changes to Vercel, GitHub, Whop, PayPal, RevenueCat).
   - `GIT_OPERATIONS = LOCAL_WORKING_TREE_ONLY` (0 commits created, 0 pushes dispatched).
+* **Summary of Delivered UX Fixes & Contract Hardening:**
+  1. **REG-01 (Arabic Empty State & Icon Alignment):**
+     - Added 7 missing localized keys to `locales/en/app.json` and `locales/ar/app.json`: `buildFirstResume`, `subtitle`, `createResume`, `uploadResume`, `badgeAts`, `badgeAi`, `badgeExport`.
+     - In `src/components/dashboard/EmptyState.tsx`, replaced hardcoded `mr-1.5` on icon buttons with `gap-1.5` ensuring symmetric spacing in LTR and RTL.
+  2. **BUG-02 (Editor Silent Bounce to Dashboard):**
+     - In `src/pages/EditorPage.tsx:1288`, updated missing `targetId` redirect to navigate to `/dashboard?action=create` (replace: true). Directly connects with `DashboardPage.tsx:196` listener to open `CreateResumeDialog`.
+     - Added focused test suite in `src/pages/__tests__/EditorRecovery.test.tsx` (2/2 passing) verifying redirect on missing targetId and no-op on valid resume query params.
+  3. **BUG-01 (Career Page Error State & Fallback):**
+     - In `src/pages/CareerPage.tsx`, handled `isError` from `useCareerAssessment()`, rendering a dedicated error card with `AlertCircle`, localized copy, a "Retry" button (`refetch()`), and a "Back to Dashboard" button.
+     - Added localized `careerPage` error keys in `locales/en/app.json` and `locales/ar/app.json`.
+     - Added comprehensive test suite in `src/pages/__tests__/CareerPage.test.tsx` (5/5 passing) covering LOADING (skeletons), ERROR (card, AlertCircle, copy), Retry click (`refetch()`), Dashboard navigation, and EMPTY state.
+  4. **P1 (Onboarding CREATE Starter Resume Direct Navigation & Partial-Write Idempotency):**
+     - In `src/lib/onboardingProfile.ts`, added `createStarterResume?: boolean` to `SaveProfileArgs` and conditioned `hasResumeContent` to evaluate true when requested, persisting a valid base resume even when lists are empty.
+     - Fixed partial-write duplicate vulnerability: when step 2 (resume creation) succeeds but step 3 (profile onboarding flag update) fails, `saveOnboardingProfile` retains the real `resumeId` rather than throwing and discarding it, enabling subsequent reconciliation via `reconcileOnboardingCompletion(userId)`. Before creating a starter resume, checks existing resumes to guarantee idempotency on retry.
+     - In `src/pages/OnboardingPage.tsx`, updated `handleManualCreate` to pass `createStarterResume: true`, navigate directly to `/editor?id=${result.resumeId}`, and route `CelebrationStep` to `/editor?id=${createdResumeId}`. Added synchronous ref lock (`isSavingManualRef`) and `createdResumeIdRef` preventing duplicate creation under rapid double-clicks or retries.
+     - Unit test suites: `src/lib/onboardingProfile.test.ts` (13/13 passing, including Cases A-E), `src/pages/__tests__/OnboardingPage.test.tsx` (12/12 passing). Total focused suite: 42/42 passing. Real browser QA verified via Playwright.
+  5. **P1 (In-Editor AI Credit Transparency):**
+     - In `src/components/editor/ai/AIEnhanceDialog.tsx`, integrated `useAICredits` and `useLocale` to display an authoritative remaining daily quota badge ("X of Y daily AI actions remaining" / "Unlimited AI actions today") in the actions footer above the CTA buttons. Defaulted optional `changes = []`, `suggestions = []` to prevent runtime TypeError.
+     - Added unit test suite in `src/components/editor/ai/__tests__/AIEnhanceDialog.test.tsx` (5/5 passing) asserting finite quota, zero remaining quota, unlimited quota, null/loading safety, and zero credit consumption on open.
+  6. **P1 (Free AI In-Editor Communication):**
+     - In `src/pages/AIStudioPage.tsx`, added a prominent guidance card under `UpgradeWall` informing Free users that 5 daily AI actions are included directly inside the Resume Editor. Added localized keys in `locales/en/app.json` and `locales/ar/app.json`.
+     - Test suite: `src/pages/__tests__/AIStudioPage.test.tsx` (5/5 passing).
+  7. **Factual Correction (Pricing Comparison Table):**
+     - In `src/pages/PricingPage.tsx:289`, updated Ultimate daily AI actions allowance from outdated `"200 / day"` to canonical `"Unlimited"`.
+  8. **SettingsPage Reversion (Classification: UNRELATED_CHANGE):**
+     - Reverted branch-local edit in `src/pages/SettingsPage.tsx`. The failing assertion in `englishUiFallbackCoverage.test.ts` was pre-existing debt from PR #333 on `origin/main` (`b403181c`). Reverting preserves strict scope boundaries without touching unrelated pre-existing code.
+* **Verification & Validation Results:**
+  - `npx tsc --noEmit`: Clean (0 errors).
+  - `git diff --check`: Clean (0 whitespace/formatting errors).
+  - Focused Test Suites: 34/34 passing across all 6 branch test suites (`onboardingProfile.test.ts`, `OnboardingPage.test.tsx`, `AIStudioPage.test.tsx`, `EditorRecovery.test.tsx`, `CareerPage.test.tsx`, `AIEnhanceDialog.test.tsx`).
+  - Pre-Existing Full Suite Failure Proven: Isolated temporary worktree on `origin/main` (`b403181c`) confirmed the exact identical failure in `englishUiFallbackCoverage.test.ts` (`src\pages\SettingsPage.tsx:287 -> settings.tabs.notifications`, missing count: 1), proving classification as `PRE_EXISTING_TEST_FAILURE`.
+  - Final Missing Evidence Playwright Real Browser QA Matrix: 100% PASS across all criteria:
+    1. Onboarding CREATE Happy Path (3A): Dispatched exactly 1 creation call, landed directly at `/editor?id=resume-onboarding-test-101`, survived reload persistence at exact URL, persisted to `/dashboard` with 1 card.
+    2. Onboarding Rapid Double-Submit Idempotency (3B): Ref lock and navigation guard ensured exactly 1 creation request dispatched under rapid double-click bursts.
+    3. Onboarding Controlled Failure Handling (3C): Appwrite 500 error kept user on form with preserved inputs, 0 false congratulations/celebrations, 0 navigations.
+    4. Career Page Error State (4): Skeletons terminated, AlertCircle card rendered with truthful localized copy, Retry button triggered refetch, Back to Dashboard navigated to `/dashboard`. Verified across Desktop EN (1440x900), Mobile EN (390x844), Desktop AR RTL (1280x800).
+    5. AI Enhance Dialog Credit UI (5): Verified FINITE ("3 of 5 daily AI actions remaining"), ZERO ("0 of 5 daily AI actions remaining"), UNLIMITED ("Unlimited AI actions today"), and LOADING/null (safe absence). Exactly 0 AI function calls executed, 0 credit deductions called. Footer actions (edit manually, discard, apply changes) fully usable. Visual proofs captured at 390x844 mobile (`qa_ai_enhance_credit_mobile_390x844.png`) and 1280x800 AR RTL (`qa_ai_enhance_credit_desktop_ar_rtl.png`).
+  - Protected Files Check: 100% clean (`planConfig.ts`, `billingCheckout.ts`, `PaymentConfirmationModal.tsx`, `appwrite-hubs/`, `.github/workflows/`, `vercel.json` strictly untouched).
+  - Git Working Tree: Classified as `SCOPED_DIRTY_WORKTREE` containing only approved in-scope changes. 0 commits, 0 pushes.
+
+## Frontend & Product UX Redesign Session (2026-09-10)
 * **Summary of Delivered Redesign Workstreams:**
   1. **Phase 1 (Shared Foundations):**
      - Created `src/components/settings/SettingsTabLayout.tsx`: Responsive sticky tab bar with deep linking (`?tab=`) and full RTL support.

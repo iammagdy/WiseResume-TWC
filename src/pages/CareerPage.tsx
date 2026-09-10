@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Sparkles, RefreshCw, MapPin, Briefcase, Clock, TrendingUp, Shield, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { Sparkles, RefreshCw, MapPin, Briefcase, Clock, TrendingUp, Shield, AlertTriangle, CheckCircle2, AlertCircle } from 'lucide-react';
 import { BackButton } from '@/components/ui/BackButton';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -16,6 +16,7 @@ import { SkillCourseCard } from '@/components/career/SkillCourseCard';
 import { useCareerAssessment, useCareerMutations } from '@/hooks/useCareerAssessment';
 import { useResumes, dbToResumeData } from '@/hooks/useResumes';
 import { useAuth } from '@/hooks/useAuth';
+import { useLocale } from '@/i18n/LocaleProvider';
 import { appwriteFunctions } from '@/lib/appwrite-functions';
 import { useAIAction } from '@/hooks/useAIAction';
 import { checkAIRateLimit } from '@/lib/rateLimiter';
@@ -27,7 +28,8 @@ import { useRedactedResume } from '@/hooks/useRedactedResume';
 export default function CareerPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { data: assessment, isLoading, refetch } = useCareerAssessment();
+  const { t } = useLocale();
+  const { data: assessment, isLoading, isError, refetch } = useCareerAssessment();
   const { createAssessment, toggleMilestone } = useCareerMutations();
   const { data: resumes } = useResumes();
   const [showQuiz, setShowQuiz] = useState(false);
@@ -154,6 +156,27 @@ export default function CareerPage() {
               <Skeleton className="h-48 rounded-2xl" />
               <Skeleton className="h-64 rounded-2xl" />
             </div>
+          ) : isError ? (
+            <Card className="p-8 text-center border-border/80 shadow-soft-sm">
+              <div className="w-12 h-12 rounded-2xl bg-destructive/10 text-destructive flex items-center justify-center mx-auto mb-4">
+                <AlertCircle className="w-6 h-6" />
+              </div>
+              <h3 className="text-lg font-semibold text-foreground mb-1">
+                {t('app.careerPage.errorTitle', 'Unable to load career assessment')}
+              </h3>
+              <p className="text-sm text-muted-foreground max-w-md mx-auto mb-6">
+                {t('app.careerPage.errorDescription', 'Something went wrong while fetching your career data. Please try again.')}
+              </p>
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+                <Button onClick={() => void refetch()} variant="default" className="min-w-[140px] gap-2">
+                  <RefreshCw className="w-4 h-4" />
+                  {t('app.careerPage.retry', 'Retry')}
+                </Button>
+                <Button onClick={() => navigate('/dashboard')} variant="outline" className="min-w-[140px]">
+                  {t('app.careerPage.backToDashboard', 'Back to Dashboard')}
+                </Button>
+              </div>
+            </Card>
           ) : !assessment ? (
             /* Empty state */
             <Card className="overflow-hidden">

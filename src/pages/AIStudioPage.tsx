@@ -326,7 +326,7 @@ export default function AIStudioPage() {
 
   if (!isPro) {
     return (
-      <div className="flex-1 flex items-center justify-center">
+      <div className="flex-1 flex flex-col items-center justify-center px-4 py-8">
         <UpgradeWall
           requiredPlan="pro"
           featureName="Wise AI"
@@ -339,6 +339,14 @@ export default function AIStudioPage() {
             t('app.aiStudio.upgradeF5', 'Wise AI Chat across your resume workflow'),
           ]}
         />
+        <div className="mt-2 max-w-sm w-full mx-auto p-4 rounded-xl border border-primary/20 bg-primary/5 text-center text-xs text-muted-foreground shadow-soft-sm">
+          <p className="font-semibold text-foreground mb-1">
+            {t('app.aiStudio.freeAiNoteTitle', 'Free plan includes In-Editor AI')}
+          </p>
+          <p className="leading-relaxed">
+            {t('app.aiStudio.freeAiNoteDesc', 'You have 5 daily AI actions directly inside the Resume Editor to polish your summary and bullet points.')}
+          </p>
+        </div>
       </div>
     );
   }
