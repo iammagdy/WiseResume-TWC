@@ -1,5 +1,33 @@
 # Project Atlas — Active Operational & Handover State
 
+## Whop invoice.created Compatibility Hotfix & Preflight Pass (2026-09-10)
+
+* **Verdict:** `WHOP_PRODUCTION_PREFLIGHT_PASS__READY_FOR_FIRST_LIVE_TRANSACTION`
+* **Status:** `PRODUCTION_WEBHOOK_HOTFIX_DEPLOYED_AND_VERIFIED__PREFLIGHT_PASSED`
+* **Summary of Changes:**
+  - Whop Production API reports 13 subscribed events for `https://whop-webhook.wiseresume.app` (`hook***hmQv`), including `invoice.created`.
+  - Added `invoice.created` to `SUPPORTED_EVENTS` in `appwrite-hubs/whop-webhook/src/main.js` while strictly keeping it out of `STATE_EVENTS`.
+  - Processed `invoice.created` safely as a non-entitlement observational ledger event: records in `whop_event_ledger` with `processing_status: 'processed'`, `outcome_code: 'observed_without_entitlement_mutation'`, and `mutated: false`.
+  - Added unit test scenarios K through N to `tests/hubs/whop-webhook.test.cjs` covering acceptance, zero state mutation, idempotency, unknown event rejection, and production mode.
+  - Recomputed DevKit source hash for `whop-webhook` (`c5fcc9f4...`).
+  - PR #332 merged to `main` at commit `a46c2a802908863ec7bcd3ba6642a36ff7faa106`.
+  - Executed targeted Appwrite deployment `deploy-appwrite-hubs.yml` (Run `34446694829`, target `whop-webhook`), reaching status `ready` (`6aa252496ce67daf19fb`).
+* **Live Provider & Runtime Verification Results:**
+  - **Whop Production API:** Company `biz_B7fMXLLj18wv8J` active (`charges_enabled: true`). Pro Plan `plan_4JJSQLj5zEKVn` ($5/mo) and Ultimate Plan `plan_kt5MScAplbCuN` ($10/mo) active.
+  - **Subscribed Webhook Events (13):** `membership.activated`, `membership.deactivated`, `membership.cancel_at_period_end_changed`, `payment.succeeded`, `payment.failed`, `payment.pending`, `invoice.paid`, `invoice.past_due`, `invoice.created`, `refund.created`, `refund.updated`, `dispute.created`, `dispute.updated`.
+  - **Missing Events:** 0 | **Unsupported Events:** 0 | **Exact Set Match:** YES.
+  - **Live Runtime Probes (`https://whop-webhook.wiseresume.app`):**
+    - Unsigned POST: HTTP 401 Unauthorized (fail-closed cryptographic signature verification PASS).
+    - Signed unknown event: HTTP 400 `invalid_event` (signature verified, business validation PASS).
+    - Signed `invoice.created`: HTTP 200 `{ status: "success", data: { outcome: "processed", code: "observed_without_entitlement_mutation", mutated: false } }` (hotfix PASS).
+    - Duplicate `invoice.created`: HTTP 200 `{ status: "success", data: { outcome: "duplicate", code: "already_recorded", mutated: false } }` (idempotency PASS).
+  - **Appwrite State Integrity:** `whop_subscription_state` count is 0 (zero mutation, zero customer entitlement alteration). `whop_event_ledger` accurately recorded the observational ledger entry.
+* **Safety Audit:**
+  - `REAL_PAYMENT_CREATED = NO`
+  - `REAL_PAYMENT_COMPLETED = NO`
+  - `CUSTOMER_ENTITLEMENT_MUTATED = NO`
+  - `DEVKIT_OWNER_BROWSER_VERIFICATION = DEFERRED_BY_OWNER`
+
 ## Whop Production Activation — Live Catalog, Webhook, Runtime Cutover & Targeted Deployment (2026-09-09)
 
 * **Verdict:** `WHOP_PRODUCTION_ACTIVATED__PENDING_FIRST_LIVE_TRANSACTION`

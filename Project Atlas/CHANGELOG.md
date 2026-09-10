@@ -1,5 +1,40 @@
 # WiseResume Atlas Master Changelog
 
+### 2026-09-10 - Whop invoice.created Compatibility Hotfix & Preflight Pass
+
+- **Verdict:** `WHOP_PRODUCTION_PREFLIGHT_PASS__READY_FOR_FIRST_LIVE_TRANSACTION` (Status: `PRODUCTION_WEBHOOK_HOTFIX_DEPLOYED_AND_VERIFIED__PREFLIGHT_PASSED`).
+- **Owner Authorization & Governance Boundary:**
+  - Owner explicitly authorized compatibility hotfix to accept `invoice.created` as non-entitlement observational ledger event.
+  - Zero financial transactions: no real payment made, no test card submitted, zero customer entitlement mutation.
+- **Problem & Root Cause:**
+  - Whop Production webhooks persistently include `invoice.created` in the registered subscription set (13 total events).
+  - Previous `whop-webhook` supported only 12 events, causing `invoice.created` to be rejected with HTTP 400 `invalid_event`.
+- **Implementation & Hotfix (`appwrite-hubs/whop-webhook/src/main.js`):**
+  - Added `invoice.created` to `SUPPORTED_EVENTS`.
+  - Excluded `invoice.created` from `STATE_EVENTS` to ensure it never touches `whop_subscription_state`.
+  - Safely records in `whop_event_ledger` as observational event (`processing_status: 'processed'`, `outcome_code: 'observed_without_entitlement_mutation'`, `mutated: false`).
+  - Idempotent: duplicate deliveries return `outcome: 'duplicate'`, `code: 'already_recorded'`.
+- **Tests & Verification (`tests/hubs/whop-webhook.test.cjs`):**
+  - Added unit test scenarios K, L, M, N. All 28 hub tests passed.
+  - TypeScript typecheck and Vite production build passed.
+  - Recomputed DevKit source hashes (`whop-webhook`: `c5fcc9f4...`).
+- **PR & Targeted Deployment:**
+  - Merged PR #332 (`a46c2a802908863ec7bcd3ba6642a36ff7faa106`) into `main`.
+  - Targeted Appwrite deployment `deploy-appwrite-hubs.yml` (Run `34446694829`, target: `whop-webhook`) reached status `ready` (`6aa252496ce67daf19fb`).
+- **Live Provider & Runtime Verification:**
+  - Authenticated Whop Production API confirmed company `biz_B7fMXLLj18wv8J` active and plans `plan_4JJSQLj5zEKVn` / `plan_kt5MScAplbCuN` active.
+  - Webhook `https://whop-webhook.wiseresume.app` reports 13 subscribed events (exact match: 0 missing, 0 unsupported).
+  - Unsigned probe: HTTP 401 fail-closed.
+  - Signed unknown event probe: HTTP 400 `invalid_event`.
+  - Signed `invoice.created` probe: HTTP 200 `observed_without_entitlement_mutation`, `mutated: false`.
+  - Duplicate `invoice.created` probe: HTTP 200 `already_recorded`, `mutated: false`.
+  - Appwrite DB: 0 documents in `whop_subscription_state`, 0 customer mutations.
+- **Final Safety Status:**
+  - `REAL_PAYMENT_CREATED = NO`
+  - `REAL_PAYMENT_COMPLETED = NO`
+  - `CUSTOMER_ENTITLEMENT_MUTATED = NO`
+  - `WHOP_PRODUCTION_PREFLIGHT_PASS__READY_FOR_FIRST_LIVE_TRANSACTION`
+
 ### 2026-09-09 - Whop Production Activation: Live Catalog, Webhooks, Runtime Cutover & Targeted Deployment
 
 - **Verdict:** `WHOP_PRODUCTION_ACTIVATED__PENDING_FIRST_LIVE_TRANSACTION` (Status: `PRODUCTION_ACTIVATED__TARGETED_HUBS_DEPLOYED_AND_READY__NO_CHARGE_VERIFIED`).
