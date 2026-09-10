@@ -48,6 +48,8 @@ assert.equal(t.verifySignature(raw, { headers: {} }, secret), false);
 
 const event = t.eventData(JSON.parse(raw), 'msg_1');
 assert.equal(t.validateEvent(event), null);
+assert.equal(t.SUPPORTED_EVENTS.has('invoice.created'), true);
+assert.equal(t.STATE_EVENTS.has('invoice.created'), false);
 assert.equal(t.statePatch(event, Date.now(), null).plan, 'pro');
 assert.equal(t.validateEvent({ ...event, planId: 'plan_unknown' }), 'unknown_product_or_plan');
 assert.equal(t.validateEvent({ ...event, companyId: 'biz_wrong' }), 'company_mismatch');
@@ -453,7 +455,115 @@ function createMockUsers(validUserIds = []) {
     process.env.WHOP_ACCESS_ENVIRONMENT = 'sandbox';
   }
 
-  console.log('All Whop webhook test scenarios (A through J) passed successfully.');
+  // Scenario K: invoice.created is accepted as non-entitlement observational ledger event
+  {
+    const db = createMockDatabases();
+    const invoiceCreatedEvent = {
+      id: 'msg_inv_created_1',
+      api_version: 'v1',
+      type: 'invoice.created',
+      timestamp: new Date().toISOString(),
+      account_id: process.env.WHOP_SANDBOX_COMPANY_ID,
+      data: {
+        id: 'inv_1',
+        membership: { id: 'mem_inv_1' },
+        user: { id: 'whop_user_inv' },
+        plan: { id: process.env.WHOP_SANDBOX_PRO_PLAN_ID },
+        product: { id: process.env.WHOP_SANDBOX_PRODUCT_ID },
+        metadata: { wiseresume_user_id: QA_USER },
+      },
+    };
+
+    const res = await t.processEvent(db, users, t.eventData(invoiceCreatedEvent, 'msg_inv_created_1'));
+    assert.equal(res.outcome, 'processed');
+    assert.equal(res.code, 'observed_without_entitlement_mutation');
+    assert.equal(res.mutated, false, 'invoice.created must never mutate entitlement state');
+    assert.equal(db.store.whop_subscription_state.size, 0, 'Subscription state must remain empty');
+    assert.equal(db.store.whop_event_ledger.size, 1, 'Ledger must contain recorded event');
+    const ledgerEntry = Array.from(db.store.whop_event_ledger.values())[0];
+    assert.equal(ledgerEntry.event_id, 'msg_inv_created_1');
+    assert.equal(ledgerEntry.event_type, 'invoice.created');
+    assert.equal(ledgerEntry.processing_status, 'processed');
+    assert.equal(ledgerEntry.outcome_code, 'observed_without_entitlement_mutation');
+  }
+
+  // Scenario L: invoice.created duplicate delivery is idempotent
+  {
+    const db = createMockDatabases();
+    const invoiceCreatedEvent = {
+      id: 'msg_inv_created_dup',
+      api_version: 'v1',
+      type: 'invoice.created',
+      timestamp: new Date().toISOString(),
+      account_id: process.env.WHOP_SANDBOX_COMPANY_ID,
+      data: {
+        id: 'inv_dup',
+        metadata: { wiseresume_user_id: QA_USER },
+      },
+    };
+
+    const first = await t.processEvent(db, users, t.eventData(invoiceCreatedEvent, 'msg_inv_created_dup'));
+    assert.equal(first.outcome, 'processed');
+    assert.equal(first.code, 'observed_without_entitlement_mutation');
+    assert.equal(first.mutated, false);
+    assert.equal(db.store.whop_event_ledger.size, 1);
+
+    const second = await t.processEvent(db, users, t.eventData(invoiceCreatedEvent, 'msg_inv_created_dup'));
+    assert.equal(second.outcome, 'duplicate');
+    assert.equal(second.code, 'already_recorded');
+    assert.equal(second.mutated, false);
+    assert.equal(db.store.whop_subscription_state.size, 0, 'Subscription state must remain empty');
+  }
+
+  // Scenario M: unsupported event is rejected with invalid_event
+  {
+    const db = createMockDatabases();
+    const unsupportedEvent = {
+      id: 'msg_unsupported_1',
+      api_version: 'v1',
+      type: 'invoice.unknown_type',
+      timestamp: new Date().toISOString(),
+      account_id: process.env.WHOP_SANDBOX_COMPANY_ID,
+      data: { id: 'some_id' },
+    };
+
+    const res = await t.processEvent(db, users, t.eventData(unsupportedEvent, 'msg_unsupported_1'));
+    assert.equal(res.outcome, 'rejected');
+    assert.equal(res.code, 'invalid_event');
+    assert.equal(res.mutated, false);
+    assert.equal(db.store.whop_event_ledger.size, 0);
+    assert.equal(db.store.whop_subscription_state.size, 0);
+  }
+
+  // Scenario N: Production environment accepts invoice.created without mutating state
+  {
+    process.env.WHOP_ACCESS_ENVIRONMENT = 'production';
+    const prodDb = createMockDatabases();
+    const prodUsers = createMockUsers(['prod_user_invoice_test']);
+    const prodInvoiceEvent = {
+      id: 'msg_prod_inv_1',
+      api_version: 'v1',
+      type: 'invoice.created',
+      timestamp: new Date().toISOString(),
+      account_id: 'biz_B7fMXLLj18wv8J',
+      data: {
+        id: 'inv_prod_1',
+        membership: { id: 'mem_prod_inv' },
+        plan: { id: 'plan_4JJSQLj5zEKVn' },
+        product: { id: 'prod_WrbEGZdSaG2af' },
+      },
+    };
+
+    const res = await t.processEvent(prodDb, prodUsers, t.eventData(prodInvoiceEvent, 'msg_prod_inv_1'));
+    assert.equal(res.outcome, 'processed');
+    assert.equal(res.code, 'observed_without_entitlement_mutation');
+    assert.equal(res.mutated, false);
+    assert.equal(prodDb.store.whop_subscription_state.size, 0);
+    assert.equal(prodDb.store.whop_event_ledger.size, 1);
+    process.env.WHOP_ACCESS_ENVIRONMENT = 'sandbox';
+  }
+
+  console.log('All Whop webhook test scenarios (A through N) passed successfully.');
 })().catch(err => {
   console.error('Test failure:', err);
   process.exit(1);
