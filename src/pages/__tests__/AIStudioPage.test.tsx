@@ -177,4 +177,16 @@ describe("AIStudioPage workspace IA", () => {
 
     expect(mockNavigate).toHaveBeenCalledWith("/ai-studio", { replace: true });
   });
+
+  it("renders UpgradeWall and Free In-Editor AI guidance when user is not Pro", async () => {
+    const { usePlan } = await import("@/hooks/usePlan");
+    (usePlan as any).mockReturnValueOnce({ isPro: false, isPremium: false, isLoading: false, plan: "free" });
+
+    renderWithProviders(<AIStudioPage />);
+
+    expect(screen.getByText(/Wise AI is a Pro feature/i)).toBeInTheDocument();
+    expect(screen.getByText(/Free plan includes In-Editor AI/i)).toBeInTheDocument();
+    expect(screen.getByText(/5 daily AI actions directly inside the Resume Editor/i)).toBeInTheDocument();
+    expect(screen.queryByText(/improve my resume/i)).not.toBeInTheDocument();
+  });
 });

@@ -168,6 +168,16 @@
   "templatesPage": {
     "title": "Templates"
   },
+  "careerPage": {
+    "errorTitle": "Unable to load career assessment",
+    "errorDescription": "Something went wrong while fetching your career data. Please try again.",
+    "retry": "Retry",
+    "backToDashboard": "Back to Dashboard"
+  },
+  "aiCreditsDialog": {
+    "unlimitedToday": "Unlimited AI actions today",
+    "remainingToday": "{{remaining}} of {{limit}} daily AI actions remaining"
+  },
   "free": "Free",
   "pro": "Pro",
   "premium": "Ultimate",
@@ -243,7 +253,14 @@
     "tip4": "Include quantifiable results",
     "startTourAria": "Start onboarding tour",
     "createResumeWithTemplate": "Create resume with {{name}} template",
-    "showTipNum": "Show tip {{num}}"
+    "showTipNum": "Show tip {{num}}",
+    "buildFirstResume": "Build your first resume",
+    "subtitle": "Start fresh with ATS-ready templates or upload an existing resume to enhance with AI.",
+    "createResume": "Create Resume",
+    "uploadResume": "Upload Existing Resume",
+    "badgeAts": "ATS-optimized",
+    "badgeAi": "AI tailoring",
+    "badgeExport": "Instant PDF export"
   },
   "dashboardTopBar": {
     "resumeWorkspace": "Resume workspace",
@@ -282,6 +299,8 @@
     "upgradeF3": "Cover Letters and LinkedIn optimization",
     "upgradeF4": "Career planning and writing support",
     "upgradeF5": "Wise AI Chat across your resume workflow",
+    "freeAiNoteTitle": "Free plan includes In-Editor AI",
+    "freeAiNoteDesc": "You have 5 daily AI actions directly inside the Resume Editor to polish your summary and bullet points.",
     "pickerTitle": "Which resume should power this tool?",
     "pickerDesc": "Wise AI will read and update the resume you pick. Choose the version that fits this job or task.",
     "tourTitle": "Welcome to Wise AI Workspace",

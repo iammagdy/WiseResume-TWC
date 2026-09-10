@@ -6,6 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { AIProviderVia } from '@/components/editor/ai/AIProviderBadge';
+import { useAICredits } from '@/hooks/useAICredits';
+import { useLocale } from '@/i18n/LocaleProvider';
 
 export type AIEnhanceRerunAction = 'shorten' | 'improve' | 'generate';
 
@@ -73,8 +75,8 @@ export function AIEnhanceDialog({
   isOpen,
   original,
   improved,
-  changes,
-  suggestions,
+  changes = [],
+  suggestions = [],
   entries,
   onApply,
   onDiscard,
@@ -83,6 +85,13 @@ export function AIEnhanceDialog({
   allowedReruns = ['shorten', 'improve', 'generate'],
   title = 'AI Enhancement',
 }: AIEnhanceDialogProps) {
+  const { t } = useLocale();
+  const { data: credits } = useAICredits();
+  const used = credits?.daily_usage ?? 0;
+  const limit = credits?.daily_limit ?? 5;
+  const isUnlimited = !isFinite(limit);
+  const remaining = Math.max(0, limit - used);
+
   const useEntryView = !!entries && entries.length > 0;
 
   const [editedText, setEditedText] = useState(improved);
@@ -297,26 +306,41 @@ export function AIEnhanceDialog({
         </div>
 
         {/* Actions */}
-        <div className="shrink-0 flex flex-col sm:flex-row gap-3 p-4 pb-safe border-t border-border">
-          <Button
-            variant="outline"
-            size="lg"
-            className="flex-1 h-12"
-            onClick={onDiscard}
-            disabled={isEnhancing}
-          >
-            <X className="w-5 h-5 mr-2" />
-            Discard
-          </Button>
-          <Button
-            size="lg"
-            className="flex-1 h-12 gradient-primary"
-            onClick={() => onApply(editedText)}
-            disabled={!canApply}
-          >
-            <Check className="w-5 h-5 mr-2" />
-            Apply Changes
-          </Button>
+        <div className="shrink-0 flex flex-col gap-3 p-4 pb-safe border-t border-border">
+          {credits && (
+            <div className="flex items-center justify-between text-xs text-muted-foreground px-0.5">
+              <span className="inline-flex items-center gap-1.5 font-medium">
+                <Sparkles className="w-3.5 h-3.5 text-primary" />
+                {isUnlimited
+                  ? t('app.aiCreditsDialog.unlimitedToday', 'Unlimited AI actions today')
+                  : t('app.aiCreditsDialog.remainingToday', '{{remaining}} of {{limit}} daily AI actions remaining', {
+                      remaining,
+                      limit,
+                    })}
+              </span>
+            </div>
+          )}
+          <div className="flex flex-col sm:flex-row gap-3">
+            <Button
+              variant="outline"
+              size="lg"
+              className="flex-1 h-12"
+              onClick={onDiscard}
+              disabled={isEnhancing}
+            >
+              <X className="w-5 h-5 mr-2" />
+              Discard
+            </Button>
+            <Button
+              size="lg"
+              className="flex-1 h-12 gradient-primary"
+              onClick={() => onApply(editedText)}
+              disabled={!canApply}
+            >
+              <Check className="w-5 h-5 mr-2" />
+              Apply Changes
+            </Button>
+          </div>
         </div>
       </div>
     </div>,

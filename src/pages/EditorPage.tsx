@@ -1285,7 +1285,7 @@ export default function EditorPage() {
 
   // === GUARDS (all inline, no effects — deterministic) ===
   if (authLoading || !storeHydrated) return <EditorResumeLoadingState />;
-  if (!targetId) return <Navigate to="/dashboard" replace />;
+  if (!targetId) return <Navigate to="/dashboard?action=create" replace />;
   if (resumeLoadError && !resumeFromDb) {
     return (
       <EditorResumeFailureState

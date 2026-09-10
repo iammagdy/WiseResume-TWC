@@ -294,6 +294,8 @@ export interface SaveProfileArgs {
   resumeTitle?: string;
   /** Template id for the resume row when one is created. */
   templateId?: string;
+  /** When true, unconditionally creates a starter resume document even if profile fields are empty. */
+  createStarterResume?: boolean;
 }
 
 export interface SaveProfileResult {
@@ -324,6 +326,7 @@ export async function saveOnboardingProfile({
   fallbackUserEmail,
   resumeTitle = 'My Resume',
   templateId = DEFAULT_RESUME_TEMPLATE_ID,
+  createStarterResume = false,
 }: SaveProfileArgs): Promise<SaveProfileResult> {
   let userId: string | null = null;
   let accountEmail = normalizeEmail(fallbackUserEmail);
@@ -343,6 +346,7 @@ export async function saveOnboardingProfile({
   const profileEmail = accountEmail || parsedEmail || fallbackProfileEmail(userId);
 
   const hasResumeContent =
+    Boolean(createStarterResume) ||
     !!selectedProfile.summary ||
     selectedProfile.experience.length > 0 ||
     selectedProfile.education.length > 0 ||

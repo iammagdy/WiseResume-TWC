@@ -71,10 +71,11 @@ vi.mock('@/lib/profileSeed', () => ({
   upsertProfileIdentity: vi.fn().mockResolvedValue({}),
 }));
 
+const mockSaveOnboardingProfile = vi.fn().mockResolvedValue({ resumeId: 'starter-123', hasResume: true });
 vi.mock('@/lib/onboardingProfile', () => ({
   fromResumeData: vi.fn(),
   fromProfileData: vi.fn(),
-  saveOnboardingProfile: vi.fn().mockResolvedValue({ hasResume: true }),
+  saveOnboardingProfile: (...args: unknown[]) => mockSaveOnboardingProfile(...args),
   probeLinkedInUrl: vi.fn(),
   emptyProfile: () => ({ fullName: 'Alex Morgan', jobTitle: '', experience: [], education: [], skills: [] }),
   reconcileOnboardingCompletion: vi.fn().mockResolvedValue(false),
@@ -190,6 +191,54 @@ describe('OnboardingPage — Goal-First UX & Lifecycle Requirements', () => {
     await waitFor(() => {
       expect(screen.getByText(/resume name/i)).toBeInTheDocument();
       expect(screen.getByPlaceholderText(/e\.g\. Tech Lead 2026/i)).toBeInTheDocument();
+    });
+  });
+
+  it('creates starter resume and navigates directly to /editor?id=... on CREATE flow', async () => {
+    mockSaveOnboardingProfile.mockResolvedValueOnce({ resumeId: 'starter-resume-456', hasResume: true });
+    renderOnboarding();
+
+    // Click Goal 1: Build a new resume
+    fireEvent.click(screen.getByText(/build a new resume/i));
+
+    const createButton = await screen.findByRole('button', { name: /create & continue/i });
+    fireEvent.click(createButton);
+
+    await waitFor(() => {
+      expect(mockSaveOnboardingProfile).toHaveBeenCalledWith(
+        expect.objectContaining({
+          createStarterResume: true,
+        }),
+      );
+      expect(mockNavigate).toHaveBeenCalledWith('/editor?id=starter-resume-456', { replace: true });
+    });
+  });
+
+  it('drops duplicate clicks while submission is in-flight (synchronous lock)', async () => {
+    let resolveSave: (val: { resumeId: string; hasResume: boolean }) => void;
+    const savePromise = new Promise<{ resumeId: string; hasResume: boolean }>((resolve) => {
+      resolveSave = resolve;
+    });
+    mockSaveOnboardingProfile.mockReturnValueOnce(savePromise);
+
+    renderOnboarding();
+
+    // Click Goal 1: Build a new resume
+    fireEvent.click(screen.getByText(/build a new resume/i));
+
+    const createButton = await screen.findByRole('button', { name: /create & continue/i });
+
+    // Fire rapid double-click
+    fireEvent.click(createButton);
+    fireEvent.click(createButton);
+
+    // Synchronous ref lock ensures exactly one call is dispatched
+    expect(mockSaveOnboardingProfile).toHaveBeenCalledTimes(1);
+
+    resolveSave!({ resumeId: 'starter-id-789', hasResume: true });
+
+    await waitFor(() => {
+      expect(mockNavigate).toHaveBeenCalledWith('/editor?id=starter-id-789', { replace: true });
     });
   });
 });
