@@ -1,6 +1,6 @@
 # WiseResume Current Deployment Guide
 
-**Last Verified:** 2026-09-06
+**Last Verified:** 2026-09-10
 **Status:** Canonical Deployment Specification  
 **Location:** `Project Atlas/deployment/current-deployment.md`  
 
@@ -18,9 +18,9 @@ WiseResume uses a hybrid deployment architecture:
 ## 2. Frontend Deployment (Vercel)
 
 * **Production URL:** `https://wiseresume.app`
-* **Current Production Deployment:** GitHub deployment record `6134499586` for Vercel environment `Production`, associated with merged product commit `1abe49349d0998f13709c7af9d80164435b5069e`, completed with status `success`; target URL was `https://wise-resume-n0pbocame-iam-magdy.vercel.app`. The normal main-branch deployment path was used; no manual Vercel deployment was initiated.
-* **Merge boundary:** PR [#216](https://github.com/iammagdy/WiseResume-TWC/pull/216) merged normally into `main` at `82d3640c743442db304c50cb57a229648685b59a` after the authorized head `f18017f2af81ca939c047082f6215baf545bfc1b` and two-file scope were re-confirmed. The deployment status for that merge commit was `success`.
-* **Trigger / QA:** The merge to `main` triggered the normal Vercel Production deployment path. Authenticated Arabic RTL desktop QA at approximately 1526×811 showed the corrected sidebar footer/account reachability, Pro card, Manage billing, and `50 / 50` credits in both dark and light modes. Plan & billing reached `/subscription` with Pro, Active, and `0 / 50` daily usage. English LTR and reduced mobile viewport remain `UNVERIFIED` because the live locale control was feature-flagged off and the available browser controls did not resize the viewport. No Appwrite deployment occurred or was required.
+* **Current Production Deployment:** GitHub deployment record `6373222083` for Vercel environment `Production`, associated with merged product commit `f828c47d864d44e22e9d2bf84a4a4bbcf21d7917` (PR #334), completed with status `success`; target URL was `https://wise-resume-q43ilc1ay-iam-magdy.vercel.app`. The normal main-branch deployment path was used; no manual Vercel deployment was initiated.
+* **Merge boundary:** PR [#334](https://github.com/iammagdy/WiseResume-TWC/pull/334) merged normally into `main` at `f828c47d864d44e22e9d2bf84a4a4bbcf21d7917` with head-commit protection (`fe9b3cca4e3d97540fb7e183c30c4ed6c1acfae1`).
+* **Trigger / QA:** The merge to `main` triggered the automated Vercel Production deployment path. Real browser QA (Playwright Chromium) on `https://wiseresume.app` verified 100% pass across homepage, English pricing (canonical "Unlimited" AI quota, 0 stale copy, 0px overflow), Arabic pricing (RTL layout, 0 stale copy, 0px mobile overflow), and auth health (Appwrite production API reachable from browser origin with HTTP 200, 0 CORS / origin errors). No Appwrite deployment occurred or was required.
 * **Build Command:** `npm run build`
 * **Output Directory:** `dist/`
 * **Active Frontend CSP:** Delivered through the Vite-injected meta tag. Appwrite access requires both `https://fra.cloud.appwrite.io` and `wss://fra.cloud.appwrite.io` in `connect-src`. Browser visitor tracking must not add GeoJS to `connect-src`; direct browser GeoJS requests were removed in favor of Appwrite ingestion metadata where available.

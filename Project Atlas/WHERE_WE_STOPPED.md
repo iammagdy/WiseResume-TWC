@@ -1,17 +1,20 @@
 # Project Atlas — Active Operational & Handover State
 
-## Verified UX Fixes & Pre-Commit Gap Closure Session (2026-09-10)
+## Verified UX Fixes, Activation Feedback & Onboarding Idempotency Session (2026-09-10)
 
-* **Verdict:** `TESTED_LOCAL_READY_FOR_COMMIT`
-* **Status:** `BRANCH_LOCAL_VALIDATED__ZERO_COMMITS__ZERO_PUSHES__PAYMENTS_FROZEN`
-* **Branch:** `fix/verified-ux-activation-feedback`
+* **Verdict:** `PASS_WITH_WARNINGS` (all in-scope fixes and tests passed; single warning is pre-existing baseline debt in `englishUiFallbackCoverage.test.ts`)
+* **Status:** `PRODUCTION_DEPLOYED_AND_VERIFIED__PR334_MERGED__PAYMENTS_FROZEN`
+* **Documentation Branch:** `docs/ux-fixes-production-closeout-2026-09-10`
+* **Feature PR:** [#334](https://github.com/iammagdy/WiseResume-TWC/pull/334) (Merged into `main` via squash merge)
+* **Feature Merge Commit SHA:** [`f828c47d864d44e22e9d2bf84a4a4bbcf21d7917`](https://github.com/iammagdy/WiseResume-TWC/commit/f828c47d864d44e22e9d2bf84a4a4bbcf21d7917)
 * **Base Commit:** `b403181ca05acdd80eaed2798210e23e87a2350d` (`origin/main`)
+* **Vercel Production Deployment:** Record ID `6373222083` (Target: `https://wise-resume-q43ilc1ay-iam-magdy.vercel.app`, Canonical: `https://wiseresume.app`, Status: `SUCCESS`)
 * **Session Boundary & Protected Files Compliance:**
   - `PAYMENT_FILES_TOUCHED = NO` (`src/lib/planConfig.ts`, `src/lib/billingCheckout.ts`, `src/components/subscription/PaymentConfirmationModal.tsx` remain strictly untouched).
   - `PROTECTED_DIRECTORIES_TOUCHED = NO` (`appwrite-hubs/`, `.github/workflows/`, `vercel.json` remain strictly untouched).
   - `APPWRITE_BACKEND_MUTATED = NO` (Zero database schema/permission changes, zero function deployments).
-  - `EXTERNAL_CONSOLES_CHANGED = NO` (Zero changes to Vercel, GitHub, Whop, PayPal, RevenueCat).
-  - `GIT_OPERATIONS = LOCAL_WORKING_TREE_ONLY` (0 commits created, 0 pushes dispatched).
+  - `EXTERNAL_CONSOLES_CHANGED = NO` (Zero changes to Vercel variables, GitHub variables, Whop, PayPal, RevenueCat).
+  - `GIT_OPERATIONS = PR_MERGED_TO_MAIN_AND_VERIFIED` (PR #334 merged with head-commit protection).
 * **Summary of Delivered UX Fixes & Contract Hardening:**
   1. **REG-01 (Arabic Empty State & Icon Alignment):**
      - Added 7 missing localized keys to `locales/en/app.json` and `locales/ar/app.json`: `buildFirstResume`, `subtitle`, `createResume`, `uploadResume`, `badgeAts`, `badgeAi`, `badgeExport`.
@@ -25,9 +28,10 @@
      - Added comprehensive test suite in `src/pages/__tests__/CareerPage.test.tsx` (5/5 passing) covering LOADING (skeletons), ERROR (card, AlertCircle, copy), Retry click (`refetch()`), Dashboard navigation, and EMPTY state.
   4. **P1 (Onboarding CREATE Starter Resume Direct Navigation & Partial-Write Idempotency):**
      - In `src/lib/onboardingProfile.ts`, added `createStarterResume?: boolean` to `SaveProfileArgs` and conditioned `hasResumeContent` to evaluate true when requested, persisting a valid base resume even when lists are empty.
-     - Fixed partial-write duplicate vulnerability: when step 2 (resume creation) succeeds but step 3 (profile onboarding flag update) fails, `saveOnboardingProfile` retains the real `resumeId` rather than throwing and discarding it, enabling subsequent reconciliation via `reconcileOnboardingCompletion(userId)`. Before creating a starter resume, checks existing resumes to guarantee idempotency on retry.
+     - Resolved partial-write duplicate vulnerability: when step 2 (resume creation) succeeds but step 3 (profile onboarding flag update) fails, `saveOnboardingProfile` retains the real `resumeId` rather than throwing and discarding it, enabling subsequent reconciliation via `reconcileOnboardingCompletion(userId)`. Before creating a starter resume, checks existing resumes to guarantee idempotency on retry.
      - In `src/pages/OnboardingPage.tsx`, updated `handleManualCreate` to pass `createStarterResume: true`, navigate directly to `/editor?id=${result.resumeId}`, and route `CelebrationStep` to `/editor?id=${createdResumeId}`. Added synchronous ref lock (`isSavingManualRef`) and `createdResumeIdRef` preventing duplicate creation under rapid double-clicks or retries.
      - Unit test suites: `src/lib/onboardingProfile.test.ts` (13/13 passing, including Cases A-E), `src/pages/__tests__/OnboardingPage.test.tsx` (12/12 passing). Total focused suite: 42/42 passing. Real browser QA verified via Playwright.
+     - Production Safety Boundary: `PRODUCTION_ONBOARDING_LIFECYCLE_NOT_REEXECUTED_FOR_DATA_SAFETY` (per safety policy, real production accounts were not reset and disposable test users were not created against live production database).
   5. **P1 (In-Editor AI Credit Transparency):**
      - In `src/components/editor/ai/AIEnhanceDialog.tsx`, integrated `useAICredits` and `useLocale` to display an authoritative remaining daily quota badge ("X of Y daily AI actions remaining" / "Unlimited AI actions today") in the actions footer above the CTA buttons. Defaulted optional `changes = []`, `suggestions = []` to prevent runtime TypeError.
      - Added unit test suite in `src/components/editor/ai/__tests__/AIEnhanceDialog.test.tsx` (5/5 passing) asserting finite quota, zero remaining quota, unlimited quota, null/loading safety, and zero credit consumption on open.
@@ -35,22 +39,21 @@
      - In `src/pages/AIStudioPage.tsx`, added a prominent guidance card under `UpgradeWall` informing Free users that 5 daily AI actions are included directly inside the Resume Editor. Added localized keys in `locales/en/app.json` and `locales/ar/app.json`.
      - Test suite: `src/pages/__tests__/AIStudioPage.test.tsx` (5/5 passing).
   7. **Factual Correction (Pricing Comparison Table):**
-     - In `src/pages/PricingPage.tsx:289`, updated Ultimate daily AI actions allowance from outdated `"200 / day"` to canonical `"Unlimited"`.
+     - In `src/pages/PricingPage.tsx:289`, updated Ultimate daily AI actions allowance from outdated `"200 / day"` to canonical `"Unlimited"`. Verified live on production across desktop & mobile viewports.
   8. **SettingsPage Reversion (Classification: UNRELATED_CHANGE):**
      - Reverted branch-local edit in `src/pages/SettingsPage.tsx`. The failing assertion in `englishUiFallbackCoverage.test.ts` was pre-existing debt from PR #333 on `origin/main` (`b403181c`). Reverting preserves strict scope boundaries without touching unrelated pre-existing code.
 * **Verification & Validation Results:**
   - `npx tsc --noEmit`: Clean (0 errors).
   - `git diff --check`: Clean (0 whitespace/formatting errors).
-  - Focused Test Suites: 34/34 passing across all 6 branch test suites (`onboardingProfile.test.ts`, `OnboardingPage.test.tsx`, `AIStudioPage.test.tsx`, `EditorRecovery.test.tsx`, `CareerPage.test.tsx`, `AIEnhanceDialog.test.tsx`).
+  - Focused Test Suites: 42/42 passing across all branch test suites (`onboardingProfile.test.ts`, `OnboardingPage.test.tsx`, `AIStudioPage.test.tsx`, `EditorRecovery.test.tsx`, `CareerPage.test.tsx`, `AIEnhanceDialog.test.tsx`).
   - Pre-Existing Full Suite Failure Proven: Isolated temporary worktree on `origin/main` (`b403181c`) confirmed the exact identical failure in `englishUiFallbackCoverage.test.ts` (`src\pages\SettingsPage.tsx:287 -> settings.tabs.notifications`, missing count: 1), proving classification as `PRE_EXISTING_TEST_FAILURE`.
-  - Final Missing Evidence Playwright Real Browser QA Matrix: 100% PASS across all criteria:
-    1. Onboarding CREATE Happy Path (3A): Dispatched exactly 1 creation call, landed directly at `/editor?id=resume-onboarding-test-101`, survived reload persistence at exact URL, persisted to `/dashboard` with 1 card.
-    2. Onboarding Rapid Double-Submit Idempotency (3B): Ref lock and navigation guard ensured exactly 1 creation request dispatched under rapid double-click bursts.
-    3. Onboarding Controlled Failure Handling (3C): Appwrite 500 error kept user on form with preserved inputs, 0 false congratulations/celebrations, 0 navigations.
-    4. Career Page Error State (4): Skeletons terminated, AlertCircle card rendered with truthful localized copy, Retry button triggered refetch, Back to Dashboard navigated to `/dashboard`. Verified across Desktop EN (1440x900), Mobile EN (390x844), Desktop AR RTL (1280x800).
-    5. AI Enhance Dialog Credit UI (5): Verified FINITE ("3 of 5 daily AI actions remaining"), ZERO ("0 of 5 daily AI actions remaining"), UNLIMITED ("Unlimited AI actions today"), and LOADING/null (safe absence). Exactly 0 AI function calls executed, 0 credit deductions called. Footer actions (edit manually, discard, apply changes) fully usable. Visual proofs captured at 390x844 mobile (`qa_ai_enhance_credit_mobile_390x844.png`) and 1280x800 AR RTL (`qa_ai_enhance_credit_desktop_ar_rtl.png`).
+  - Production Live Browser QA (Playwright Chromium against `https://wiseresume.app`): 100% PASS across all criteria:
+    1. Homepage (`/`): HTTP 200, title "WiseResume AI — AI Resume Builder", 0px horizontal overflow.
+    2. English Pricing (`/pricing`): HTTP 200, Free ($0), Pro ($5/mo), Ultimate ($10/mo), canonical "Unlimited" AI actions displayed, zero stale "200 / day" anywhere on page, 0px horizontal overflow on desktop (1440x900) & mobile (390x844).
+    3. Arabic Pricing (`/ar/pricing`): HTTP 200, RTL active (`dir="rtl"`), zero stale "200" copy, 0px horizontal overflow on mobile (390x844).
+    4. Auth Health (`/auth`): HTTP 200, Appwrite production API (`https://fra.cloud.appwrite.io/v1/health/version`) reachable from browser origin (HTTP 200 `{"status":200,"ok":true}`), zero CORS / `general_unknown_origin` errors.
+  - What's New Decision: `WHATS_NEW_REQUIRED` (Queued for next authorized release note cycle; no unapproved changes to `/whats-new` made in this PR).
   - Protected Files Check: 100% clean (`planConfig.ts`, `billingCheckout.ts`, `PaymentConfirmationModal.tsx`, `appwrite-hubs/`, `.github/workflows/`, `vercel.json` strictly untouched).
-  - Git Working Tree: Classified as `SCOPED_DIRTY_WORKTREE` containing only approved in-scope changes. 0 commits, 0 pushes.
 
 ## Frontend & Product UX Redesign Session (2026-09-10)
 * **Summary of Delivered Redesign Workstreams:**

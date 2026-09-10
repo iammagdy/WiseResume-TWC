@@ -1,9 +1,11 @@
 # WiseResume Atlas Master Changelog
 
-### 2026-09-10 - Verified UX Fixes & Pre-Commit Gap Closure
+### 2026-09-10 - Verified UX Fixes, Activation Feedback & Onboarding Idempotency
 
-- **Verdict:** `TESTED_LOCAL_READY_FOR_COMMIT` (Status: `BRANCH_LOCAL_VALIDATED__ZERO_COMMITS__ZERO_PUSHES__PAYMENTS_FROZEN`).
-- **Branch:** `fix/verified-ux-activation-feedback`.
+- **Verdict:** `VERIFIED_READY` (Status: `MERGED_AND_DEPLOYED_TO_PRODUCTION__PAYMENTS_FROZEN`).
+- **PR:** [#334](https://github.com/iammagdy/WiseResume-TWC/pull/334) merged into `main` via squash merge.
+- **Merge Commit SHA:** [`f828c47d864d44e22e9d2bf84a4a4bbcf21d7917`](https://github.com/iammagdy/WiseResume-TWC/commit/f828c47d864d44e22e9d2bf84a4a4bbcf21d7917).
+- **Vercel Production Deployment:** Record ID `6373222083` for Vercel environment `Production` (Target: `https://wise-resume-q43ilc1ay-iam-magdy.vercel.app`, Live: `https://wiseresume.app`, Status: `SUCCESS`).
 - **Payment & Safety Invariant Compliance:**
   - Frozen payment modules (`src/lib/planConfig.ts`, `src/lib/billingCheckout.ts`, `src/components/subscription/PaymentConfirmationModal.tsx`) strictly untouched.
   - Protected files and directories (`appwrite-hubs/`, `.github/workflows/`, `vercel.json`) strictly untouched.
@@ -12,21 +14,21 @@
   - **REG-01 (Empty State Arabic & RTL Spacing):** Added 7 missing keys to `locales/en/app.json` and `locales/ar/app.json` (`buildFirstResume`, `subtitle`, `createResume`, `uploadResume`, `badgeAts`, `badgeAi`, `badgeExport`). Replaced hardcoded `mr-1.5` on icon buttons in `EmptyState.tsx` with `gap-1.5` for symmetric LTR/RTL spacing.
   - **BUG-02 (Editor Silent Bounce):** Updated `EditorPage.tsx:1288` missing `targetId` redirect to navigate to `/dashboard?action=create` (replace: true), directly opening `CreateResumeDialog` without user confusion. Added focused test suite in `src/pages/__tests__/EditorRecovery.test.tsx` (2/2 passing).
   - **BUG-01 (Career Page Error State):** Handled `isError` in `CareerPage.tsx` with a clean error card, `AlertCircle` icon, localized retry button (`refetch()`), and Back to Dashboard button. Added unit test suite in `src/pages/__tests__/CareerPage.test.tsx` (5/5 passing).
-  - **P1 (Onboarding CREATE Starter Resume):** Added `createStarterResume?: boolean` to `SaveProfileArgs` in `onboardingProfile.ts` and updated `handleManualCreate` in `OnboardingPage.tsx` to pass `createStarterResume: true` and navigate directly to `/editor?id=${result.resumeId}` upon creation. Updated `CelebrationStep` to route to `/editor?id=${createdResumeId}`. Added synchronous ref lock preventing double-submit. Unit tests: `onboardingProfile.test.ts` (8/8 passing), `OnboardingPage.test.tsx` (9/9 passing).
+  - **P1 (Onboarding CREATE Starter Resume):** Added `createStarterResume?: boolean` to `SaveProfileArgs` in `onboardingProfile.ts` and updated `handleManualCreate` in `OnboardingPage.tsx` to pass `createStarterResume: true` and navigate directly to `/editor?id=${result.resumeId}` upon creation. Updated `CelebrationStep` to route to `/editor?id=${createdResumeId}`. Added synchronous ref lock preventing double-submit. Unit tests: `onboardingProfile.test.ts` (13/13 passing), `OnboardingPage.test.tsx` (12/12 passing).
   - **P1 (In-Editor AI Credit Transparency):** Integrated `useAICredits` and `useLocale` in `AIEnhanceDialog.tsx` to display an authoritative remaining daily quota badge ("X of Y daily AI actions remaining" / "Unlimited AI actions today") in the actions footer. Safe defaults for optional props. Added unit test suite in `src/components/editor/ai/__tests__/AIEnhanceDialog.test.tsx` (5/5 passing).
-  - **P1 (Free AI In-Editor Communication):** Added a prominent guidance card under `UpgradeWall` in `AIStudioPage.tsx` informing Free users that 5 daily AI actions are included directly inside the Resume Editor. Unit tests in `AIStudioPage.test.tsx` (5/5 passing).
+  - **P1 (Free AI In-Editor Communication):** Added a prominent guidance card under `UpgradeWall` in `AIStudioPage.tsx` informing Free users that 5 daily AI actions are included directly inside the Resume Editor. Unit tests in `AIStudioPage.test.tsx` (5/5 pass).
   - **P1 (Onboarding Partial-Write Idempotency & Duplicate Prevention):** Resolved data-integrity / duplicate-resume risk if step 3 (profile onboarding flag finalization) fails after step 2 (resume document creation) succeeds. In `onboardingProfile.ts`: (a) When `createStarterResume` is requested, checks existing resumes before creation to guarantee idempotency on retry; (b) Catches final profile update errors and preserves the real created `resumeId` rather than throwing and discarding it, enabling subsequent async/mount reconciliation via `reconcileOnboardingCompletion(userId)`; (c) In `OnboardingPage.tsx`, stores `createdResumeIdRef` so subsequent user retries reuse the already-created resume without re-invoking creation. Added unit & integration tests covering Cases A through E and verified in real browser via Playwright.
-  - **Factual Correction (Pricing Matrix):** Corrected Ultimate daily AI quota in `PricingPage.tsx` comparison table from `"200 / day"` to canonical `"Unlimited"`.
+  - **Factual Correction (Pricing Matrix):** Corrected Ultimate daily AI quota in `PricingPage.tsx` comparison table from `"200 / day"` to canonical `"Unlimited"`. Verified live on `https://wiseresume.app/pricing` and `https://wiseresume.app/ar/pricing`.
   - **SettingsPage Reversion (Classification: UNRELATED_CHANGE):** Reverted branch-local edit in `SettingsPage.tsx` preserving pre-existing main baseline.
 - **Verification & Validation:**
   - `npx tsc --noEmit`: 0 errors.
   - `npm run test:i18n`: 11/11 catalogs match.
   - `npm run test:i18n:coverage`: 13/13 surfaces match.
-  - Focused Vitest suites: 34/34 passed across 6 branch test files (`onboardingProfile.test.ts`, `OnboardingPage.test.tsx`, `AIStudioPage.test.tsx`, `EditorRecovery.test.tsx`, `CareerPage.test.tsx`, `AIEnhanceDialog.test.tsx`).
+  - Focused Vitest suites: 42/42 passed across branch test files (`onboardingProfile.test.ts`, `OnboardingPage.test.tsx`, `AIStudioPage.test.tsx`, `EditorRecovery.test.tsx`, `CareerPage.test.tsx`, `AIEnhanceDialog.test.tsx`).
   - Full Repository Test Suite (`npm test`): 244 passed, 1 failed, 1 skipped (246 test files total); 1443 passed, 1 failed, 1 todo (1445 tests total). The single failure in `englishUiFallbackCoverage.test.ts` is 100% pre-existing debt on `origin/main` (`b403181c`).
   - `npm run build`: Production Vite build clean in 45.2s with zero sourcemap leaks.
   - `git diff --check`: 0 whitespace/formatting issues.
-  - Local Browser QA Matrix (Playwright Chromium): 100% PASS across all journeys (A, B, E, F, G) and 6 viewports (Desktop EN/AR, Tablet EN, Mobile EN/AR, Mobile Short 390x600). Captured screenshots saved to artifact storage.
+  - Live Production Browser QA Matrix (Playwright Chromium against `https://wiseresume.app`): 100% PASS across homepage, pricing EN/AR, desktop/mobile responsive viewports, and Appwrite auth health. 0 console errors, 0px horizontal overflow. Data safety boundary enforced (`PRODUCTION_ONBOARDING_LIFECYCLE_NOT_REEXECUTED_FOR_DATA_SAFETY`).
 
 ### 2026-09-10 - Frontend & Product UX Redesign
 
