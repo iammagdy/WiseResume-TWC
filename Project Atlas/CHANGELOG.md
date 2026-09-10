@@ -1,5 +1,31 @@
 # WiseResume Atlas Master Changelog
 
+### 2026-09-10 - Frontend & Product UX Redesign
+
+- **Verdict:** `BROWSER_TESTED_LOCAL_WITH_CONTROLLED_FIXTURES` (Status: `BRANCH_LOCAL_BROWSER_TESTED__ZERO_COMMITS__ZERO_PUSHES__PAYMENTS_FROZEN`).
+- **Branch:** `visual/frontend-product-experience-refresh`.
+- **Payment Safety & Invariant Boundary:**
+  - Frozen payment modules (`src/lib/planConfig.ts`, `src/lib/billingCheckout.ts`, `src/components/subscription/PaymentConfirmationModal.tsx`) strictly untouched.
+  - Zero Appwrite backend or schema mutations. Zero console changes.
+- **Redesigned Core Surfaces:**
+  - **Shared Foundations:** Created `SettingsTabLayout.tsx`, `SettingsSearchInput.tsx`, `JobCard.tsx`, `JobCardSkeleton.tsx`, `JobFiltersSheet.tsx`, and taxonomy utility `remoteJobsFeed.ts`.
+  - **Onboarding Flow:** Converted `OnboardingPage.tsx` to goal-first architecture (`create`, `improve`, `tailor`). Removed skip escape from step 1. Added tailoring prerequisite check that guides zero-resume users to build a base resume. Decoupled `OnboardingChecklist`. Fixed React Query destructuring bug (`const { data: resumes = [] } = useResumes();`).
+  - **Dashboard Empty State & Populated State:** Redesigned `EmptyState.tsx` into a calm single-composition card with exactly 2 primary CTAs ("Create Resume", "Upload Existing Resume"), ATS/AI benefit pills, and checklist slot. Cleaned up stacked layout tiers from `DashboardPage.tsx`. Added missing import for `DashboardDiscoverySection` in `DashboardPage.tsx`.
+  - **Remote Jobs Feed:** Migrated `useRemoteJobs.ts` to TanStack Query v5 `keepPreviousData` caching. In `RemoteJobsPage.tsx`, added 7 consolidated display group pills, responsive drawer filtering (`JobFiltersSheet.tsx`), scannable card layout, and complete Job Detail dialog with "Apply on website" and "Fast Tailor".
+  - **Settings Workspace:** Redesigned `SettingsPage.tsx` with sticky horizontal tabs (`account`, `preferences`, `notifications`, `privacy`, `help`), unified real-time client-side search with category tags and keyboard shortcut (`Cmd+K`/`Ctrl+K`), preserved deep links (`?tab=`, `?changelog=true`), and biometric controls. Verified 100% Arabic fallback coverage.
+  - **Subscription & Pricing Presentation:** Cleaned up 560 lines of dead unreachable JSX from `SubscriptionPage.tsx`. Realigned feature limit copy with canonical `planConfig.ts` limits (`200 AI actions/day` for Ultimate). Verified 3-tier SaaS pricing cards, golden Recommended badge, FAQ accordion, and 9-feature comparison matrix on `PricingPage.tsx`.
+- **Browser QA Matrix (198/198 PASS, 0 FAIL, 0px Overflow):**
+  - Automated Playwright QA executed across 6 surfaces and 6 viewports (Desktop EN 1280x800, Desktop AR Dark 1280x800, Tablet EN 768x1024, Mobile EN 390x844, Mobile AR Dark 390x844, Short Mobile EN 390x600).
+  - 0px horizontal overflow across all runs. All critical CTAs remain in-view on short-height 390x600 viewports. 43 screenshots captured.
+- **Verification & Build Integrity:**
+  - `npx tsc --noEmit`: 0 errors.
+  - `npm run build`: Production Vite build clean in 44.8s with zero sourcemap leaks.
+  - `git diff --check`: Clean (0 whitespace/formatting errors).
+  - `node --test tests/build/performance-build-contract.test.cjs`: 3/3 passed.
+  - `npm run test:i18n`: 11/11 namespaces passed.
+  - `npm run test:i18n:coverage`: 13/13 surfaces passed.
+  - Full redesign Vitest suites: 59/59 tests passed across 7 test files.
+
 ### 2026-09-10 - Whop invoice.created Compatibility Hotfix & Preflight Pass
 
 - **Verdict:** `WHOP_PRODUCTION_PREFLIGHT_PASS__READY_FOR_FIRST_LIVE_TRANSACTION` (Status: `PRODUCTION_WEBHOOK_HOTFIX_DEPLOYED_AND_VERIFIED__PREFLIGHT_PASSED`).

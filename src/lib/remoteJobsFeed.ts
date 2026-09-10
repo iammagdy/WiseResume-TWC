@@ -109,6 +109,80 @@ export const ROLE_GROUPS: { id: RoleGroup | 'all'; label: string }[] = [
 ];
 
 /**
+ * Consolidated Display Groups for the Jobs Feed UI
+ *
+ * Maps the 20 ROLE_GROUPS into a smaller set of visible tabs/pills.
+ * The canonical ROLE_GROUPS array above remains the source of truth for
+ * classification; this mapping is presentation-only.
+ */
+export type DisplayGroupId =
+  | 'all'
+  | 'easy_entry'
+  | 'marketing_content'
+  | 'support_admin'
+  | 'tech'
+  | 'design_creative'
+  | 'more';
+
+export interface DisplayGroup {
+  id: DisplayGroupId;
+  label: string;
+  /** The RoleGroup IDs that map into this display group */
+  roleGroups: (RoleGroup | 'all')[];
+}
+
+export const DISPLAY_GROUPS: DisplayGroup[] = [
+  {
+    id: 'all',
+    label: 'All Jobs',
+    roleGroups: ['all'],
+  },
+  {
+    id: 'easy_entry',
+    label: 'Easy & Entry Level',
+    roleGroups: ['easy_entry_level', 'data_entry', 'virtual_assistant'],
+  },
+  {
+    id: 'marketing_content',
+    label: 'Marketing & Content',
+    roleGroups: ['marketing', 'content_creator', 'content_writer', 'social_media', 'writing', 'sales'],
+  },
+  {
+    id: 'support_admin',
+    label: 'Support & Admin',
+    roleGroups: ['customer_support', 'admin', 'operations', 'hr_recruiting'],
+  },
+  {
+    id: 'tech',
+    label: 'Tech & Engineering',
+    roleGroups: ['tech_programming'],
+  },
+  {
+    id: 'design_creative',
+    label: 'Design & Creative',
+    roleGroups: ['design'],
+  },
+  {
+    id: 'more',
+    label: 'More',
+    roleGroups: ['finance', 'education', 'healthcare', 'other'],
+  },
+];
+
+/**
+ * Resolve a display group ID to its constituent role group IDs.
+ * Returns `undefined` for 'all' (meaning no filter should be applied).
+ */
+export function resolveDisplayGroupToRoleGroups(
+  displayGroupId: DisplayGroupId,
+): RoleGroup[] | undefined {
+  if (displayGroupId === 'all') return undefined;
+  const group = DISPLAY_GROUPS.find((g) => g.id === displayGroupId);
+  if (!group) return undefined;
+  return group.roleGroups.filter((id): id is RoleGroup => id !== 'all');
+}
+
+/**
  * Strong Deduplication Key Generator
  * Primary: source + ":" + source_job_id
  * Fallback: lower(company) + "|" + lower(title) + "|" + canonical_url

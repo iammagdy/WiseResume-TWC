@@ -67,3 +67,37 @@
 * Browser code must not query the `broadcasts` collection directly. Collection permissions remain empty; normal users have no create, update, delete, activate, or schedule access.
 * The canonical status field is `active`; the only approved schedule field is optional `expires_at`. Start-time scheduling is not part of the current contract.
 * Session dismissal remains browser-local. Disabling the authenticated policy clears loaded Broadcast state so logout cannot retain a prior workspace banner.
+
+---
+
+## Core Workspace & Surface Architecture (2026 Refresh)
+
+### 1. Onboarding Flow (`src/pages/OnboardingPage.tsx`)
+* **Goal-First Sequence:** Direct choice on step 1 between `create` (build from scratch), `improve` (upload & upgrade), or `tailor` (match to specific job).
+* **Skip Guard Policy:** Step 1 requires deliberate intent selection; "Skip for now" is strictly hidden on step 1 and only presented on step 2+.
+* **Tailoring Prerequisite Check:** Before launching tailoring, the system verifies existing resume count. If zero, guides user into base resume creation first rather than failing or showing confusing empty pickers.
+* **Compact Single-Viewport Layout:** Eliminates page-level scrolling during onboarding; compact selection cards with clear visual feedback.
+
+### 2. Dashboard Empty State (`src/components/dashboard/EmptyState.tsx`)
+* **Unified Single Composition:** Replaced historical 5-tier stacked layouts with a calm, focused hero card.
+* **Dual Primary CTAs:** Exactly 2 clear starting paths: "Create Resume" (primary) and "Upload Existing Resume" (secondary). Does not offer job optimization before a document exists.
+* **Benefit Signals:** Highlighted capability pills for ATS score optimization, AI job tailoring, and instant PDF export.
+* **Decoupled Checklist Slot:** Renders `OnboardingChecklist` seamlessly inside the empty-state slot for users who skipped onboarding.
+
+### 3. Remote Jobs Feed (`src/pages/RemoteJobsPage.tsx`, `src/hooks/useRemoteJobs.ts`, `src/lib/remoteJobsFeed.ts`)
+* **7 Consolidated Display Groups:** `All`, `Easy & Entry`, `Marketing & Content`, `Support & Admin`, `Tech`, `Design & Creative`, `More`. Consolidated from 20+ fine-grained role groups via `resolveDisplayGroupToRoleGroups`.
+* **Scan-Friendly Card Hierarchy (`JobCard.tsx`):** Title → Company → Location → Posted Date → Salary. Removes long excerpts from card surface; features primary "View Job" modal trigger, secondary "Fast Tailor" CTA, and direct apply link.
+* **TanStack Query Caching:** Uses `placeholderData: keepPreviousData` (TanStack Query v5) to eliminate layout flicker when switching filters; shows subtle background refresh indicator.
+* **Mobile Drawer & Desktop Filters:** Mobile uses accessible bottom drawer (`JobFiltersSheet.tsx`); desktop provides expandable advanced filter bar.
+
+### 4. Settings Workspace (`src/pages/SettingsPage.tsx`)
+* **Horizontal Sticky Tabs:** Deep-linked tabs (`?tab=`) for `account`, `preferences`, `notifications`, `privacy`, and `help`. Sticky header with smooth horizontal scrolling on mobile viewports.
+* **Unified Client-Side Search:** Real-time search (`SettingsSearchInput.tsx`, Cmd+K / Ctrl+K) filtering across all settings sections simultaneously, with category pills and clear empty state.
+* **Preserved Deep Links:** Full backward compatibility for `?tab=account&changelog=true` and other legacy query parameters.
+* **Biometrics & Security:** Preserved native biometric lock, Appwrite auth mutation hooks, and audit log controls.
+* **i18n & RTL Compliance:** 100% Arabic fallback coverage verified against automated coverage scripts.
+
+### 5. Subscription & Pricing Presentation (`src/pages/SubscriptionPage.tsx`, `src/pages/PricingPage.tsx`)
+* **Strict Boundary Isolation:** Payment processing, webhooks, checkout tokens, and Appwrite billing functions remain completely untouched.
+* **Presentation Layer Cleanup:** Eliminated 560 lines of unreachable duplicate JSX dead code.
+* **Truthful Feature Copy:** Aligned feature limits in presentation components (`PLAN_FEATURES.premium`) with canonical backend limits (`200 AI actions/day` in `planConfig.ts`).

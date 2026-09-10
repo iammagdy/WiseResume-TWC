@@ -1,5 +1,67 @@
 # Project Atlas — Active Operational & Handover State
 
+## Frontend & Product UX Redesign Session (2026-09-10)
+
+* **Verdict:** `BROWSER_TESTED_LOCAL_WITH_CONTROLLED_FIXTURES`
+* **Status:** `BRANCH_LOCAL_BROWSER_TESTED__ZERO_COMMITS__ZERO_PUSHES__PAYMENTS_FROZEN`
+* **Branch:** `visual/frontend-product-experience-refresh`
+* **Session Boundary & Payment Invariant Compliance:**
+  - `PAYMENT_FILES_TOUCHED = NO` (`src/lib/planConfig.ts`, `src/lib/billingCheckout.ts`, `src/components/subscription/PaymentConfirmationModal.tsx` remain strictly identical to origin/main).
+  - `APPWRITE_BACKEND_MUTATED = NO` (No function deployment, no database migration, no secrets changed).
+  - `EXTERNAL_CONSOLES_CHANGED = NO` (Zero changes to Vercel, GitHub Actions, Whop, PayPal, RevenueCat).
+  - `GIT_OPERATIONS = LOCAL_WORKING_TREE_ONLY` (0 commits created, 0 pushes dispatched).
+* **Summary of Delivered Redesign Workstreams:**
+  1. **Phase 1 (Shared Foundations):**
+     - Created `src/components/settings/SettingsTabLayout.tsx`: Responsive sticky tab bar with deep linking (`?tab=`) and full RTL support.
+     - Created `src/components/settings/SettingsSearchInput.tsx`: Search bar with `Cmd+K`/`Ctrl+K` keyboard shortcut and RTL logical padding.
+     - Created `src/components/jobs/JobCard.tsx`: Scannable hierarchy (Title → Company → Location → Date → Salary), source badge demoted, raw snippet removed, primary CTA "View Job", secondary CTA "Fast Tailor".
+     - Created `src/components/jobs/JobCardSkeleton.tsx`: Polished loading placeholder.
+     - Created `src/components/jobs/JobFiltersSheet.tsx`: Mobile slide-up drawer for job filter controls.
+     - Created `src/lib/remoteJobsFeed.ts`: 7 consolidated display groups with taxonomy mapping.
+  2. **Phase 2 (Onboarding Flow):**
+     - Updated `src/pages/OnboardingPage.tsx`: Goal-first intake (`create`, `improve`, `tailor`). "Skip for now" is strictly hidden on step 1 and visible on step 2+.
+     - Added tailoring prerequisite guard: checks resume count; if 0, guides user to build a base resume first.
+     - Added optional resume name field in Create step (`manualResumeTitle` state) with fallback to `${profile.jobTitle} Resume` or 'My Resume'.
+     - Decoupled `OnboardingChecklist` so it renders gracefully for skipped/empty state users.
+     - Updated `src/pages/DashboardPage.tsx` with authoritative redirect resolution.
+     - Tests: `src/pages/__tests__/OnboardingPage.test.tsx` (7/7 passing).
+  3. **Phase 3 (Dashboard Empty State & Populated State):**
+     - Updated `src/components/dashboard/EmptyState.tsx`: Calm single-composition card. Exactly 2 primary CTAs ("Create Resume" and "Upload Existing Resume"). Contextual capability pills and checklist integration slot.
+     - Removed 5-tier stacked layouts from `src/pages/DashboardPage.tsx` while strictly preserving populated resume grid and full dashboard logic.
+     - Tests: `src/components/dashboard/__tests__/EmptyState.test.tsx` (2/2 passing).
+  4. **Phase 4 (Remote Jobs Feed):**
+     - Updated `src/hooks/useRemoteJobs.ts`: Migrated to TanStack Query v5 `keepPreviousData` caching, comprehensive query keys, 3-tier fallback, and multi-group filter support.
+     - Updated `src/pages/RemoteJobsPage.tsx`: 7 pill tabs, responsive mobile drawer filter sheet, full-screen Job Details Dialog with "Apply on website" and "Fast Tailor".
+     - Tests: `src/pages/__tests__/RemoteJobsPage.test.tsx` (5/5 passing).
+  5. **Phase 5 (Settings Page Redesign):**
+     - Updated `src/pages/SettingsPage.tsx`: Top horizontal sticky tabs (`account`, `preferences`, `notifications`, `privacy`, `help`), unified real-time client-side search across all sections, category filter pills, preserved deep links, and biometric controls.
+     - 100% Arabic fallback compliance.
+     - Tests: `src/pages/__tests__/SettingsPage.test.tsx` (4/4 passing), `src/i18n/__tests__/criticalArabicCoverage.test.ts` (6/6 passing).
+  6. **Phase 6 (Subscription & Pricing Presentation):**
+     - Updated `src/pages/SubscriptionPage.tsx`: Removed 560 lines of dead unreachable duplicate JSX. Truncated cleanly to active return block. Aligned copy with `planConfig.ts` limits (`200 AI actions/day` for Ultimate).
+     - Updated `src/pages/PricingPage.tsx`: Implemented SaaS 3-tier presentation (Free $0/mo, Pro $5/mo, Ultimate $10/mo visibly Recommended with golden glow), concise trust signals hero, expandable 9-feature matrix table, and accessible FAQ accordion.
+     - Preserved all payment boundaries, rank logic, and translation fallbacks.
+     - Tests: `src/pages/__tests__/SubscriptionPage.paypal.test.tsx` (31/31 passing), `src/pages/__tests__/PricingPage.test.tsx` (4/4 passing).
+  7. **Phase 7 & 8 (Regression, Types & Vitest Sweep):**
+     - `npx tsc --noEmit`: 0 errors.
+     - `npm run build`: Production Vite build completed cleanly in 44.8s with zero sourcemap leaks.
+     - `git diff --check`: Clean (0 whitespace/formatting errors).
+     - `npm run test:i18n:coverage`: 13/13 surfaces passing.
+     - Full redesign Vitest suites: 59/59 passing across all 7 test files.
+  8. **Phase 9 (Final Local Browser QA & Responsive Matrix Verification):**
+     - Executed automated Playwright QA suite across 6 surfaces and 6 viewports: 198/198 passed, 0 failed, 0px horizontal overflow across all runs.
+     - Desktop EN Light (1280x800): 33/33 PASS, 0px overflow.
+     - Desktop AR Dark RTL (1280x800): 33/33 PASS, 0px overflow.
+     - Tablet EN Light (768x1024): 33/33 PASS, 0px overflow.
+     - Mobile EN Light (390x844): 33/33 PASS, 0px overflow.
+     - Mobile AR Dark RTL (390x844): 33/33 PASS, 0px overflow.
+     - Short Mobile EN Light (390x600): 33/33 PASS, 0px overflow (critical CTAs stay in-view).
+     - Small QA Bug Fixes Applied:
+       1. Fixed `OnboardingPage.tsx` React Query destructuring `const { data: resumes = [] } = useResumes();` (resolved `TypeError` on goal selection).
+       2. Fixed `DashboardPage.tsx` missing import for `DashboardDiscoverySection` (resolved `ReferenceError` when populated dashboard renders).
+     - Verified 0 console errors, 0 page errors, and captured 43 PNG screenshots.
+     - Protected files remain 100% clean and untouched. Status ready for owner commit review.
+
 ## Whop invoice.created Compatibility Hotfix & Preflight Pass (2026-09-10)
 
 * **Verdict:** `WHOP_PRODUCTION_PREFLIGHT_PASS__READY_FOR_FIRST_LIVE_TRANSACTION`
