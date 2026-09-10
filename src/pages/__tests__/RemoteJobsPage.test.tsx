@@ -52,11 +52,25 @@ vi.mock('sonner', () => ({
   },
 }));
 
-// Mock useTranslation
+// Mock useTranslation and react-i18next
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string, defaultValue?: string) => defaultValue || key,
     i18n: { language: 'en' },
+  }),
+  initReactI18next: {
+    type: '3rdParty',
+    init: vi.fn(),
+  },
+}));
+
+// Mock LocaleProvider
+vi.mock('@/i18n/LocaleProvider', () => ({
+  useLocale: () => ({
+    t: (key: string, fallback?: string) => fallback || key,
+    direction: 'ltr',
+    locale: 'en',
+    setLocale: vi.fn(),
   }),
 }));
 
@@ -150,7 +164,7 @@ vi.mock('@/hooks/useRemoteJobs', () => ({
 }));
 
 describe('RemoteJobsPage Component', () => {
-  it('renders the header title and job card details', () => {
+  it('renders the header title and job card details', async () => {
     const queryClient = new QueryClient();
     render(
       <QueryClientProvider client={queryClient}>
@@ -164,9 +178,17 @@ describe('RemoteJobsPage Component', () => {
     expect(screen.getByText('Find remote opportunities and tailor your resume in one click.')).toBeInTheDocument();
     expect(screen.getByText('Senior React Developer')).toBeInTheDocument();
     expect(screen.getByText('TechCorp')).toBeInTheDocument();
-    expect(screen.getByText('Apply on website')).toBeInTheDocument();
+    expect(screen.getByText('View Job')).toBeInTheDocument();
     expect(screen.getByText('Fast Tailor')).toBeInTheDocument();
-    expect(screen.getByText('Configure Hub')).toBeInTheDocument();
+
+    // Clicking View Job opens the modal with full actions
+    await act(async () => {
+      screen.getByText('View Job').click();
+    });
+    await waitFor(() => {
+      expect(screen.getByText('Apply on website')).toBeInTheDocument();
+      expect(screen.getByText('Configure Hub')).toBeInTheDocument();
+    });
   });
 
   it('displays the loading state when Fast Tailor is clicked', async () => {

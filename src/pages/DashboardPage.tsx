@@ -17,8 +17,6 @@ import { ResumeListCard } from '@/components/dashboard/ResumeListCard';
 import { ResumeGroup, organizeResumeHierarchy } from '@/components/dashboard/ResumeGroup';
 import { EmptyState } from '@/components/dashboard/EmptyState';
 import { SkeletonCardList } from '@/components/ui/skeleton-card';
-import { DashboardStats } from '@/components/dashboard/DashboardStats';
-import { DashboardTopBar } from '@/components/dashboard/DashboardTopBar';
 import { DashboardWorkspaceLayout } from '@/components/dashboard/DashboardWorkspaceLayout';
 import { DashboardWorkspaceToolbar } from '@/components/dashboard/DashboardWorkspaceToolbar';
 import { DashboardTopCommandBar } from '@/components/dashboard/DashboardTopCommandBar';
@@ -35,7 +33,6 @@ import {
   countResumesWithJobMatchScore,
   countTailoredResumesThisWeek,
 } from '@/components/dashboard/dashboardMetricsUtils';
-import { DashboardHero } from '@/components/dashboard/DashboardHero';
 import { useSettingsStore } from '@/store/settingsStore';
 import { FeatureMapSheet } from '@/components/layout/FeatureMapSheet';
 import { trackSession } from '@/lib/discoveryManager';
@@ -113,7 +110,7 @@ function DashboardPageContent() {
     return ids;
   }, [tailorHistory, appwriteTailoredIds]);
   const { scoreResume, scoringId } = useResumeScore();
-  const { profile } = useProfile(user?.id);
+  const { profile, loading: profileLoading } = useProfile(user?.id);
   const { plan } = usePlan();
   const { hasNew: hasNewChangelog } = useChangelogBadge();
   usePlanUpgradeCelebration();
@@ -327,93 +324,55 @@ function DashboardPageContent() {
   // prevents loops if the user navigates back here without finishing
   // onboarding — in that case the legacy "complete profile" banner is
   // shown so they can dismiss it and stay on the dashboard.
+  // Authoritative onboarding resolution (Correction 2):
+  // Dashboard must NOT decide to auto-redirect to onboarding until the
+  // authoritative profile/onboarding state required by current architecture has resolved.
+  // We wait until !resumesQueryLoading && !profileLoading && authSettled.
   useEffect(() => {
-    if (!user || resumesQueryLoading) return;
-    const run = async () => {
-      try {
-        // Per-user completion key — avoids shared-browser bleed where User A
-        // finishing onboarding would silently skip the probe for User B
-        // after a sign-out / sign-in on the same device.
-        const completedKey = `wr-onboarding-completed-${user.id}`;
-        if (localStorage.getItem(completedKey) === 'true') return;
+    if (!user || !authSettled || resumesQueryLoading || profileLoading) return;
 
-        let data: Record<string, unknown> | null = null;
-        try {
-          const { databases: db, DATABASE_ID: dbId, Query: q } = await import('@/lib/appwrite');
-          const { COLLECTIONS: cols } = await import('@/lib/appwrite-collections');
-          const profileRes = await db.listDocuments(dbId, cols.profiles, [
-            q.equal('user_id', user.id),
-            q.select(['$id', 'onboarding_completed']),
-            q.limit(1),
-          ]);
-          data = (profileRes.documents[0] as Record<string, unknown>) ?? null;
-        } catch (apiErr) {
-          // Network / Appwrite error — show the banner as a fallback so
-          // the user can still get to onboarding manually. Do NOT cache the
-          // outcome so the next mount retries.
-          console.warn('[DashboardPage] Onboarding profile check error:', apiErr);
-          if (!sessionStorage.getItem('wr-dismissed-profile-banner')) {
-            setShowProfileBanner(true);
-          }
-          return;
-        }
+    const completedKey = `wr-onboarding-completed-${user.id}`;
+    const redirectFlag = `wr-onboarding-redirect-attempted-${user.id}`;
 
-        if (data?.onboarding_completed) {
-          localStorage.setItem(completedKey, 'true');
-          // Clean up the per-user redirect flag so a future signed-out /
-          // signed-in cycle on the same browser starts clean.
-          try { sessionStorage.removeItem(`wr-onboarding-redirect-attempted-${user.id}`); } catch { /* ignore */ }
-          return;
-        }
+    // 1. Confirmed completed in Appwrite profile
+    if (profile?.onboarding_completed) {
+      try { localStorage.setItem(completedKey, 'true'); } catch { /* ignore */ }
+      try { sessionStorage.removeItem(redirectFlag); } catch { /* ignore */ }
+      return;
+    }
 
-        // Decide whether onboarding still needs to run.
-        let needsOnboarding = false;
-        if (data && !data.onboarding_completed) {
-          // Try to reconcile: if a resume row already exists, the earlier
-          // writes succeeded — flip the flag and treat as completed.
-          const { reconcileOnboardingCompletion } = await import('@/lib/onboardingProfile');
-          const fixed = await reconcileOnboardingCompletion(user.id);
-          if (fixed) {
-            localStorage.setItem(completedKey, 'true');
-            try { sessionStorage.removeItem(`wr-onboarding-redirect-attempted-${user.id}`); } catch { /* ignore */ }
-            return;
-          }
-          needsOnboarding = true;
-        }
-        // data === null means brand-new user with no profile row yet — treat as onboarding needed.
-        if (!data) {
-          needsOnboarding = true;
-        }
-
-        if (needsOnboarding) {
-          // First time we hit this branch in the session: send the user to
-          // /onboarding so they actually see the flow. The redirect is
-          // intentionally NOT gated on the dismissed-profile-banner flag —
-          // a brand-new user must always be taken to onboarding, even if a
-          // previous tab in the same session dismissed the banner. The
-          // per-user redirect-attempted session flag self-throttles to one
-          // attempt per user per session, so loops are not possible. If
-          // they navigate back here without completing onboarding, fall
-          // through to the dismissable banner instead.
-          const redirectFlag = `wr-onboarding-redirect-attempted-${user.id}`;
-          if (!sessionStorage.getItem(redirectFlag)) {
-            sessionStorage.setItem(redirectFlag, '1');
-            navigate('/onboarding', { replace: true });
-            return;
-          }
-          if (!sessionStorage.getItem('wr-dismissed-profile-banner')) {
-            setShowProfileBanner(true);
-          }
-        }
-      } catch (err) {
-        console.warn('[DashboardPage] Onboarding check unexpected exception:', err);
-        if (!sessionStorage.getItem('wr-dismissed-profile-banner')) {
-          setShowProfileBanner(true);
-        }
+    // 2. User already has at least one resume (they are an active user)
+    if (resumes && resumes.length > 0) {
+      try { localStorage.setItem(completedKey, 'true'); } catch { /* ignore */ }
+      try { sessionStorage.removeItem(redirectFlag); } catch { /* ignore */ }
+      // Reconcile in the background if profile flag was false
+      if (profile && !profile.onboarding_completed) {
+        import('@/lib/onboardingProfile').then(({ reconcileOnboardingCompletion }) => {
+          reconcileOnboardingCompletion(user.id);
+        }).catch(() => {});
       }
-    };
-    run();
-  }, [user, navigate, resumesQueryLoading]);
+      return;
+    }
+
+    // 3. Local storage cache indicates completed
+    if (localStorage.getItem(completedKey) === 'true') {
+      return;
+    }
+
+    // 4. Truly a new user with 0 resumes and incomplete profile.
+    // Self-throttle to at most one redirect per user per session to avoid loops.
+    if (!sessionStorage.getItem(redirectFlag)) {
+      sessionStorage.setItem(redirectFlag, '1');
+      navigate('/onboarding', { replace: true });
+      return;
+    }
+
+    // If already attempted this session (e.g. user pressed Back or navigated here),
+    // do not redirect again. Show dismissible banner if not previously dismissed.
+    if (!sessionStorage.getItem('wr-dismissed-profile-banner')) {
+      setShowProfileBanner(true);
+    }
+  }, [user, authSettled, resumesQueryLoading, profileLoading, profile, resumes, navigate]);
 
   // Persist flag when user has at least one resume (guards against stale quickstart localStorage)
   useEffect(() => {
@@ -683,9 +642,8 @@ function DashboardPageContent() {
     ];
   }, [effectiveHealthScores, resumes, t, exportedChecked, profile?.portfolioEnabled]);
 
-  const onboardingCompleted = user?.id ? localStorage.getItem(`wr-onboarding-completed-${user.id}`) === 'true' : false;
   const isPowerUser = resumes.length >= 3 || resumes.some(r => r.parent_resume_id);
-  const showChecklist = !!user && onboardingCompleted && !checklistDismissed && !showProfileBanner && !isPowerUser && !checklistSteps.every(s => s.done);
+  const showChecklist = !!user && !checklistDismissed && !showProfileBanner && !isPowerUser && !checklistSteps.every(s => s.done);
 
   const handleDismissChecklist = useCallback(() => {
     setChecklistDismissed(true);
@@ -784,33 +742,6 @@ function DashboardPageContent() {
             hasWorkspace && 'flex min-h-0 flex-1 flex-col',
           )}
         >
-          {showEmptyDashboard && (
-            <>
-              <DashboardTopBar
-                hasResumes={false}
-                compact={false}
-                onOptimize={handleFeaturedTailor}
-                onBuild={handleCreateNew}
-              />
-              <DashboardStats
-                totalResumes={0}
-                healthScores={effectiveHealthScores}
-                userName={profile?.fullName}
-                userId={user?.id}
-              />
-            </>
-          )}
-
-          {showEmptyDashboard && (
-            <DashboardHero
-              hasResumes={false}
-              onBuild={handleCreateNew}
-              onTailor={handleHeroTailor}
-            />
-          )}
-
-          {/* Filter/Sort bar removed — simplified UI */}
-
           {/* Content */}
           {resumesError && !resumes && !navigator.onLine ? (
             /* Offline and no cached data — show specific offline state */
@@ -846,9 +777,23 @@ function DashboardPageContent() {
               </Button>
             </div>
           ) : showEmptyDashboard ? (
-            <>
-              <EmptyState onCreateNew={handleCreateNew} onBrowseTemplates={() => setShowCreateDialog(true)} onStartOnboarding={() => navigate('/onboarding')} onImportProfile={() => setShowLinkedInImport(true)} />
-            </>
+            <div className="flex-1 flex flex-col items-center justify-center min-h-[calc(100dvh-12rem)] px-4 py-8">
+              <EmptyState
+                onCreateNew={handleCreateNew}
+                onUploadResume={() => navigate('/upload')}
+                checklist={
+                  showChecklist && (
+                    <div className="w-full max-w-md mt-4">
+                      <OnboardingChecklist
+                        steps={checklistSteps}
+                        onDismiss={handleDismissChecklist}
+                        defaultCollapsed
+                      />
+                    </div>
+                  )
+                }
+              />
+            </div>
           ) : (
             <DashboardWorkspaceLayout
               topBar={
@@ -1176,12 +1121,6 @@ function DashboardPageContent() {
               </div>
               </div>
             </DashboardWorkspaceLayout>
-          )}
-
-          {showEmptyDashboard && (
-            <div className="px-3 sm:px-4 lg:px-6 max-w-3xl mx-auto w-full">
-              <DashboardDiscoverySection />
-            </div>
           )}
         </div>
       </PullToRefresh>
